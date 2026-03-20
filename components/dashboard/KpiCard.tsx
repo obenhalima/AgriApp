@@ -2,23 +2,23 @@ type KpiCardProps = {
   label: string
   value: string
   sub?: string
-  color?: 'tomato' | 'green' | 'amber' | 'blue' | 'leaf' | 'rust' | 'neutral'
+  color?: 'tomato' | 'green' | 'amber' | 'blue' | 'leaf' | 'rust' | 'red' | 'purple' | 'neutral'
   icon?: string
   progress?: number
 }
 
-const SUB_COLOR: Record<string, string> = {
+const COLOR_MAP: Record<string, string> = {
   tomato: '#d94535', green: '#5a7a35', amber: '#c8882a',
-  blue: '#4a8ab0', leaf: '#7aab45', rust: '#c04a25', neutral: '#9b8a6e'
+  blue: '#4a8ab0', leaf: '#7aab45', rust: '#c04a25',
+  red: '#c04a25', purple: '#c8882a', neutral: '#9b8a6e'
 }
 
 export function KpiCard({ label, value, sub, color = 'neutral', icon, progress }: KpiCardProps) {
-  const c = SUB_COLOR[color]
+  const c = COLOR_MAP[color] || '#9b8a6e'
+  const cssClass = color === 'red' ? 'rust' : color === 'purple' ? 'amber' : color
   return (
-    <div className={`kpi-card kpi-${color}`}>
-      {icon && (
-        <div className="absolute right-4 top-4 text-3xl opacity-15">{icon}</div>
-      )}
+    <div className={`kpi-card kpi-${cssClass}`}>
+      {icon && <div className="absolute right-4 top-4 text-3xl opacity-15">{icon}</div>}
       <div className="text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>
         {label}
       </div>
