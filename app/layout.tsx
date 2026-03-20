@@ -4,19 +4,22 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { Topbar } from '@/components/layout/Topbar'
 
 export const metadata: Metadata = {
-  title: 'TomatoPilot - Gestion Ferme de Tomates',
-  description: 'Application de gestion integree pour ferme de tomates sous serre',
+  title: 'TomatoPilot',
+  description: 'Gestion ferme de tomates sous serre',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr">
-      <body style={{ background:'var(--bg)' }}>
-        <div className="flex min-h-screen">
+    <html lang="fr" style={{ colorScheme: 'light', background: '#f4f9f4' }}>
+      <head>
+        <meta name="color-scheme" content="light" />
+      </head>
+      <body style={{ background: '#f4f9f4', color: '#1b3a2d', minHeight: '100vh' }}>
+        <div style={{ display: 'flex', minHeight: '100vh' }}>
           <Sidebar />
-          <div className="flex-1 flex flex-col" style={{ marginLeft: 200 }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: 200 }}>
             <Topbar />
-            <main className="flex-1">
+            <main style={{ flex: 1, background: '#f4f9f4' }}>
               {children}
             </main>
           </div>
