@@ -2,45 +2,52 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-const TITLES: Record<string, { title: string; action: string; href: string }> = {
-  '/':            { title:'Tableau de bord', action:'+ Saisir recolte', href:'/recoltes' },
-  '/serres':      { title:'Serres', action:'+ Nouvelle serre', href:'/serres' },
-  '/varietes':    { title:'Varietes', action:'+ Nouvelle variete', href:'/varietes' },
-  '/campagnes':   { title:'Campagnes', action:'+ Nouvelle campagne', href:'/campagnes' },
-  '/production':  { title:'Suivi production', action:'+ Saisir production', href:'/production' },
-  '/recoltes':    { title:'Recoltes', action:'+ Saisir recolte', href:'/recoltes' },
-  '/agronomie':   { title:'Agronomie', action:'+ Intervention', href:'/agronomie' },
-  '/marches':     { title:'Marches', action:'+ Nouveau marche', href:'/marches' },
-  '/clients':     { title:'Clients', action:'+ Nouveau client', href:'/clients' },
-  '/commandes':   { title:'Commandes', action:'+ Nouvelle commande', href:'/commandes' },
-  '/factures':    { title:'Factures', action:'+ Nouvelle facture', href:'/factures' },
-  '/fournisseurs':{ title:'Fournisseurs', action:'+ Nouveau fournisseur', href:'/fournisseurs' },
-  '/achats':      { title:'Bons de commande', action:'+ Bon de commande', href:'/achats' },
-  '/stocks':      { title:'Stocks', action:'+ Mouvement stock', href:'/stocks' },
-  '/couts':       { title:'Couts & Budget', action:'+ Saisir cout', href:'/couts' },
-  '/marges':      { title:'Marges', action:'', href:'' },
-  '/analytique':  { title:'IA & Previsions', action:'', href:'' },
-  '/alertes':     { title:'Alertes', action:'', href:'' },
+const PAGES: Record<string, { title: string; btn?: string; href?: string }> = {
+  '/':            { title: 'Tableau de bord',     btn: '+ Saisir recolte',      href: '/recoltes' },
+  '/serres':      { title: 'Serres',               btn: '+ Nouvelle serre',      href: '/serres' },
+  '/varietes':    { title: 'Varietes',             btn: '+ Nouvelle variete',    href: '/varietes' },
+  '/campagnes':   { title: 'Campagnes',            btn: '+ Nouvelle campagne',   href: '/campagnes' },
+  '/production':  { title: 'Suivi production',     btn: '+ Saisir production',   href: '/production' },
+  '/recoltes':    { title: 'Recoltes',             btn: '+ Nouvelle recolte',    href: '/recoltes' },
+  '/agronomie':   { title: 'Agronomie',            btn: '+ Intervention',        href: '/agronomie' },
+  '/marches':     { title: 'Marches',              btn: '+ Nouveau marche',      href: '/marches' },
+  '/clients':     { title: 'Clients',              btn: '+ Nouveau client',      href: '/clients' },
+  '/commandes':   { title: 'Commandes',            btn: '+ Nouvelle commande',   href: '/commandes' },
+  '/factures':    { title: 'Factures',             btn: '+ Nouvelle facture',    href: '/factures' },
+  '/fournisseurs':{ title: 'Fournisseurs',         btn: '+ Nouveau fournisseur', href: '/fournisseurs' },
+  '/achats':      { title: 'Bons de commande',     btn: '+ Bon de commande',     href: '/achats' },
+  '/stocks':      { title: 'Stocks',               btn: '+ Mouvement stock',     href: '/stocks' },
+  '/couts':       { title: 'Couts & Budget',       btn: '+ Saisir cout',         href: '/couts' },
+  '/marges':      { title: 'Marges & Rentabilite' },
+  '/analytique':  { title: 'IA & Previsions' },
+  '/alertes':     { title: 'Alertes' },
 }
 
 export function Topbar() {
   const pathname = usePathname()
-  const page = TITLES[pathname] || { title: 'TomatoPilot', action: '', href: '' }
+  const page = PAGES[pathname] || { title: 'TomatoPilot' }
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between px-6"
-      style={{ height:52, background:'#fff', borderBottom:'1px solid var(--border)', boxShadow:'0 1px 3px rgba(27,58,45,0.06)' }}>
-      <div>
-        <h1 style={{ fontFamily:'Syne,sans-serif', fontSize:15, fontWeight:700, color:'var(--text)' }}>{page.title}</h1>
+    <header style={{
+      height: 52, position: 'sticky', top: 0, zIndex: 40,
+      background: '#ffffff', borderBottom: '1px solid #cce5d4',
+      boxShadow: '0 1px 4px rgba(27,58,45,0.07)',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '0 24px',
+    }}>
+      <div style={{ fontFamily:'Syne,sans-serif', fontSize:15, fontWeight:700, color:'#1b3a2d' }}>
+        {page.title}
       </div>
-      <div className="flex items-center gap-2">
+      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
         <div className="chip">🌱 Campagne 2025-2026</div>
-        <Link href="/alertes" className="chip" style={{ background:'#fce4e5', borderColor:'#fcc', color:'#9b1d1d' }}>
-          ⚠ 3 alertes
+        <Link href="/alertes" style={{ textDecoration:'none' }}>
+          <div className="chip" style={{ background:'#fce4e5', borderColor:'#fcc', color:'#9b1d1d' }}>
+            ⚠ 3 alertes
+          </div>
         </Link>
-        {page.action && (
-          <Link href={page.href}>
-            <button className="btn-primary" style={{ fontSize:12, padding:'6px 14px' }}>
-              {page.action}
+        {page.btn && page.href && (
+          <Link href={page.href} style={{ textDecoration:'none' }}>
+            <button className="btn-primary">
+              {page.btn}
             </button>
           </Link>
         )}
