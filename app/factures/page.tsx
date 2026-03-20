@@ -1,91 +1,151 @@
 'use client'
-import { KpiCard } from '@/components/dashboard/KpiCard'
+import { useState } from 'react'
 
 const FACTURES = [
-  { num:'FV-2026-0089', client:'Souss Export SARL', date:'12/03/2026', echeance:'11/04/2026', montant:48500, statut:'en_attente' },
-  { num:'FV-2026-0088', client:'Marjane Distribution', date:'08/03/2026', echeance:'07/04/2026', montant:32800, statut:'partiellement_paye' },
-  { num:'FV-2026-0087', client:'EuroVeggie BV', date:'05/03/2026', echeance:'04/04/2026', montant:67200, statut:'en_attente' },
-  { num:'FV-2026-0086', client:'Groupe Carrefour', date:'01/03/2026', echeance:'31/03/2026', montant:41000, statut:'en_retard' },
-  { num:'FV-2026-0085', client:'Atlas Fresh Ltd', date:'25/02/2026', echeance:'26/03/2026', montant:29500, statut:'paye' },
-  { num:'FV-2026-0084', client:'Marché Central Agadir', date:'20/02/2026', echeance:'21/03/2026', montant:12800, statut:'paye' },
+  { num:'FV-2026-0089', client:'Souss Export SARL',     date:'12/03/2026', echeance:'11/04/2026', montant:48500, statut:'en_attente' },
+  { num:'FV-2026-0088', client:'Marjane Distribution',   date:'08/03/2026', echeance:'07/04/2026', montant:32800, statut:'part_paye'  },
+  { num:'FV-2026-0087', client:'EuroVeggie BV',          date:'05/03/2026', echeance:'04/04/2026', montant:67200, statut:'en_attente' },
+  { num:'FV-2026-0086', client:'Groupe Carrefour',       date:'01/03/2026', echeance:'31/03/2026', montant:41000, statut:'en_retard'  },
+  { num:'FV-2026-0085', client:'Atlas Fresh Ltd',        date:'25/02/2026', echeance:'26/03/2026', montant:29500, statut:'paye'       },
+  { num:'FV-2026-0084', client:'Marche Central Agadir',  date:'20/02/2026', echeance:'21/03/2026', montant:12800, statut:'paye'       },
 ]
-
-const STATUS_STYLE: Record<string, string> = {
-  paye: 'bg-[#0d2149] text-[#388bfd]',
-  en_attente: 'bg-[#3d2e0a] text-[#d29922]',
-  partiellement_paye: 'bg-[#3d2e0a] text-[#d29922]',
-  en_retard: 'bg-[#4a1a1a] text-[#f85149]',
-}
-const STATUS_LABEL: Record<string, string> = {
-  paye: '● payé', en_attente: '● en attente',
-  partiellement_paye: '● part. payé', en_retard: '● en retard',
+const ST: Record<string,{ cls:string; label:string }> = {
+  paye:       { cls:'tag-blue',  label:'● Paye'          },
+  en_attente: { cls:'tag-amber', label:'● En attente'    },
+  part_paye:  { cls:'tag-amber', label:'● Part. paye'    },
+  en_retard:  { cls:'tag-red',   label:'● En retard'     },
 }
 
-const totalFacture = FACTURES.reduce((s, f) => s + f.montant, 0)
-const totalPaye = FACTURES.filter(f => f.statut === 'paye').reduce((s, f) => s + f.montant, 0)
-const totalAttente = FACTURES.filter(f => f.statut === 'en_attente' || f.statut === 'partiellement_paye').reduce((s, f) => s + f.montant, 0)
-const totalRetard = FACTURES.filter(f => f.statut === 'en_retard').reduce((s, f) => s + f.montant, 0)
+function Modal({ title, onClose, children }:{ title:string; onClose:()=>void; children:React.ReactNode }) {
+  return (
+    <div className="modal-overlay" onClick={e=>{ if(e.target===e.currentTarget) onClose() }}>
+      <div className="modal-box" onClick={e=>e.stopPropagation()}>
+        <div className="modal-header"><span className="modal-title">{title}</span><button className="modal-close" onClick={onClose}>✕</button></div>
+        <div className="modal-body">{children}</div>
+      </div>
+    </div>
+  )
+}
 
 export default function FacturesPage() {
+  const [modal, setModal] = useState<string|null>(null)
+  const [form, setForm] = useState({ client:'', date:'', echeance:'', montant:'', variete:'', notes:'' })
+  const [done, setDone] = useState(false)
+  const set=(k:string,v:string)=>setForm(f=>({...f,[k]:v}))
+  const save=()=>{ setDone(true); setTimeout(()=>{ setModal(null); setDone(false) },1400) }
+
+  const totalFact = FACTURES.reduce((s,f)=>s+f.montant,0)
+  const totalPaye = FACTURES.filter(f=>f.statut==='paye').reduce((s,f)=>s+f.montant,0)
+  const totalAttente = FACTURES.filter(f=>f.statut==='en_attente'||f.statut==='part_paye').reduce((s,f)=>s+f.montant,0)
+  const totalRetard = FACTURES.filter(f=>f.statut==='en_retard').reduce((s,f)=>s+f.montant,0)
+
   return (
-    <div>
-      <div className="flex items-start justify-between mb-5">
+    <div style={{ padding:'22px 26px', background:'#f4f9f4', minHeight:'100vh' }}>
+      {modal==='facture' && (
+        <Modal title="Nouvelle facture client" onClose={()=>setModal(null)}>
+          {done ? <div style={{ textAlign:'center', padding:'28px 0' }}><div style={{ fontSize:44, marginBottom:10 }}>✅</div><div style={{ fontSize:16, fontWeight:700, color:'#2d6a4f' }}>Facture creee !</div></div> : (<>
+            <div className="form-row">
+              <div className="form-group"><label className="form-label">Client</label>
+                <select className="form-input" value={form.client} onChange={e=>set('client',e.target.value)}>
+                  <option value="">-- Selectionner --</option>
+                  {['Souss Export SARL','Marjane Distribution','EuroVeggie BV','Groupe Carrefour','Atlas Fresh Ltd'].map(c=><option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="form-group"><label className="form-label">Montant (MAD)</label><input type="number" className="form-input" placeholder="0.00" value={form.montant} onChange={e=>set('montant',e.target.value)} /></div>
+            </div>
+            <div className="form-row">
+              <div className="form-group"><label className="form-label">Date facture</label><input type="date" className="form-input" value={form.date} onChange={e=>set('date',e.target.value)} /></div>
+              <div className="form-group"><label className="form-label">Date echeance</label><input type="date" className="form-input" value={form.echeance} onChange={e=>set('echeance',e.target.value)} /></div>
+            </div>
+            <div className="form-group"><label className="form-label">Variete / Produit</label>
+              <select className="form-input" value={form.variete} onChange={e=>set('variete',e.target.value)}>
+                <option value="">Tous produits</option>
+                {['Vitalia','Torero','Cherry Sun','Grappe Premium','Brillante'].map(v=><option key={v}>{v}</option>)}
+              </select>
+            </div>
+            <div className="form-group"><label className="form-label">Notes</label><textarea className="form-input" rows={2} placeholder="Conditions, remarques..." value={form.notes} onChange={e=>set('notes',e.target.value)} style={{ resize:'vertical' }} /></div>
+            <div className="modal-footer">
+              <button className="btn-ghost" onClick={()=>setModal(null)}>Annuler</button>
+              <button className="btn-primary" onClick={save} disabled={!form.client||!form.montant||!form.date}>Creer la facture</button>
+            </div>
+          </>)}
+        </Modal>
+      )}
+      {modal==='paiement' && (
+        <Modal title="Enregistrer un paiement" onClose={()=>setModal(null)}>
+          {done ? <div style={{ textAlign:'center', padding:'28px 0' }}><div style={{ fontSize:44, marginBottom:10 }}>✅</div><div style={{ fontSize:16, fontWeight:700, color:'#2d6a4f' }}>Paiement enregistre !</div></div> : (<>
+            <div className="form-group"><label className="form-label">Facture</label>
+              <select className="form-input"><option>FV-2026-0086 · Carrefour · 41 000 MAD</option>{FACTURES.filter(f=>f.statut!=='paye').map(f=><option key={f.num}>{f.num} · {f.client} · {f.montant.toLocaleString('fr')} MAD</option>)}</select>
+            </div>
+            <div className="form-row">
+              <div className="form-group"><label className="form-label">Montant recu (MAD)</label><input type="number" className="form-input" placeholder="0.00" /></div>
+              <div className="form-group"><label className="form-label">Date paiement</label><input type="date" className="form-input" /></div>
+            </div>
+            <div className="form-group"><label className="form-label">Mode de paiement</label>
+              <select className="form-input"><option>Virement bancaire</option><option>Cheque</option><option>Especes</option></select>
+            </div>
+            <div className="form-group"><label className="form-label">Reference bancaire</label><input className="form-input" placeholder="ex: VIR-20260315-001" /></div>
+            <div className="modal-footer">
+              <button className="btn-ghost" onClick={()=>setModal(null)}>Annuler</button>
+              <button className="btn-primary" onClick={save}>Enregistrer le paiement</button>
+            </div>
+          </>)}
+        </Modal>
+      )}
+
+      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:16 }}>
         <div>
-          <h2 className="font-display text-xl font-bold mb-1">🧾 Factures Clients</h2>
-          <p className="text-sm text-[#8b949e]">6 factures · Encours : {totalAttente.toLocaleString('fr')} MAD</p>
+          <h2 style={{ fontFamily:'Syne,sans-serif', fontSize:20, fontWeight:700, color:'#1b3a2d', marginBottom:4 }}>Factures Clients</h2>
+          <p style={{ fontSize:13, color:'#5a7a66' }}>6 factures · Encours : {totalAttente.toLocaleString('fr')} MAD</p>
         </div>
-        <button className="btn-primary">+ Nouvelle Facture</button>
+        <div style={{ display:'flex', gap:10 }}>
+          <button className="btn-secondary" onClick={()=>setModal('paiement')}>💳 Encaissement</button>
+          <button className="btn-primary" onClick={()=>setModal('facture')}>+ Nouvelle facture</button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-5">
-        <KpiCard label="Total Facturé" value={`${(totalFacture/1000).toFixed(0)} k MAD`} sub="ce mois" color="blue" />
-        <KpiCard label="Encaissé" value={`${(totalPaye/1000).toFixed(0)} k MAD`} sub="récupérés" color="green" />
-        <KpiCard label="En attente" value={`${(totalAttente/1000).toFixed(0)} k MAD`} sub="à encaisser" color="amber" />
-        <KpiCard label="En retard" value={`${(totalRetard/1000).toFixed(0)} k MAD`} sub="1 facture échue" color="red" />
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:18 }}>
+        {[
+          { label:'Total facture',  val:`${(totalFact/1000).toFixed(0)} k`, sub:'MAD ce mois', color:'#2d6a4f' },
+          { label:'Encaisse',       val:`${(totalPaye/1000).toFixed(0)} k`, sub:'MAD recuperes', color:'#40916c' },
+          { label:'En attente',     val:`${(totalAttente/1000).toFixed(0)} k`, sub:'MAD a encaisser', color:'#e9a820' },
+          { label:'En retard',      val:`${(totalRetard/1000).toFixed(0)} k`, sub:'MAD — 1 facture', color:'#e63946' },
+        ].map((k,i)=>(
+          <div key={i} className="kpi-card" style={{ borderTop:`3px solid ${k.color}` }}>
+            <div style={{ fontSize:10, fontWeight:600, color:'#5a7a66', textTransform:'uppercase', letterSpacing:'.5px', marginBottom:5 }}>{k.label}</div>
+            <div style={{ fontFamily:'Syne,sans-serif', fontSize:22, fontWeight:800, color:'#1b3a2d', marginBottom:3 }}>{k.val} <span style={{ fontSize:12, fontWeight:500, color:'#5a7a66' }}>{k.sub}</span></div>
+          </div>
+        ))}
       </div>
 
       <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <input type="text" placeholder="🔍  N° facture, client…" className="form-input" style={{maxWidth:240}} />
-            <select className="form-input" style={{maxWidth:160}}>
-              <option>Tous statuts</option><option>En attente</option><option>En retard</option><option>Payé</option>
-            </select>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+          <div style={{ display:'flex', gap:8 }}>
+            <input placeholder="Rechercher..." className="form-input" style={{ width:220, padding:'7px 12px' }} />
+            <select className="form-input" style={{ width:'auto', padding:'7px 12px' }}><option>Tous statuts</option><option>En attente</option><option>En retard</option><option>Paye</option></select>
           </div>
-          <div className="flex gap-2">
-            <button className="btn-secondary text-xs">📥 Excel</button>
-            <button className="btn-secondary text-xs">🖨️ PDF</button>
+          <div style={{ display:'flex', gap:8 }}>
+            <button className="btn-secondary">📥 Excel</button>
+            <button className="btn-secondary">🖨️ PDF</button>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[#30363d]">
-                {['N° Facture','Client','Date','Échéance','Montant (MAD)','Statut','Actions'].map(h => (
-                  <th key={h} className="px-3 py-2.5 text-left text-[11px] font-semibold text-[#4a5568] uppercase tracking-wider whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
+        <div style={{ overflowX:'auto' }}>
+          <table>
+            <thead><tr>{['N° Facture','Client','Date','Echeance','Montant (MAD)','Statut','Actions'].map(h=><th key={h}>{h}</th>)}</tr></thead>
             <tbody>
-              {FACTURES.map(f => (
-                <tr key={f.num} className="border-b border-[#30363d]/50 hover:bg-[#1c2333] transition-colors">
-                  <td className="px-3 py-3 font-mono text-xs font-semibold">{f.num}</td>
-                  <td className="px-3 py-3 font-medium">{f.client}</td>
-                  <td className="px-3 py-3 text-[#8b949e] text-xs">{f.date}</td>
-                  <td className="px-3 py-3 text-xs" style={{color: f.statut === 'en_retard' ? '#f85149' : '#8b949e', fontWeight: f.statut === 'en_retard' ? 700 : 400}}>
-                    {f.echeance}
-                  </td>
-                  <td className="px-3 py-3 font-mono font-semibold">{f.montant.toLocaleString('fr')}</td>
-                  <td className="px-3 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLE[f.statut]}`}>
-                      {STATUS_LABEL[f.statut]}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="flex gap-1">
-                      <button className="btn-ghost text-xs px-2 py-1">👁️</button>
-                      <button className="btn-secondary text-xs px-2 py-1">🖨️ PDF</button>
-                      {f.statut !== 'paye' && <button className="btn-primary text-xs px-2 py-1">💳 Payer</button>}
+              {FACTURES.map(f=>(
+                <tr key={f.num}>
+                  <td style={{ fontFamily:'monospace', fontSize:12, fontWeight:600, color:'#1b3a2d' }}>{f.num}</td>
+                  <td style={{ fontWeight:500, color:'#1b3a2d' }}>{f.client}</td>
+                  <td style={{ color:'#5a7a66', fontSize:12 }}>{f.date}</td>
+                  <td style={{ fontSize:12, fontWeight: f.statut==='en_retard' ? 700 : 400, color: f.statut==='en_retard' ? '#e63946' : '#5a7a66' }}>{f.echeance}</td>
+                  <td style={{ fontWeight:600, color:'#1b3a2d', fontFamily:'monospace' }}>{f.montant.toLocaleString('fr')}</td>
+                  <td><span className={ST[f.statut].cls}>{ST[f.statut].label}</span></td>
+                  <td>
+                    <div style={{ display:'flex', gap:5 }}>
+                      <button className="btn-ghost" style={{ padding:'4px 9px', fontSize:11 }}>👁 Voir</button>
+                      <button className="btn-secondary" style={{ padding:'4px 9px', fontSize:11 }}>🖨 PDF</button>
+                      {f.statut!=='paye' && <button className="btn-primary" style={{ padding:'4px 9px', fontSize:11 }} onClick={()=>setModal('paiement')}>💳 Payer</button>}
                     </div>
                   </td>
                 </tr>
