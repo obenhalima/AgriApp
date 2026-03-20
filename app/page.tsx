@@ -1,8 +1,9 @@
 'use client'
 import { KpiCard } from '@/components/dashboard/KpiCard'
 import { ProductionChart } from '@/components/dashboard/ProductionChart'
-import { CostChart } from '@/components/dashboard/CostChart'
-import { MarketPieChart } from '@/components/dashboard/MarketPieChart'
+import { CostChart, MarketPieChart } from '@/components/dashboard/CostChart'
+
+
 import Link from 'next/link'
 
 const ALERTES = [
