@@ -3,96 +3,69 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const NAV = [
-  { items: [{ href: '/', icon: '🌿', label: 'Tableau de bord' }] },
-  {
-    section: 'Exploitation',
-    items: [
-      { href: '/serres',    icon: '🏡', label: 'Serres & Fermes' },
-      { href: '/varietes',  icon: '🌱', label: 'Variétés' },
-      { href: '/campagnes', icon: '📆', label: 'Campagnes' },
-    ],
-  },
-  {
-    section: 'Production',
-    items: [
-      { href: '/production', icon: '📈', label: 'Suivi Récoltes' },
-      { href: '/recoltes',   icon: '🍅', label: 'Saisie Récoltes' },
-      { href: '/agronomie',  icon: '🧑‍🌾', label: 'Agronomie' },
-    ],
-  },
-  {
-    section: 'Commerce',
-    items: [
-      { href: '/marches',   icon: '🌍', label: 'Marchés' },
-      { href: '/clients',   icon: '🤝', label: 'Clients' },
-      { href: '/commandes', icon: '📋', label: 'Commandes' },
-      { href: '/factures',  icon: '🧾', label: 'Factures' },
-    ],
-  },
-  {
-    section: 'Achats',
-    items: [
-      { href: '/fournisseurs', icon: '🏭', label: 'Fournisseurs' },
-      { href: '/achats',       icon: '🛒', label: 'Commandes Achat' },
-      { href: '/stocks',       icon: '📦', label: 'Stocks' },
-    ],
-  },
-  {
-    section: 'Finances',
-    items: [
-      { href: '/couts',  icon: '💰', label: 'Coûts & Budget' },
-      { href: '/marges', icon: '📊', label: 'Marges' },
-    ],
-  },
-  {
-    section: 'Analytique',
-    items: [
-      { href: '/analytique', icon: '🤖', label: 'IA & Prévisions' },
-      { href: '/alertes',    icon: '🔔', label: 'Alertes' },
-    ],
-  },
+  { items: [{ href: '/', label: 'Tableau de bord' }] },
+  { section: 'Exploitation', items: [
+    { href: '/serres', label: 'Serres' },
+    { href: '/varietes', label: 'Variétés' },
+    { href: '/campagnes', label: 'Campagnes' },
+  ]},
+  { section: 'Production', items: [
+    { href: '/production', label: 'Suivi production' },
+    { href: '/recoltes', label: 'Récoltes' },
+    { href: '/agronomie', label: 'Agronomie' },
+  ]},
+  { section: 'Commerce', items: [
+    { href: '/marches', label: 'Marchés' },
+    { href: '/clients', label: 'Clients' },
+    { href: '/commandes', label: 'Commandes' },
+    { href: '/factures', label: 'Factures' },
+  ]},
+  { section: 'Achats', items: [
+    { href: '/fournisseurs', label: 'Fournisseurs' },
+    { href: '/achats', label: 'Bons de commande' },
+    { href: '/stocks', label: 'Stocks' },
+  ]},
+  { section: 'Finances', items: [
+    { href: '/couts', label: 'Coûts & Budget' },
+    { href: '/marges', label: 'Marges' },
+    { href: '/analytique', label: 'IA & Prévisions' },
+  ]},
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
   return (
-    <aside
-      className="fixed top-0 left-0 bottom-0 z-50 flex flex-col overflow-y-auto"
-      style={{ width: '240px', background: 'var(--bg-sidebar)' }}
-    >
+    <aside className="fixed top-0 left-0 bottom-0 z-50 flex flex-col overflow-y-auto"
+      style={{ width: 200, background: 'var(--sidebar-bg)', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b" style={{ borderColor: 'rgba(245,230,192,0.1)' }}>
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-          style={{ background: 'linear-gradient(135deg, #d94535, #a83020)', boxShadow: '0 3px 10px rgba(217,69,53,0.4)' }}>
-          🍅
+      <div className="flex items-center gap-2.5 px-4 py-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="w-8 h-8 flex items-center justify-center text-base flex-shrink-0"
+          style={{ background: '#40916c', borderRadius: '50% 8px 50% 8px' }}>
+          🌿
         </div>
         <div>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: 16, color: 'var(--straw)' }}>
-            TomatoPilot
-          </div>
-          <div style={{ fontSize: 10, color: 'rgba(245,230,192,0.4)', letterSpacing: '1px', textTransform: 'uppercase' }}>
-            Gestion Agricole
-          </div>
+          <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: 14, color: '#fff' }}>TomatoPilot</div>
+          <div style={{ fontSize: 10, color: '#74c69d', fontWeight: 600 }}>Souss Agri</div>
         </div>
       </div>
 
       {/* Nav */}
-      <div className="flex-1 py-3 px-3 overflow-y-auto">
+      <div className="flex-1 py-2">
         {NAV.map((group, gi) => (
           <div key={gi} className="mb-1">
             {group.section && (
-              <div className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase"
-                style={{ color: 'rgba(245,230,192,0.3)' }}>
+              <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: '1.2px', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', padding: '8px 16px 3px' }}>
                 {group.section}
               </div>
             )}
             {group.items.map(item => {
-              const isActive = pathname === item.href
+              const active = pathname === item.href
               return (
                 <Link key={item.href} href={item.href}
-                  className={`nav-item ${isActive ? 'nav-item-active' : ''}`}>
-                  <span className="text-base w-5 text-center flex-shrink-0">{item.icon}</span>
-                  <span style={{ fontSize: 13.5 }}>{item.label}</span>
+                  className={`nav-item ${active ? 'nav-item-active' : ''}`}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor', opacity: .7, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12.5 }}>{item.label}</span>
                 </Link>
               )
             })}
@@ -100,28 +73,16 @@ export function Sidebar() {
         ))}
       </div>
 
-      {/* Season indicator */}
-      <div className="mx-3 mb-3 p-3 rounded-xl" style={{ background: 'rgba(90,122,53,0.15)', border: '1px solid rgba(90,122,53,0.25)' }}>
-        <div className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--lime)' }}>
-          🌿 Campagne Active
-        </div>
-        <div className="text-sm font-semibold" style={{ color: 'var(--straw)' }}>2025 – 2026</div>
-        <div className="mt-2 h-1 rounded-full" style={{ background: 'rgba(245,230,192,0.15)' }}>
-          <div className="h-full rounded-full" style={{ width: '61%', background: 'linear-gradient(90deg, var(--leaf), var(--lime))' }} />
-        </div>
-        <div className="text-[10px] mt-1" style={{ color: 'rgba(245,230,192,0.4)' }}>61% — En cours</div>
-      </div>
-
       {/* User */}
-      <div className="p-3 border-t" style={{ borderColor: 'rgba(245,230,192,0.1)' }}>
-        <div className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, #d94535, #7aab45)' }}>
+      <div className="px-4 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: '#40916c', fontSize: 10, fontWeight: 700, color: '#fff' }}>
             AH
           </div>
-          <div className="min-w-0">
-            <div className="text-xs font-semibold truncate" style={{ color: 'var(--straw)' }}>Ahmed Hassani</div>
-            <div className="text-[11px]" style={{ color: 'rgba(245,230,192,0.35)' }}>Administrateur</div>
+          <div>
+            <div style={{ fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,0.7)' }}>Ahmed Hassani</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>Administrateur</div>
           </div>
         </div>
       </div>
