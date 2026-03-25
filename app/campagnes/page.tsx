@@ -1,78 +1,135 @@
-// Campagnes
-export default function CampagnesPage() {
+import {
+  getCampaignsPageData,
+  getDisplayStatus,
+  getSourceLabel,
+  getSourceTone,
+} from '@/lib/core-data'
+
+function formatDate(date: string | null) {
+  if (!date) {
+    return '-'
+  }
+
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(date))
+}
+
+export default async function CampagnesPage() {
+  const { source, items } = await getCampaignsPageData()
+  const activeCampaign = items.find((item) => item.status === 'en_cours') ?? items[0]
+
   return (
-    <div>
-      <div className="flex items-start justify-between mb-5">
+    <div style={{ padding: '22px 26px', background: '#f4f9f4', minHeight: '100vh' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
         <div>
-          <h2 className="font-display text-xl font-bold mb-1">📅 Campagnes de Production</h2>
-          <p className="text-sm text-[#8b949e]">1 campagne en cours</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <h2 style={{ fontFamily: 'Syne,sans-serif', fontSize: 20, fontWeight: 700, color: '#1b3a2d' }}>
+              Campagnes de Production
+            </h2>
+            <span className={getSourceTone(source)}>Source: {getSourceLabel(source)}</span>
+          </div>
+          <p style={{ fontSize: 13, color: '#5a7a66' }}>
+            {items.length} campagne(s) disponible(s)
+          </p>
         </div>
-        <button className="bg-[#e05c3b] text-white px-4 py-2 rounded-lg text-sm font-medium">+ Nouvelle Campagne</button>
+        <button className="btn-primary" disabled>
+          + Nouvelle campagne
+        </button>
       </div>
 
-      <div className="bg-[#161b22] border rounded-xl p-5 mb-5" style={{borderColor:'rgba(224,92,59,0.3)', background:'linear-gradient(135deg,rgba(224,92,59,0.05),transparent)'}}>
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <div className="font-display text-lg font-extrabold mb-1">Campagne 2025-2026</div>
-            <div className="text-sm text-[#8b949e]">01 Octobre 2025 → 30 Juin 2026 · Domaine Souss Agri</div>
-          </div>
-          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-[#1a4a24] text-[#3fb950]">● En cours</span>
-        </div>
-        <div className="grid grid-cols-5 gap-4 mb-4">
-          {[
-            ['Surface Totale','42 000 m²'],['Objectif Production','1 850 t'],
-            ['Budget Total','4.20 M MAD'],['Récolte à ce jour','1 124 t'],['Avancement','60.8%']
-          ].map(([k,v]) => (
-            <div key={k}>
-              <div className="text-[10px] text-[#4a5568] mb-1">{k}</div>
-              <div className="text-base font-bold">{v}</div>
+      {activeCampaign ? (
+        <div className="card" style={{ marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div>
+              <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 18, fontWeight: 800, color: '#1b3a2d', marginBottom: 3 }}>
+                {activeCampaign.name}
+              </div>
+              <div style={{ fontSize: 12.5, color: '#5a7a66' }}>
+                {activeCampaign.farmName} · {formatDate(activeCampaign.plantingStart)} → {formatDate(activeCampaign.campaignEnd)}
+              </div>
             </div>
-          ))}
-        </div>
-        <div>
-          <div className="text-[10px] text-[#4a5568] mb-2">Jalons de la campagne</div>
-          <div className="h-1.5 bg-[#232c3d] rounded-full mb-2 overflow-hidden">
-            <div className="h-full rounded-full" style={{width:'65%',background:'linear-gradient(90deg,#e05c3b,#f07050)'}} />
+            <span className={activeCampaign.status === 'en_cours' ? 'tag-green' : 'tag-blue'}>
+              {getDisplayStatus(activeCampaign.status)}
+            </span>
           </div>
-          <div className="flex justify-between text-[10px] text-[#4a5568]">
-            <span>✓ Préparation (Oct)</span><span>✓ Plantation (Nov)</span>
-            <span>✓ 1ère récolte (Jan)</span><span className="text-[#f07050]">▶ En cours (Mars)</span><span>Fin récolte (Juin)</span>
-          </div>
-        </div>
-      </div>
 
-      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-5">
-        <div className="font-display font-bold text-sm mb-4">Historique des Campagnes</div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-[#30363d]">
-              {['Campagne','Période','Surface','Prod. Réelle','CA','Marge','Statut'].map(h=>(
-                <th key={h} className="px-3 py-2 text-left text-[11px] font-semibold text-[#4a5568] uppercase tracking-wider">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 14 }}>
             {[
-              ['Campagne 2025-2026','Oct 2025 → Jun 2026','42 000 m²','1 124 t (en cours)','3.01 M MAD','38.4%','active'],
-              ['Campagne 2024-2025','Oct 2024 → Jun 2025','38 500 m²','1 742 t','5.22 M MAD','36.3%','done'],
-              ['Campagne 2023-2024','Oct 2023 → Jun 2024','35 200 m²','1 389 t','4.51 M MAD','31.8%','done'],
-            ].map(([nom,periode,surface,prod,ca,marge,st]) => (
-              <tr key={nom} className="border-b border-[#30363d]/50 hover:bg-[#1c2333]">
-                <td className="px-3 py-3 font-semibold">{nom}</td>
-                <td className="px-3 py-3 text-[#8b949e] text-xs">{periode}</td>
-                <td className="px-3 py-3 font-mono text-xs">{surface}</td>
-                <td className="px-3 py-3 font-mono text-xs">{prod}</td>
-                <td className="px-3 py-3 font-mono text-xs">{ca}</td>
-                <td className="px-3 py-3 font-mono text-xs text-[#3fb950] font-semibold">{marge}</td>
-                <td className="px-3 py-3">
-                  <span className={st==='active'?'px-2 py-0.5 rounded-full text-xs bg-[#1a4a24] text-[#3fb950]':'px-2 py-0.5 rounded-full text-xs bg-[#0d2149] text-[#388bfd]'}>
-                    {st==='active'?'● En cours':'● Terminée'}
-                  </span>
-                </td>
-              </tr>
+              ['Serres engagees', activeCampaign.greenhouseCount.toString()],
+              ['Objectif production', `${(activeCampaign.productionTargetKg / 1000).toFixed(1)} t`],
+              ['Budget total', `${(activeCampaign.budgetTotal / 1000000).toFixed(2)} M MAD`],
+              ['Recolte a ce jour', `${(activeCampaign.actualProductionKg / 1000).toFixed(1)} t`],
+              [
+                'Avancement',
+                activeCampaign.productionTargetKg > 0
+                  ? `${((activeCampaign.actualProductionKg / activeCampaign.productionTargetKg) * 100).toFixed(1)}%`
+                  : '0%',
+              ],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <div style={{ fontSize: 10, color: '#5a7a66', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.5px' }}>
+                  {label}
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#1b3a2d' }}>{value}</div>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        </div>
+      ) : (
+        <div className="card" style={{ marginBottom: 18, textAlign: 'center', padding: 32 }}>
+          <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 18, fontWeight: 700, color: '#1b3a2d', marginBottom: 8 }}>
+            Aucune campagne
+          </div>
+          <p style={{ color: '#5a7a66' }}>
+            Ajoutez une campagne dans Supabase pour commencer a suivre les objectifs et les recoltes.
+          </p>
+        </div>
+      )}
+
+      <div className="card">
+        <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 14, fontWeight: 700, color: '#1b3a2d', marginBottom: 14 }}>
+          Historique des campagnes
+        </div>
+
+        <div style={{ overflowX: 'auto' }}>
+          <table>
+            <thead>
+              <tr>
+                {['Campagne', 'Ferme', 'Periode', 'Objectif', 'Recolte', 'Budget', 'Statut'].map((header) => (
+                  <th key={header}>{header}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.id}>
+                  <td style={{ fontWeight: 600, color: '#1b3a2d' }}>{item.name}</td>
+                  <td style={{ color: '#5a7a66' }}>{item.farmName}</td>
+                  <td style={{ color: '#5a7a66', fontSize: 12 }}>
+                    {formatDate(item.plantingStart)} → {formatDate(item.campaignEnd)}
+                  </td>
+                  <td style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                    {(item.productionTargetKg / 1000).toFixed(1)} t
+                  </td>
+                  <td style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 600 }}>
+                    {(item.actualProductionKg / 1000).toFixed(1)} t
+                  </td>
+                  <td style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                    {(item.budgetTotal / 1000).toFixed(0)} k MAD
+                  </td>
+                  <td>
+                    <span className={item.status === 'en_cours' ? 'tag-green' : 'tag-blue'}>
+                      {getDisplayStatus(item.status)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

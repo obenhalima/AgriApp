@@ -1,57 +1,101 @@
-'use client'
-import { useEffect, useState } from 'react'
-import { DEMO_DATA } from '@/lib/data'
+import {
+  getHarvestsPageData,
+  getSourceLabel,
+  getSourceTone,
+} from '@/lib/core-data'
 
-export default function Page() {
-  const [profile, setProfile] = useState('demo')
-  useEffect(() => { setProfile(localStorage.getItem('tomatopilot_profile') || 'demo') }, [])
-  const isDemo = profile === 'demo'
+function formatHarvestDate(value: string) {
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+    return value
+  }
+
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date(value))
+}
+
+export default async function RecoltesPage() {
+  const { source, items } = await getHarvestsPageData()
+
   return (
-    <div>
-      <div className="flex items-start justify-between mb-5">
+    <div style={{ padding: '22px 26px', background: '#f4f9f4', minHeight: '100vh' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
-          <h2 className="font-display text-xl font-bold mb-1">🍅 Récoltes</h2>
-          <p className="text-sm text-[#8b949e]">{isDemo ? 'Campagne 2025-2026 · Domaine Souss Agri' : 'Aucune campagne active'}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <h2 style={{ fontFamily: 'Syne,sans-serif', fontSize: 20, fontWeight: 700, color: '#1b3a2d' }}>
+              Recoltes
+            </h2>
+            <span className={getSourceTone(source)}>Source: {getSourceLabel(source)}</span>
+          </div>
+          <p style={{ fontSize: 13, color: '#5a7a66' }}>
+            {items.length} recolte(s) recente(s)
+          </p>
         </div>
-        <button className="bg-[#e05c3b] text-white px-4 py-2 rounded-lg text-sm font-medium">+ Nouveau</button>
+        <button className="btn-primary" disabled>
+          + Nouvelle recolte
+        </button>
       </div>
-      {isDemo ? (<>
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <div className="font-display font-bold text-sm">Récoltes récentes</div>
-          <button className="bg-[#232c3d] text-[#e6edf3] px-3 py-1.5 rounded-lg text-xs border border-[#30363d]">📥 Exporter</button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead><tr className="border-b border-[#30363d]">
-              {['Date','Serre','Variété','Cat 1 (kg)','Cat 2 (kg)','Cat 3 (kg)','Déchets','Total','N° Lot'].map(h=>(
-                <th key={h} className="px-3 py-2.5 text-left text-[11px] font-semibold text-[#4a5568] uppercase tracking-wider whitespace-nowrap">{h}</th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {DEMO_DATA.recoltes.map((r,i)=>{
-                const total = r.cat1+r.cat2+r.cat3+r.dechets
-                return <tr key={i} className="border-b border-[#30363d]/50 hover:bg-[#1c2333] transition-colors">
-                  <td className="px-3 py-3 font-mono text-xs text-[#8b949e]">{r.date}</td>
-                  <td className="px-3 py-3 font-semibold">{r.serre}</td>
-                  <td className="px-3 py-3">{r.variete}</td>
-                  <td className="px-3 py-3 font-mono text-xs text-[#3fb950] font-semibold">{r.cat1.toLocaleString('fr')}</td>
-                  <td className="px-3 py-3 font-mono text-xs">{r.cat2.toLocaleString('fr')}</td>
-                  <td className="px-3 py-3 font-mono text-xs text-[#d29922]">{r.cat3.toLocaleString('fr')}</td>
-                  <td className="px-3 py-3 font-mono text-xs text-[#f85149]">{r.dechets}</td>
-                  <td className="px-3 py-3 font-mono text-xs font-bold">{total.toLocaleString('fr')}</td>
-                  <td className="px-3 py-3 font-mono text-xs text-[#8b949e]">{r.lot}</td>
+
+      {items.length > 0 ? (
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 14, fontWeight: 700, color: '#1b3a2d' }}>
+              Recoltes recentes
+            </div>
+            <button className="btn-secondary" disabled>
+              Export
+            </button>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table>
+              <thead>
+                <tr>
+                  {['Date', 'Serre', 'Variete', 'Cat 1 (kg)', 'Cat 2 (kg)', 'Cat 3 (kg)', 'Dechets', 'Total', 'Lot'].map((header) => (
+                    <th key={header}>{header}</th>
+                  ))}
                 </tr>
-              })}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <tr key={item.id}>
+                    <td style={{ fontFamily: 'monospace', fontSize: 12, color: '#5a7a66' }}>
+                      {formatHarvestDate(item.date)}
+                    </td>
+                    <td style={{ fontWeight: 600, color: '#1b3a2d' }}>{item.greenhouseCode}</td>
+                    <td style={{ color: '#1b3a2d' }}>{item.varietyName}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 12, color: '#2d6a4f', fontWeight: 700 }}>
+                      {item.category1.toLocaleString('fr-FR')}
+                    </td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{item.category2.toLocaleString('fr-FR')}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 12, color: '#d97706' }}>
+                      {item.category3.toLocaleString('fr-FR')}
+                    </td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 12, color: '#e63946' }}>
+                      {item.waste.toLocaleString('fr-FR')}
+                    </td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700 }}>
+                      {item.total.toLocaleString('fr-FR')}
+                    </td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 12, color: '#5a7a66' }}>{item.lotNumber}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div></>) : (<>
-      <div className="card p-16 text-center">
-        <div className="text-5xl mb-4 opacity-20">🍅</div>
-        <div className="font-display text-base font-bold text-[#8b949e] mb-2">Aucune donnée</div>
-        <p className="text-sm text-[#4a5568] max-w-xs mx-auto">Configurez votre ferme pour commencer.</p>
-      </div></>)}
+      ) : (
+        <div className="card" style={{ padding: 32, textAlign: 'center' }}>
+          <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 18, fontWeight: 700, color: '#1b3a2d', marginBottom: 8 }}>
+            Aucune recolte
+          </div>
+          <p style={{ color: '#5a7a66' }}>
+            La table `harvests` est vide pour le moment. Ajoutez des recoltes dans Supabase pour alimenter cette vue.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
