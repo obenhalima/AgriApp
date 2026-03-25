@@ -24,7 +24,7 @@ export default function ProductionPage() {
       supabase.from('campaign_plantings')
         .select('*, campaigns(name), greenhouses(code,name), varieties(commercial_name,type)')
         .order('created_at', { ascending: false }),
-      supabase.from('campaigns').select('id,name,code').eq('status','planification').order('name'),
+      supabase.from('campaigns').select('id,name,code').order('name'),
       supabase.from('greenhouses').select('id,code,name').order('code'),
       supabase.from('varieties').select('id,commercial_name,type,theoretical_yield_per_m2,theoretical_cost_per_m2').eq('is_active',true).order('commercial_name'),
     ])
