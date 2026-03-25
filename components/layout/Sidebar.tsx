@@ -1,124 +1,94 @@
 'use client'
-
-import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { NAV_GROUPS } from '@/lib/modules'
-import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
+
+const NAV = [
+  { items: [{ href:'/', label:'Dashboard', icon:'◈' }] },
+  { section:'Exploitation', items: [
+    { href:'/serres',    label:'Serres',    icon:'⬡' },
+    { href:'/varietes',  label:'Varietes',  icon:'✦' },
+    { href:'/campagnes', label:'Campagnes', icon:'◷' },
+  ]},
+  { section:'Production', items: [
+    { href:'/production', label:'Production', icon:'▲' },
+    { href:'/recoltes',   label:'Recoltes',   icon:'◉' },
+    { href:'/agronomie',  label:'Agronomie',  icon:'⬨' },
+  ]},
+  { section:'Commerce', items: [
+    { href:'/marches',   label:'Marches',   icon:'◎' },
+    { href:'/clients',   label:'Clients',   icon:'◈' },
+    { href:'/commandes', label:'Commandes', icon:'▣' },
+    { href:'/factures',  label:'Factures',  icon:'▤' },
+  ]},
+  { section:'Achats', items: [
+    { href:'/fournisseurs', label:'Fournisseurs', icon:'⬡' },
+    { href:'/achats',       label:'Commandes',    icon:'▢' },
+    { href:'/stocks',       label:'Stocks',       icon:'⬣' },
+  ]},
+  { section:'Finances', items: [
+    { href:'/couts',      label:'Couts',      icon:'◆' },
+    { href:'/marges',     label:'Marges',     icon:'◇' },
+    { href:'/analytique', label:'IA / Predict',icon:'◈' },
+  ]},
+]
 
 export function Sidebar() {
   const pathname = usePathname()
-  const [allowedModules, setAllowedModules] = useState<Set<string> | null>(null)
-
-  useEffect(() => {
-    let active = true
-
-    async function loadAccess() {
-      const supabase = getSupabaseBrowserClient()
-      const { data, error } = await supabase
-        .from('user_module_access')
-        .select('module_key')
-        .eq('can_access', true)
-
-      if (!active) {
-        return
-      }
-
-      if (error) {
-        setAllowedModules(new Set(['dashboard']))
-        return
-      }
-
-      setAllowedModules(new Set(['dashboard', ...(data ?? []).map((item) => item.module_key)]))
-    }
-
-    if (pathname !== '/login') {
-      void loadAccess()
-    }
-
-    return () => {
-      active = false
-    }
-  }, [pathname])
-
-  if (pathname === '/login') {
-    return null
-  }
-
-  const navGroups = useMemo(() => {
-    if (!allowedModules) {
-      return NAV_GROUPS
-    }
-
-    return NAV_GROUPS
-      .map((group) => ({
-        ...group,
-        items: group.items.filter((item) => allowedModules.has(item.moduleKey)),
-      }))
-      .filter((group) => group.items.length > 0)
-  }, [allowedModules])
 
   return (
-    <aside
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        bottom: 0,
-        zIndex: 50,
-        width: 200,
-        display: 'flex',
-        flexDirection: 'column',
-        overflowY: 'auto',
-        background: '#1b3a2d',
-        borderRight: '1px solid rgba(255,255,255,0.08)',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '20px 16px', borderBottom: '1px solid rgba(255,255,255,0.09)' }}>
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            background: '#40916c',
-            borderRadius: '50% 8px 50% 8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 16,
-            flexShrink: 0,
-          }}
-        >
-          T
-        </div>
-        <div>
-          <div style={{ fontFamily: 'Syne,sans-serif', fontWeight: 800, fontSize: 14, color: '#fff', lineHeight: 1.2 }}>
-            TomatoPilot
-          </div>
-          <div style={{ fontSize: 10, color: '#74c69d', fontWeight: 600, marginTop: 1 }}>
-            Acces modules
+    <aside style={{
+      position:'fixed', top:0, left:0, bottom:0, zIndex:50,
+      width:'var(--sidebar-w)',
+      display:'flex', flexDirection:'column',
+      overflowY:'auto',
+      background:'#050d09',
+      borderRight:'1px solid #1a3526',
+    }}>
+      {/* Scan line animation */}
+      <style>{`
+        @keyframes scanline { 0%{top:0} 100%{top:100%} }
+        .scan-line { position:absolute; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,#00e87a,transparent); opacity:.3; animation:scanline 6s linear infinite; pointer-events:none; z-index:0; }
+      `}</style>
+      <div className="scan-line" />
+
+      {/* Logo */}
+      <div style={{ padding:'20px 18px 16px', borderBottom:'1px solid #1a3526', position:'relative', zIndex:1 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{
+            width:36, height:36,
+            background:'linear-gradient(135deg, #00e87a, #006633)',
+            borderRadius:8,
+            display:'flex', alignItems:'center', justifyContent:'center',
+            fontSize:16,
+            boxShadow:'0 0 16px #00e87a40',
+            flexShrink:0,
+          }}>🍅</div>
+          <div>
+            <div style={{ fontFamily:'Rajdhani,sans-serif', fontSize:15, fontWeight:700, color:'#e8f5ee', letterSpacing:1.5, textTransform:'uppercase' }}>TomatoPilot</div>
+            <div style={{ fontFamily:'DM Mono,monospace', fontSize:9, color:'#3d6b52', letterSpacing:2 }}>AGRITECH v1.0</div>
           </div>
         </div>
       </div>
 
-      <div style={{ flex: 1, paddingTop: 8 }}>
-        {navGroups.map((group, groupIndex) => (
-          <div key={groupIndex} style={{ marginBottom: 4 }}>
+      {/* Nav */}
+      <div style={{ flex:1, paddingTop:8, position:'relative', zIndex:1 }}>
+        {NAV.map((group, gi) => (
+          <div key={gi} style={{ marginBottom:4 }}>
             {group.section && (
-              <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: '1.2px', color: 'rgba(255,255,255,0.28)', textTransform: 'uppercase', padding: '8px 16px 3px' }}>
-                {group.section}
+              <div style={{ fontFamily:'DM Mono,monospace', fontSize:8.5, fontWeight:500, color:'#1f4030', textTransform:'uppercase', letterSpacing:'2px', padding:'8px 18px 3px', display:'flex', alignItems:'center', gap:8 }}>
+                <span>{group.section}</span>
+                <span style={{ flex:1, height:1, background:'#1a3526', display:'block' }} />
               </div>
             )}
-            {group.items.map((item) => {
+            {group.items.map(item => {
               const active = pathname === item.href
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={active ? 'nav-item active-nav' : 'nav-item'}
-                  style={{ textDecoration: 'none' }}
-                >
-                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor', opacity: 0.7, flexShrink: 0, display: 'block' }} />
-                  {item.label}
+                <Link key={item.href} href={item.href}
+                  className={`nav-item${active ? ' active' : ''}`}
+                  style={{ textDecoration:'none' }}>
+                  <span style={{ fontFamily:'DM Mono,monospace', fontSize:12, color:'inherit', opacity:.7 }}>{item.icon}</span>
+                  <span>{item.label}</span>
+                  {active && <span style={{ marginLeft:'auto', width:4, height:4, borderRadius:'50%', background:'#00e87a', boxShadow:'0 0 8px #00e87a', flexShrink:0 }} />}
                 </Link>
               )
             })}
@@ -126,12 +96,22 @@ export function Sidebar() {
         ))}
       </div>
 
-      <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.09)' }}>
-        <div style={{ fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,0.78)' }}>
-          Session securisee
-        </div>
-        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.38)' }}>
-          Navigation selon vos droits
+      {/* User */}
+      <div style={{ padding:'12px 16px', borderTop:'1px solid #1a3526', position:'relative', zIndex:1 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:9, padding:'8px 10px', borderRadius:7, border:'1px solid #1a3526', background:'#0a1810' }}>
+          <div style={{
+            width:28, height:28, borderRadius:6,
+            background:'linear-gradient(135deg, #00e87a22, #006633)',
+            border:'1px solid #00e87a40',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            fontFamily:'Rajdhani,sans-serif', fontSize:11, fontWeight:700, color:'#00e87a',
+            flexShrink:0,
+          }}>AH</div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontFamily:'Rajdhani,sans-serif', fontSize:12.5, fontWeight:600, color:'#e8f5ee', letterSpacing:.5 }}>Ahmed Hassani</div>
+            <div style={{ fontFamily:'DM Mono,monospace', fontSize:9, color:'#00e87a', letterSpacing:.5 }}>ADMIN</div>
+          </div>
+          <div style={{ width:6, height:6, borderRadius:'50%', background:'#00e87a', boxShadow:'0 0 8px #00e87a', flexShrink:0 }} />
         </div>
       </div>
     </aside>
