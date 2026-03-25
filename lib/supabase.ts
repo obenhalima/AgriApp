@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 
-const url  = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Variables injectées directement pour éviter les problèmes de runtime
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dlisonvsphybjiyxoymk.supabase.co'
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsaXNvbnZzcGh5YmppeXhveW1rIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDAxODc2MCwiZXhwIjoyMDg5NTk0NzYwfQ.fpBd0uwdGAwRUOSNSmYA4f97haFu4fGiK_8TmWuJfvM'
 
-export const supabase = createClient(url, anon)
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 /* ── FERMES ── */
 export const getFarms = async () => {
@@ -99,7 +100,6 @@ export const createStockItem = async (p: { code:string; name:string; category:st
 export const createMouvement = async (p: { stock_item_id:string; movement_type:string; quantity:number; movement_date:string; reference?:string; notes?:string }) => {
   const { data, error } = await supabase.from('stock_movements').insert(p).select().single()
   if (error) throw error
-  // mettre à jour le stock courant
   const item = await supabase.from('stock_items').select('current_qty').eq('id', p.stock_item_id).single()
   if (item.data) {
     const delta = p.movement_type === 'sortie' ? -p.quantity : p.quantity
@@ -138,17 +138,6 @@ export const getCouts = async (campaign_id?: string) => {
 }
 export const createCout = async (p: { campaign_id:string; cost_category:string; amount:number; entry_date:string; description?:string; greenhouse_id?:string; is_planned?:boolean }) => {
   const { data, error } = await supabase.from('cost_entries').insert({ ...p, is_planned: p.is_planned ?? false }).select().single()
-  if (error) throw error; return data
-}
-
-/* ── RÉCOLTES ── */
-export const getRecoltes = async () => {
-  const { data, error } = await supabase.from('harvests').select('*, campaign_plantings(*, greenhouses(code,name), varieties(commercial_name))').order('harvest_date', { ascending: false }).limit(100)
-  if (error) throw error; return data ?? []
-}
-export const createRecolte = async (p: { campaign_planting_id:string; harvest_date:string; qty_category_1:number; qty_category_2:number; qty_category_3?:number; qty_waste?:number; notes?:string }) => {
-  const lot = `LOT-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${String(Date.now()).slice(-4)}`
-  const { data, error } = await supabase.from('harvests').insert({ ...p, qty_category_3: p.qty_category_3 ?? 0, qty_waste: p.qty_waste ?? 0, lot_number: lot }).select().single()
   if (error) throw error; return data
 }
 
