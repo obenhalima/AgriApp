@@ -1,23 +1,82 @@
 'use client'
-
-import { usePathname } from 'next/navigation'
-import { Sidebar } from '@/components/layout/Sidebar'
-import { Topbar } from '@/components/layout/Topbar'
+import { useEffect, useState } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { Sidebar } from './Sidebar'
+import { Topbar } from './Topbar'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
   const pathname = usePathname()
-  const isLoginPage = pathname === '/login'
+  const [checking, setChecking] = useState(true)
+  const [authed, setAuthed] = useState(false)
 
-  if (isLoginPage) {
-    return <main style={{ minHeight: '100vh', background: '#f4f9f4' }}>{children}</main>
+  useEffect(() => {
+    // Vérifier la session au montage
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setAuthed(true)
+        // Si on est sur /login et connecté, aller au dashboard
+        if (pathname === '/login') router.replace('/')
+      } else {
+        setAuthed(false)
+        // Si on n'est pas sur /login et pas connecté, rediriger
+        if (pathname !== '/login') router.replace('/login')
+      }
+      setChecking(false)
+    })
+
+    // Écouter les changements d'auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setAuthed(true)
+        if (pathname === '/login') router.replace('/')
+      } else {
+        setAuthed(false)
+        if (pathname !== '/login') router.replace('/login')
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [pathname, router])
+
+  // Écran de chargement
+  if (checking) {
+    return (
+      <div style={{
+        minHeight: '100vh', background: '#030a07',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexDirection: 'column', gap: 16,
+      }}>
+        <div style={{
+          width: 48, height: 48,
+          border: '2px solid #1a3526',
+          borderTop: '2px solid #00e87a',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite',
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+        <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 11, color: '#3d6b52', letterSpacing: 2 }}>
+          INITIALISATION...
+        </div>
+      </div>
+    )
   }
 
+  // Page login — pas de shell
+  if (pathname === '/login' || !authed) {
+    return <>{children}</>
+  }
+
+  // App normale avec sidebar + topbar
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: 200 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: 'var(--sidebar-w)', minHeight: '100vh' }}>
         <Topbar />
-        <main style={{ flex: 1, background: '#f4f9f4' }}>{children}</main>
+        <main style={{ flex: 1, padding: '24px', position: 'relative', zIndex: 1 }}>
+          {children}
+        </main>
       </div>
     </div>
   )
