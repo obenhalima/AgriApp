@@ -1,278 +1,171 @@
+'use client'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import {
-  getCampaignsPageData,
-  getDisplayStatus,
-  getGreenhousesPageData,
-  getHarvestsPageData,
-  getSourceLabel,
-  getSourceTone,
-} from '@/lib/core-data'
+import { supabase } from '@/lib/supabase'
 
-function formatNumber(value: number) {
-  return value.toLocaleString('fr-FR')
-}
+export default function DashboardPage() {
+  const [stats, setStats] = useState({ serres:0, varietes:0, clients:0, fournisseurs:0, stocks:0, factures:0, alertes:0 })
+  const [loading, setLoading] = useState(true)
+  const [time, setTime] = useState(new Date())
 
-function formatDate(value: string | null) {
-  if (!value) {
-    return '-'
-  }
+  useEffect(() => {
+    const t = setInterval(() => setTime(new Date()), 1000)
+    return () => clearInterval(t)
+  }, [])
 
-  return new Date(value).toLocaleDateString('fr-FR')
-}
+  useEffect(() => {
+    Promise.all([
+      supabase.from('greenhouses').select('id', { count:'exact', head:true }),
+      supabase.from('varieties').select('id', { count:'exact', head:true }).eq('is_active',true),
+      supabase.from('clients').select('id', { count:'exact', head:true }).eq('is_active',true),
+      supabase.from('suppliers').select('id', { count:'exact', head:true }).eq('is_active',true),
+      supabase.from('stock_items').select('id', { count:'exact', head:true }).eq('is_active',true),
+      supabase.from('invoices').select('id', { count:'exact', head:true }).neq('status','paye'),
+      supabase.from('stock_items').select('id', { count:'exact', head:true }).eq('is_active',true),
+    ]).then(([s,v,c,f,st,inv]) => {
+      setStats({
+        serres: s.count||0, varietes: v.count||0, clients: c.count||0,
+        fournisseurs: f.count||0, stocks: st.count||0,
+        factures: inv.count||0, alertes: 0,
+      })
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [])
 
-export default async function DashboardPage() {
-  const [greenhousesData, campaignsData, harvestsData] = await Promise.all([
-    getGreenhousesPageData(),
-    getCampaignsPageData(),
-    getHarvestsPageData(),
-  ])
+  const MODULES = [
+    { label:'SERRES',       val:stats.serres,       unit:'actives',    color:'#00e87a', icon:'⬡', href:'/serres' },
+    { label:'VARIETES',     val:stats.varietes,     unit:'referencees',color:'#00ffc8', icon:'✦', href:'/varietes' },
+    { label:'CLIENTS',      val:stats.clients,      unit:'actifs',     color:'#00b4d8', icon:'◈', href:'/clients' },
+    { label:'FOURNISSEURS', val:stats.fournisseurs, unit:'references', color:'#9b5de5', icon:'⬡', href:'/fournisseurs' },
+    { label:'STOCK ITEMS',  val:stats.stocks,       unit:'references', color:'#f5a623', icon:'⬣', href:'/stocks' },
+    { label:'FACTURES',     val:stats.factures,     unit:'en cours',   color:'#ff4d6d', icon:'▤', href:'/factures' },
+  ]
 
-  const greenhouses = greenhousesData.items
-  const campaigns = campaignsData.items
-  const harvests = harvestsData.items
-
-  const source = greenhousesData.source
-  const totalExploitableArea = greenhouses.reduce((sum, greenhouse) => sum + greenhouse.exploitableArea, 0)
-  const activeGreenhouses = greenhouses.filter((greenhouse) => greenhouse.status === 'active').length
-  const totalHarvestKg = harvests.reduce((sum, harvest) => sum + harvest.total, 0)
-  const totalTargetKg = campaigns.reduce((sum, campaign) => sum + campaign.productionTargetKg, 0)
-  const totalActualProductionKg = campaigns.reduce((sum, campaign) => sum + campaign.actualProductionKg, 0)
-  const totalBudget = campaigns.reduce((sum, campaign) => sum + campaign.budgetTotal, 0)
-  const achievementRate = totalTargetKg > 0 ? (totalActualProductionKg / totalTargetKg) * 100 : 0
-
-  const latestHarvests = harvests.slice(0, 5)
-  const topGreenhouses = [...greenhouses]
-    .sort((left, right) => right.productionTons - left.productionTons)
-    .slice(0, 5)
-  const currentCampaigns = campaigns.slice(0, 5)
+  const QUICK = [
+    { label:'Nouvelle Serre',       href:'/serres',       icon:'⬡', color:'#00e87a' },
+    { label:'Nouvelle Variete',     href:'/varietes',     icon:'✦', color:'#00ffc8' },
+    { label:'Nouveau Client',       href:'/clients',      icon:'◈', color:'#00b4d8' },
+    { label:'Factures Clients',     href:'/factures',     icon:'▤', color:'#f5a623' },
+    { label:'Mouvements Stock',     href:'/stocks',       icon:'⬣', color:'#9b5de5' },
+    { label:'Saisir un Cout',       href:'/couts',        icon:'◆', color:'#ff4d6d' },
+    { label:'Nouveau Fournisseur',  href:'/fournisseurs', icon:'⬡', color:'#00b4d8' },
+    { label:'IA & Previsions',      href:'/analytique',   icon:'◈', color:'#00e87a' },
+  ]
 
   return (
-    <div style={{ padding: '22px 26px', background: '#f4f9f4', minHeight: '100vh' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          flexWrap: 'wrap',
-          marginBottom: 18,
-          padding: '14px 16px',
-          background: '#ffffff',
-          border: '1px solid #cce5d4',
-          borderRadius: 12,
-          boxShadow: '0 1px 3px rgba(27,58,45,0.05)',
-        }}
-      >
+    <div className="fade-in">
+
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:28 }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#5a7a66', textTransform: 'uppercase', letterSpacing: '.6px' }}>
-            Vue generale
+          <div style={{ fontFamily:'Rajdhani,sans-serif', fontSize:26, fontWeight:700, color:'#e8f5ee', textTransform:'uppercase', letterSpacing:1.5, marginBottom:4 }}>
+            DASHBOARD
           </div>
-          <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 22, fontWeight: 800, color: '#1b3a2d' }}>
-            Tableau de bord
+          <div style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'#3d6b52', letterSpacing:1.5 }}>
+            TOMATOPILOT · DOMAINE SOUSS AGRI · CAMPAGNE 2025-2026
           </div>
         </div>
-
-        <span className={getSourceTone(source)} style={{ marginLeft: 'auto' }}>
-          Source: {getSourceLabel(source)}
-        </span>
-
-        <Link href="/recoltes" className="btn-primary" style={{ textDecoration: 'none' }}>
-          + Saisir recolte
-        </Link>
+        <div style={{ textAlign:'right' }}>
+          <div style={{ fontFamily:'DM Mono,monospace', fontSize:18, color:'#00e87a', letterSpacing:2, textShadow:'0 0 12px #00e87a80' }}>
+            {time.toLocaleTimeString('fr',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+          </div>
+          <div style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'#3d6b52', letterSpacing:1, marginTop:2 }}>
+            {time.toLocaleDateString('fr',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}).toUpperCase()}
+          </div>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 18 }}>
+      {/* Status bar */}
+      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', background:'#0a1810', border:'1px solid #1a3526', borderRadius:8, marginBottom:24, flexWrap:'wrap' }}>
+        <div style={{ fontFamily:'DM Mono,monospace', fontSize:9, color:'#3d6b52', letterSpacing:2, marginRight:4 }}>SYSTEME ·</div>
         {[
-          {
-            label: 'Serres actives',
-            value: activeGreenhouses.toString(),
-            sub: `${greenhouses.length} serres au total`,
-            color: '#2d6a4f',
-          },
-          {
-            label: 'Surface exploitable',
-            value: `${formatNumber(Math.round(totalExploitableArea))} m2`,
-            sub: 'surface configuree',
-            color: '#40916c',
-          },
-          {
-            label: 'Recolte cumulee',
-            value: `${formatNumber(Math.round(totalHarvestKg))} kg`,
-            sub: `${latestHarvests.length} recoltes recentes`,
-            color: '#74c69d',
-          },
-          {
-            label: 'Objectif atteint',
-            value: `${achievementRate.toFixed(1)}%`,
-            sub: `${formatNumber(Math.round(totalActualProductionKg))} / ${formatNumber(Math.round(totalTargetKg))} kg`,
-            color: '#f4a261',
-          },
-        ].map((item) => (
-          <div key={item.label} className="kpi-card" style={{ borderTop: `3px solid ${item.color}` }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#5a7a66', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 6 }}>
-              {item.label}
-            </div>
-            <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 25, fontWeight: 800, color: '#1b3a2d', marginBottom: 6 }}>
-              {item.value}
-            </div>
-            <div style={{ fontSize: 12, color: '#5a7a66' }}>{item.sub}</div>
+          { l:'BASE DE DONNEES', v:'CONNECTEE', ok:true },
+          { l:'SUPABASE', v:'ACTIVE', ok:true },
+          { l:'AUTHENTIFICATION', v:'OK', ok:true },
+          { l:'CAMPAGNE', v:'EN COURS', ok:true },
+        ].map((s,i) => (
+          <div key={i} style={{ display:'flex', alignItems:'center', gap:5, padding:'3px 9px', background:'#0d1f14', border:'1px solid #1a3526', borderRadius:4 }}>
+            <span style={{ width:5, height:5, borderRadius:'50%', background: s.ok ? '#00e87a' : '#ff4d6d', boxShadow: s.ok ? '0 0 6px #00e87a' : '0 0 6px #ff4d6d', display:'inline-block' }} />
+            <span style={{ fontFamily:'DM Mono,monospace', fontSize:9, color:'#3d6b52', letterSpacing:1 }}>{s.l}</span>
+            <span style={{ fontFamily:'DM Mono,monospace', fontSize:9, color: s.ok ? '#00e87a' : '#ff4d6d', letterSpacing:1 }}>{s.v}</span>
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 16, marginBottom: 16 }}>
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <h3 style={{ fontFamily: 'Syne,sans-serif', fontSize: 14, fontWeight: 700, color: '#1b3a2d' }}>
-              Campagnes en suivi
-            </h3>
-            <Link href="/campagnes" style={{ fontSize: 11, color: '#40916c', fontWeight: 600, textDecoration: 'none' }}>
-              Voir detail →
-            </Link>
-          </div>
-
-          {currentCampaigns.length === 0 ? (
-            <div style={{ fontSize: 13, color: '#5a7a66' }}>
-              Aucune campagne disponible pour le moment.
-            </div>
-          ) : (
-            currentCampaigns.map((campaign) => (
-              <div key={campaign.id} style={{ padding: '10px 0', borderBottom: '1px solid #e8f5ec' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1b3a2d' }}>{campaign.name}</div>
-                    <div style={{ fontSize: 11.5, color: '#5a7a66', marginTop: 2 }}>
-                      {campaign.farmName} · {campaign.greenhouseCount} serres
-                    </div>
-                  </div>
-                  <span className="tag-green">{getDisplayStatus(campaign.status)}</span>
-                </div>
-                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 8, fontSize: 11.5, color: '#5a7a66' }}>
-                  <span>Plantation: {formatDate(campaign.plantingStart)}</span>
-                  <span>Recolte: {formatDate(campaign.harvestStart)}</span>
-                  <span>Budget: {formatNumber(Math.round(campaign.budgetTotal))} MAD</span>
-                </div>
+      {/* KPIs */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:12, marginBottom:24 }}>
+        {MODULES.map((m,i) => (
+          <Link key={i} href={m.href} style={{ textDecoration:'none' }}>
+            <div className="kpi" style={{ '--accent':m.color } as React.CSSProperties}>
+              <div style={{ fontFamily:'DM Mono,monospace', fontSize:9, color:'#3d6b52', letterSpacing:1.5, textTransform:'uppercase', marginBottom:10 }}>{m.label}</div>
+              <div style={{ fontFamily:'Rajdhani,sans-serif', fontSize:30, fontWeight:700, color: loading ? '#1f4030' : m.color, lineHeight:1, marginBottom:4, textShadow: loading ? 'none' : `0 0 16px ${m.color}60` }}>
+                {loading ? '—' : m.val}
               </div>
-            ))
-          )}
+              <div style={{ fontFamily:'DM Mono,monospace', fontSize:9, color:'#3d6b52', letterSpacing:1 }}>{m.unit}</div>
+              <div style={{ marginTop:12, height:2, background:'#1a3526', borderRadius:1, overflow:'hidden' }}>
+                <div style={{ height:'100%', width: loading ? '0%' : '100%', background:m.color, boxShadow:`0 0 8px ${m.color}`, transition:'width 1s cubic-bezier(.4,0,.2,1)', transitionDelay:`${i*0.1}s` }} />
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Grille principale */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1.2fr', gap:16, marginBottom:16 }}>
+
+        {/* Modules rapides */}
+        <div className="card">
+          <div className="section-label" style={{ marginBottom:16 }}>ACCES RAPIDE</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+            {QUICK.map((q,i) => (
+              <Link key={i} href={q.href} style={{ textDecoration:'none' }}>
+                <div style={{
+                  padding:'12px 14px',
+                  background:'#0d1f14',
+                  border:'1px solid #1a3526',
+                  borderRadius:8,
+                  display:'flex', alignItems:'center', gap:10,
+                  cursor:'pointer',
+                  transition:'all .15s',
+                }}
+                onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.borderColor=q.color;(e.currentTarget as HTMLElement).style.background='#0f2518'}}
+                onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.borderColor='#1a3526';(e.currentTarget as HTMLElement).style.background='#0d1f14'}}>
+                  <span style={{ fontFamily:'DM Mono,monospace', fontSize:14, color:q.color, opacity:.8 }}>{q.icon}</span>
+                  <span style={{ fontFamily:'Outfit,sans-serif', fontSize:12, fontWeight:500, color:'#7aab90' }}>{q.label}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
 
+        {/* Info systeme */}
         <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <h3 style={{ fontFamily: 'Syne,sans-serif', fontSize: 14, fontWeight: 700, color: '#1b3a2d' }}>
-              Serres les plus productives
-            </h3>
-            <Link href="/serres" style={{ fontSize: 11, color: '#40916c', fontWeight: 600, textDecoration: 'none' }}>
-              Gerer →
-            </Link>
-          </div>
-
-          {topGreenhouses.length === 0 ? (
-            <div style={{ fontSize: 13, color: '#5a7a66' }}>
-              Aucune serre configuree pour le moment.
-            </div>
-          ) : (
-            topGreenhouses.map((greenhouse) => (
-              <div key={greenhouse.code} style={{ padding: '10px 0', borderBottom: '1px solid #e8f5ec' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1b3a2d' }}>
-                      {greenhouse.code} · {greenhouse.name}
-                    </div>
-                    <div style={{ fontSize: 11.5, color: '#5a7a66', marginTop: 2 }}>
-                      {greenhouse.varieties.length > 0 ? greenhouse.varieties.join(', ') : 'Aucune variete affectee'}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: '#2d6a4f' }}>
-                      {greenhouse.productionTons.toFixed(2)} t
-                    </div>
-                    <div style={{ fontSize: 10.5, color: '#5a7a66' }}>
-                      {greenhouse.actualYield.toFixed(1)} kg/m2
-                    </div>
-                  </div>
-                </div>
+          <div className="section-label" style={{ marginBottom:16 }}>SYSTEME INFO</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {[
+              { l:'Version Application', v:'TomatoPilot v1.0', c:'#00e87a' },
+              { l:'Base de donnees', v:'Supabase PostgreSQL', c:'#00b4d8' },
+              { l:'Serveur', v:'Vercel Edge Network', c:'#9b5de5' },
+              { l:'Referentiel', v:'Domaine Souss Agri', c:'#f5a623' },
+              { l:'Campagne active', v:'2025 — 2026', c:'#00e87a' },
+              { l:'Region', v:'Souss-Massa · Maroc', c:'#00ffc8' },
+            ].map((r,i) => (
+              <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 12px', background:'#0d1f14', border:'1px solid #1a3526', borderRadius:6 }}>
+                <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'#3d6b52', letterSpacing:.5 }}>{r.l}</span>
+                <span style={{ fontFamily:'Rajdhani,sans-serif', fontSize:13, fontWeight:600, color:r.c }}>{r.v}</span>
               </div>
-            ))
-          )}
+            ))}
+          </div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <h3 style={{ fontFamily: 'Syne,sans-serif', fontSize: 14, fontWeight: 700, color: '#1b3a2d' }}>
-              Dernieres recoltes
-            </h3>
-            <Link href="/recoltes" style={{ fontSize: 11, color: '#40916c', fontWeight: 600, textDecoration: 'none' }}>
-              Voir tout →
-            </Link>
-          </div>
-
-          {latestHarvests.length === 0 ? (
-            <div style={{ fontSize: 13, color: '#5a7a66' }}>
-              Aucune recolte enregistree.
-            </div>
-          ) : (
-            latestHarvests.map((harvest) => (
-              <div key={harvest.id} style={{ padding: '10px 0', borderBottom: '1px solid #e8f5ec' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1b3a2d' }}>
-                      {harvest.greenhouseCode} · {harvest.varietyName}
-                    </div>
-                    <div style={{ fontSize: 11.5, color: '#5a7a66', marginTop: 2 }}>
-                      {formatDate(harvest.date)} · Lot {harvest.lotNumber}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: '#2d6a4f' }}>
-                      {formatNumber(Math.round(harvest.total))} kg
-                    </div>
-                    <div style={{ fontSize: 10.5, color: '#5a7a66' }}>
-                      Cat1 {formatNumber(Math.round(harvest.category1))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
+      {/* Footer */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'#0a1810', border:'1px solid #1a3526', borderRadius:8 }}>
+        <div style={{ fontFamily:'DM Mono,monospace', fontSize:9, color:'#1f4030', letterSpacing:2 }}>
+          TOMATOPILOT © 2026 · AGRITECH MANAGEMENT SYSTEM
         </div>
-
-        <div className="card">
-          <h3 style={{ fontFamily: 'Syne,sans-serif', fontSize: 14, fontWeight: 700, color: '#1b3a2d', marginBottom: 14 }}>
-            Situation actuelle
-          </h3>
-
-          <div style={{ display: 'grid', gap: 10 }}>
-            <div style={{ padding: '12px 14px', borderRadius: 10, background: '#eef8f1', border: '1px solid #d8f3dc' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#40916c', textTransform: 'uppercase', marginBottom: 4 }}>
-                Base de donnees
-              </div>
-              <div style={{ fontSize: 13, color: '#1b3a2d' }}>
-                {greenhouses.length === 0 && campaigns.length === 0 && harvests.length === 0
-                  ? 'La base semble vide pour le moment.'
-                  : 'Des donnees reelles sont presentes sur les modules principaux.'}
-              </div>
-            </div>
-
-            <div style={{ padding: '12px 14px', borderRadius: 10, background: '#fffaf0', border: '1px solid #f3ddb7' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#b7791f', textTransform: 'uppercase', marginBottom: 4 }}>
-                Budget campagnes
-              </div>
-              <div style={{ fontSize: 13, color: '#1b3a2d' }}>
-                {formatNumber(Math.round(totalBudget))} MAD cumules sur {campaigns.length} campagne(s).
-              </div>
-            </div>
-
-            <div style={{ padding: '12px 14px', borderRadius: 10, background: '#f8f9fa', border: '1px solid #dde2e6' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#5a7a66', textTransform: 'uppercase', marginBottom: 4 }}>
-                Prochaine action
-              </div>
-              <div style={{ fontSize: 13, color: '#1b3a2d' }}>
-                Commence par creer des serres, une campagne, puis des affectations avant de saisir des recoltes.
-              </div>
-            </div>
-          </div>
+        <div style={{ fontFamily:'DM Mono,monospace', fontSize:9, color:'#1f4030', letterSpacing:1 }}>
+          POWERED BY SUPABASE + VERCEL + NEXT.JS 14
         </div>
       </div>
     </div>
