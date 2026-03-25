@@ -1,136 +1,210 @@
-import {
-  getCampaignsPageData,
-  getDisplayStatus,
-  getSourceLabel,
-  getSourceTone,
-} from '@/lib/core-data'
+'use client'
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { getFarms } from '@/lib/supabase'
+import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
+import { genCampagneCode } from '@/lib/utils'
 
-function formatDate(date: string | null) {
-  if (!date) {
-    return '-'
+export default function CampagnesPage() {
+  const [items, setItems] = useState<any[]>([])
+  const [farms, setFarms] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [modal, setModal] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [done, setDone] = useState(false)
+  const [form, setForm] = useState({
+    code:'', name:'', farm_id:'',
+    preparation_start:'', planting_start:'', harvest_start:'',
+    harvest_end:'', campaign_end:'',
+    budget_total:'', production_target_kg:'',
+    notes:''
+  })
+  const s = (k:string) => (e:any) => setForm(f=>({...f,[k]:e.target.value}))
+
+  const load = async () => {
+    try {
+      const [c, f] = await Promise.all([
+        supabase.from('campaigns').select('*, farms(name)').order('created_at',{ascending:false}),
+        getFarms()
+      ])
+      setItems(c.data||[])
+      setFarms(f)
+    } catch(e) {}
+    setLoading(false)
   }
 
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(date))
-}
+  useEffect(()=>{ load() },[])
 
-export default async function CampagnesPage() {
-  const { source, items } = await getCampaignsPageData()
-  const activeCampaign = items.find((item) => item.status === 'en_cours') ?? items[0]
+  const openModal = () => {
+    const codes = items.map(i=>i.code)
+    const year = new Date().getFullYear()
+    const autoCode = genCampagneCode(codes)
+    const autoName = `Campagne ${year}-${year+1}`
+    const farmId = farms.length === 1 ? farms[0].id : ''
+    setForm(f=>({...f, code:autoCode, name:autoName, farm_id:farmId}))
+    setModal(true)
+  }
+
+  const save = async () => {
+    if (!form.farm_id || !form.name) return
+    setSaving(true)
+    try {
+      const { data, error } = await supabase.from('campaigns').insert({
+        code: form.code,
+        name: form.name,
+        farm_id: form.farm_id,
+        status: 'planification',
+        preparation_start: form.preparation_start || null,
+        planting_start: form.planting_start || null,
+        harvest_start: form.harvest_start || null,
+        harvest_end: form.harvest_end || null,
+        campaign_end: form.campaign_end || null,
+        budget_total: form.budget_total ? Number(form.budget_total) : null,
+        production_target_kg: form.production_target_kg ? Number(form.production_target_kg)*1000 : null,
+        notes: form.notes,
+      }).select('*, farms(name)').single()
+      if (error) throw error
+      setItems(p=>[data,...p])
+      setDone(true)
+      setTimeout(()=>{ setModal(false); setDone(false) }, 1400)
+    } catch(e:any){ alert('Erreur: '+e.message) }
+    setSaving(false)
+  }
+
+  const STATUS_COLORS: Record<string,string> = {
+    planification:'#00b4d8', en_cours:'#00e87a', terminee:'#3d6b52', annulee:'#ff4d6d'
+  }
 
   return (
-    <div style={{ padding: '22px 26px', background: '#f4f9f4', minHeight: '100vh' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
+    <div style={{background:'#030a07',minHeight:'100vh'}}>
+      {modal && (
+        <Modal title="NOUVELLE CAMPAGNE" onClose={()=>{setModal(false);setDone(false)}} size="lg">
+          {done ? <SuccessMessage message="Campagne créée !" /> : (<>
+
+            <div className="section-label" style={{marginBottom:14}}>IDENTIFICATION</div>
+            <FormRow>
+              <FormGroup label="Code (auto-généré)">
+                <Input value={form.code} onChange={s('code')} />
+              </FormGroup>
+              <FormGroup label="Nom de la campagne *">
+                <Input value={form.name} onChange={s('name')} placeholder="ex: Campagne 2026-2027" autoFocus />
+              </FormGroup>
+            </FormRow>
+            <FormGroup label="Ferme *">
+              {farms.length === 0 ? (
+                <div style={{padding:'10px 13px',background:'#ff4d6d18',border:'1px solid #ff4d6d40',borderRadius:7,color:'#ff4d6d',fontFamily:'DM Mono,monospace',fontSize:11}}>
+                  ⚠ Aucune ferme trouvée — créez d'abord une ferme dans le menu Fermes
+                </div>
+              ) : (
+                <Select value={form.farm_id} onChange={s('farm_id')}>
+                  <option value="">-- Sélectionner une ferme --</option>
+                  {farms.map(f=><option key={f.id} value={f.id}>{f.name} ({f.code})</option>)}
+                </Select>
+              )}
+            </FormGroup>
+
+            <div className="section-label" style={{marginBottom:14,marginTop:20}}>CALENDRIER</div>
+            <FormRow>
+              <FormGroup label="Début préparation">
+                <Input type="date" value={form.preparation_start} onChange={s('preparation_start')} />
+              </FormGroup>
+              <FormGroup label="Début plantation">
+                <Input type="date" value={form.planting_start} onChange={s('planting_start')} />
+              </FormGroup>
+            </FormRow>
+            <FormRow>
+              <FormGroup label="Début récolte">
+                <Input type="date" value={form.harvest_start} onChange={s('harvest_start')} />
+              </FormGroup>
+              <FormGroup label="Fin récolte">
+                <Input type="date" value={form.harvest_end} onChange={s('harvest_end')} />
+              </FormGroup>
+            </FormRow>
+            <FormGroup label="Fin de campagne">
+              <Input type="date" value={form.campaign_end} onChange={s('campaign_end')} />
+            </FormGroup>
+
+            <div className="section-label" style={{marginBottom:14,marginTop:20}}>OBJECTIFS</div>
+            <FormRow>
+              <FormGroup label="Budget prévisionnel (MAD)">
+                <Input type="number" value={form.budget_total} onChange={s('budget_total')} placeholder="ex: 4200000" />
+              </FormGroup>
+              <FormGroup label="Objectif production (tonnes)">
+                <Input type="number" value={form.production_target_kg} onChange={s('production_target_kg')} placeholder="ex: 1850" />
+              </FormGroup>
+            </FormRow>
+            <FormGroup label="Notes">
+              <Textarea rows={2} value={form.notes} onChange={s('notes')} placeholder="Remarques sur la campagne..." />
+            </FormGroup>
+
+            <ModalFooter
+              onCancel={()=>setModal(false)}
+              onSave={save}
+              loading={saving}
+              disabled={!form.farm_id || !form.name}
+              saveLabel="CRÉER LA CAMPAGNE"
+            />
+          </>)}
+        </Modal>
+      )}
+
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:24}}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <h2 style={{ fontFamily: 'Syne,sans-serif', fontSize: 20, fontWeight: 700, color: '#1b3a2d' }}>
-              Campagnes de Production
-            </h2>
-            <span className={getSourceTone(source)}>Source: {getSourceLabel(source)}</span>
-          </div>
-          <p style={{ fontSize: 13, color: '#5a7a66' }}>
-            {items.length} campagne(s) disponible(s)
-          </p>
+          <div className="page-title">CAMPAGNES</div>
+          <div className="page-sub">{items.length} campagne(s) · {farms.length} ferme(s) disponible(s)</div>
         </div>
-        <button className="btn-primary" disabled>
-          + Nouvelle campagne
-        </button>
+        <button className="btn-primary" onClick={openModal}>+ NEW CAMPAGNE</button>
       </div>
 
-      {activeCampaign ? (
-        <div className="card" style={{ marginBottom: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div>
-              <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 18, fontWeight: 800, color: '#1b3a2d', marginBottom: 3 }}>
-                {activeCampaign.name}
-              </div>
-              <div style={{ fontSize: 12.5, color: '#5a7a66' }}>
-                {activeCampaign.farmName} · {formatDate(activeCampaign.plantingStart)} → {formatDate(activeCampaign.campaignEnd)}
-              </div>
-            </div>
-            <span className={activeCampaign.status === 'en_cours' ? 'tag-green' : 'tag-blue'}>
-              {getDisplayStatus(activeCampaign.status)}
-            </span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 14 }}>
-            {[
-              ['Serres engagees', activeCampaign.greenhouseCount.toString()],
-              ['Objectif production', `${(activeCampaign.productionTargetKg / 1000).toFixed(1)} t`],
-              ['Budget total', `${(activeCampaign.budgetTotal / 1000000).toFixed(2)} M MAD`],
-              ['Recolte a ce jour', `${(activeCampaign.actualProductionKg / 1000).toFixed(1)} t`],
-              [
-                'Avancement',
-                activeCampaign.productionTargetKg > 0
-                  ? `${((activeCampaign.actualProductionKg / activeCampaign.productionTargetKg) * 100).toFixed(1)}%`
-                  : '0%',
-              ],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <div style={{ fontSize: 10, color: '#5a7a66', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.5px' }}>
-                  {label}
-                </div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: '#1b3a2d' }}>{value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="card" style={{ marginBottom: 18, textAlign: 'center', padding: 32 }}>
-          <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 18, fontWeight: 700, color: '#1b3a2d', marginBottom: 8 }}>
-            Aucune campagne
-          </div>
-          <p style={{ color: '#5a7a66' }}>
-            Ajoutez une campagne dans Supabase pour commencer a suivre les objectifs et les recoltes.
-          </p>
+      {farms.length === 0 && !loading && (
+        <div style={{padding:'12px 16px',background:'#f5a62318',border:'1px solid #f5a62340',borderRadius:8,marginBottom:16,fontFamily:'DM Mono,monospace',fontSize:11,color:'#f5a623',letterSpacing:.5}}>
+          ⚠ Créez d'abord une ferme dans <strong>Fermes &amp; Sites</strong> avant de créer une campagne.
         </div>
       )}
 
-      <div className="card">
-        <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 14, fontWeight: 700, color: '#1b3a2d', marginBottom: 14 }}>
-          Historique des campagnes
+      {loading ? (
+        <div style={{textAlign:'center',padding:60,color:'#3d6b52',fontFamily:'DM Mono,monospace',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
+      ) : items.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">📅</div>
+          <div className="empty-title">Aucune campagne</div>
+          <div className="empty-sub">Créez votre première campagne de production.</div>
+          <button className="btn-primary" onClick={openModal} disabled={farms.length===0}>+ NEW CAMPAGNE</button>
         </div>
-
-        <div style={{ overflowX: 'auto' }}>
-          <table>
-            <thead>
-              <tr>
-                {['Campagne', 'Ferme', 'Periode', 'Objectif', 'Recolte', 'Budget', 'Statut'].map((header) => (
-                  <th key={header}>{header}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id}>
-                  <td style={{ fontWeight: 600, color: '#1b3a2d' }}>{item.name}</td>
-                  <td style={{ color: '#5a7a66' }}>{item.farmName}</td>
-                  <td style={{ color: '#5a7a66', fontSize: 12 }}>
-                    {formatDate(item.plantingStart)} → {formatDate(item.campaignEnd)}
-                  </td>
-                  <td style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                    {(item.productionTargetKg / 1000).toFixed(1)} t
-                  </td>
-                  <td style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 600 }}>
-                    {(item.actualProductionKg / 1000).toFixed(1)} t
-                  </td>
-                  <td style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                    {(item.budgetTotal / 1000).toFixed(0)} k MAD
-                  </td>
-                  <td>
-                    <span className={item.status === 'en_cours' ? 'tag-green' : 'tag-blue'}>
-                      {getDisplayStatus(item.status)}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      ) : (
+        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+          {items.map((c:any)=>{
+            const color = STATUS_COLORS[c.status] || '#3d6b52'
+            return (
+              <div key={c.id} className="card" style={{borderLeft:`3px solid ${color}`}}>
+                <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:14}}>
+                  <div>
+                    <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:17,fontWeight:700,color:'#e8f5ee',textTransform:'uppercase',letterSpacing:.5,marginBottom:3}}>{c.name}</div>
+                    <div style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52',letterSpacing:1}}>{c.code} · {c.farms?.name}</div>
+                  </div>
+                  <span className="tag" style={{background:`${color}18`,color:color,border:`1px solid ${color}40`}}>
+                    {c.status?.replace('_',' ').toUpperCase()}
+                  </span>
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8}}>
+                  {[
+                    ['Plantation', c.planting_start||'—'],
+                    ['Début récolte', c.harvest_start||'—'],
+                    ['Fin récolte', c.harvest_end||'—'],
+                    ['Budget', c.budget_total ? (c.budget_total/1000000).toFixed(2)+' M MAD' : '—'],
+                    ['Objectif', c.production_target_kg ? (c.production_target_kg/1000).toFixed(0)+' t' : '—'],
+                  ].map(([l,v])=>(
+                    <div key={l} style={{background:'#0d1f14',border:'1px solid #1a3526',borderRadius:6,padding:'8px 10px'}}>
+                      <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',letterSpacing:1,marginBottom:3}}>{l}</div>
+                      <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
         </div>
-      </div>
+      )}
     </div>
   )
 }
