@@ -13,105 +13,129 @@ export default function LoginPage() {
 
   const loginDemo = async () => {
     setLoading(true)
-    // Mode démo : connexion avec compte admin par défaut
-    const { error } = await supabase.auth.signInWithPassword({
-      email: 'admin@tomatopilot.ma',
-      password: 'demo2026'
-    })
+    const { error } = await supabase.auth.signInWithPassword({ email:'admin@tomatopilot.ma', password:'demo2026' })
     if (error) {
-      // Si pas encore créé, on crée le compte démo
-      await supabase.auth.signUp({ email: 'admin@tomatopilot.ma', password: 'demo2026' })
-      await supabase.auth.signInWithPassword({ email: 'admin@tomatopilot.ma', password: 'demo2026' })
+      await supabase.auth.signUp({ email:'admin@tomatopilot.ma', password:'demo2026' })
+      await supabase.auth.signInWithPassword({ email:'admin@tomatopilot.ma', password:'demo2026' })
     }
-    localStorage.setItem('tp_mode', 'demo')
+    localStorage.setItem('tp_mode','demo')
     router.replace('/')
   }
 
   const loginReel = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true); setError('')
+    e.preventDefault(); setLoading(true); setError('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) { setError('Email ou mot de passe incorrect'); setLoading(false); return }
-    localStorage.setItem('tp_mode', 'reel')
+    if (error) { setError('Identifiants incorrects'); setLoading(false); return }
+    localStorage.setItem('tp_mode','reel')
     router.replace('/')
   }
 
-  const S = {
-    page: { minHeight:'100vh', background:'#f4f9f4', display:'flex', alignItems:'center', justifyContent:'center', padding:24, fontFamily:'Inter,sans-serif' } as React.CSSProperties,
-    card: { background:'#fff', border:'1px solid #cce5d4', borderRadius:18, padding:'36px 40px', width:'100%', maxWidth:460, boxShadow:'0 8px 32px rgba(27,58,45,0.1)' } as React.CSSProperties,
-    logo: { width:64, height:64, background:'#40916c', borderRadius:'50% 16px 50% 16px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, margin:'0 auto 20px', boxShadow:'0 8px 24px rgba(45,106,79,0.3)' } as React.CSSProperties,
-    h1: { fontFamily:'Syne,sans-serif', fontSize:26, fontWeight:800, color:'#1b3a2d', textAlign:'center', marginBottom:6 } as React.CSSProperties,
-    sub: { fontSize:13, color:'#5a7a66', textAlign:'center', marginBottom:32 } as React.CSSProperties,
-    btn: (color:string) => ({ width:'100%', padding:'13px 0', borderRadius:10, border:'none', fontSize:14, fontWeight:700, cursor:'pointer', background:color, color:'#fff', transition:'all .15s', marginBottom:12 }) as React.CSSProperties,
-    btnOut: { width:'100%', padding:'13px 0', borderRadius:10, border:'1px solid #cce5d4', fontSize:13, fontWeight:600, cursor:'pointer', background:'#f4f9f4', color:'#1b3a2d', marginTop:4 } as React.CSSProperties,
-    label: { display:'block', fontSize:11, fontWeight:600, color:'#5a7a66', textTransform:'uppercase', letterSpacing:'.5px', marginBottom:6 } as React.CSSProperties,
-    input: { width:'100%', padding:'10px 14px', borderRadius:8, border:'1px solid #cce5d4', background:'#f9fdf9', fontSize:13.5, color:'#1b3a2d', outline:'none', marginBottom:14, fontFamily:'Inter,sans-serif', boxSizing:'border-box' } as React.CSSProperties,
-    err: { background:'#fff1f1', border:'1px solid #fcc', color:'#9b1d1d', borderRadius:8, padding:'10px 14px', fontSize:12.5, marginBottom:14 } as React.CSSProperties,
-    divider: { display:'flex', alignItems:'center', gap:10, margin:'20px 0' } as React.CSSProperties,
-    line: { flex:1, height:1, background:'#e8f5ec' } as React.CSSProperties,
-    divTxt: { fontSize:11, color:'#5a7a66', fontWeight:500 } as React.CSSProperties,
-  }
-
-  if (mode === 'login') return (
-    <div style={S.page}>
-      <div style={S.card}>
-        <div style={S.logo}>🌿</div>
-        <h1 style={S.h1}>Connexion</h1>
-        <p style={S.sub}>TomatoPilot — Souss Agri</p>
-        <form onSubmit={loginReel}>
-          {error && <div style={S.err}>{error}</div>}
-          <label style={S.label}>Email</label>
-          <input style={S.input} type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="votre@email.ma" required autoFocus />
-          <label style={S.label}>Mot de passe</label>
-          <input style={S.input} type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" required />
-          <button type="submit" style={S.btn('#2d6a4f')} disabled={loading}>
-            {loading ? 'Connexion...' : 'Se connecter'}
-          </button>
-        </form>
-        <button style={S.btnOut} onClick={()=>setMode('choose')}>← Retour au choix</button>
-      </div>
-    </div>
-  )
-
   return (
-    <div style={S.page}>
-      <div style={S.card}>
-        <div style={S.logo}>🌿</div>
-        <h1 style={S.h1}>TomatoPilot</h1>
-        <p style={S.sub}>Gestion de ferme de tomates sous serre</p>
+    <div style={{
+      minHeight:'100vh',
+      background:'#030a07',
+      display:'flex', alignItems:'center', justifyContent:'center',
+      padding:24,
+      position:'relative',
+      overflow:'hidden',
+      fontFamily:'Outfit,sans-serif',
+    }}>
+      {/* Grid background */}
+      <div style={{ position:'absolute', inset:0, backgroundImage:'linear-gradient(#1a352620 1px,transparent 1px),linear-gradient(90deg,#1a352620 1px,transparent 1px)', backgroundSize:'40px 40px', pointerEvents:'none' }} />
 
-        {/* Carte Mode Réel */}
-        <div style={{ border:'2px solid #2d6a4f', borderRadius:12, padding:'18px 20px', marginBottom:14, cursor:'pointer', transition:'all .15s' }}
-          onClick={()=>setMode('login')}>
-          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-            <div style={{ width:42, height:42, background:'#2d6a4f', borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>🏭</div>
-            <div>
-              <div style={{ fontFamily:'Syne,sans-serif', fontSize:15, fontWeight:800, color:'#1b3a2d', marginBottom:2 }}>Mode Production Réel</div>
-              <div style={{ fontSize:12, color:'#5a7a66' }}>Connexion sécurisée — vos vraies données</div>
-            </div>
-            <div style={{ marginLeft:'auto', fontSize:18, color:'#2d6a4f' }}>→</div>
+      {/* Glow center */}
+      <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:500, height:500, background:'radial-gradient(circle, #00e87a08 0%, transparent 70%)', pointerEvents:'none' }} />
+
+      <div style={{ width:'100%', maxWidth:440, position:'relative', zIndex:1 }}>
+        {/* Logo */}
+        <div style={{ textAlign:'center', marginBottom:36 }}>
+          <div style={{
+            width:64, height:64, margin:'0 auto 16px',
+            background:'linear-gradient(135deg,#00e87a,#006633)',
+            borderRadius:14,
+            display:'flex', alignItems:'center', justifyContent:'center',
+            fontSize:28,
+            boxShadow:'0 0 40px #00e87a30',
+          }}>🍅</div>
+          <div style={{ fontFamily:'Rajdhani,sans-serif', fontSize:28, fontWeight:700, color:'#e8f5ee', letterSpacing:3, textTransform:'uppercase' }}>TomatoPilot</div>
+          <div style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'#3d6b52', letterSpacing:3, marginTop:4 }}>AGRITECH MANAGEMENT SYSTEM</div>
+        </div>
+
+        {/* Card */}
+        <div style={{ background:'#0a1810', border:'1px solid #1f4030', borderRadius:14, overflow:'hidden', boxShadow:'0 0 60px #00e87a08, 0 24px 48px #00000080', position:'relative' }}>
+          {/* Top line */}
+          <div style={{ height:2, background:'linear-gradient(90deg,transparent,#00e87a,transparent)' }} />
+
+          <div style={{ padding:'32px 36px 36px' }}>
+            {mode === 'login' ? (
+              <>
+                <div style={{ marginBottom:24 }}>
+                  <div style={{ fontFamily:'Rajdhani,sans-serif', fontSize:18, fontWeight:700, color:'#e8f5ee', textTransform:'uppercase', letterSpacing:1, marginBottom:3 }}>Connexion Admin</div>
+                  <div style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'#3d6b52', letterSpacing:1 }}>Acces securise — Production</div>
+                </div>
+                <form onSubmit={loginReel}>
+                  {error && (
+                    <div style={{ padding:'10px 13px', background:'#ff4d6d18', border:'1px solid #ff4d6d30', borderRadius:7, color:'#ff4d6d', fontFamily:'DM Mono,monospace', fontSize:11, marginBottom:16 }}>
+                      ⚠ {error}
+                    </div>
+                  )}
+                  <div style={{ marginBottom:14 }}>
+                    <label className="form-label">Adresse Email</label>
+                    <input className="form-input" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="admin@ferme.ma" required autoFocus />
+                  </div>
+                  <div style={{ marginBottom:22 }}>
+                    <label className="form-label">Mot de passe</label>
+                    <input className="form-input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" required />
+                  </div>
+                  <button type="submit" className="btn-primary" style={{ width:'100%', justifyContent:'center', fontSize:13, letterSpacing:2 }} disabled={loading}>
+                    {loading ? '...' : '⮞ CONNEXION'}
+                  </button>
+                </form>
+                <button onClick={()=>setMode('choose')} style={{ width:'100%', marginTop:12, padding:'9px', background:'transparent', border:'1px solid #1a3526', borderRadius:7, color:'#3d6b52', fontFamily:'DM Mono,monospace', fontSize:10, cursor:'pointer', letterSpacing:1.5, transition:'all .15s' }}
+                  onMouseEnter={e=>(e.currentTarget as HTMLElement).style.borderColor='#2a5a40'}
+                  onMouseLeave={e=>(e.currentTarget as HTMLElement).style.borderColor='#1a3526'}>
+                  ← RETOUR
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ marginBottom:28 }}>
+                  <div style={{ fontFamily:'Rajdhani,sans-serif', fontSize:18, fontWeight:700, color:'#e8f5ee', textTransform:'uppercase', letterSpacing:1, marginBottom:3 }}>Acces Systeme</div>
+                  <div style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'#3d6b52', letterSpacing:1 }}>Selectionner un mode d'acces</div>
+                </div>
+
+                {/* Mode Production */}
+                <div onClick={()=>setMode('login')}
+                  style={{ border:'1px solid #1f4030', borderRadius:10, padding:'18px 20px', marginBottom:12, cursor:'pointer', background:'#0d1f14', transition:'all .2s', display:'flex', alignItems:'center', gap:14 }}
+                  onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.borderColor='#00e87a';(e.currentTarget as HTMLElement).style.boxShadow='0 0 20px #00e87a10'}}
+                  onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.borderColor='#1f4030';(e.currentTarget as HTMLElement).style.boxShadow='none'}}>
+                  <div style={{ width:44, height:44, background:'linear-gradient(135deg,#00e87a20,#006633)', border:'1px solid #00e87a30', borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>🏭</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontFamily:'Rajdhani,sans-serif', fontSize:15, fontWeight:700, color:'#e8f5ee', textTransform:'uppercase', letterSpacing:.5, marginBottom:2 }}>Mode Production</div>
+                    <div style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'#3d6b52' }}>Connexion securisee · Donnees reelles</div>
+                  </div>
+                  <span style={{ fontFamily:'DM Mono,monospace', fontSize:14, color:'#00e87a' }}>→</span>
+                </div>
+
+                {/* Mode Demo */}
+                <div onClick={loginDemo}
+                  style={{ border:'1px solid #1a3526', borderRadius:10, padding:'18px 20px', cursor:'pointer', background:'#0a1810', transition:'all .2s', display:'flex', alignItems:'center', gap:14 }}
+                  onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.borderColor='#f5a623';(e.currentTarget as HTMLElement).style.boxShadow='0 0 20px #f5a62310'}}
+                  onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.borderColor='#1a3526';(e.currentTarget as HTMLElement).style.boxShadow='none'}}>
+                  <div style={{ width:44, height:44, background:'#f5a62318', border:'1px solid #f5a62330', borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>🌱</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontFamily:'Rajdhani,sans-serif', fontSize:15, fontWeight:700, color:'#e8f5ee', textTransform:'uppercase', letterSpacing:.5, marginBottom:2 }}>Mode Demo</div>
+                    <div style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'#3d6b52' }}>Exploration · Aucune donnee reelle</div>
+                  </div>
+                  <span style={{ fontFamily:'DM Mono,monospace', fontSize:14, color:'#f5a623' }}>{loading ? '...' : '→'}</span>
+                </div>
+
+                <div style={{ marginTop:20, fontFamily:'DM Mono,monospace', fontSize:9, color:'#1f4030', textAlign:'center', letterSpacing:1 }}>
+                  TOMATOPILOT · AGRITECH v1.0 · SOUSS AGRI
+                </div>
+              </>
+            )}
           </div>
-        </div>
-
-        <div style={S.divider}>
-          <div style={S.line}/><span style={S.divTxt}>ou</span><div style={S.line}/>
-        </div>
-
-        {/* Carte Mode Démo */}
-        <div style={{ border:'1px solid #cce5d4', borderRadius:12, padding:'18px 20px', cursor:'pointer', transition:'all .15s', marginBottom:20 }}
-          onClick={loginDemo}>
-          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-            <div style={{ width:42, height:42, background:'#e9c46a', borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>🌱</div>
-            <div>
-              <div style={{ fontFamily:'Syne,sans-serif', fontSize:15, fontWeight:800, color:'#1b3a2d', marginBottom:2 }}>Mode Démo</div>
-              <div style={{ fontSize:12, color:'#5a7a66' }}>Exploration sans données réelles</div>
-            </div>
-            <div style={{ marginLeft:'auto', fontSize:18, color:'#5a7a66' }}>{loading ? '...' : '→'}</div>
-          </div>
-        </div>
-
-        <div style={{ fontSize:11, color:'#9dc4b0', textAlign:'center' }}>
-          TomatoPilot v1.0 — Domaine Souss Agri
         </div>
       </div>
     </div>
