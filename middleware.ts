@@ -1,23 +1,33 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+
+  // Toujours autoriser les assets et la page login
+  if (pathname.startsWith('/_next') || pathname.startsWith('/favicon') || pathname === '/login') {
+    return NextResponse.next()
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseKey) {
+    // Pas de config → laisser passer (évite boucle en dev)
+    return NextResponse.next()
+  }
+
   let response = NextResponse.next({ request: { headers: request.headers } })
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!url || !anonKey) return response
-
-  const supabase = createServerClient(url, anonKey, {
+  const supabase = createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
-      get(name: string) { return request.cookies.get(name)?.value },
-      set(name: string, value: string, options: CookieOptions) {
+      get: (name) => request.cookies.get(name)?.value,
+      set: (name, value, options: CookieOptions) => {
         request.cookies.set({ name, value, ...options })
         response = NextResponse.next({ request: { headers: request.headers } })
         response.cookies.set({ name, value, ...options })
       },
-      remove(name: string, options: CookieOptions) {
+      remove: (name, options: CookieOptions) => {
         request.cookies.set({ name, value: '', ...options })
         response = NextResponse.next({ request: { headers: request.headers } })
         response.cookies.set({ name, value: '', ...options })
@@ -26,26 +36,16 @@ export async function middleware(request: NextRequest) {
   })
 
   const { data: { user } } = await supabase.auth.getUser()
-  const pathname = request.nextUrl.pathname
-  const isPublic = pathname === '/login'
 
-  // Non connecté → rediriger vers login
-  if (!user && !isPublic) {
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/login'
-    return NextResponse.redirect(redirectUrl)
-  }
-
-  // Déjà connecté sur /login → rediriger vers dashboard
-  if (user && pathname === '/login') {
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/'
-    return NextResponse.redirect(redirectUrl)
+  if (!user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
   }
 
   return response
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|_next/webpack-hmr).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|login).*)'],
 }
