@@ -26,13 +26,7 @@ interface Harvest {
   total_qty: number
   notes: string | null
   campaign_planting_id: string
-  campaign_plantings?: {
-    greenhouses?: { name: string; code: string }
-    varieties?:   { commercial_name: string }
-    campaigns?:   { name: string }
-    variety_id?:  string
-    greenhouse_id?: string
-  }
+  campaign_plantings?: any
 }
 
 /* ── Helpers ── */
@@ -125,8 +119,8 @@ export default function RecoltesPage() {
         supabase.from('markets').select('id,name,currency,type').eq('is_active', true).order('name'),
         supabase.from('alerts').select('*').eq('type', 'no_harvest').order('created_at', { ascending: false }).limit(100),
       ])
-      setHarvests(h.data || [])
-      setDispatches(d.data || [])
+      setHarvests((h.data || []) as any)
+      setDispatches((d.data || []) as any)
       setPlantings(p.data || [])
       setMarkets(m.data || [])
       setAlertes(al.data || [])
@@ -151,7 +145,7 @@ export default function RecoltesPage() {
         qty_category_1: 0, qty_category_2: 0, qty_category_3: 0, qty_waste: 0,
       }).select('id, lot_number, harvest_date, total_qty, notes, campaign_planting_id, campaign_plantings(*, greenhouses(code,name), varieties(commercial_name), campaigns(name))').single()
       if (error) throw error
-      setHarvests(p => [data as Harvest, ...p])
+      setHarvests(p => [data as any, ...p])
       setDone(true)
       setTimeout(() => {
         setModalNew(false); setDone(false)
