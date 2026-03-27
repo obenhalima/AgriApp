@@ -204,7 +204,7 @@ export default function RecoltesPage() {
     setMasseSaving(true)
     try {
       const prix = Number(massePrix)
-      for (const harvestId of selected) {
+      for (const harvestId of Array.from(selected)) {
         const h = harvests.find(x => x.id === harvestId)
         if (!h) continue
         const qte = h.station_lot?.quantity_kg || (h.qty_category_1 + h.qty_category_2)
@@ -484,7 +484,7 @@ export default function RecoltesPage() {
                   <th style={{width:40}}>
                     <input type="checkbox"
                       checked={selected.size===displayed.length && displayed.length>0}
-                      onChange={e => setSelected(e.target.checked ? new Set(displayed.map(h=>h.id)) : new Set())}
+                      onChange={e => setSelected(e.target.checked ? new Set<string>(displayed.map(h=>h.id)) : new Set())}
                       style={{cursor:'pointer',accentColor:'#00e87a'}} />
                   </th>
                 )}
