@@ -193,9 +193,9 @@ export default function RecoltesPage() {
     try {
       const cp = plantings.find(p => p.id === modalDispatch.campaign_planting_id)
       const newDisps: Dispatch[] = []
-      for (const line of validLines) {
+      for (let idx = 0; idx < validLines.length; idx++) { const line = validLines[idx];
         const { data, error } = await supabase.from('harvest_lots').insert({
-          lot_number:           `DISP-${modalDispatch.lot_number}-${line.market_id.slice(-4)}`,
+          lot_number:           `D${validLines.indexOf(line)}-${Date.now()}`.slice(0,50),
           harvest_id:           modalDispatch.id,
           campaign_planting_id: modalDispatch.campaign_planting_id,
           harvest_date:         modalDispatch.harvest_date,
