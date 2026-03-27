@@ -6,28 +6,8 @@ import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, Succes
 type Tab = 'liste' | 'sans_prix' | 'alertes'
 
 /* ── Types ── */
-interface Dispatch {
-  id: string
-  lot_number: string
-  harvest_id: string
-  harvest_date: string
-  quantity_kg: number          // qty envoyée au marché
-  certificate_number: string | null  // qty acceptée (string)
-  storage_temp: number | null        // CA = qty_acceptée × prix
-  notes: string | null               // JSON {price_per_kg, station_ref, receipt_date}
-  market_id: string
-  markets?: { name: string; currency: string }
-}
-
-interface Harvest {
-  id: string
-  lot_number: string
-  harvest_date: string
-  total_qty: number
-  notes: string | null
-  campaign_planting_id: string
-  campaign_plantings?: any
-}
+type Dispatch = any
+type Harvest  = any
 
 /* ── Helpers ── */
 const parseMeta = (notes: string | null) => {
@@ -229,9 +209,9 @@ export default function RecoltesPage() {
           notes:                null,
         }).select('id, lot_number, harvest_id, harvest_date, quantity_kg, certificate_number, storage_temp, notes, market_id, markets(name,currency)').single()
         if (error) throw error
-        newDisps.push(data as Dispatch)
+        newDisps.push(data as any)
       }
-      setDispatches(p => [...newDisps, ...p])
+      setDispatches((p:any) => [...newDisps, ...p])
       setDone(true)
       setTimeout(() => { setModalDispatch(null); setDone(false); setDispLines([{ market_id: '', qty: '' }]) }, 1400)
     } catch (e: any) { alert('Erreur: ' + e.message) }
