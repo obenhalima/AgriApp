@@ -1,92 +1,130 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { getClients, createClient_, deleteClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
+import { genCode } from '@/lib/utils'
 
 export default function ClientsPage() {
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState(false)
+  const [modalNew,  setModalNew]  = useState(false)
+  const [modalEdit, setModalEdit] = useState<any>(null)
   const [saving, setSaving] = useState(false)
-  const [done, setDone] = useState(false)
-  const [form, setForm] = useState({ code:'', name:'', type:'grossiste', city:'', country:'Maroc', email:'', phone:'', payment_terms_days:'30', credit_limit:'' })
-  const s = (k:string) => (e:any) => setForm(f=>({...f,[k]:e.target.value}))
+  const [done,   setDone]   = useState(false)
+  const [form,  setForm]  = useState({ code:'', name:'', type:'grossiste', city:'', country:'Maroc', email:'', phone:'', payment_terms_days:'30', credit_limit:'' })
+  const [formE, setFormE] = useState<Record<string,any>>({})
+  const s  = (k:string) => (e:any) => setForm(f=>({...f,[k]:e.target.value}))
+  const se = (k:string) => (e:any) => setFormE(f=>({...f,[k]:e.target.value}))
 
-  useEffect(() => { getClients().then(d=>{setItems(d);setLoading(false)}).catch(()=>setLoading(false)) }, [])
+  const load = () => getClients().then(d=>{setItems(d);setLoading(false)}).catch(()=>setLoading(false))
+  useEffect(()=>{load()},[])
+
+  const openNew = () => { setForm(f=>({...f, code:genCode('CL',items.map(i=>i.code))})); setModalNew(true) }
+  const openEdit = (c:any) => {
+    setFormE({code:c.code,name:c.name,type:c.type,city:c.city||'',country:c.country||'Maroc',
+      email:c.email||'',phone:c.phone||'',payment_terms_days:String(c.payment_terms_days||30),credit_limit:String(c.credit_limit||'')})
+    setModalEdit(c)
+  }
 
   const save = async () => {
-    if (!form.code||!form.name) return
+    if (!form.name) return
     setSaving(true)
     try {
-      const n = await createClient_({ ...form, payment_terms_days:Number(form.payment_terms_days)||30, credit_limit:Number(form.credit_limit)||undefined })
+      const n = await createClient_({...form, payment_terms_days:Number(form.payment_terms_days)||30, credit_limit:Number(form.credit_limit)||undefined})
       setItems(p=>[n,...p]); setDone(true)
-      setTimeout(()=>{setModal(false);setDone(false);setForm({code:'',name:'',type:'grossiste',city:'',country:'Maroc',email:'',phone:'',payment_terms_days:'30',credit_limit:''})},1400)
+      setTimeout(()=>{setModalNew(false);setDone(false)},1400)
     } catch(e:any){alert('Erreur: '+e.message)}
     setSaving(false)
   }
 
-  const del = async (id:string,name:string) => {
-    if(!confirm(`Désactiver "${name}" ?`)) return
-    await deleteClient(id); setItems(p=>p.filter(i=>i.id!==id))
+  const saveEdit = async () => {
+    if (!modalEdit||!formE.name) return
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('clients').update({
+        code:formE.code, name:formE.name, type:formE.type, city:formE.city||null,
+        country:formE.country||'Maroc', email:formE.email||null, phone:formE.phone||null,
+        payment_terms_days:Number(formE.payment_terms_days)||30,
+        credit_limit:formE.credit_limit?Number(formE.credit_limit):null,
+      }).eq('id',modalEdit.id)
+      if (error) throw error
+      setDone(true)
+      setTimeout(()=>{setModalEdit(null);setDone(false);load()},1400)
+    } catch(e:any){alert('Erreur: '+e.message)}
+    setSaving(false)
   }
 
+  const TYPES = ['grossiste','exportateur','grande_surface','detail','industrie','institutionnel','autre']
+
+  const CForm = ({vals, onChange}: any) => (<>
+    <FormRow>
+      <FormGroup label="Code"><Input value={vals.code} onChange={onChange('code')} /></FormGroup>
+      <FormGroup label="Nom *"><Input value={vals.name} onChange={onChange('name')} placeholder="Nom société" autoFocus /></FormGroup>
+    </FormRow>
+    <FormRow>
+      <FormGroup label="Type">
+        <Select value={vals.type} onChange={onChange('type')}>{TYPES.map(t=><option key={t}>{t}</option>)}</Select>
+      </FormGroup>
+      <FormGroup label="Pays"><Input value={vals.country} onChange={onChange('country')} /></FormGroup>
+    </FormRow>
+    <FormRow>
+      <FormGroup label="Ville"><Input value={vals.city} onChange={onChange('city')} placeholder="ex: Agadir" /></FormGroup>
+      <FormGroup label="Téléphone"><Input value={vals.phone} onChange={onChange('phone')} placeholder="+212..." /></FormGroup>
+    </FormRow>
+    <FormRow>
+      <FormGroup label="Email"><Input type="email" value={vals.email} onChange={onChange('email')} /></FormGroup>
+      <FormGroup label="Délai paiement (j)"><Input type="number" value={vals.payment_terms_days} onChange={onChange('payment_terms_days')} /></FormGroup>
+    </FormRow>
+    <FormGroup label="Plafond crédit (MAD)"><Input type="number" value={vals.credit_limit} onChange={onChange('credit_limit')} placeholder="optionnel" /></FormGroup>
+  </>)
+
   return (
-    <div style={{padding:'22px 26px',background:'#f4f9f4',minHeight:'100vh'}}>
-      {modal && (
-        <Modal title="Nouveau client" onClose={()=>{setModal(false);setDone(false)}}>
-          {done ? <SuccessMessage message="Client créé avec succès !" /> : (<>
-            <FormRow>
-              <FormGroup label="Code *"><Input value={form.code} onChange={s('code')} placeholder="ex: CL001" /></FormGroup>
-              <FormGroup label="Nom *"><Input value={form.name} onChange={s('name')} placeholder="Nom de la société" /></FormGroup>
-            </FormRow>
-            <FormRow>
-              <FormGroup label="Type">
-                <Select value={form.type} onChange={s('type')}>{['grossiste','exportateur','grande_surface','detail','industrie','institutionnel','autre'].map(t=><option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1).replace('_',' ')}</option>)}</Select>
-              </FormGroup>
-              <FormGroup label="Pays"><Input value={form.country} onChange={s('country')} placeholder="Maroc" /></FormGroup>
-            </FormRow>
-            <FormRow>
-              <FormGroup label="Ville"><Input value={form.city} onChange={s('city')} placeholder="ex: Agadir" /></FormGroup>
-              <FormGroup label="Téléphone"><Input value={form.phone} onChange={s('phone')} placeholder="+212 6xx xxx xxx" /></FormGroup>
-            </FormRow>
-            <FormRow>
-              <FormGroup label="Email"><Input type="email" value={form.email} onChange={s('email')} placeholder="contact@client.ma" /></FormGroup>
-              <FormGroup label="Délai paiement (jours)"><Input type="number" value={form.payment_terms_days} onChange={s('payment_terms_days')} /></FormGroup>
-            </FormRow>
-            <FormGroup label="Plafond crédit (MAD)"><Input type="number" value={form.credit_limit} onChange={s('credit_limit')} placeholder="ex: 500000" /></FormGroup>
-            <ModalFooter onCancel={()=>setModal(false)} onSave={save} loading={saving} disabled={!form.code||!form.name} saveLabel="Créer le client" />
+    <div style={{background:'#030a07',minHeight:'100vh'}}>
+      {modalNew && (
+        <Modal title="NOUVEAU CLIENT" onClose={()=>{setModalNew(false);setDone(false)}}>
+          {done ? <SuccessMessage message="Client créé !" /> : (<>
+            <CForm vals={form} onChange={s} />
+            <ModalFooter onCancel={()=>setModalNew(false)} onSave={save} loading={saving} disabled={!form.name} saveLabel="CRÉER LE CLIENT" />
           </>)}
         </Modal>
       )}
-      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:20}}>
-        <div><h2 style={{fontFamily:'Syne,sans-serif',fontSize:20,fontWeight:700,color:'#1b3a2d',marginBottom:4}}>Clients</h2><p style={{fontSize:13,color:'#5a7a66'}}>{items.length} client(s)</p></div>
-        <button onClick={()=>setModal(true)} style={{padding:'8px 16px',borderRadius:8,border:'none',background:'#2d6a4f',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer'}}>+ Nouveau client</button>
+      {modalEdit && (
+        <Modal title={`MODIFIER — ${modalEdit.name}`} onClose={()=>{setModalEdit(null);setDone(false)}}>
+          {done ? <SuccessMessage message="Client modifié !" /> : (<>
+            <CForm vals={formE} onChange={se} />
+            <ModalFooter onCancel={()=>setModalEdit(null)} onSave={saveEdit} loading={saving} disabled={!formE.name} saveLabel="ENREGISTRER" />
+          </>)}
+        </Modal>
+      )}
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:24}}>
+        <div><div className="page-title">CLIENTS</div><div className="page-sub">{items.length} client(s)</div></div>
+        <button className="btn-primary" onClick={openNew}>+ NEW CLIENT</button>
       </div>
-      {loading ? <div style={{textAlign:'center',padding:60,color:'#5a7a66'}}>Chargement...</div>
+      {loading ? <div style={{textAlign:'center',padding:60,color:'#3d6b52',fontFamily:'DM Mono,monospace',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
       : items.length===0 ? (
-        <div style={{textAlign:'center',padding:60,background:'#fff',border:'1px solid #cce5d4',borderRadius:12}}>
-          <div style={{fontSize:40,marginBottom:12}}>👥</div>
-          <div style={{fontFamily:'Syne,sans-serif',fontSize:16,fontWeight:700,color:'#1b3a2d',marginBottom:8}}>Aucun client enregistré</div>
-          <button onClick={()=>setModal(true)} style={{padding:'9px 20px',borderRadius:8,border:'none',background:'#2d6a4f',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer'}}>+ Nouveau client</button>
-        </div>
+        <div className="empty-state"><div className="empty-icon">👥</div><div className="empty-title">Aucun client</div><button className="btn-primary" onClick={openNew}>+ NEW CLIENT</button></div>
       ) : (
-        <div style={{background:'#fff',border:'1px solid #cce5d4',borderRadius:12,overflow:'hidden'}}>
+        <div className="card" style={{padding:0,overflow:'hidden'}}>
           <div style={{overflowX:'auto'}}>
-            <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead><tr>{['Code','Nom','Type','Ville','Pays','Email','Téléphone','Délai pmt','Actions'].map(h=><th key={h} style={{padding:'10px 14px',fontSize:10.5,fontWeight:600,color:'#5a7a66',textTransform:'uppercase',letterSpacing:'.5px',borderBottom:'1px solid #e8f5ec',textAlign:'left',background:'#f9fdf9',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+            <table className="tbl">
+              <thead><tr>{['Code','Nom','Type','Ville','Pays','Email','Tél.','Délai pmt','Actions'].map(h=><th key={h}>{h}</th>)}</tr></thead>
               <tbody>
                 {items.map((c:any)=>(
-                  <tr key={c.id} style={{borderBottom:'1px solid #e8f5ec'}}>
-                    <td style={{padding:'11px 14px',fontFamily:'monospace',fontSize:12,color:'#5a7a66'}}>{c.code}</td>
-                    <td style={{padding:'11px 14px',fontWeight:600,color:'#1b3a2d'}}>{c.name}</td>
-                    <td style={{padding:'11px 14px'}}><span style={{background:'#dbeafe',color:'#1e3a8a',padding:'2px 8px',borderRadius:10,fontSize:10,fontWeight:600}}>{c.type}</span></td>
-                    <td style={{padding:'11px 14px',color:'#5a7a66',fontSize:12}}>{c.city||'—'}</td>
-                    <td style={{padding:'11px 14px',color:'#5a7a66',fontSize:12}}>{c.country||'—'}</td>
-                    <td style={{padding:'11px 14px',color:'#5a7a66',fontSize:12}}>{c.email||'—'}</td>
-                    <td style={{padding:'11px 14px',color:'#5a7a66',fontSize:12}}>{c.phone||'—'}</td>
-                    <td style={{padding:'11px 14px',fontFamily:'monospace',fontSize:12}}>{c.payment_terms_days} j</td>
-                    <td style={{padding:'11px 14px'}}>
-                      <button onClick={()=>del(c.id,c.name)} style={{padding:'4px 10px',borderRadius:6,border:'1px solid #fcc',background:'#fff1f1',color:'#9b1d1d',fontSize:11,cursor:'pointer'}}>🗑</button>
+                  <tr key={c.id}>
+                    <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52'}}>{c.code}</span></td>
+                    <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{c.name}</span></td>
+                    <td><span className="tag tag-blue" style={{fontSize:9}}>{c.type}</span></td>
+                    <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{c.city||'—'}</span></td>
+                    <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{c.country||'—'}</span></td>
+                    <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{c.email||'—'}</span></td>
+                    <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{c.phone||'—'}</span></td>
+                    <td><span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#f5a623'}}>{c.payment_terms_days} j</span></td>
+                    <td>
+                      <div style={{display:'flex',gap:5}}>
+                        <button onClick={()=>openEdit(c)} className="btn-ghost" style={{padding:'4px 8px',fontSize:10}}>✏️</button>
+                        <button onClick={()=>{if(!confirm(`Désactiver "${c.name}" ?`))return;deleteClient(c.id);setItems(p=>p.filter(i=>i.id!==c.id))}} className="btn-danger" style={{padding:'4px 8px',fontSize:10}}>🗑</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
