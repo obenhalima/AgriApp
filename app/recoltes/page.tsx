@@ -192,7 +192,7 @@ export default function RecoltesPage() {
     setSaving(true)
     try {
       const cp = plantings.find(p => p.id === modalDispatch.campaign_planting_id)
-      const newDisps: Dispatch[] = []
+      const newDisps: any[] = []
       for (let idx = 0; idx < validLines.length; idx++) { const line = validLines[idx];
         const { data, error } = await supabase.from('harvest_lots').insert({
           lot_number:           `D${validLines.indexOf(line)}-${Date.now()}`.slice(0,50),
@@ -208,13 +208,16 @@ export default function RecoltesPage() {
           storage_temp:         null,
           notes:                null,
         }).select('id, lot_number, harvest_id, harvest_date, quantity_kg, certificate_number, storage_temp, notes, market_id, markets(name,currency)').single()
-        if (error) throw error
+        if (error) {
+          console.error('Dispatch erreur:', error)
+          throw new Error(error.message)
+        }
         newDisps.push(data as any)
       }
       setDispatches((p:any) => [...newDisps, ...p])
       setDone(true)
       setTimeout(() => { setModalDispatch(null); setDone(false); setDispLines([{ market_id: '', qty: '' }]) }, 1400)
-    } catch (e: any) { alert('Erreur: ' + e.message) }
+    } catch (e: any) { alert('Erreur dispatch: ' + e.message) }
     setSaving(false)
   }
 
@@ -257,7 +260,7 @@ export default function RecoltesPage() {
         : d))
       setDone(true)
       setTimeout(() => { setModalConfirm(null); setDone(false) }, 1400)
-    } catch (e: any) { alert('Erreur: ' + e.message) }
+    } catch (e: any) { alert('Erreur dispatch: ' + e.message) }
     setSaving(false)
   }
 
