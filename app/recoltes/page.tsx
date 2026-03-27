@@ -3,8 +3,9 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 
-// ─── Types ───────────────────────────────────────────
-interface Harvest {
+type Tab = 'liste' | 'sans_prix'
+
+interface HarvestRow {
   id: string
   lot_number: string
   harvest_date: string
@@ -12,253 +13,243 @@ interface Harvest {
   qty_category_2: number
   qty_category_3: number
   qty_waste: number
-  notes: string | null
-  campaign_plantings: {
-    greenhouses: { code: string; name: string }
-    varieties: { commercial_name: string }
-    campaigns: { name: string }
-  } | null
-  // Prix station stocké dans harvest_lots
-  station_lot?: {
+  qty_sent_station?: number
+  notes?: string
+  campaign_plantings?: {
+    greenhouses?: { name: string; code: string }
+    varieties?:   { commercial_name: string }
+    campaigns?:   { name: string }
+  }
+  station_price?: {
     id: string
-    quantity_kg: number
-    notes: string | null  // JSON: {price_per_kg, station_ref, receipt_date, amount_total}
+    qty_sent_kg: number
+    price_per_kg: number | null
+    amount_total: number | null
+    station_ref?: string
+    receipt_date?: string
   } | null
 }
 
-// ─── Helpers ──────────────────────────────────────────
-function parseStationNotes(notes: string | null): { price_per_kg?: number; station_ref?: string; receipt_date?: string; amount_total?: number } {
-  if (!notes) return {}
-  try { return JSON.parse(notes) } catch { return {} }
-}
-
-function hasPrice(h: Harvest): boolean {
-  if (!h.station_lot) return false
-  const p = parseStationNotes(h.station_lot.notes)
-  return !!p.price_per_kg
-}
-
-// ─── Page ─────────────────────────────────────────────
 export default function RecoltesPage() {
-  const [harvests, setHarvests]     = useState<Harvest[]>([])
-  const [plantings, setPlantings]   = useState<any[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [tab, setTab]               = useState<'all' | 'sans_prix'>('all')
+  const [tab, setTab]       = useState<Tab>('liste')
+  const [items, setItems]   = useState<HarvestRow[]>([])
+  const [plantings, setPlantings] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [tableExists, setTableExists] = useState(true)
 
-  // Modaux
-  const [modalNew, setModalNew]     = useState(false)
-  const [modalPrix, setModalPrix]   = useState<Harvest | null>(null)
-  const [modalMasse, setModalMasse] = useState(false)
-  const [saving, setSaving]         = useState(false)
-  const [done, setDone]             = useState(false)
+  /* ── Modales ── */
+  const [modalNew,  setModalNew]  = useState(false)
+  const [modalPrix, setModalPrix] = useState(false)  // saisie prix unitaire
+  const [modalMasse,setModalMasse]= useState(false)  // saisie en masse
 
-  // Formulaire nouvelle récolte
-  const [formNew, setFormNew] = useState({
-    campaign_planting_id: '', harvest_date: '',
-    qty_category_1: '', qty_category_2: '', qty_category_3: '', qty_waste: '',
-    qty_sent_station: '',
-    station_ref: '', notes: ''
+  const [saving, setSaving] = useState(false)
+  const [done,   setDone]   = useState(false)
+
+  /* ── Formulaire nouvelle récolte ── */
+  const [formR, setFormR] = useState({
+    campaign_planting_id:'', harvest_date:'',
+    qty_category_1:'', qty_category_2:'', qty_category_3:'', qty_waste:'',
+    qty_sent_station:'', notes:''
   })
-  const sN = (k: string) => (e: any) => setFormNew(f => ({ ...f, [k]: e.target.value }))
+  const sr = (k:string) => (e:any) => setFormR(f=>({...f,[k]:e.target.value}))
 
-  // Formulaire prix unitaire
-  const [formPrix, setFormPrix] = useState({ price_per_kg: '', station_ref: '', receipt_date: '' })
-  const sP = (k: string) => (e: any) => setFormPrix(f => ({ ...f, [k]: e.target.value }))
+  /* ── Formulaire prix unitaire ── */
+  const [selHarvest, setSelHarvest] = useState<HarvestRow|null>(null)
+  const [formP, setFormP] = useState({ price_per_kg:'', station_ref:'', receipt_date:'', notes:'' })
+  const sp = (k:string) => (e:any) => setFormP(f=>({...f,[k]:e.target.value}))
 
-  // Saisie en masse
-  const [selected, setSelected]     = useState<Set<string>>(new Set())
-  const [massePrix, setMassePrix]   = useState('')
-  const [masseRef, setMasseRef]     = useState('')
-  const [masseDate, setMasseDate]   = useState('')
-  const [masseSaving, setMasseSaving] = useState(false)
+  /* ── Formulaire masse ── */
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [massPrice, setMassPrice]     = useState('')
+  const [massRef,   setMassRef]       = useState('')
+  const [massDate,  setMassDate]      = useState('')
 
-  // ── Chargement ──────────────────────────────────────
+  /* ─────────────── Chargement ─────────────── */
   const load = useCallback(async () => {
     setLoading(true)
-    const [hr, pl] = await Promise.all([
-      supabase.from('harvests')
-        .select('*, campaign_plantings(*, greenhouses(code,name), varieties(commercial_name), campaigns(name))')
-        .order('harvest_date', { ascending: false }).limit(200),
-      supabase.from('campaign_plantings')
-        .select('id, greenhouses(code,name), varieties(commercial_name), campaigns(name)')
-    ])
-    const rawHarvests: Harvest[] = (hr.data || []) as Harvest[]
+    try {
+      // Check si harvest_station_prices existe
+      const chk = await supabase.from('harvest_station_prices').select('id').limit(1)
+      if (chk.error?.code === '42P01') { setTableExists(false); setLoading(false); return }
+      setTableExists(true)
 
-    // Charger les harvest_lots (envois station) liés
-    if (rawHarvests.length > 0) {
-      const ids = rawHarvests.map(h => h.id)
-      const { data: lots } = await supabase.from('harvest_lots')
-        .select('id, harvest_id, quantity_kg, notes')
-        .in('harvest_id', ids)
-        .eq('category', 'station')
+      const [r, p] = await Promise.all([
+        supabase.from('harvests')
+          .select(`*, campaign_plantings(*, greenhouses(code,name), varieties(commercial_name), campaigns(name))`)
+          .order('harvest_date', { ascending: false }).limit(200),
+        supabase.from('campaign_plantings')
+          .select('id, greenhouses(code,name), varieties(commercial_name), campaigns(name)')
+      ])
 
-      const lotMap: Record<string, any> = {}
-      for (const lot of (lots || [])) {
-        lotMap[lot.harvest_id] = lot
-      }
-      rawHarvests.forEach(h => { h.station_lot = lotMap[h.id] || null })
-    }
+      const harvests: HarvestRow[] = r.data || []
 
-    setHarvests(rawHarvests)
-    setPlantings(pl.data || [])
+      // Charger les prix station
+      const { data: prices } = await supabase
+        .from('harvest_station_prices')
+        .select('*')
+        .in('harvest_id', harvests.map(h => h.id))
+
+      const priceMap: Record<string, any> = {}
+      ;(prices||[]).forEach(p => { priceMap[p.harvest_id] = p })
+
+      const enriched = harvests.map(h => ({ ...h, station_price: priceMap[h.id] || null }))
+      setItems(enriched)
+      setPlantings(p.data || [])
+    } catch(e) { console.error(e) }
     setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
 
-  // ── Créer récolte ────────────────────────────────────
-  const saveNew = async () => {
-    if (!formNew.campaign_planting_id || !formNew.harvest_date) return
+  /* ─────────────── Sauvegarder récolte ─────────────── */
+  const saveRecolte = async () => {
+    if (!formR.campaign_planting_id || !formR.harvest_date) return
     setSaving(true)
     try {
       const lot = `LOT-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${String(Date.now()).slice(-4)}`
-      const { data: harvest, error } = await supabase.from('harvests').insert({
-        campaign_planting_id: formNew.campaign_planting_id,
-        harvest_date:    formNew.harvest_date,
-        qty_category_1:  Number(formNew.qty_category_1) || 0,
-        qty_category_2:  Number(formNew.qty_category_2) || 0,
-        qty_category_3:  Number(formNew.qty_category_3) || 0,
-        qty_waste:       Number(formNew.qty_waste) || 0,
-        lot_number:      lot,
-        notes:           formNew.notes || null,
-      }).select().single()
+      const { data, error } = await supabase.from('harvests').insert({
+        campaign_planting_id: formR.campaign_planting_id,
+        harvest_date: formR.harvest_date,
+        qty_category_1: Number(formR.qty_category_1)||0,
+        qty_category_2: Number(formR.qty_category_2)||0,
+        qty_category_3: Number(formR.qty_category_3)||0,
+        qty_waste:      Number(formR.qty_waste)||0,
+        lot_number: lot,
+        notes: formR.notes||null,
+      }).select('id').single()
       if (error) throw error
 
-      // Si quantité envoyée station, créer un harvest_lot
-      if (formNew.qty_sent_station && Number(formNew.qty_sent_station) > 0) {
-        await supabase.from('harvest_lots').insert({
-          harvest_id:         harvest.id,
-          lot_number:         `STATION-${lot}`,
-          harvest_date:       formNew.harvest_date,
-          quantity_kg:        Number(formNew.qty_sent_station),
-          category:           'station',
-          campaign_planting_id: formNew.campaign_planting_id,
-          notes: JSON.stringify({
-            station_ref: formNew.station_ref || null,
-            price_per_kg: null,
-            receipt_date: null,
-            amount_total: null,
-          }),
+      // Si quantité envoyée à la station saisie, créer l'entrée sans prix
+      if (formR.qty_sent_station && Number(formR.qty_sent_station) > 0) {
+        await supabase.from('harvest_station_prices').insert({
+          harvest_id:  data.id,
+          qty_sent_kg: Number(formR.qty_sent_station),
+          price_per_kg: null,
+          amount_total: null,
         })
       }
 
       setDone(true)
       setTimeout(() => {
         setModalNew(false); setDone(false)
-        setFormNew({ campaign_planting_id:'', harvest_date:'', qty_category_1:'', qty_category_2:'', qty_category_3:'', qty_waste:'', qty_sent_station:'', station_ref:'', notes:'' })
+        setFormR({campaign_planting_id:'',harvest_date:'',qty_category_1:'',qty_category_2:'',qty_category_3:'',qty_waste:'',qty_sent_station:'',notes:''})
         load()
       }, 1400)
-    } catch(e: any) { alert('Erreur: ' + e.message) }
+    } catch(e:any) { alert('Erreur: '+e.message) }
     setSaving(false)
   }
 
-  // ── Saisir prix (unitaire) ───────────────────────────
+  /* ─────────────── Sauvegarder prix unitaire ─────────────── */
   const savePrix = async () => {
-    if (!modalPrix || !formPrix.price_per_kg) return
+    if (!selHarvest || !formP.price_per_kg) return
     setSaving(true)
     try {
-      const h = modalPrix
-      const qte = h.station_lot?.quantity_kg || 0
-      const prix = Number(formPrix.price_per_kg)
-      const total = qte * prix
-      const newNotes = JSON.stringify({
-        price_per_kg:  prix,
-        station_ref:   formPrix.station_ref || parseStationNotes(h.station_lot?.notes || null).station_ref,
-        receipt_date:  formPrix.receipt_date || null,
-        amount_total:  total,
-      })
+      const prix = Number(formP.price_per_kg)
+      const sp = selHarvest.station_price
 
-      if (h.station_lot) {
-        // Mettre à jour le lot existant
-        const { error } = await supabase.from('harvest_lots')
-          .update({ notes: newNotes })
-          .eq('id', h.station_lot.id)
+      if (sp) {
+        // Mettre à jour
+        const montant = sp.qty_sent_kg * prix
+        const { error } = await supabase.from('harvest_station_prices').update({
+          price_per_kg: prix,
+          amount_total: montant,
+          station_ref:  formP.station_ref||null,
+          receipt_date: formP.receipt_date||null,
+          price_set_at: new Date().toISOString(),
+          notes:        formP.notes||null,
+        }).eq('id', sp.id)
         if (error) throw error
       } else {
-        // Créer un nouveau lot station
-        const { error } = await supabase.from('harvest_lots').insert({
-          harvest_id:   h.id,
-          lot_number:   `STATION-${h.lot_number}`,
-          harvest_date: h.harvest_date,
-          quantity_kg:  0,
-          category:     'station',
-          campaign_planting_id: h.campaign_plantings ? undefined : undefined,
-          notes: newNotes,
+        // Créer
+        const { error } = await supabase.from('harvest_station_prices').insert({
+          harvest_id:   selHarvest.id,
+          qty_sent_kg:  0,
+          price_per_kg: prix,
+          amount_total: 0,
+          station_ref:  formP.station_ref||null,
+          receipt_date: formP.receipt_date||null,
+          price_set_at: new Date().toISOString(),
+          notes:        formP.notes||null,
         })
         if (error) throw error
       }
 
       setDone(true)
       setTimeout(() => {
-        setModalPrix(null); setDone(false)
-        setFormPrix({ price_per_kg:'', station_ref:'', receipt_date:'' })
+        setModalPrix(false); setDone(false); setSelHarvest(null)
+        setFormP({price_per_kg:'',station_ref:'',receipt_date:'',notes:''})
         load()
       }, 1400)
-    } catch(e: any) { alert('Erreur: ' + e.message) }
+    } catch(e:any) { alert('Erreur: '+e.message) }
     setSaving(false)
   }
 
-  // ── Saisie en masse ──────────────────────────────────
+  /* ─────────────── Saisie masse ─────────────── */
   const saveMasse = async () => {
-    if (selected.size === 0 || !massePrix) return
-    setMasseSaving(true)
+    if (!massPrice || selectedIds.size === 0) return
+    setSaving(true)
     try {
-      const prix = Number(massePrix)
-      for (const harvestId of Array.from(selected)) {
-        const h = harvests.find(x => x.id === harvestId)
-        if (!h) continue
-        const qte = h.station_lot?.quantity_kg || (h.qty_category_1 + h.qty_category_2)
-        const newNotes = JSON.stringify({
-          price_per_kg:  prix,
-          station_ref:   masseRef || parseStationNotes(h.station_lot?.notes || null).station_ref,
-          receipt_date:  masseDate || null,
-          amount_total:  qte * prix,
-        })
+      const prix = Number(massPrice)
 
-        if (h.station_lot) {
-          await supabase.from('harvest_lots').update({ notes: newNotes }).eq('id', h.station_lot.id)
+      for (const harvestId of selectedIds) {
+        const h = itemsSansPrix.find(x => x.id === harvestId)
+        if (!h) continue
+        const qty = h.station_price?.qty_sent_kg || 0
+        const montant = qty * prix
+
+        if (h.station_price) {
+          await supabase.from('harvest_station_prices').update({
+            price_per_kg: prix,
+            amount_total: montant,
+            station_ref:  massRef||null,
+            receipt_date: massDate||null,
+            price_set_at: new Date().toISOString(),
+          }).eq('id', h.station_price.id)
         } else {
-          await supabase.from('harvest_lots').insert({
-            harvest_id:   h.id,
-            lot_number:   `STATION-${h.lot_number}`,
-            harvest_date: h.harvest_date,
-            quantity_kg:  qte,
-            category:     'station',
-            notes:        newNotes,
+          await supabase.from('harvest_station_prices').insert({
+            harvest_id: harvestId, qty_sent_kg: 0,
+            price_per_kg: prix, amount_total: 0,
+            station_ref: massRef||null,
+            receipt_date: massDate||null,
+            price_set_at: new Date().toISOString(),
           })
         }
       }
-      setSelected(new Set())
-      setMassePrix(''); setMasseRef(''); setMasseDate('')
-      setModalMasse(false)
-      load()
-    } catch(e: any) { alert('Erreur masse: ' + e.message) }
-    setMasseSaving(false)
+
+      setDone(true)
+      setTimeout(() => {
+        setModalMasse(false); setDone(false)
+        setSelectedIds(new Set()); setMassPrice(''); setMassRef(''); setMassDate('')
+        load()
+      }, 1400)
+    } catch(e:any) { alert('Erreur: '+e.message) }
+    setSaving(false)
   }
 
-  // ── Filtres ──────────────────────────────────────────
-  const sansPrix  = harvests.filter(h => !hasPrice(h))
-  const displayed = tab === 'sans_prix' ? sansPrix : harvests
+  /* ─────────────── Données filtrées ─────────────── */
+  const itemsSansPrix = items.filter(h => !h.station_price?.price_per_kg)
+  const itemsAvecPrix = items.filter(h =>  h.station_price?.price_per_kg)
+  const totalKg   = items.reduce((s,r) => s+(r.qty_category_1||0)+(r.qty_category_2||0)+(r.qty_category_3||0), 0)
+  const totalCA   = itemsAvecPrix.reduce((s,r) => s+(r.station_price?.amount_total||0), 0)
 
-  const totalKg    = harvests.reduce((s,h)=>s+(h.qty_category_1||0)+(h.qty_category_2||0)+(h.qty_category_3||0),0)
-  const totalSent  = harvests.reduce((s,h)=>s+(h.station_lot?.quantity_kg||0),0)
-  const totalCA    = harvests.reduce((s,h)=>{
-    const p=parseStationNotes(h.station_lot?.notes||null); return s+(p.amount_total||0)
-  },0)
+  const toggleSelect = (id:string) => setSelectedIds(prev => {
+    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n
+  })
+  const selectAll = () => setSelectedIds(new Set(itemsSansPrix.map(h=>h.id)))
+  const clearAll  = () => setSelectedIds(new Set())
 
-  // ─────────────────────────────────────────────────────
+  /* ─────────────── Rendu ─────────────── */
   return (
-    <div style={{ background:'#030a07', minHeight:'100vh' }}>
+    <div style={{background:'#030a07',minHeight:'100vh'}}>
 
-      {/* ── Modal Nouvelle Récolte ── */}
+      {/* ── Modale nouvelle récolte ── */}
       {modalNew && (
-        <Modal title="SAISIR UNE RÉCOLTE" onClose={()=>{setModalNew(false);setDone(false)}} size="lg">
+        <Modal title="SAISIR UNE RÉCOLTE" onClose={()=>{setModalNew(false);setDone(false)}}>
           {done ? <SuccessMessage message="Récolte enregistrée !" /> : (<>
-            <div className="section-label">IDENTIFICATION</div>
-            <FormGroup label="Plantation / Serre *">
+            <FormGroup label="Plantation / Serre — Variété *">
               {plantings.length===0
-                ? <div style={{padding:'10px',background:'#ff4d6d18',border:'1px solid #ff4d6d40',borderRadius:7,color:'#ff4d6d',fontFamily:'DM Mono,monospace',fontSize:11}}>⚠ Aucune plantation — créez d'abord une plantation</div>
-                : <Select value={formNew.campaign_planting_id} onChange={sN('campaign_planting_id')}>
+                ? <div style={{padding:'10px',background:'#ff4d6d18',border:'1px solid #ff4d6d40',borderRadius:7,color:'#ff4d6d',fontFamily:'DM Mono,monospace',fontSize:11}}>⚠ Aucune plantation disponible</div>
+                : <Select value={formR.campaign_planting_id} onChange={sr('campaign_planting_id')}>
                     <option value="">-- Sélectionner --</option>
                     {plantings.map((p:any)=>(
                       <option key={p.id} value={p.id}>
@@ -269,132 +260,165 @@ export default function RecoltesPage() {
               }
             </FormGroup>
             <FormGroup label="Date de récolte *">
-              <Input type="date" value={formNew.harvest_date} onChange={sN('harvest_date')} />
+              <Input type="date" value={formR.harvest_date} onChange={sr('harvest_date')} />
             </FormGroup>
 
             <div className="section-label" style={{marginTop:16}}>QUANTITÉS RÉCOLTÉES</div>
             <FormRow>
               <FormGroup label="Catégorie 1 — Export (kg)">
-                <Input type="number" value={formNew.qty_category_1} onChange={sN('qty_category_1')} placeholder="0" />
+                <Input type="number" value={formR.qty_category_1} onChange={sr('qty_category_1')} placeholder="0" />
               </FormGroup>
               <FormGroup label="Catégorie 2 — Local (kg)">
-                <Input type="number" value={formNew.qty_category_2} onChange={sN('qty_category_2')} placeholder="0" />
+                <Input type="number" value={formR.qty_category_2} onChange={sr('qty_category_2')} placeholder="0" />
               </FormGroup>
             </FormRow>
             <FormRow>
               <FormGroup label="Catégorie 3 — Déclassé (kg)">
-                <Input type="number" value={formNew.qty_category_3} onChange={sN('qty_category_3')} placeholder="0" />
+                <Input type="number" value={formR.qty_category_3} onChange={sr('qty_category_3')} placeholder="0" />
               </FormGroup>
               <FormGroup label="Déchets (kg)">
-                <Input type="number" value={formNew.qty_waste} onChange={sN('qty_waste')} placeholder="0" />
+                <Input type="number" value={formR.qty_waste} onChange={sr('qty_waste')} placeholder="0" />
               </FormGroup>
             </FormRow>
 
-            <div className="section-label" style={{marginTop:16}}>ENVOI STATION <span style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',letterSpacing:1}}>(prix inconnu — à saisir plus tard)</span></div>
-            <div style={{padding:'10px 13px',background:'#00e87a08',border:'1px solid #00e87a20',borderRadius:7,marginBottom:12,fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52',letterSpacing:.5}}>
-              ℹ Le prix de la station sera défini ultérieurement dans l'onglet "Sans prix station"
+            <div className="section-label" style={{marginTop:16}}>ENVOI À LA STATION</div>
+            <FormGroup label="Quantité envoyée à la station (kg)">
+              <Input type="number" value={formR.qty_sent_station} onChange={sr('qty_sent_station')} placeholder="Le prix sera saisi plus tard" />
+            </FormGroup>
+            <div style={{padding:'8px 12px',background:'#f5a62312',border:'1px solid #f5a62330',borderRadius:6,fontFamily:'DM Mono,monospace',fontSize:10,color:'#f5a623',marginBottom:12}}>
+              ⚠ Le prix /kg de la station sera défini ultérieurement — la récolte apparaîtra dans «&nbsp;Sans prix station&nbsp;»
             </div>
-            <FormRow>
-              <FormGroup label="Qté envoyée à la station (kg)">
-                <Input type="number" value={formNew.qty_sent_station} onChange={sN('qty_sent_station')} placeholder="0" />
-              </FormGroup>
-              <FormGroup label="Référence station">
-                <Input value={formNew.station_ref} onChange={sN('station_ref')} placeholder="ex: REF-STA-001" />
-              </FormGroup>
-            </FormRow>
 
             <FormGroup label="Notes">
-              <Textarea rows={2} value={formNew.notes} onChange={sN('notes')} placeholder="Observations, qualité, conditions météo..." />
+              <Textarea rows={2} value={formR.notes} onChange={sr('notes')} placeholder="Observations qualité..." />
             </FormGroup>
-            <ModalFooter onCancel={()=>setModalNew(false)} onSave={saveNew} loading={saving}
-              disabled={!formNew.campaign_planting_id||!formNew.harvest_date} saveLabel="ENREGISTRER LA RÉCOLTE" />
+            <ModalFooter onCancel={()=>setModalNew(false)} onSave={saveRecolte} loading={saving}
+              disabled={!formR.campaign_planting_id||!formR.harvest_date} saveLabel="ENREGISTRER" />
           </>)}
         </Modal>
       )}
 
-      {/* ── Modal Prix Unitaire ── */}
-      {modalPrix && (
-        <Modal title="SAISIR LE PRIX STATION" onClose={()=>{setModalPrix(null);setDone(false)}}>
+      {/* ── Modale prix unitaire ── */}
+      {modalPrix && selHarvest && (
+        <Modal title="SAISIR LE PRIX STATION" onClose={()=>{setModalPrix(false);setDone(false);setSelHarvest(null)}}>
           {done ? <SuccessMessage message="Prix enregistré !" /> : (<>
-            {/* Info récolte */}
+            {/* Résumé récolte */}
             <div style={{padding:'12px 14px',background:'#0d1f14',border:'1px solid #1a3526',borderRadius:8,marginBottom:18}}>
               <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',letterSpacing:1,marginBottom:6}}>RÉCOLTE SÉLECTIONNÉE</div>
-              <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:15,fontWeight:700,color:'#e8f5ee',marginBottom:3}}>
-                {modalPrix.lot_number}
+              <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:14,fontWeight:700,color:'#e8f5ee'}}>{selHarvest.lot_number}</div>
+              <div style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90',marginTop:3}}>
+                {selHarvest.campaign_plantings?.greenhouses?.name} · {selHarvest.campaign_plantings?.varieties?.commercial_name}
+                {' · '}{selHarvest.harvest_date}
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginTop:8}}>
-                <div>
-                  <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52'}}>SERRE</div>
-                  <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#7aab90'}}>{modalPrix.campaign_plantings?.greenhouses?.name||'—'}</div>
+              {selHarvest.station_price && (
+                <div style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#00e87a',marginTop:4}}>
+                  Qté envoyée : <strong>{selHarvest.station_price.qty_sent_kg} kg</strong>
+                  {' · '}Montant calculé : <strong>{selHarvest.station_price.qty_sent_kg * Number(formP.price_per_kg||0)} MAD</strong>
                 </div>
-                <div>
-                  <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52'}}>DATE</div>
-                  <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#7aab90'}}>{modalPrix.harvest_date}</div>
-                </div>
-                <div>
-                  <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52'}}>QTÉ STATION</div>
-                  <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:14,fontWeight:700,color:'#00e87a'}}>
-                    {(modalPrix.station_lot?.quantity_kg || (modalPrix.qty_category_1+modalPrix.qty_category_2)).toLocaleString('fr')} kg
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
 
-            <FormGroup label="Prix reçu de la station (MAD/kg) *">
-              <Input type="number" value={formPrix.price_per_kg} onChange={sP('price_per_kg')}
-                placeholder="ex: 1.85" autoFocus step="0.001" />
+            <FormGroup label="Prix / kg reçu de la station *">
+              <Input type="number" step="0.001" value={formP.price_per_kg} onChange={sp('price_per_kg')} placeholder="ex: 1.850" autoFocus />
             </FormGroup>
 
-            {formPrix.price_per_kg && (
-              <div style={{padding:'10px 14px',background:'#00e87a18',border:'1px solid #00e87a40',borderRadius:7,marginBottom:14,fontFamily:'DM Mono,monospace',fontSize:12,color:'#00e87a'}}>
-                → Montant calculé : <strong>
-                  {((modalPrix.station_lot?.quantity_kg || (modalPrix.qty_category_1+modalPrix.qty_category_2)) * Number(formPrix.price_per_kg)).toLocaleString('fr', {maximumFractionDigits:2})} MAD
-                </strong>
+            {formP.price_per_kg && selHarvest.station_price && (
+              <div style={{padding:'10px 14px',background:'#00e87a18',border:'1px solid #00e87a40',borderRadius:7,fontFamily:'DM Mono,monospace',fontSize:11,color:'#00e87a',marginBottom:14}}>
+                → CA station : {(selHarvest.station_price.qty_sent_kg * Number(formP.price_per_kg)).toFixed(2)} MAD
               </div>
             )}
 
             <FormRow>
-              <FormGroup label="Référence bordereau station">
-                <Input value={formPrix.station_ref} onChange={sP('station_ref')}
-                  placeholder={parseStationNotes(modalPrix.station_lot?.notes||null).station_ref||'ex: BRD-2026-001'} />
+              <FormGroup label="Référence station">
+                <Input value={formP.station_ref} onChange={sp('station_ref')} placeholder="ex: STAT-2026-0312" />
               </FormGroup>
-              <FormGroup label="Date réception prix">
-                <Input type="date" value={formPrix.receipt_date} onChange={sP('receipt_date')} />
+              <FormGroup label="Date de réception">
+                <Input type="date" value={formP.receipt_date} onChange={sp('receipt_date')} />
               </FormGroup>
             </FormRow>
-
-            <ModalFooter onCancel={()=>setModalPrix(null)} onSave={savePrix} loading={saving}
-              disabled={!formPrix.price_per_kg} saveLabel="ENREGISTRER LE PRIX" />
+            <FormGroup label="Notes">
+              <Textarea rows={2} value={formP.notes} onChange={sp('notes')} placeholder="Remarques sur le prix reçu..." />
+            </FormGroup>
+            <ModalFooter onCancel={()=>{setModalPrix(false);setSelHarvest(null)}} onSave={savePrix} loading={saving}
+              disabled={!formP.price_per_kg} saveLabel="ENREGISTRER LE PRIX" />
           </>)}
         </Modal>
       )}
 
-      {/* ── Modal Saisie en Masse ── */}
+      {/* ── Modale saisie en masse ── */}
       {modalMasse && (
-        <Modal title={`SAISIE EN MASSE — ${selected.size} récolte(s) sélectionnée(s)`}
-          onClose={()=>setModalMasse(false)} size="sm">
-          {selected.size === 0 ? (
-            <div style={{textAlign:'center',padding:'24px 0',fontFamily:'DM Mono,monospace',fontSize:11,color:'#ff4d6d'}}>
-              ⚠ Aucune récolte sélectionnée
+        <Modal title="SAISIE EN MASSE — PRIX STATION" onClose={()=>{setModalMasse(false);setDone(false)}} size="lg">
+          {done ? <SuccessMessage message={`Prix appliqué à ${selectedIds.size} récolte(s) !`} /> : (<>
+            {/* Sélection récoltes */}
+            <div className="section-label">SÉLECTIONNER LES RÉCOLTES</div>
+            <div style={{display:'flex',gap:8,marginBottom:10}}>
+              <button onClick={selectAll} className="btn-secondary" style={{fontSize:10,padding:'5px 10px'}}>TOUT SÉLECTIONNER</button>
+              <button onClick={clearAll}  className="btn-ghost"    style={{fontSize:10,padding:'5px 10px'}}>EFFACER</button>
+              <span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52',alignSelf:'center',marginLeft:'auto'}}>
+                {selectedIds.size} / {itemsSansPrix.length} sélectionnée(s)
+              </span>
             </div>
-          ) : (<>
-            <div style={{padding:'10px 13px',background:'#00e87a08',border:'1px solid #00e87a20',borderRadius:7,marginBottom:16,fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52'}}>
-              Ce prix sera appliqué aux {selected.size} récolte(s) sélectionnée(s)
+
+            <div style={{maxHeight:260,overflowY:'auto',border:'1px solid #1a3526',borderRadius:8,marginBottom:16}}>
+              {itemsSansPrix.length===0 ? (
+                <div style={{padding:24,textAlign:'center',fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52'}}>
+                  Toutes les récoltes ont un prix station
+                </div>
+              ) : itemsSansPrix.map(h=>(
+                <div key={h.id}
+                  onClick={()=>toggleSelect(h.id)}
+                  style={{
+                    display:'flex', alignItems:'center', gap:12, padding:'10px 14px',
+                    borderBottom:'1px solid #1a3526', cursor:'pointer', transition:'background .1s',
+                    background: selectedIds.has(h.id) ? '#00e87a10' : 'transparent',
+                  }}>
+                  {/* Checkbox custom */}
+                  <div style={{
+                    width:16, height:16, borderRadius:4, flexShrink:0, border:'1px solid',
+                    borderColor: selectedIds.has(h.id) ? '#00e87a' : '#1f4030',
+                    background: selectedIds.has(h.id) ? '#00e87a' : 'transparent',
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    fontSize:10, color:'#030a07', fontWeight:700,
+                  }}>
+                    {selectedIds.has(h.id) ? '✓' : ''}
+                  </div>
+                  <div style={{flex:1, minWidth:0}}>
+                    <div style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#00e87a'}}>{h.lot_number}</div>
+                    <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:12,color:'#7aab90',marginTop:1}}>
+                      {h.campaign_plantings?.greenhouses?.name} · {h.campaign_plantings?.varieties?.commercial_name} · {h.harvest_date}
+                    </div>
+                  </div>
+                  <div style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#f5a623',textAlign:'right',flexShrink:0}}>
+                    {h.station_price?.qty_sent_kg ? h.station_price.qty_sent_kg+' kg' : '—'}
+                  </div>
+                </div>
+              ))}
             </div>
-            <FormGroup label="Prix station (MAD/kg) *">
-              <Input type="number" value={massePrix} onChange={e=>setMassePrix(e.target.value)}
-                placeholder="ex: 1.85" autoFocus step="0.001" />
+
+            {/* Prix à appliquer */}
+            <div className="section-label">PRIX À APPLIQUER</div>
+            <FormGroup label="Prix / kg station (appliqué à toutes les sélections) *">
+              <Input type="number" step="0.001" value={massPrice} onChange={e=>setMassPrice(e.target.value)} placeholder="ex: 1.850" autoFocus />
             </FormGroup>
+            {massPrice && selectedIds.size > 0 && (
+              <div style={{padding:'10px 14px',background:'#00e87a18',border:'1px solid #00e87a40',borderRadius:7,fontFamily:'DM Mono,monospace',fontSize:11,color:'#00e87a',marginBottom:14}}>
+                → CA total estimé : {itemsSansPrix
+                  .filter(h=>selectedIds.has(h.id))
+                  .reduce((s,h)=>s+(h.station_price?.qty_sent_kg||0)*Number(massPrice),0)
+                  .toFixed(2)} MAD sur {selectedIds.size} lot(s)
+              </div>
+            )}
             <FormRow>
-              <FormGroup label="Référence bordereau">
-                <Input value={masseRef} onChange={e=>setMasseRef(e.target.value)} placeholder="ex: BRD-2026-010" />
+              <FormGroup label="Référence station">
+                <Input value={massRef} onChange={e=>setMassRef(e.target.value)} placeholder="ex: STAT-2026-0325" />
               </FormGroup>
-              <FormGroup label="Date réception">
-                <Input type="date" value={masseDate} onChange={e=>setMasseDate(e.target.value)} />
+              <FormGroup label="Date de réception">
+                <Input type="date" value={massDate} onChange={e=>setMassDate(e.target.value)} />
               </FormGroup>
             </FormRow>
-            <ModalFooter onCancel={()=>setModalMasse(false)} onSave={saveMasse}
-              loading={masseSaving} disabled={!massePrix} saveLabel={`APPLIQUER AUX ${selected.size} RÉCOLTE(S)`} />
+            <ModalFooter onCancel={()=>setModalMasse(false)} onSave={saveMasse} loading={saving}
+              disabled={!massPrice||selectedIds.size===0}
+              saveLabel={`APPLIQUER À ${selectedIds.size} RÉCOLTE(S)`} />
           </>)}
         </Modal>
       )}
@@ -403,160 +427,195 @@ export default function RecoltesPage() {
       <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:20}}>
         <div>
           <div className="page-title">RÉCOLTES</div>
-          <div className="page-sub">{harvests.length} lot(s) · Total : {(totalKg/1000).toFixed(2)} t</div>
+          <div className="page-sub">{items.length} lot(s) · {(totalKg/1000).toFixed(2)} t · CA station : {(totalCA).toLocaleString('fr',{maximumFractionDigits:0})} MAD</div>
         </div>
-        <div style={{display:'flex',gap:8}}>
-          {tab==='sans_prix' && selected.size > 0 && (
-            <button className="btn-secondary" onClick={()=>setModalMasse(true)}
-              style={{fontSize:11}}>
-              ✔ SAISIR PRIX EN MASSE ({selected.size})
-            </button>
-          )}
-          <button className="btn-primary" onClick={()=>setModalNew(true)}>+ SAISIR RÉCOLTE</button>
-        </div>
+        <button className="btn-primary" onClick={()=>setModalNew(true)}>+ SAISIR RÉCOLTE</button>
       </div>
 
-      {/* ── KPIs ── */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20}}>
-        {[
-          {l:'Lots récoltés',    v:String(harvests.length),           c:'#00e87a'},
-          {l:'Total récolté',    v:(totalKg/1000).toFixed(2)+' t',    c:'#00ffc8'},
-          {l:'Envoyé station',   v:(totalSent/1000).toFixed(2)+' t',  c:'#f5a623'},
-          {l:'CA station',       v:(totalCA/1000).toFixed(1)+' k MAD',c:'#00b4d8'},
-        ].map((k,i)=>(
-          <div key={i} className="kpi" style={{'--accent':k.c} as any}>
-            <div className="kpi-label">{k.l}</div>
-            <div className="kpi-value" style={{color:k.c,textShadow:`0 0 16px ${k.c}60`,fontSize:24}}>{k.v}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Onglets ── */}
-      <div style={{display:'flex',gap:2,marginBottom:16,background:'#0a1810',border:'1px solid #1a3526',borderRadius:8,padding:4,width:'fit-content'}}>
-        {[
-          {key:'all',     label:'TOUS LES LOTS',       count:harvests.length},
-          {key:'sans_prix',label:'SANS PRIX STATION', count:sansPrix.length, alert:true},
-        ].map(t=>(
-          <button key={t.key}
-            onClick={()=>{ setTab(t.key as any); setSelected(new Set()) }}
-            style={{
-              padding:'7px 16px', borderRadius:6, border:'none',
-              background: tab===t.key ? '#1a3526' : 'transparent',
-              color: tab===t.key ? '#00e87a' : '#3d6b52',
-              fontFamily:'DM Mono,monospace', fontSize:10, letterSpacing:1, cursor:'pointer',
-              display:'flex', alignItems:'center', gap:7, transition:'all .15s',
-            }}>
-            {t.label}
-            <span style={{
-              background: tab===t.key ? (t.alert&&t.count>0?'#ff4d6d':'#00e87a') : '#1a3526',
-              color: tab===t.key ? '#030a07' : '#3d6b52',
-              borderRadius:4, padding:'1px 6px',
-              fontFamily:'DM Mono,monospace', fontSize:9, fontWeight:700,
-            }}>{t.count}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* ── Instructions onglet sans prix ── */}
-      {tab==='sans_prix' && sansPrix.length > 0 && (
-        <div style={{padding:'10px 14px',background:'#f5a62318',border:'1px solid #f5a62340',borderRadius:8,marginBottom:14,fontFamily:'DM Mono,monospace',fontSize:10,color:'#f5a623',letterSpacing:.5,display:'flex',alignItems:'center',gap:10}}>
-          <span style={{fontSize:14}}>⚡</span>
-          Sélectionnez des récoltes avec la case à cocher, puis cliquez sur <strong>"SAISIR PRIX EN MASSE"</strong> — ou cliquez sur <strong>"PRIX"</strong> pour saisir récolte par récolte.
+      {/* ── Alerte table manquante ── */}
+      {!tableExists && (
+        <div style={{padding:'14px 18px',background:'#ff4d6d18',border:'1px solid #ff4d6d40',borderRadius:8,marginBottom:16,fontFamily:'DM Mono,monospace',fontSize:11,color:'#ff4d6d'}}>
+          ⚠ TABLE MANQUANTE — Exécutez ce SQL dans Supabase Dashboard → SQL Editor :
+          <pre style={{marginTop:8,fontSize:9,color:'#ff9ab0',background:'#1a0a0d',padding:'10px',borderRadius:6,overflow:'auto'}}>
+{`CREATE TABLE IF NOT EXISTS harvest_station_prices (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  harvest_id UUID NOT NULL REFERENCES harvests(id) ON DELETE CASCADE,
+  qty_sent_kg DECIMAL(10,2) NOT NULL DEFAULT 0,
+  price_per_kg DECIMAL(8,4), amount_total DECIMAL(12,2),
+  station_ref VARCHAR(100), receipt_date DATE,
+  price_set_at TIMESTAMPTZ, notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE harvest_station_prices ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_all" ON harvest_station_prices FOR ALL USING (true) WITH CHECK (true);`}
+          </pre>
         </div>
       )}
 
-      {/* ── Table ── */}
+      {/* ── KPIs ── */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:12,marginBottom:20}}>
+        {[
+          {l:'Lots totaux',      v:String(items.length),               c:'#00e87a'},
+          {l:'Production',       v:(totalKg/1000).toFixed(2)+' t',     c:'#00ffc8'},
+          {l:'Sans prix',        v:String(itemsSansPrix.length),        c:'#f5a623'},
+          {l:'Avec prix',        v:String(itemsAvecPrix.length),        c:'#00b4d8'},
+          {l:'CA Station',       v:(totalCA/1000).toFixed(1)+' k MAD', c:'#9b5de5'},
+        ].map((k,i)=>(
+          <div key={i} className="kpi" style={{'--accent':k.c} as any}>
+            <div className="kpi-label">{k.l}</div>
+            <div className="kpi-value" style={{color:k.c,textShadow:`0 0 16px ${k.c}60`,fontSize:22}}>{k.v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Tabs ── */}
+      <div style={{display:'flex',gap:4,marginBottom:16,alignItems:'center'}}>
+        {([['liste','TOUTES LES RÉCOLTES'],['sans_prix','SANS PRIX STATION']] as [Tab,string][]).map(([t,label])=>(
+          <button key={t} onClick={()=>setTab(t)}
+            style={{padding:'8px 16px',borderRadius:6,border:'1px solid',fontFamily:'DM Mono,monospace',fontSize:10,letterSpacing:1,cursor:'pointer',transition:'all .15s',
+              borderColor: tab===t ? '#00e87a' : '#1a3526',
+              background:  tab===t ? '#00e87a18' : 'transparent',
+              color:       tab===t ? '#00e87a' : '#3d6b52',
+            }}>
+            {label}
+            {t==='sans_prix' && itemsSansPrix.length>0 && (
+              <span style={{marginLeft:8,background:'#f5a623',color:'#030a07',borderRadius:10,padding:'1px 6px',fontSize:9,fontWeight:700}}>
+                {itemsSansPrix.length}
+              </span>
+            )}
+          </button>
+        ))}
+
+        {/* Bouton saisie en masse — visible uniquement sur tab sans_prix */}
+        {tab==='sans_prix' && itemsSansPrix.length>0 && (
+          <button className="btn-secondary" style={{marginLeft:'auto',fontSize:10,padding:'7px 14px'}}
+            onClick={()=>{ setSelectedIds(new Set()); setModalMasse(true) }}>
+            ⚡ SAISIE EN MASSE
+          </button>
+        )}
+      </div>
+
+      {/* ── Contenu ── */}
       {loading ? (
         <div style={{textAlign:'center',padding:60,color:'#3d6b52',fontFamily:'DM Mono,monospace',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
-      ) : displayed.length===0 ? (
-        <div className="empty-state">
-          <div className="empty-icon">{tab==='sans_prix' ? '✅' : '◉'}</div>
-          <div className="empty-title">{tab==='sans_prix' ? 'Tous les prix sont renseignés !' : 'Aucune récolte saisie'}</div>
-          <div className="empty-sub">{tab==='sans_prix' ? 'Bravo — aucune récolte en attente de prix station.' : 'Enregistrez votre première récolte.'}</div>
-          {tab==='all' && <button className="btn-primary" onClick={()=>setModalNew(true)}>+ SAISIR RÉCOLTE</button>}
-        </div>
-      ) : (
-        <div className="card" style={{padding:0,overflow:'hidden'}}>
-          <div style={{overflowX:'auto'}}>
-            <table className="tbl">
-              <thead><tr>
-                {tab==='sans_prix' && (
-                  <th style={{width:40}}>
-                    <input type="checkbox"
-                      checked={selected.size===displayed.length && displayed.length>0}
-                      onChange={e => setSelected(e.target.checked ? new Set<string>(displayed.map(h=>h.id)) : new Set())}
-                      style={{cursor:'pointer',accentColor:'#00e87a'}} />
-                  </th>
-                )}
-                {['N° Lot','Date','Serre','Variété','Cat.1','Cat.2','Cat.3','Qté Station','Prix/kg','CA Station','Statut','Action'].map(h=><th key={h}>{h}</th>)}
-              </tr></thead>
-              <tbody>
-                {displayed.map((h) => {
-                  const sp = parseStationNotes(h.station_lot?.notes || null)
-                  const qteStation = h.station_lot?.quantity_kg || 0
-                  const montant = sp.amount_total || (qteStation * (sp.price_per_kg||0))
-                  const prixDef = !!sp.price_per_kg
-                  return (
-                    <tr key={h.id} style={selected.has(h.id)?{background:'#00e87a06'}:undefined}>
-                      {tab==='sans_prix' && (
-                        <td>
-                          <input type="checkbox"
-                            checked={selected.has(h.id)}
-                            onChange={e => {
-                              const ns = new Set(selected)
-                              e.target.checked ? ns.add(h.id) : ns.delete(h.id)
-                              setSelected(ns)
-                            }}
-                            style={{cursor:'pointer',accentColor:'#00e87a'}} />
-                        </td>
-                      )}
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#00e87a'}}>{h.lot_number}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{h.harvest_date}</span></td>
-                      <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{h.campaign_plantings?.greenhouses?.name||'—'}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52'}}>{h.campaign_plantings?.varieties?.commercial_name||'—'}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#f5a623'}}>{(h.qty_category_1||0).toLocaleString('fr')}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#00b4d8'}}>{(h.qty_category_2||0).toLocaleString('fr')}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#3d6b52'}}>{(h.qty_category_3||0).toLocaleString('fr')}</span></td>
-                      <td>
-                        {qteStation > 0
-                          ? <span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#00e87a',fontWeight:700}}>{qteStation.toLocaleString('fr')} kg</span>
-                          : <span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#1f4030'}}>—</span>
-                        }
-                      </td>
-                      <td>
-                        {prixDef
-                          ? <span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#00ffc8',fontWeight:700}}>{sp.price_per_kg!.toFixed(3)} MAD</span>
-                          : <span style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#ff4d6d'}}>EN ATTENTE</span>
-                        }
-                      </td>
-                      <td>
-                        {montant > 0
-                          ? <span style={{fontFamily:'Rajdhani,sans-serif',fontSize:14,fontWeight:700,color:'#00e87a'}}>{montant.toLocaleString('fr',{maximumFractionDigits:0})} MAD</span>
-                          : <span style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#1f4030'}}>—</span>
-                        }
-                      </td>
-                      <td>
-                        {prixDef
-                          ? <span className="tag tag-green">✓ PRIX OK</span>
-                          : qteStation > 0
-                            ? <span className="tag tag-amber">⏳ ATTENTE PRIX</span>
-                            : <span className="tag" style={{background:'#1a3526',color:'#3d6b52',border:'1px solid #1a3526'}}>NON ENVOYÉ</span>
-                        }
-                      </td>
-                      <td>
-                        <button
-                          onClick={()=>{ setFormPrix({price_per_kg: sp.price_per_kg?.toString()||'', station_ref: sp.station_ref||'', receipt_date: sp.receipt_date||''}); setModalPrix(h) }}
-                          style={{padding:'4px 10px',borderRadius:6,border:`1px solid ${prixDef?'#00e87a40':'#f5a62340'}`,background:prixDef?'#00e87a18':'#f5a62318',color:prixDef?'#00e87a':'#f5a623',fontFamily:'DM Mono,monospace',fontSize:10,cursor:'pointer',letterSpacing:.5}}>
-                          {prixDef ? '✏ MODIFIER' : '💰 PRIX'}
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+      ) : tab === 'liste' ? (
+        /* ── Liste complète ── */
+        items.length===0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">◉</div>
+            <div className="empty-title">Aucune récolte saisie</div>
+            <button className="btn-primary" onClick={()=>setModalNew(true)}>+ SAISIR RÉCOLTE</button>
           </div>
-        </div>
+        ) : (
+          <div className="card" style={{padding:0,overflow:'hidden'}}>
+            <div style={{overflowX:'auto'}}>
+              <table className="tbl">
+                <thead><tr>
+                  {['N° Lot','Date','Serre','Variété','Cat.1','Cat.2','Cat.3','Total','Envoyé station','Prix/kg','CA Station','Actions'].map(h=><th key={h}>{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {items.map((r)=>{
+                    const total = (r.qty_category_1||0)+(r.qty_category_2||0)+(r.qty_category_3||0)
+                    const sp    = r.station_price
+                    const hasPrix = !!(sp?.price_per_kg)
+                    return (
+                      <tr key={r.id}>
+                        <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#00e87a'}}>{r.lot_number}</span></td>
+                        <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{r.harvest_date}</span></td>
+                        <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{r.campaign_plantings?.greenhouses?.name||'—'}</span></td>
+                        <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52'}}>{r.campaign_plantings?.varieties?.commercial_name||'—'}</span></td>
+                        <td><span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#f5a623'}}>{(r.qty_category_1||0).toLocaleString('fr')}</span></td>
+                        <td><span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#00b4d8'}}>{(r.qty_category_2||0).toLocaleString('fr')}</span></td>
+                        <td><span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#3d6b52'}}>{(r.qty_category_3||0).toLocaleString('fr')}</span></td>
+                        <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:14,fontWeight:700,color:'#00e87a'}}>{total.toLocaleString('fr')}</span></td>
+                        <td><span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#f5a623'}}>{sp?.qty_sent_kg ? sp.qty_sent_kg+' kg' : '—'}</span></td>
+                        <td>
+                          {hasPrix
+                            ? <span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#00e87a'}}>{Number(sp!.price_per_kg).toFixed(3)} MAD</span>
+                            : <span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#f5a623'}}>EN ATTENTE</span>
+                          }
+                        </td>
+                        <td>
+                          {hasPrix
+                            ? <span style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:700,color:'#9b5de5'}}>{Number(sp!.amount_total).toLocaleString('fr',{maximumFractionDigits:0})} MAD</span>
+                            : <span style={{color:'#1f4030',fontFamily:'DM Mono,monospace',fontSize:10}}>—</span>
+                          }
+                        </td>
+                        <td>
+                          <button
+                            onClick={()=>{
+                              setSelHarvest(r)
+                              setFormP({price_per_kg:sp?.price_per_kg?String(sp.price_per_kg):'',station_ref:sp?.station_ref||'',receipt_date:sp?.receipt_date||'',notes:''})
+                              setModalPrix(true)
+                            }}
+                            style={{padding:'4px 10px',borderRadius:6,border:'1px solid',fontFamily:'DM Mono,monospace',fontSize:9,cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap',
+                              borderColor: hasPrix ? '#1a3526' : '#f5a623',
+                              background:  hasPrix ? 'transparent' : '#f5a62318',
+                              color:       hasPrix ? '#3d6b52' : '#f5a623',
+                            }}>
+                            {hasPrix ? '✏ MODIFIER PRIX' : '⚡ SAISIR PRIX'}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      ) : (
+        /* ── Tab Sans Prix ── */
+        itemsSansPrix.length===0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">✅</div>
+            <div className="empty-title">Toutes les récoltes ont un prix !</div>
+            <div className="empty-sub">Aucune récolte en attente de prix station.</div>
+          </div>
+        ) : (
+          <div className="card" style={{padding:0,overflow:'hidden'}}>
+            <div style={{padding:'12px 16px',borderBottom:'1px solid #1a3526',display:'flex',alignItems:'center',gap:12,background:'#f5a62308'}}>
+              <span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#f5a623'}}>⚠ {itemsSansPrix.length} RÉCOLTE(S) EN ATTENTE DE PRIX</span>
+              <button className="btn-secondary" style={{marginLeft:'auto',fontSize:10,padding:'6px 12px'}}
+                onClick={()=>{ setSelectedIds(new Set(itemsSansPrix.map(h=>h.id))); setModalMasse(true) }}>
+                ⚡ SAISIE EN MASSE
+              </button>
+            </div>
+            <div style={{overflowX:'auto'}}>
+              <table className="tbl">
+                <thead><tr>
+                  {['N° Lot','Date','Serre','Variété','Total récolté','Envoyé station','Action'].map(h=><th key={h}>{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {itemsSansPrix.map((r)=>{
+                    const total = (r.qty_category_1||0)+(r.qty_category_2||0)+(r.qty_category_3||0)
+                    return (
+                      <tr key={r.id}>
+                        <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#00e87a'}}>{r.lot_number}</span></td>
+                        <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{r.harvest_date}</span></td>
+                        <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{r.campaign_plantings?.greenhouses?.name||'—'}</span></td>
+                        <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52'}}>{r.campaign_plantings?.varieties?.commercial_name||'—'}</span></td>
+                        <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:14,fontWeight:700,color:'#00e87a'}}>{total.toLocaleString('fr')} kg</span></td>
+                        <td>
+                          <span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#f5a623'}}>
+                            {r.station_price?.qty_sent_kg ? r.station_price.qty_sent_kg+' kg' : '—'}
+                          </span>
+                        </td>
+                        <td>
+                          <button
+                            onClick={()=>{ setSelHarvest(r); setFormP({price_per_kg:'',station_ref:'',receipt_date:'',notes:''}); setModalPrix(true) }}
+                            className="btn-primary" style={{fontSize:10,padding:'5px 12px',letterSpacing:.5}}>
+                            ⚡ SAISIR PRIX
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
       )}
     </div>
   )
