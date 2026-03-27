@@ -1,81 +1,123 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { getStocks, createStockItem, createMouvement } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
+import { genCode } from '@/lib/utils'
+
+const CATS = ['semences','plants','engrais','phytosanitaires','emballages','consommables','pieces_rechange','autre']
 
 export default function StocksPage() {
-  const [items, setItems] = useState<any[]>([])
+  const [items, setItems]     = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState<'article'|'mouvement'|null>(null)
+  const [modalArticle, setModalArticle] = useState(false)
+  const [modalEditArt, setModalEditArt] = useState<any>(null)
+  const [modalMvt,     setModalMvt]     = useState<any>(null)  // article pour mouvement
   const [saving, setSaving] = useState(false)
-  const [done, setDone] = useState(false)
-  const [formA, setFormA] = useState({ code:'', name:'', category:'engrais', unit:'kg', min_qty:'', unit_cost:'', location:'' })
-  const [formM, setFormM] = useState({ stock_item_id:'', movement_type:'entree', quantity:'', movement_date:'', reference:'', notes:'' })
-  const sa = (k:string) => (e:any) => setFormA(f=>({...f,[k]:e.target.value}))
-  const sm = (k:string) => (e:any) => setFormM(f=>({...f,[k]:e.target.value}))
+  const [done,   setDone]   = useState(false)
+
+  const blankA = { code:'', name:'', category:'engrais', unit:'kg', min_qty:'', unit_cost:'', location:'' }
+  const [formA,  setFormA]  = useState({...blankA})
+  const [formAE, setFormAE] = useState<Record<string,any>>({})
+  const [formM,  setFormM]  = useState({ stock_item_id:'', movement_type:'entree', quantity:'', movement_date:'', reference:'', notes:'' })
+  const sa  = (k:string) => (e:any) => setFormA(f=>({...f,[k]:e.target.value}))
+  const sae = (k:string) => (e:any) => setFormAE(f=>({...f,[k]:e.target.value}))
+  const sm  = (k:string) => (e:any) => setFormM(f=>({...f,[k]:e.target.value}))
 
   const load = () => getStocks().then(d=>{setItems(d);setLoading(false)}).catch(()=>setLoading(false))
-  useEffect(() => { load() }, [])
+  useEffect(()=>{load()},[])
+
+  const openNewArt = () => { setFormA({...blankA, code:genCode('ST',items.map(i=>i.code))}); setModalArticle(true) }
+  const openEditArt = (i:any) => {
+    setFormAE({code:i.code,name:i.name,category:i.category,unit:i.unit,min_qty:String(i.min_qty||0),unit_cost:String(i.unit_cost||''),location:i.location||''})
+    setModalEditArt(i)
+  }
+  const openMvt = (item:any, type='entree') => {
+    setFormM({stock_item_id:item.id,movement_type:type,quantity:'',movement_date:new Date().toISOString().slice(0,10),reference:'',notes:''})
+    setModalMvt(item)
+  }
 
   const saveArticle = async () => {
-    if (!formA.code||!formA.name) return
+    if (!formA.name) return
     setSaving(true)
     try {
-      const n = await createStockItem({ ...formA, min_qty: Number(formA.min_qty)||0, unit_cost: Number(formA.unit_cost)||undefined })
+      const n = await createStockItem({...formA,min_qty:Number(formA.min_qty)||0,unit_cost:formA.unit_cost?Number(formA.unit_cost):undefined})
       setItems(p=>[n,...p]); setDone(true)
-      setTimeout(()=>{setModal(null);setDone(false);setFormA({code:'',name:'',category:'engrais',unit:'kg',min_qty:'',unit_cost:'',location:''})},1400)
+      setTimeout(()=>{setModalArticle(false);setDone(false)},1400)
     } catch(e:any){alert('Erreur: '+e.message)}
     setSaving(false)
   }
 
-  const saveMouvement = async () => {
+  const saveEditArt = async () => {
+    if (!modalEditArt||!formAE.name) return
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('stock_items').update({
+        code:formAE.code,name:formAE.name,category:formAE.category,unit:formAE.unit,
+        min_qty:Number(formAE.min_qty)||0,unit_cost:formAE.unit_cost?Number(formAE.unit_cost):null,location:formAE.location||null
+      }).eq('id',modalEditArt.id)
+      if (error) throw error
+      setDone(true)
+      setTimeout(()=>{setModalEditArt(null);setDone(false);load()},1400)
+    } catch(e:any){alert('Erreur: '+e.message)}
+    setSaving(false)
+  }
+
+  const saveMvt = async () => {
     if (!formM.stock_item_id||!formM.quantity||!formM.movement_date) return
     setSaving(true)
     try {
-      await createMouvement({ ...formM, quantity: Number(formM.quantity) })
+      await createMouvement({...formM,quantity:Number(formM.quantity)})
       await load(); setDone(true)
-      setTimeout(()=>{setModal(null);setDone(false);setFormM({stock_item_id:'',movement_type:'entree',quantity:'',movement_date:'',reference:'',notes:''})},1400)
+      setTimeout(()=>{setModalMvt(null);setDone(false)},1400)
     } catch(e:any){alert('Erreur: '+e.message)}
     setSaving(false)
   }
 
-  const CATS = ['semences','plants','engrais','phytosanitaires','emballages','consommables','pieces_rechange','autre']
+  const ArtForm = ({vals,onChange}: any) => (<>
+    <FormRow>
+      <FormGroup label="Code"><Input value={vals.code} onChange={onChange('code')} /></FormGroup>
+      <FormGroup label="Nom *"><Input value={vals.name} onChange={onChange('name')} placeholder="ex: NPK 20-20-20" autoFocus /></FormGroup>
+    </FormRow>
+    <FormRow>
+      <FormGroup label="Catégorie">
+        <Select value={vals.category} onChange={onChange('category')}>{CATS.map(c=><option key={c}>{c}</option>)}</Select>
+      </FormGroup>
+      <FormGroup label="Unité">
+        <Select value={vals.unit} onChange={onChange('unit')}>{['kg','L','unite','sac','boite','rouleau','m2','autre'].map(u=><option key={u}>{u}</option>)}</Select>
+      </FormGroup>
+    </FormRow>
+    <FormRow>
+      <FormGroup label="Stock min. (alerte)"><Input type="number" value={vals.min_qty} onChange={onChange('min_qty')} placeholder="100" /></FormGroup>
+      <FormGroup label="Coût unitaire (MAD)"><Input type="number" value={vals.unit_cost} onChange={onChange('unit_cost')} placeholder="12.50" /></FormGroup>
+    </FormRow>
+    <FormGroup label="Emplacement"><Input value={vals.location} onChange={onChange('location')} placeholder="ex: Entrepôt A / Rayon 3" /></FormGroup>
+  </>)
 
   return (
-    <div style={{padding:'22px 26px',background:'#f4f9f4',minHeight:'100vh'}}>
-      {modal==='article' && (
-        <Modal title="Nouvel article en stock" onClose={()=>{setModal(null);setDone(false)}}>
+    <div style={{background:'#030a07',minHeight:'100vh'}}>
+      {modalArticle && (
+        <Modal title="NOUVEL ARTICLE" onClose={()=>{setModalArticle(false);setDone(false)}}>
           {done ? <SuccessMessage message="Article créé !" /> : (<>
-            <FormRow>
-              <FormGroup label="Code *"><Input value={formA.code} onChange={sa('code')} placeholder="ex: ST001" /></FormGroup>
-              <FormGroup label="Nom *"><Input value={formA.name} onChange={sa('name')} placeholder="ex: NPK 20-20-20" /></FormGroup>
-            </FormRow>
-            <FormRow>
-              <FormGroup label="Catégorie">
-                <Select value={formA.category} onChange={sa('category')}>{CATS.map(c=><option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}</Select>
-              </FormGroup>
-              <FormGroup label="Unité">
-                <Select value={formA.unit} onChange={sa('unit')}>{['kg','L','unite','sac','boite','rouleau','m2','autre'].map(u=><option key={u} value={u}>{u}</option>)}</Select>
-              </FormGroup>
-            </FormRow>
-            <FormRow>
-              <FormGroup label="Stock minimum (alerte)"><Input type="number" value={formA.min_qty} onChange={sa('min_qty')} placeholder="ex: 100" /></FormGroup>
-              <FormGroup label="Coût unitaire (MAD)"><Input type="number" value={formA.unit_cost} onChange={sa('unit_cost')} placeholder="ex: 12.50" /></FormGroup>
-            </FormRow>
-            <FormGroup label="Emplacement"><Input value={formA.location} onChange={sa('location')} placeholder="ex: Entrepôt A / Rayon 3" /></FormGroup>
-            <ModalFooter onCancel={()=>setModal(null)} onSave={saveArticle} loading={saving} disabled={!formA.code||!formA.name} saveLabel="Créer l'article" />
+            <ArtForm vals={formA} onChange={sa} />
+            <ModalFooter onCancel={()=>setModalArticle(false)} onSave={saveArticle} loading={saving} disabled={!formA.name} saveLabel="CRÉER L'ARTICLE" />
           </>)}
         </Modal>
       )}
-      {modal==='mouvement' && (
-        <Modal title="Mouvement de stock" onClose={()=>{setModal(null);setDone(false)}}>
+      {modalEditArt && (
+        <Modal title={`MODIFIER — ${modalEditArt.name}`} onClose={()=>{setModalEditArt(null);setDone(false)}}>
+          {done ? <SuccessMessage message="Article modifié !" /> : (<>
+            <ArtForm vals={formAE} onChange={sae} />
+            <ModalFooter onCancel={()=>setModalEditArt(null)} onSave={saveEditArt} loading={saving} disabled={!formAE.name} saveLabel="ENREGISTRER" />
+          </>)}
+        </Modal>
+      )}
+      {modalMvt && (
+        <Modal title={`MOUVEMENT — ${modalMvt.name}`} onClose={()=>{setModalMvt(null);setDone(false)}}>
           {done ? <SuccessMessage message="Mouvement enregistré !" /> : (<>
-            <FormGroup label="Article *">
-              <Select value={formM.stock_item_id} onChange={sm('stock_item_id')}>
-                <option value="">-- Sélectionner un article --</option>
-                {items.map(i=><option key={i.id} value={i.id}>{i.code} · {i.name} (stock: {i.current_qty} {i.unit})</option>)}
-              </Select>
-            </FormGroup>
+            <div style={{padding:'10px 14px',background:'#0d1f14',border:'1px solid #1a3526',borderRadius:8,marginBottom:16,fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>
+              Stock actuel : <strong style={{color:'#00e87a'}}>{modalMvt.current_qty} {modalMvt.unit}</strong> · Min : {modalMvt.min_qty} {modalMvt.unit}
+            </div>
             <FormRow>
               <FormGroup label="Type">
                 <Select value={formM.movement_type} onChange={sm('movement_type')}>
@@ -84,59 +126,58 @@ export default function StocksPage() {
                   <option value="ajustement">Ajustement inventaire</option>
                 </Select>
               </FormGroup>
-              <FormGroup label="Quantité *"><Input type="number" value={formM.quantity} onChange={sm('quantity')} placeholder="0" /></FormGroup>
+              <FormGroup label="Quantité *"><Input type="number" value={formM.quantity} onChange={sm('quantity')} placeholder="0" autoFocus /></FormGroup>
             </FormRow>
             <FormRow>
               <FormGroup label="Date *"><Input type="date" value={formM.movement_date} onChange={sm('movement_date')} /></FormGroup>
               <FormGroup label="Référence"><Input value={formM.reference} onChange={sm('reference')} placeholder="ex: BL-2026-001" /></FormGroup>
             </FormRow>
             <FormGroup label="Notes"><Textarea rows={2} value={formM.notes} onChange={sm('notes')} /></FormGroup>
-            <ModalFooter onCancel={()=>setModal(null)} onSave={saveMouvement} loading={saving} disabled={!formM.stock_item_id||!formM.quantity||!formM.movement_date} saveLabel="Enregistrer le mouvement" />
+            <ModalFooter onCancel={()=>setModalMvt(null)} onSave={saveMvt} loading={saving} disabled={!formM.quantity||!formM.movement_date} saveLabel="ENREGISTRER LE MOUVEMENT" />
           </>)}
         </Modal>
       )}
+
       <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:16}}>
-        <div><h2 style={{fontFamily:'Syne,sans-serif',fontSize:20,fontWeight:700,color:'#1b3a2d',marginBottom:4}}>Gestion des Stocks</h2><p style={{fontSize:13,color:'#5a7a66'}}>{items.length} article(s) · {items.filter(i=>i.current_qty<=i.min_qty).length} alerte(s)</p></div>
-        <div style={{display:'flex',gap:10}}>
-          <button onClick={()=>setModal('mouvement')} style={{padding:'7px 14px',borderRadius:8,border:'1px solid #cce5d4',background:'#d8f3dc',color:'#1b4332',fontSize:13,fontWeight:600,cursor:'pointer'}}>± Mouvement</button>
-          <button onClick={()=>setModal('article')} style={{padding:'8px 16px',borderRadius:8,border:'none',background:'#2d6a4f',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer'}}>+ Nouvel article</button>
+        <div><div className="page-title">STOCKS</div><div className="page-sub">{items.length} article(s) · {items.filter(i=>i.current_qty<=i.min_qty&&i.min_qty>0).length} alerte(s)</div></div>
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={()=>setModalMvt(null)} style={{display:'none'}} />
+          <button className="btn-primary" onClick={openNewArt}>+ NOUVEL ARTICLE</button>
         </div>
       </div>
+
       {items.filter(i=>i.current_qty<=i.min_qty&&i.min_qty>0).map(i=>(
-        <div key={i.id} style={{display:'flex',alignItems:'center',gap:9,padding:'10px 14px',borderRadius:9,marginBottom:6,background:'#fffbec',border:'1px solid #f0e0a0',color:'#7a5500',fontSize:12.5}}>
-          ⚠ <strong>{i.name}</strong> — Stock: {i.current_qty} {i.unit} | Seuil: {i.min_qty} {i.unit}
+        <div key={i.id} style={{display:'flex',alignItems:'center',gap:9,padding:'10px 14px',borderRadius:9,marginBottom:6,background:'#f5a62312',border:'1px solid #f5a62340',fontFamily:'DM Mono,monospace',fontSize:11,color:'#f5a623'}}>
+          ⚠ <strong>{i.name}</strong> — Stock : {i.current_qty} {i.unit} | Seuil : {i.min_qty} {i.unit}
         </div>
       ))}
-      {loading ? <div style={{textAlign:'center',padding:60,color:'#5a7a66'}}>Chargement...</div>
+
+      {loading ? <div style={{textAlign:'center',padding:60,color:'#3d6b52',fontFamily:'DM Mono,monospace',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
       : items.length===0 ? (
-        <div style={{textAlign:'center',padding:60,background:'#fff',border:'1px solid #cce5d4',borderRadius:12}}>
-          <div style={{fontSize:40,marginBottom:12}}>📦</div>
-          <div style={{fontFamily:'Syne,sans-serif',fontSize:16,fontWeight:700,color:'#1b3a2d',marginBottom:8}}>Stock vide</div>
-          <button onClick={()=>setModal('article')} style={{padding:'9px 20px',borderRadius:8,border:'none',background:'#2d6a4f',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer'}}>+ Nouvel article</button>
-        </div>
+        <div className="empty-state" style={{marginTop:14}}><div className="empty-icon">📦</div><div className="empty-title">Stock vide</div><button className="btn-primary" onClick={openNewArt}>+ NOUVEL ARTICLE</button></div>
       ) : (
-        <div style={{background:'#fff',border:'1px solid #cce5d4',borderRadius:12,overflow:'hidden',marginTop:14}}>
+        <div className="card" style={{padding:0,overflow:'hidden',marginTop:14}}>
           <div style={{overflowX:'auto'}}>
-            <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead><tr>{['Code','Article','Catégorie','Stock','Seuil min.','Coût unit.','Valeur stock','Alerte','Actions'].map(h=><th key={h} style={{padding:'10px 14px',fontSize:10.5,fontWeight:600,color:'#5a7a66',textTransform:'uppercase',letterSpacing:'.5px',borderBottom:'1px solid #e8f5ec',textAlign:'left',background:'#f9fdf9',whiteSpace:'nowrap'}}>{h}</th>)}</tr></thead>
+            <table className="tbl">
+              <thead><tr>{['Code','Article','Catégorie','Stock','Seuil','Coût unit.','Valeur','Alerte','Actions'].map(h=><th key={h}>{h}</th>)}</tr></thead>
               <tbody>
                 {items.map((i:any)=>{
-                  const alerte = i.current_qty <= i.min_qty && i.min_qty > 0
-                  const valeur = (i.current_qty||0) * (i.unit_cost||0)
+                  const alerte = i.current_qty<=i.min_qty&&i.min_qty>0
                   return (
-                    <tr key={i.id} style={{borderBottom:'1px solid #e8f5ec'}}>
-                      <td style={{padding:'11px 14px',fontFamily:'monospace',fontSize:12,color:'#5a7a66'}}>{i.code}</td>
-                      <td style={{padding:'11px 14px',fontWeight:600,color:'#1b3a2d'}}>{i.name}</td>
-                      <td style={{padding:'11px 14px'}}><span style={{background:'#dbeafe',color:'#1e3a8a',padding:'2px 8px',borderRadius:10,fontSize:10,fontWeight:600}}>{i.category}</span></td>
-                      <td style={{padding:'11px 14px',fontWeight:600,color:alerte?'#e63946':'#1b3a2d',fontFamily:'monospace',fontSize:12}}>{i.current_qty} {i.unit}</td>
-                      <td style={{padding:'11px 14px',color:'#5a7a66',fontFamily:'monospace',fontSize:12}}>{i.min_qty} {i.unit}</td>
-                      <td style={{padding:'11px 14px',fontFamily:'monospace',fontSize:12}}>{i.unit_cost?.toFixed(2)||'—'} MAD</td>
-                      <td style={{padding:'11px 14px',fontWeight:600,color:'#1b3a2d',fontFamily:'monospace',fontSize:12}}>{valeur.toLocaleString('fr',{maximumFractionDigits:0})} MAD</td>
-                      <td style={{padding:'11px 14px'}}>{alerte?<span style={{background:'#fce4e5',color:'#9b1d1d',padding:'2px 8px',borderRadius:10,fontSize:10,fontWeight:600}}>⚠ ALERTE</span>:<span style={{background:'#d8f3dc',color:'#1b4332',padding:'2px 8px',borderRadius:10,fontSize:10,fontWeight:600}}>✓ OK</span>}</td>
-                      <td style={{padding:'11px 14px'}}>
-                        <div style={{display:'flex',gap:5}}>
-                          <button onClick={()=>{setFormM(f=>({...f,stock_item_id:i.id,movement_type:'entree'}));setModal('mouvement')}} style={{padding:'4px 9px',borderRadius:6,border:'1px solid #b7e4c7',background:'#d8f3dc',color:'#1b4332',fontSize:11,cursor:'pointer'}}>+ Entrée</button>
-                          <button onClick={()=>{setFormM(f=>({...f,stock_item_id:i.id,movement_type:'sortie'}));setModal('mouvement')}} style={{padding:'4px 9px',borderRadius:6,border:'1px solid #cce5d4',background:'#f4f9f4',color:'#5a7a66',fontSize:11,cursor:'pointer'}}>- Sortie</button>
+                    <tr key={i.id}>
+                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52'}}>{i.code}</span></td>
+                      <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{i.name}</span></td>
+                      <td><span className="tag tag-blue" style={{fontSize:9}}>{i.category}</span></td>
+                      <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:14,fontWeight:700,color:alerte?'#ff4d6d':'#00e87a'}}>{i.current_qty} {i.unit}</span></td>
+                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52'}}>{i.min_qty} {i.unit}</span></td>
+                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{i.unit_cost?.toFixed(2)||'—'} MAD</span></td>
+                      <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{((i.current_qty||0)*(i.unit_cost||0)).toLocaleString('fr',{maximumFractionDigits:0})} MAD</span></td>
+                      <td>{alerte?<span className="tag tag-red" style={{fontSize:8}}>⚠ ALERTE</span>:<span className="tag tag-green" style={{fontSize:8}}>✓ OK</span>}</td>
+                      <td>
+                        <div style={{display:'flex',gap:4}}>
+                          <button onClick={()=>openMvt(i,'entree')} style={{padding:'4px 8px',borderRadius:5,border:'1px solid #00e87a40',background:'#00e87a18',color:'#00e87a',fontSize:10,cursor:'pointer'}}>+ IN</button>
+                          <button onClick={()=>openMvt(i,'sortie')} style={{padding:'4px 8px',borderRadius:5,border:'1px solid #1a3526',background:'transparent',color:'#7aab90',fontSize:10,cursor:'pointer'}}>- OUT</button>
+                          <button onClick={()=>openEditArt(i)} className="btn-ghost" style={{padding:'4px 7px',fontSize:10}}>✏️</button>
                         </div>
                       </td>
                     </tr>
