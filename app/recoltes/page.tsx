@@ -227,6 +227,7 @@ export default function RecoltesPage() {
       station_ref:   meta.station_ref || '',
       receipt_date:  meta.receipt_date || '',
     })
+    // storage_temp = ca local calculé pour affichage, pas en DB
     setModalConfirm(d)
     setDone(false)
   }
@@ -237,16 +238,16 @@ export default function RecoltesPage() {
     try {
       const qtyA  = Number(formConfirm.qty_acceptee)
       const prix  = Number(formConfirm.price_per_kg)
-      const ca    = qtyA * prix
+      const ca    = Math.round(qtyA * prix * 100) / 100
       const meta  = JSON.stringify({
         price_per_kg:  prix,
+        ca_amount:     ca,
         station_ref:   formConfirm.station_ref || null,
         receipt_date:  formConfirm.receipt_date || null,
         price_set_at:  new Date().toISOString(),
       })
       const { error } = await supabase.from('harvest_lots').update({
         certificate_number: String(qtyA),
-        storage_temp:       ca,
         notes:              meta,
       }).eq('id', modalConfirm.id)
       if (error) throw error
@@ -284,16 +285,16 @@ export default function RecoltesPage() {
         const d = sansPrix.find(x => x.id === id)
         if (!d) continue
         const qtyA = Number(massRows[id] || d.quantity_kg)
-        const ca   = qtyA * prix
+        const ca   = Math.round(qtyA * prix * 100) / 100
         const meta = JSON.stringify({
           price_per_kg:  prix,
+          ca_amount:     ca,
           station_ref:   massRef || null,
           receipt_date:  massDate || null,
           price_set_at:  new Date().toISOString(),
         })
         const { error } = await supabase.from('harvest_lots').update({
           certificate_number: String(qtyA),
-          storage_temp:       ca,
           notes:              meta,
         }).eq('id', id)
         if (!error) updates.push({ ...d, certificate_number: String(qtyA), storage_temp: ca, notes: meta })
@@ -337,9 +338,11 @@ export default function RecoltesPage() {
   }
 
   /* ─── COMPUTED ─── */
+  // Lire le CA depuis notes.ca_amount (storage_temp trop petit en DB)
+  const getCA = (d: any) => d.storage_temp ?? parseMeta(d.notes).ca_amount ?? 0
   const sansPrix     = dispatches.filter(d => !d.certificate_number)
   const avecPrix     = dispatches.filter(d =>  d.certificate_number)
-  const totalCA      = avecPrix.reduce((s, d) => s + (d.storage_temp || 0), 0)
+  const totalCA      = avecPrix.reduce((s, d) => s + getCA(d), 0)
   const totalKg      = harvests.reduce((s, h) => s + (h.total_qty || 0), 0)
   const activAlertes = alertes.filter(a => !a.is_resolved)
 
@@ -350,7 +353,7 @@ export default function RecoltesPage() {
     if (!statParMarche[mid]) statParMarche[mid] = { nom: d.markets?.name || '—', qtyEnv: 0, qtyAcc: 0, ca: 0, currency: d.markets?.currency || 'MAD', sansPrix: 0 }
     statParMarche[mid].qtyEnv += d.quantity_kg || 0
     statParMarche[mid].qtyAcc += d.certificate_number ? Number(d.certificate_number) : 0
-    statParMarche[mid].ca     += d.storage_temp || 0
+    statParMarche[mid].ca     += getCA(d)
     if (!d.certificate_number) statParMarche[mid].sansPrix++
   }
 
@@ -771,7 +774,7 @@ export default function RecoltesPage() {
                 <tbody>
                   {harvests.map(h => {
                     const hDisps    = dispatches.filter(d => d.harvest_id === h.id)
-                    const hCA       = hDisps.reduce((s, d) => s + (d.storage_temp || 0), 0)
+                    const hCA       = hDisps.reduce((s, d) => s + getCA(d), 0)
                     const hMarchés  = [...new Set(hDisps.map(d => d.markets?.name).filter(Boolean))]
                     const hSansPrix = hDisps.filter(d => !d.certificate_number).length
                     const statut    = harvestStatut(h, dispatches)
