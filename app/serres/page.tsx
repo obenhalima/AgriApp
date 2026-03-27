@@ -7,164 +7,159 @@ import { genCode } from '@/lib/utils'
 
 export default function SerresPage() {
   const [serres, setSerres] = useState<any[]>([])
-  const [farms, setFarms] = useState<any[]>([])
+  const [farms, setFarms]   = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState(false)
+  const [modalNew,  setModalNew]  = useState(false)
+  const [modalEdit, setModalEdit] = useState<any>(null)
   const [saving, setSaving] = useState(false)
-  const [done, setDone] = useState(false)
-  const [form, setForm] = useState({ farm_id:'', code:'', name:'', type:'tunnel', status:'active', total_area:'', exploitable_area:'', notes:'' })
-  const s = (k:string) => (e:any) => setForm(f=>({...f,[k]:e.target.value}))
+  const [done,   setDone]   = useState(false)
+  const [form,   setForm]   = useState({ farm_id:'', code:'', name:'', type:'tunnel', status:'active', total_area:'', exploitable_area:'', notes:'' })
+  const [formE,  setFormE]  = useState<Record<string,any>>({})
+  const s  = (k:string) => (e:any) => setForm(f=>({...f,[k]:e.target.value}))
+  const se = (k:string) => (e:any) => setFormE(f=>({...f,[k]:e.target.value}))
 
   const load = async () => {
-    try {
-      const [s, f] = await Promise.all([getSerres(), getFarms()])
-      setSerres(s); setFarms(f)
-    } catch(e){}
-    setLoading(false)
+    const [sr,fr] = await Promise.all([getSerres(), getFarms()])
+    setSerres(sr); setFarms(fr); setLoading(false)
   }
-  useEffect(()=>{ load() },[])
+  useEffect(()=>{load()},[])
 
-  const openModal = () => {
+  const openNew = () => {
     const codes = serres.map(s=>s.code)
-    const farmId = farms.length === 1 ? farms[0].id : ''
-    setForm({ farm_id:farmId, code:genCode('S',codes), name:'', type:'tunnel', status:'active', total_area:'', exploitable_area:'', notes:'' })
-    setModal(true)
+    const farmId = farms.length===1 ? farms[0].id : ''
+    setForm({farm_id:farmId, code:genCode('S',codes), name:'', type:'tunnel', status:'active', total_area:'', exploitable_area:'', notes:''})
+    setModalNew(true)
+  }
+
+  const openEdit = (s: any) => {
+    setFormE({ farm_id:s.farm_id, code:s.code, name:s.name, type:s.type, status:s.status,
+      total_area:String(s.total_area||''), exploitable_area:String(s.exploitable_area||''), notes:s.notes||'' })
+    setModalEdit(s)
   }
 
   const save = async () => {
-    if (!form.farm_id || !form.name || !form.total_area) return
+    if (!form.farm_id||!form.name||!form.total_area) return
     setSaving(true)
     try {
       const { data, error } = await supabase.from('greenhouses').insert({
-        farm_id: form.farm_id,
-        code: form.code,
-        name: form.name,
-        type: form.type,
-        status: form.status,
-        total_area: Number(form.total_area),
-        exploitable_area: Number(form.exploitable_area || form.total_area),
-        notes: form.notes || null,
+        farm_id:form.farm_id, code:form.code, name:form.name, type:form.type, status:form.status,
+        total_area:Number(form.total_area), exploitable_area:Number(form.exploitable_area||form.total_area), notes:form.notes||null
       }).select('*, farms(name)').single()
       if (error) throw error
       setSerres(p=>[data,...p]); setDone(true)
-      setTimeout(()=>{ setModal(false); setDone(false) }, 1400)
-    } catch(e:any){ alert('Erreur: '+e.message) }
+      setTimeout(()=>{setModalNew(false);setDone(false)},1400)
+    } catch(e:any){alert('Erreur: '+e.message)}
     setSaving(false)
   }
 
-  const del = async (id:string, name:string) => {
+  const saveEdit = async () => {
+    if (!modalEdit||!formE.name) return
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('greenhouses').update({
+        farm_id:formE.farm_id, code:formE.code, name:formE.name, type:formE.type, status:formE.status,
+        total_area:Number(formE.total_area)||0, exploitable_area:Number(formE.exploitable_area||formE.total_area)||0, notes:formE.notes||null
+      }).eq('id', modalEdit.id)
+      if (error) throw error
+      setDone(true)
+      setTimeout(()=>{setModalEdit(null);setDone(false);load()},1400)
+    } catch(e:any){alert('Erreur: '+e.message)}
+    setSaving(false)
+  }
+
+  const del = async (id:string,name:string) => {
     if (!confirm(`Supprimer "${name}" ?`)) return
     await deleteSerre(id); setSerres(p=>p.filter(s=>s.id!==id))
   }
 
-  const ST: Record<string,string> = { active:'#00e87a', en_preparation:'#f5a623', hors_service:'#ff4d6d', renovation:'#00b4d8' }
+  const ST: Record<string,string> = {active:'#00e87a',en_preparation:'#f5a623',hors_service:'#ff4d6d',renovation:'#00b4d8'}
+
+  const SForm = ({vals, onChange, readOnly=false}: any) => (<>
+    {!readOnly && <FormGroup label="Ferme *">
+      {farms.length===0
+        ? <div style={{padding:'10px',background:'#ff4d6d18',border:'1px solid #ff4d6d40',borderRadius:7,color:'#ff4d6d',fontFamily:'DM Mono,monospace',fontSize:11}}>⚠ Aucune ferme</div>
+        : <Select value={vals.farm_id} onChange={onChange('farm_id')}>
+            <option value="">-- Sélectionner --</option>
+            {farms.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}
+          </Select>
+      }
+    </FormGroup>}
+    <FormRow>
+      <FormGroup label="Code"><Input value={vals.code} onChange={onChange('code')} /></FormGroup>
+      <FormGroup label="Nom *"><Input value={vals.name} onChange={onChange('name')} placeholder="ex: Serre Nord A" autoFocus /></FormGroup>
+    </FormRow>
+    <FormRow>
+      <FormGroup label="Type">
+        <Select value={vals.type} onChange={onChange('type')}>
+          {['tunnel','chapelle','venlo','multispan','solaire','autre'].map(t=><option key={t}>{t}</option>)}
+        </Select>
+      </FormGroup>
+      <FormGroup label="Statut">
+        <Select value={vals.status} onChange={onChange('status')}>
+          {['active','en_preparation','hors_service','renovation'].map(t=><option key={t}>{t}</option>)}
+        </Select>
+      </FormGroup>
+    </FormRow>
+    <FormRow>
+      <FormGroup label="Superficie totale (m²) *"><Input type="number" value={vals.total_area} onChange={onChange('total_area')} placeholder="5000" /></FormGroup>
+      <FormGroup label="Exploitable (m²)"><Input type="number" value={vals.exploitable_area} onChange={onChange('exploitable_area')} placeholder="= totale si vide" /></FormGroup>
+    </FormRow>
+    <FormGroup label="Notes"><Textarea rows={2} value={vals.notes} onChange={onChange('notes')} /></FormGroup>
+  </>)
 
   return (
     <div style={{background:'#030a07',minHeight:'100vh'}}>
-      {modal && (
-        <Modal title="NOUVELLE SERRE" onClose={()=>{setModal(false);setDone(false)}}>
+      {modalNew && (
+        <Modal title="NOUVELLE SERRE" onClose={()=>{setModalNew(false);setDone(false)}}>
           {done ? <SuccessMessage message="Serre créée !" /> : (<>
-            <FormGroup label="Ferme *">
-              {farms.length === 0 ? (
-                <div style={{padding:'10px 13px',background:'#ff4d6d18',border:'1px solid #ff4d6d40',borderRadius:7,color:'#ff4d6d',fontFamily:'DM Mono,monospace',fontSize:11}}>
-                  ⚠ Aucune ferme — créez d'abord une ferme
-                </div>
-              ) : (
-                <Select value={form.farm_id} onChange={s('farm_id')}>
-                  <option value="">-- Sélectionner --</option>
-                  {farms.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}
-                </Select>
-              )}
-            </FormGroup>
-            <FormRow>
-              <FormGroup label="Code (auto-généré)">
-                <Input value={form.code} onChange={s('code')} />
-              </FormGroup>
-              <FormGroup label="Nom de la serre *">
-                <Input value={form.name} onChange={s('name')} placeholder="ex: Serre Nord A" autoFocus />
-              </FormGroup>
-            </FormRow>
-            <FormRow>
-              <FormGroup label="Type">
-                <Select value={form.type} onChange={s('type')}>
-                  {['tunnel','chapelle','venlo','multispan','solaire','autre'].map(t=><option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
-                </Select>
-              </FormGroup>
-              <FormGroup label="Statut">
-                <Select value={form.status} onChange={s('status')}>
-                  <option value="active">Active</option>
-                  <option value="en_preparation">En préparation</option>
-                  <option value="hors_service">Hors service</option>
-                  <option value="renovation">Rénovation</option>
-                </Select>
-              </FormGroup>
-            </FormRow>
-            <FormRow>
-              <FormGroup label="Superficie totale (m²) *">
-                <Input type="number" value={form.total_area} onChange={s('total_area')} placeholder="ex: 5000" />
-              </FormGroup>
-              <FormGroup label="Surface exploitable (m²)">
-                <Input type="number" value={form.exploitable_area} onChange={s('exploitable_area')} placeholder="= superficie si vide" />
-              </FormGroup>
-            </FormRow>
-            <FormGroup label="Observations">
-              <Textarea rows={2} value={form.notes} onChange={s('notes')} />
-            </FormGroup>
-            <ModalFooter onCancel={()=>setModal(false)} onSave={save} loading={saving} disabled={!form.farm_id||!form.name||!form.total_area} saveLabel="CRÉER LA SERRE" />
+            <SForm vals={form} onChange={s} />
+            <ModalFooter onCancel={()=>setModalNew(false)} onSave={save} loading={saving} disabled={!form.farm_id||!form.name||!form.total_area} saveLabel="CRÉER" />
+          </>)}
+        </Modal>
+      )}
+      {modalEdit && (
+        <Modal title={`MODIFIER — ${modalEdit.name}`} onClose={()=>{setModalEdit(null);setDone(false)}}>
+          {done ? <SuccessMessage message="Serre modifiée !" /> : (<>
+            <SForm vals={formE} onChange={se} readOnly={true} />
+            <ModalFooter onCancel={()=>setModalEdit(null)} onSave={saveEdit} loading={saving} disabled={!formE.name} saveLabel="ENREGISTRER LES MODIFICATIONS" />
           </>)}
         </Modal>
       )}
 
       <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:24}}>
-        <div>
-          <div className="page-title">SERRES</div>
-          <div className="page-sub">{serres.length} serre(s) · {farms.length} ferme(s)</div>
-        </div>
-        <button className="btn-primary" onClick={openModal}>+ NEW SERRE</button>
+        <div><div className="page-title">SERRES</div><div className="page-sub">{serres.length} serre(s)</div></div>
+        <button className="btn-primary" onClick={openNew}>+ NEW SERRE</button>
       </div>
 
-      {farms.length === 0 && !loading && (
-        <div style={{padding:'12px 16px',background:'#f5a62318',border:'1px solid #f5a62340',borderRadius:8,marginBottom:16,fontFamily:'DM Mono,monospace',fontSize:11,color:'#f5a623'}}>
-          ⚠ Aucune ferme — créez d'abord une ferme dans <strong>Fermes & Sites</strong>
-        </div>
-      )}
-
-      {loading ? (
-        <div style={{textAlign:'center',padding:60,color:'#3d6b52',fontFamily:'DM Mono,monospace',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
-      ) : serres.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon">⬡</div>
-          <div className="empty-title">Aucune serre</div>
-          <div className="empty-sub">Commencez par créer votre première serre.</div>
-          <button className="btn-primary" onClick={openModal} disabled={farms.length===0}>+ NEW SERRE</button>
-        </div>
+      {loading ? <div style={{textAlign:'center',padding:60,color:'#3d6b52',fontFamily:'DM Mono,monospace',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
+      : serres.length===0 ? (
+        <div className="empty-state"><div className="empty-icon">⬡</div><div className="empty-title">Aucune serre</div><button className="btn-primary" onClick={openNew}>+ NEW SERRE</button></div>
       ) : (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}}>
           {serres.map((s:any)=>{
-            const color = ST[s.status]||'#3d6b52'
+            const c = ST[s.status]||'#3d6b52'
             return (
               <div key={s.id} className="card">
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12,paddingBottom:10,borderBottom:'1px solid #1a3526'}}>
                   <div>
-                    <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:15,fontWeight:700,color:'#e8f5ee',textTransform:'uppercase',letterSpacing:.5,marginBottom:2}}>{s.name}</div>
-                    <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',letterSpacing:1}}>{s.code} · {s.type} · {s.farms?.name}</div>
+                    <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:15,fontWeight:700,color:'#e8f5ee',textTransform:'uppercase',letterSpacing:.5}}>{s.name}</div>
+                    <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',letterSpacing:1,marginTop:2}}>{s.code} · {s.type} · {s.farms?.name}</div>
                   </div>
-                  <span style={{background:`${color}18`,color,padding:'2px 8px',borderRadius:4,fontFamily:'DM Mono,monospace',fontSize:9,border:`1px solid ${color}40`}}>{s.status?.replace('_',' ').toUpperCase()}</span>
+                  <span style={{background:`${c}18`,color:c,padding:'2px 7px',borderRadius:4,fontFamily:'DM Mono,monospace',fontSize:8,border:`1px solid ${c}40`}}>{s.status?.replace('_',' ').toUpperCase()}</span>
                 </div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
-                  <div style={{background:'#0d1f14',border:'1px solid #1a3526',borderRadius:6,padding:'7px 10px'}}>
-                    <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',letterSpacing:1,marginBottom:2}}>SUPERFICIE</div>
-                    <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:14,fontWeight:700,color:'#e8f5ee'}}>{s.total_area?.toLocaleString('fr')} m²</div>
-                  </div>
-                  <div style={{background:'#0d1f14',border:'1px solid #1a3526',borderRadius:6,padding:'7px 10px'}}>
-                    <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',letterSpacing:1,marginBottom:2}}>EXPLOITABLE</div>
-                    <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:14,fontWeight:700,color:'#e8f5ee'}}>{s.exploitable_area?.toLocaleString('fr')} m²</div>
-                  </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}}>
+                  {[['SUPERFICIE',`${s.total_area?.toLocaleString('fr')} m²`],['EXPLOITABLE',`${s.exploitable_area?.toLocaleString('fr')} m²`]].map(([l,v])=>(
+                    <div key={l} style={{background:'#0d1f14',border:'1px solid #1a3526',borderRadius:6,padding:'7px 10px'}}>
+                      <div style={{fontFamily:'DM Mono,monospace',fontSize:8,color:'#3d6b52',letterSpacing:1,marginBottom:2}}>{l}</div>
+                      <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:14,fontWeight:700,color:'#e8f5ee'}}>{v}</div>
+                    </div>
+                  ))}
                 </div>
-                {s.notes && <div style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52',marginBottom:10,fontStyle:'italic'}}>{s.notes}</div>}
-                <button onClick={()=>del(s.id,s.name)} className="btn-danger" style={{width:'100%',justifyContent:'center',fontSize:11}}>
-                  🗑 SUPPRIMER
-                </button>
+                {s.notes && <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',marginBottom:10,fontStyle:'italic'}}>{s.notes}</div>}
+                <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:6}}>
+                  <button onClick={()=>openEdit(s)} className="btn-secondary" style={{fontSize:10,justifyContent:'center'}}>✏️ MODIFIER</button>
+                  <button onClick={()=>del(s.id,s.name)} className="btn-danger" style={{padding:'7px 10px',fontSize:11}}>🗑</button>
+                </div>
               </div>
             )
           })}
