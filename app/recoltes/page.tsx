@@ -290,15 +290,18 @@ export default function RecoltesPage() {
   }
 
   // Dispatches filtrés par période
+  // Variables calculées (définies avant les useMemo qui en dépendent)
+  const sansPrix  = dispatches.filter((d:any) => !d.certificate_number)
+  const avecPrix  = dispatches.filter((d:any) =>  d.certificate_number)
+
   const dispatchesPeriode = useMemo(() => {
-    // Filtrer les dispatches SANS prix sur la période (ne pas utiliser sansPrix car défini après)
-    const sansP = dispatches.filter(d => !d.certificate_number)
-    if (!periodeDebut||!periodeFin) return sansP
-    return sansP.filter(d => {
+    // sansPrix est défini avant ce useMemo
+    if (!periodeDebut||!periodeFin) return sansPrix
+    return sansPrix.filter((d:any) => {
       const dt = d.harvest_date
       return dt >= periodeDebut && dt <= periodeFin
     })
-  }, [periodeDebut, periodeFin, dispatches])
+  }, [periodeDebut, periodeFin, sansPrix])
 
   // Marchés distincts dans la période
   const marchesInPeriode = useMemo(() => {
@@ -432,8 +435,7 @@ export default function RecoltesPage() {
   }
 
   /* ─── COMPUTED ─── */
-  const sansPrix     = dispatches.filter(d => !d.certificate_number)
-  const avecPrix     = dispatches.filter(d =>  d.certificate_number)
+  // sansPrix et avecPrix définis plus haut avant les useMemo
   const totalCA      = avecPrix.reduce((s,d) => s+getCA(d), 0)
   const totalKg      = harvests.reduce((s,h) => s+(h.total_qty||0), 0)
   const activAlertes = alertes.filter(a=>!a.is_resolved)
