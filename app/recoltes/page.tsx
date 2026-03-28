@@ -122,13 +122,17 @@ export default function RecoltesPage() {
     setSaving(true)
     try {
       const lot = `LOT-${formNew.harvest_date.replace(/-/g,'')}-${String(Date.now()).slice(-4)}`
+      // total_qty est une colonne GÉNÉRÉE = sum des catégories → ne pas l'insérer
+      // On met toute la quantité dans qty_category_1, total_qty sera calculé auto
       const { data, error } = await supabase.from('harvests').insert({
         campaign_planting_id: formNew.campaign_planting_id,
-        harvest_date: formNew.harvest_date,
-        total_qty:    Number(formNew.total_qty),
-        lot_number:   lot,
-        notes:        formNew.notes||null,
-        qty_category_1:0, qty_category_2:0, qty_category_3:0, qty_waste:0,
+        harvest_date:    formNew.harvest_date,
+        qty_category_1:  Number(formNew.total_qty)||0,
+        qty_category_2:  0,
+        qty_category_3:  0,
+        qty_waste:       0,
+        lot_number:      lot,
+        notes:           formNew.notes||null,
       }).select('id,lot_number,harvest_date,total_qty,notes,campaign_planting_id,campaign_plantings(*,greenhouses(code,name),varieties(commercial_name),campaigns(name))').single()
       if (error) throw error
       setHarvests(p => [data as any, ...p])
@@ -147,11 +151,15 @@ export default function RecoltesPage() {
     if (!modalEdit) return
     setSaving(true)
     try {
+      // total_qty est générée → mettre la quantité dans qty_category_1
       const { error } = await supabase.from('harvests').update({
         campaign_planting_id: formEdit.campaign_planting_id,
-        harvest_date: formEdit.harvest_date,
-        total_qty:    Number(formEdit.total_qty)||0,
-        notes:        formEdit.notes||null,
+        harvest_date:   formEdit.harvest_date,
+        qty_category_1: Number(formEdit.total_qty)||0,
+        qty_category_2: 0,
+        qty_category_3: 0,
+        qty_waste:      0,
+        notes:          formEdit.notes||null,
       }).eq('id', modalEdit.id)
       if (error) throw error
       setHarvests(p => p.map(h => h.id===modalEdit.id ? {...h,...formEdit,total_qty:Number(formEdit.total_qty)} : h))
