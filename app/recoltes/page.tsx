@@ -289,19 +289,18 @@ export default function RecoltesPage() {
     setModalPeriode(true); setDone(false)
   }
 
-  // Dispatches filtrés par période
-  // Variables calculées (définies avant les useMemo qui en dépendent)
-  const sansPrix  = dispatches.filter((d:any) => !d.certificate_number)
-  const avecPrix  = dispatches.filter((d:any) =>  d.certificate_number)
+  // Variables stables avec useMemo pour éviter les boucles infinies
+  const sansPrix  = useMemo(() => dispatches.filter((d:any) => !d.certificate_number), [dispatches])
+  const avecPrix  = useMemo(() => dispatches.filter((d:any) =>  d.certificate_number), [dispatches])
 
   const dispatchesPeriode = useMemo(() => {
-    // sansPrix est défini avant ce useMemo
-    if (!periodeDebut||!periodeFin) return sansPrix
-    return sansPrix.filter((d:any) => {
+    const sp = dispatches.filter((d:any) => !d.certificate_number)
+    if (!periodeDebut||!periodeFin) return sp
+    return sp.filter((d:any) => {
       const dt = d.harvest_date
       return dt >= periodeDebut && dt <= periodeFin
     })
-  }, [periodeDebut, periodeFin, sansPrix])
+  }, [periodeDebut, periodeFin, dispatches])
 
   // Marchés distincts dans la période
   const marchesInPeriode = useMemo(() => {
@@ -328,7 +327,8 @@ export default function RecoltesPage() {
     })
     setPeriodeRows(rows)
     setPeriodeSelIds(new Set(dispatchesPeriode.map((d:any)=>d.id)))
-  }, [dispatchesPeriode, modalPeriode])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modalPeriode, periodeDebut, periodeFin])
 
   // Recalculer qty_calc quand freinte/ecart changent
   const updatePeriodeRow = (id:string, key:'freinte'|'ecart'|'qty_man', val:string) => {
@@ -436,19 +436,22 @@ export default function RecoltesPage() {
 
   /* ─── COMPUTED ─── */
   // sansPrix et avecPrix définis plus haut avant les useMemo
-  const totalCA      = avecPrix.reduce((s,d) => s+getCA(d), 0)
-  const totalKg      = harvests.reduce((s,h) => s+(h.total_qty||0), 0)
-  const activAlertes = alertes.filter(a=>!a.is_resolved)
+  const totalCA      = useMemo(() => avecPrix.reduce((s,d) => s+getCA(d), 0), [avecPrix])
+  const totalKg      = useMemo(() => harvests.reduce((s,h) => s+(h.total_qty||0), 0), [harvests])
+  const activAlertes = useMemo(() => alertes.filter(a=>!a.is_resolved), [alertes])
 
-  const caParMarche: Record<string,{nom:string;qtyEnv:number;qtyAcc:number;ca:number;currency:string;sansPrix:number}> = {}
-  for (const d of dispatches) {
-    const mid = d.market_id||'unknown'
-    if (!caParMarche[mid]) caParMarche[mid]={nom:d.markets?.name||'—',qtyEnv:0,qtyAcc:0,ca:0,currency:d.markets?.currency||'MAD',sansPrix:0}
-    caParMarche[mid].qtyEnv += d.quantity_kg||0
-    caParMarche[mid].qtyAcc += getQtyA(d)
-    caParMarche[mid].ca     += getCA(d)
-    if (!d.certificate_number) caParMarche[mid].sansPrix++
-  }
+  const caParMarche = useMemo(() => {
+    const res: Record<string,{nom:string;qtyEnv:number;qtyAcc:number;ca:number;currency:string;sansPrix:number}> = {}
+    for (const d of dispatches) {
+      const mid = d.market_id||'unknown'
+      if (!res[mid]) res[mid]={nom:d.markets?.name||'—',qtyEnv:0,qtyAcc:0,ca:0,currency:d.markets?.currency||'MAD',sansPrix:0}
+      res[mid].qtyEnv += d.quantity_kg||0
+      res[mid].qtyAcc += getQtyA(d)
+      res[mid].ca     += getCA(d)
+      if (!d.certificate_number) res[mid].sansPrix++
+    }
+    return res
+  }, [dispatches])
 
   const invendus = (h:any) => {
     const disp = dispatches.filter(d=>d.harvest_id===h.id).reduce((s,d)=>s+(d.quantity_kg||0),0)
