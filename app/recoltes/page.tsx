@@ -633,7 +633,7 @@ export default function RecoltesPage() {
               </div>
               {qtyAccEffective !== modalConfirm.quantity_kg && (
                 <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#f5a623',marginTop:4}}>
-                  ⚠ Rejet total : {(modalConfirm.quantity_kg - qtyEffective).toFixed(1)} kg
+                  ⚠ Rejet total : {(modalConfirm.quantity_kg - qtyAccEffective).toFixed(1)} kg
                 </div>
               )}
             </FormGroup>
