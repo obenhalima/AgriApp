@@ -291,8 +291,10 @@ export default function RecoltesPage() {
 
   // Dispatches filtrés par période
   const dispatchesPeriode = useMemo(() => {
-    if (!periodeDebut||!periodeFin) return sansPrix
-    return sansPrix.filter(d => {
+    // Filtrer les dispatches SANS prix sur la période (ne pas utiliser sansPrix car défini après)
+    const sansP = dispatches.filter(d => !d.certificate_number)
+    if (!periodeDebut||!periodeFin) return sansP
+    return sansP.filter(d => {
       const dt = d.harvest_date
       return dt >= periodeDebut && dt <= periodeFin
     })
@@ -302,7 +304,7 @@ export default function RecoltesPage() {
   const marchesInPeriode = useMemo(() => {
     const seen = new Set<string>()
     const result: any[] = []
-    dispatchesPeriode.forEach((d:any) => {
+    ;(dispatchesPeriode||[]).forEach((d:any) => {
       if (!seen.has(d.market_id)) { seen.add(d.market_id); result.push(d.markets) }
     })
     return result.filter(Boolean)
@@ -310,9 +312,9 @@ export default function RecoltesPage() {
 
   // Init periodeRows quand les dispatches changent
   useEffect(() => {
-    if (!modalPeriode) return
+    if (!modalPeriode || !dispatchesPeriode) return
     const rows: Record<string,any> = {}
-    dispatchesPeriode.forEach((d:any) => {
+    ;(dispatchesPeriode||[]).forEach((d:any) => {
       if (!rows[d.id]) {
         const meta = parseMeta(d.notes)
         const freinte = String(meta.freinte_pct ?? 0)
@@ -349,7 +351,7 @@ export default function RecoltesPage() {
   // CA estimé total période par marché
   const caParMarchePeriode = useMemo(() => {
     const res: Record<string,{nom:string;ca:number;currency:string}> = {}
-    dispatchesPeriode.filter((d:any)=>periodeSelIds.has(d.id)).forEach((d:any) => {
+    ;(dispatchesPeriode||[]).filter((d:any)=>periodeSelIds.has(d.id)).forEach((d:any) => {
       const prix = Number(marchePrix[d.market_id]||0)
       const qtyA = qtyEffForRow(d.id, d)
       const ca   = calcCA(qtyA, prix)
