@@ -688,7 +688,7 @@ export default function RecoltesPage() {
       {/* ══ MODALE SAISIE PAR PÉRIODE ══ */}
       {modalPeriode && (
         <Modal title="SAISIE PAR PÉRIODE — PRIX STATION" onClose={()=>{setModalPeriode(false);setDone(false)}} size="lg">
-          {done ? <SuccessMessage message={`${periodeSelIds.size} dispatch(s) confirmés sur la période !`} /> : (<>
+          {done ? <SuccessMessage message={`Dispatches de la période confirmés !`} /> : (<>
 
             {/* Période + Réf */}
             <div className="section-label">DÉFINIR LA PÉRIODE</div>
@@ -701,96 +701,144 @@ export default function RecoltesPage() {
               <FormGroup label="Date réception"><Input type="date" value={periodeDate} onChange={e=>setPeriodeDate(e.target.value)} /></FormGroup>
             </FormRow>
 
-            {/* Prix par marché */}
-            {periodeDebut && periodeFin && marchesInPeriode.length>0 && (
-              <>
-                <div className="section-label" style={{marginTop:12}}>PRIX PAR MARCHÉ</div>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:10,marginBottom:14}}>
-                  {marchesInPeriode.map((m:any)=>(
-                    <div key={m?.id||m?.name} style={{background:'#0d1f14',border:'1px solid #1a3526',borderRadius:8,padding:'10px 12px'}}>
-                      <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',letterSpacing:1,marginBottom:6}}>{(m?.name||'—').toUpperCase()} · {m?.currency}</div>
-                      <input className="form-input" type="number" step="0.001"
-                        value={marchePrix[m?.id||'']||''}
-                        onChange={e=>setMarchePrix(p=>({...p,[m?.id||'']:e.target.value}))}
-                        placeholder={`Prix en ${m?.currency}`}
-                        style={{fontSize:13}} />
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Tableau dispatches */}
+            {/* Dispatches groupés par marché */}
             {periodeDebut && periodeFin && (
               <>
-                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                  <div className="section-label" style={{marginBottom:0}}>DISPATCHES DE LA PÉRIODE ({dispatchesPeriode.length})</div>
-                  <button onClick={()=>setPeriodeSelIds(new Set(dispatchesPeriode.map((d:any)=>d.id)))} className="btn-secondary" style={{fontSize:9,padding:'4px 8px',marginLeft:'auto'}}>TOUT</button>
-                  <button onClick={()=>setPeriodeSelIds(new Set())} className="btn-ghost" style={{fontSize:9,padding:'4px 8px'}}>AUCUN</button>
-                  <span style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52'}}>{periodeSelIds.size}/{dispatchesPeriode.length}</span>
-                </div>
-
-                {dispatchesPeriode.length===0 ? (
-                  <div style={{padding:'20px',textAlign:'center',fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52',border:'1px dashed #1a3526',borderRadius:8}}>
+                {dispatchesPeriode.length === 0 ? (
+                  <div style={{padding:'16px',textAlign:'center',fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52',border:'1px dashed #1a3526',borderRadius:8,marginTop:12}}>
                     Aucun dispatch sans prix dans cette période
                   </div>
                 ) : (
-                  <div style={{border:'1px solid #1a3526',borderRadius:8,overflow:'hidden',marginBottom:14}}>
-                    {/* Header */}
-                    <div style={{display:'grid',gridTemplateColumns:'28px 1fr 80px 80px 80px 80px 90px 90px',gap:6,padding:'8px 12px',background:'#050d09',borderBottom:'1px solid #1a3526'}}>
-                      {['','Dispatch / Marché','Date','Brut (kg)','Freinte%','Écart%','Accepté (kg)','CA estimé'].map((h,i)=>(
-                        <div key={i} style={{fontFamily:'DM Mono,monospace',fontSize:8.5,color:'#3d6b52',letterSpacing:.8}}>{h}</div>
-                      ))}
+                  <>
+                    {/* Résumé sélection */}
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginTop:12,marginBottom:10}}>
+                      <div className="section-label" style={{marginBottom:0,flex:1}}>
+                        DISPATCHES ({dispatchesPeriode.length}) — GROUPÉS PAR MARCHÉ
+                      </div>
+                      <button onClick={()=>setPeriodeSelIds(new Set(dispatchesPeriode.map((d:any)=>d.id)))} className="btn-secondary" style={{fontSize:9,padding:'4px 8px'}}>TOUT</button>
+                      <button onClick={()=>setPeriodeSelIds(new Set())} className="btn-ghost" style={{fontSize:9,padding:'4px 8px'}}>AUCUN</button>
+                      <span style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52'}}>{periodeSelIds.size}/{dispatchesPeriode.length}</span>
                     </div>
-                    <div style={{maxHeight:340,overflowY:'auto'}}>
-                      {dispatchesPeriode.map((d:any)=>{
-                        const sel  = periodeSelIds.has(d.id)
-                        const row  = periodeRows[d.id]||{freinte:'0',ecart:'0',qty_man:'',qty_calc:d.quantity_kg}
-                        const qtyA = qtyEffForRow(d.id, d)
-                        const prix = Number(marchePrix[d.market_id]||0)
-                        const ca   = prix ? calcCA(qtyA, prix) : null
-                        return (
-                          <div key={d.id} style={{display:'grid',gridTemplateColumns:'28px 1fr 80px 80px 80px 80px 90px 90px',gap:6,padding:'9px 12px',borderBottom:'1px solid #1a3526',alignItems:'center',background:sel?'#00e87a08':'transparent'}}>
-                            {/* Checkbox */}
-                            <div onClick={()=>togglePer(d.id)} style={{width:16,height:16,borderRadius:4,border:`1px solid ${sel?'#00e87a':'#1f4030'}`,background:sel?'#00e87a':'transparent',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,color:'#030a07',fontWeight:700,cursor:'pointer',flexShrink:0}}>
-                              {sel?'✓':''}
+
+                    {/* Un bloc par marché */}
+                    {marchesInPeriode.map((marche:any) => {
+                      const mid = marche?.id || ''
+                      const dispsDuMarche = dispatchesPeriode.filter((d:any) => d.market_id === mid)
+                      const prixMarche = marchePrix[mid] || ''
+                      const caMarche = dispsDuMarche
+                        .filter((d:any) => periodeSelIds.has(d.id))
+                        .reduce((s:number, d:any) => {
+                          const row  = periodeRows[d.id] || { freinte:'0', ecart:'0', qty_man:'', qty_calc:d.quantity_kg }
+                          const qtyA = row.qty_man !== '' ? Number(row.qty_man) : row.qty_calc
+                          return s + (prixMarche ? calcCA(qtyA, Number(prixMarche)) : 0)
+                        }, 0)
+
+                      return (
+                        <div key={mid} style={{border:'1px solid #1f4030',borderRadius:10,overflow:'hidden',marginBottom:14}}>
+                          {/* Header marché — prix saisi ici */}
+                          <div style={{padding:'12px 16px',background:'#0d1f14',borderBottom:'1px solid #1a3526',display:'flex',alignItems:'center',gap:14,flexWrap:'wrap'}}>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:14,fontWeight:700,color:'#e8f5ee',textTransform:'uppercase',letterSpacing:.5}}>
+                                {marche?.name || '—'}
+                              </div>
+                              <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',letterSpacing:1,marginTop:2}}>
+                                {dispsDuMarche.length} dispatch(s) · {marche?.currency}
+                              </div>
                             </div>
-                            {/* Info */}
-                            <div onClick={()=>togglePer(d.id)} style={{cursor:'pointer'}}>
-                              <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:12,fontWeight:600,color:'#e8f5ee'}}>{d.markets?.name||'—'}</div>
-                              <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',marginTop:1}}>{d.lot_number}</div>
-                            </div>
-                            {/* Date */}
-                            <div style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{d.harvest_date}</div>
-                            {/* Brut */}
-                            <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#f5a623'}}>{d.quantity_kg}</div>
-                            {/* Freinte% */}
-                            <input className="form-input" type="number" step="0.1"
-                              value={row.freinte} placeholder="0"
-                              onChange={e=>updatePeriodeRow(d.id,'freinte',e.target.value)}
-                              style={{padding:'4px 7px',fontSize:11}} />
-                            {/* Écart% */}
-                            <input className="form-input" type="number" step="0.1"
-                              value={row.ecart} placeholder="0"
-                              onChange={e=>updatePeriodeRow(d.id,'ecart',e.target.value)}
-                              style={{padding:'4px 7px',fontSize:11}} />
-                            {/* Accepté */}
-                            <input className="form-input" type="number" step="0.01"
-                              value={row.qty_man!=='' ? row.qty_man : String(row.qty_calc)}
-                              onChange={e=>updatePeriodeRow(d.id,'qty_man',e.target.value)}
-                              style={{padding:'4px 7px',fontSize:11,color:row.qty_man!==''?'#f5a623':'#7aab90'}} />
-                            {/* CA */}
-                            <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:12,fontWeight:600,color:ca?'#00e87a':'#1f4030'}}>
-                              {ca ? ca.toLocaleString('fr',{maximumFractionDigits:2})+' '+d.markets?.currency : '—'}
+                            {/* Prix unique pour ce marché */}
+                            <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+                              <label style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',letterSpacing:1,whiteSpace:'nowrap'}}>PRIX / KG</label>
+                              <input
+                                className="form-input"
+                                type="number"
+                                step="0.001"
+                                value={prixMarche}
+                                onChange={e => {
+                                  const val = e.target.value
+                                  setMarchePrix(p => ({...p,[mid]:val}))
+                                }}
+                                placeholder={`${marche?.currency}/kg`}
+                                style={{width:110,padding:'6px 10px',fontSize:13,fontWeight:600,color:'#00e87a'}}
+                              />
+                              {caMarche > 0 && (
+                                <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:700,color:'#00e87a',whiteSpace:'nowrap'}}>
+                                  = {caMarche.toLocaleString('fr',{maximumFractionDigits:2})} {marche?.currency}
+                                </div>
+                              )}
                             </div>
                           </div>
-                        )
-                      })}
-                    </div>
-                    {/* Totaux par marché */}
-                    {Object.values(caParMarchePeriode).length>0 && (
-                      <div style={{padding:'10px 14px',borderTop:'1px solid #1a3526',display:'flex',gap:20,flexWrap:'wrap'}}>
-                        {Object.values(caParMarchePeriode).map((m:any,i:number)=>(
+
+                          {/* Tableau des dispatches de ce marché */}
+                          <div style={{overflowX:'auto'}}>
+                            <table style={{width:'100%',borderCollapse:'collapse'}}>
+                              <thead>
+                                <tr style={{background:'#050d09'}}>
+                                  {['','Date','Brut (kg)','Freinte %','Écart %','Accepté (kg)','CA estimé'].map((h,i)=>(
+                                    <th key={i} style={{padding:'7px 10px',fontFamily:'DM Mono,monospace',fontSize:8.5,color:'#3d6b52',letterSpacing:.8,borderBottom:'1px solid #1a3526',textAlign:'left',whiteSpace:'nowrap'}}>{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {dispsDuMarche.map((d:any) => {
+                                  const sel  = periodeSelIds.has(d.id)
+                                  const row  = periodeRows[d.id] || { freinte:'0', ecart:'0', qty_man:'', qty_calc:d.quantity_kg }
+                                  const qtyA = row.qty_man !== '' ? Number(row.qty_man) : row.qty_calc
+                                  const ca   = prixMarche ? calcCA(qtyA, Number(prixMarche)) : null
+                                  return (
+                                    <tr key={d.id} style={{borderBottom:'1px solid #1a3526',background:sel?'#00e87a08':'transparent'}}>
+                                      {/* Checkbox */}
+                                      <td style={{padding:'8px 10px',width:28}}>
+                                        <div onClick={()=>togglePer(d.id)}
+                                          style={{width:15,height:15,borderRadius:3,border:`1px solid ${sel?'#00e87a':'#1f4030'}`,background:sel?'#00e87a':'transparent',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'#030a07',fontWeight:700,cursor:'pointer',flexShrink:0}}>
+                                          {sel?'✓':''}
+                                        </div>
+                                      </td>
+                                      {/* Date */}
+                                      <td style={{padding:'8px 10px'}}><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{d.harvest_date}</span></td>
+                                      {/* Brut */}
+                                      <td style={{padding:'8px 10px'}}><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#f5a623'}}>{d.quantity_kg}</span></td>
+                                      {/* Freinte% */}
+                                      <td style={{padding:'8px 6px'}}>
+                                        <input className="form-input" type="number" step="0.1"
+                                          value={row.freinte} placeholder="0"
+                                          onChange={e=>updatePeriodeRow(d.id,'freinte',e.target.value)}
+                                          style={{padding:'4px 7px',fontSize:11,width:70}} />
+                                      </td>
+                                      {/* Écart% */}
+                                      <td style={{padding:'8px 6px'}}>
+                                        <input className="form-input" type="number" step="0.1"
+                                          value={row.ecart} placeholder="0"
+                                          onChange={e=>updatePeriodeRow(d.id,'ecart',e.target.value)}
+                                          style={{padding:'4px 7px',fontSize:11,width:70}} />
+                                      </td>
+                                      {/* Accepté */}
+                                      <td style={{padding:'8px 6px'}}>
+                                        <input className="form-input" type="number" step="0.01"
+                                          value={row.qty_man !== '' ? row.qty_man : String(row.qty_calc)}
+                                          onChange={e=>updatePeriodeRow(d.id,'qty_man',e.target.value)}
+                                          style={{padding:'4px 7px',fontSize:11,width:80,color:row.qty_man!==''?'#f5a623':'#7aab90'}} />
+                                      </td>
+                                      {/* CA estimé */}
+                                      <td style={{padding:'8px 10px'}}>
+                                        <span style={{fontFamily:'Rajdhani,sans-serif',fontSize:12,fontWeight:600,color:ca?'#00e87a':'#1f4030'}}>
+                                          {ca ? ca.toLocaleString('fr',{maximumFractionDigits:2})+' '+marche?.currency : '—'}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  )
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                    {/* CA total global */}
+                    {periodeSelIds.size > 0 && Object.values(caParMarchePeriode).some((m:any)=>m.ca>0) && (
+                      <div style={{padding:'10px 16px',background:'#0a1810',border:'1px solid #1a3526',borderRadius:8,display:'flex',gap:20,flexWrap:'wrap'}}>
+                        <span style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',letterSpacing:1,alignSelf:'center'}}>CA TOTAL PÉRIODE :</span>
+                        {Object.values(caParMarchePeriode).filter((m:any)=>m.ca>0).map((m:any,i:number)=>(
                           <div key={i} style={{fontFamily:'DM Mono,monospace',fontSize:10}}>
                             <span style={{color:'#3d6b52'}}>{m.nom} : </span>
                             <strong style={{color:'#00e87a'}}>{m.ca.toLocaleString('fr',{maximumFractionDigits:2})} {m.currency}</strong>
@@ -798,7 +846,7 @@ export default function RecoltesPage() {
                         ))}
                       </div>
                     )}
-                  </div>
+                  </>
                 )}
               </>
             )}
@@ -810,7 +858,7 @@ export default function RecoltesPage() {
         </Modal>
       )}
 
-      {/* ══ MODALE ALERTE ══ */}
+            {/* ══ MODALE ALERTE ══ */}
       {modalAlerte && (
         <Modal title="JOURNÉE SANS RÉCOLTE" onClose={()=>{setModalAlerte(false);setDone(false)}}>
           {done ? <SuccessMessage message="Alerte enregistrée !" /> : (<>
