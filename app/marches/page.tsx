@@ -53,10 +53,10 @@ export default function MarchesPage() {
     setItems(p=>p.filter(i=>i.id!==id))
   }
 
-  const TYPE_COLOR: Record<string,string> = { export:'#f07050', local:'#00e87a', grande_distribution:'#00b4d8', grossiste:'#f5a623', industrie:'#9b5de5' }
+  const TYPE_COLOR: Record<string,string> = { export:'#f07050', local:'var(--neon)', grande_distribution:'var(--blue)', grossiste:'var(--amber)', industrie:'var(--purple)' }
 
   return (
-    <div style={{background:'#030a07',minHeight:'100vh'}}>
+    <div style={{background:'var(--bg-deep)',minHeight:'100vh'}}>
       {modal && (
         <Modal title="NOUVEAU MARCHÉ" onClose={()=>{setModal(false);setDone(false)}}>
           {done ? <SuccessMessage message="Marché créé !" /> : (<>
@@ -96,7 +96,7 @@ export default function MarchesPage() {
         <button className="btn-primary" onClick={openModal}>+ NEW MARCHÉ</button>
       </div>
       {loading ? (
-        <div style={{textAlign:'center',padding:60,color:'#3d6b52',fontFamily:'DM Mono,monospace',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
+        <div style={{textAlign:'center',padding:60,color:'var(--tx-3)',fontFamily:'var(--font-mono)',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
       ) : items.length===0 ? (
         <div className="empty-state">
           <div className="empty-icon">◎</div>
@@ -106,17 +106,17 @@ export default function MarchesPage() {
       ) : (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:14}}>
           {items.map((m:any)=>{
-            const c = TYPE_COLOR[m.type]||'#7aab90'
+            const c = TYPE_COLOR[m.type]||'var(--tx-2)'
             return (
               <div key={m.id} className="card" style={{borderLeft:`3px solid ${c}`}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
                   <div>
-                    <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:15,fontWeight:700,color:'#e8f5ee',textTransform:'uppercase',letterSpacing:.5}}>{m.name}</div>
-                    <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',letterSpacing:1,marginTop:2}}>{m.code} · {m.country||'—'}</div>
+                    <div style={{fontFamily:'var(--font-display)',fontSize:15,fontWeight:700,color:'var(--tx-1)',textTransform:'uppercase',letterSpacing:.5}}>{m.name}</div>
+                    <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,marginTop:2}}>{m.code} · {m.country||'—'}</div>
                   </div>
                   <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4}}>
-                    <span style={{background:`${c}18`,color:c,padding:'2px 8px',borderRadius:4,fontFamily:'DM Mono,monospace',fontSize:9,border:`1px solid ${c}40`}}>{m.type?.toUpperCase()}</span>
-                    <span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{m.currency}</span>
+                    <span style={{background:`${c}18`,color:c,padding:'2px 8px',borderRadius:4,fontFamily:'var(--font-mono)',fontSize:9,border:`1px solid ${c}40`}}>{m.type?.toUpperCase()}</span>
+                    <span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{m.currency}</span>
                   </div>
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
@@ -125,13 +125,13 @@ export default function MarchesPage() {
                     ['Logistique', m.avg_logistics_cost_per_kg ? m.avg_logistics_cost_per_kg+' '+m.currency : '—'],
                     ['Frais export', m.export_fees_per_kg ? m.export_fees_per_kg+' '+m.currency : '—'],
                   ].map(([l,v])=>(
-                    <div key={l} style={{background:'#0d1f14',border:'1px solid #1a3526',borderRadius:6,padding:'7px 8px'}}>
-                      <div style={{fontFamily:'DM Mono,monospace',fontSize:8,color:'#3d6b52',letterSpacing:.8,marginBottom:2}}>{l}</div>
-                      <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:700,color:'#e8f5ee'}}>{v}</div>
+                    <div key={l} style={{background:'var(--bg-card2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 8px'}}>
+                      <div style={{fontFamily:'var(--font-mono)',fontSize:8,color:'var(--tx-3)',letterSpacing:.8,marginBottom:2}}>{l}</div>
+                      <div style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--tx-1)'}}>{v}</div>
                     </div>
                   ))}
                 </div>
-                {m.requirements && <div style={{marginTop:8,fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52'}}>CERT: {m.requirements}</div>}
+                {m.requirements && <div style={{marginTop:8,fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)'}}>CERT: {m.requirements}</div>}
                 <button onClick={()=>del(m.id,m.name)} className="btn-danger" style={{width:'100%',justifyContent:'center',fontSize:10,marginTop:10}}>DÉSACTIVER</button>
               </div>
             )
