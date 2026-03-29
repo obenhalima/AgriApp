@@ -59,7 +59,7 @@ export default function VarietesPage() {
     setSaving(false)
   }
 
-  const DEST_C: Record<string,string> = {export:'#f07050',local:'#00e87a',mixte:'#f5a623',grande_distribution:'#00b4d8',industrie:'#9b5de5'}
+  const DEST_C: Record<string,string> = {export:'#f07050',local:'var(--neon)',mixte:'var(--amber)',grande_distribution:'var(--blue)',industrie:'var(--purple)'}
 
   const VForm = ({vals,onChange}: any) => (<>
     <FormRow>
@@ -90,7 +90,7 @@ export default function VarietesPage() {
   </>)
 
   return (
-    <div style={{background:'#030a07',minHeight:'100vh'}}>
+    <div style={{background:'var(--bg-deep)',minHeight:'100vh'}}>
       {modalNew && (
         <Modal title="NOUVELLE VARIÉTÉ" onClose={()=>{setModalNew(false);setDone(false)}}>
           {done ? <SuccessMessage message="Variété créée !" /> : (<>
@@ -111,7 +111,7 @@ export default function VarietesPage() {
         <div><div className="page-title">VARIÉTÉS</div><div className="page-sub">{items.length} variété(s)</div></div>
         <button className="btn-primary" onClick={openNew}>+ NEW VARIÉTÉ</button>
       </div>
-      {loading ? <div style={{textAlign:'center',padding:60,color:'#3d6b52',fontFamily:'DM Mono,monospace',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
+      {loading ? <div style={{textAlign:'center',padding:60,color:'var(--tx-3)',fontFamily:'var(--font-mono)',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
       : items.length===0 ? (
         <div className="empty-state"><div className="empty-icon">✦</div><div className="empty-title">Aucune variété</div><button className="btn-primary" onClick={openNew}>+ NEW VARIÉTÉ</button></div>
       ) : (
@@ -121,18 +121,18 @@ export default function VarietesPage() {
               <thead><tr>{['Code','Nom','Type','Destination','Rend.Th.','Coût/m²','Prix Local','Prix Export','Cycle','Actions'].map(h=><th key={h}>{h}</th>)}</tr></thead>
               <tbody>
                 {items.map((v:any)=>{
-                  const dc = DEST_C[v.destination]||'#3d6b52'
+                  const dc = DEST_C[v.destination]||'var(--tx-3)'
                   return (
                     <tr key={v.id}>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52'}}>{v.code}</span></td>
-                      <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{v.commercial_name}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)'}}>{v.code}</span></td>
+                      <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--tx-1)'}}>{v.commercial_name}</span></td>
                       <td><span className="tag tag-blue" style={{fontSize:9}}>{v.type}</span></td>
                       <td><span className="tag" style={{background:`${dc}18`,color:dc,border:`1px solid ${dc}40`,fontSize:9}}>{v.destination}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{v.theoretical_yield_per_m2||'—'}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{v.theoretical_cost_per_m2||'—'}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#00e87a'}}>{v.avg_price_local||'—'}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#00ffc8'}}>{v.avg_price_export||'—'}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{v.estimated_cycle_days||'—'} j</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{v.theoretical_yield_per_m2||'—'}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{v.theoretical_cost_per_m2||'—'}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--neon)'}}>{v.avg_price_local||'—'}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--neon-2)'}}>{v.avg_price_export||'—'}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{v.estimated_cycle_days||'—'} j</span></td>
                       <td>
                         <div style={{display:'flex',gap:5}}>
                           <button onClick={()=>openEdit(v)} className="btn-ghost" style={{padding:'4px 8px',fontSize:10}}>✏️</button>
