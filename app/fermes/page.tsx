@@ -51,7 +51,7 @@ export default function FermesPage() {
   }
 
   return (
-    <div style={{padding:'0',background:'#030a07',minHeight:'100vh'}}>
+    <div style={{padding:'0',background:'var(--bg-deep)',minHeight:'100vh'}}>
       {modal && (
         <Modal title="NOUVELLE FERME" onClose={()=>{setModal(false);setDone(false)}}>
           {done ? <SuccessMessage message="Ferme créée avec succès !" /> : (<>
@@ -99,7 +99,7 @@ export default function FermesPage() {
       </div>
 
       {loading ? (
-        <div style={{textAlign:'center',padding:60,color:'#3d6b52',fontFamily:'DM Mono,monospace',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
+        <div style={{textAlign:'center',padding:60,color:'var(--tx-3)',fontFamily:'var(--font-mono)',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
       ) : items.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">🏭</div>
@@ -110,11 +110,11 @@ export default function FermesPage() {
       ) : (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:14}}>
           {items.map((f:any)=>(
-            <div key={f.id} className="card" style={{borderLeft:'3px solid #00e87a'}}>
+            <div key={f.id} className="card" style={{borderLeft:'3px solid var(--neon)'}}>
               <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:12}}>
                 <div>
-                  <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:16,fontWeight:700,color:'#e8f5ee',textTransform:'uppercase',letterSpacing:.5}}>{f.name}</div>
-                  <div style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52',letterSpacing:1,marginTop:2}}>{f.code}</div>
+                  <div style={{fontFamily:'var(--font-display)',fontSize:16,fontWeight:700,color:'var(--tx-1)',textTransform:'uppercase',letterSpacing:.5}}>{f.name}</div>
+                  <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)',letterSpacing:1,marginTop:2}}>{f.code}</div>
                 </div>
                 <span className="status status-active">ACTIVE</span>
               </div>
@@ -125,13 +125,13 @@ export default function FermesPage() {
                   ['Superficie', f.total_area ? f.total_area+' ha' : '—'],
                   ['Pays', f.country||'—'],
                 ].map(([l,v])=>(
-                  <div key={l} style={{background:'#0d1f14',border:'1px solid #1a3526',borderRadius:6,padding:'8px 10px'}}>
-                    <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',letterSpacing:1,marginBottom:3}}>{l}</div>
-                    <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{v}</div>
+                  <div key={l} style={{background:'var(--bg-card2)',border:'1px solid var(--border)',borderRadius:6,padding:'8px 10px'}}>
+                    <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,marginBottom:3}}>{l}</div>
+                    <div style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--tx-1)'}}>{v}</div>
                   </div>
                 ))}
               </div>
-              {f.notes && <div style={{marginTop:10,fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52',fontStyle:'italic'}}>{f.notes}</div>}
+              {f.notes && <div style={{marginTop:10,fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)',fontStyle:'italic'}}>{f.notes}</div>}
             </div>
           ))}
         </div>
