@@ -75,7 +75,7 @@ export default function FournisseursPage() {
   </>)
 
   return (
-    <div style={{background:'#030a07',minHeight:'100vh'}}>
+    <div style={{background:'var(--bg-deep)',minHeight:'100vh',background:'var(--bg-deep)'}}>
       {modalNew && (
         <Modal title="NOUVEAU FOURNISSEUR" onClose={()=>{setModalNew(false);setDone(false)}}>
           {done ? <SuccessMessage message="Fournisseur créé !" /> : (<>
@@ -96,7 +96,7 @@ export default function FournisseursPage() {
         <div><div className="page-title">FOURNISSEURS</div><div className="page-sub">{items.length} fournisseur(s)</div></div>
         <button className="btn-primary" onClick={openNew}>+ NEW FOURNISSEUR</button>
       </div>
-      {loading ? <div style={{textAlign:'center',padding:60,color:'#3d6b52',fontFamily:'DM Mono,monospace',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
+      {loading ? <div style={{textAlign:'center',padding:60,color:'var(--tx-3)',fontFamily:'var(--font-mono)',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
       : items.length===0 ? (
         <div className="empty-state"><div className="empty-icon">🏭</div><div className="empty-title">Aucun fournisseur</div><button className="btn-primary" onClick={openNew}>+ NEW FOURNISSEUR</button></div>
       ) : (
@@ -107,13 +107,13 @@ export default function FournisseursPage() {
               <tbody>
                 {items.map((f:any)=>(
                   <tr key={f.id}>
-                    <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52'}}>{f.code}</span></td>
-                    <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{f.name}</span></td>
+                    <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)'}}>{f.code}</span></td>
+                    <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--tx-1)'}}>{f.name}</span></td>
                     <td><span className="tag tag-amber" style={{fontSize:9}}>{f.category}</span></td>
-                    <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{f.city||'—'}</span></td>
-                    <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{f.email||'—'}</span></td>
-                    <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{f.phone||'—'}</span></td>
-                    <td><span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#f5a623'}}>{f.payment_terms_days} j</span></td>
+                    <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{f.city||'—'}</span></td>
+                    <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{f.email||'—'}</span></td>
+                    <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{f.phone||'—'}</span></td>
+                    <td><span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--mbe)'}}>{f.payment_terms_days} j</span></td>
                     <td>
                       <div style={{display:'flex',gap:5}}>
                         <button onClick={()=>openEdit(f)} className="btn-ghost" style={{padding:'4px 8px',fontSize:10}}>✏️</button>
