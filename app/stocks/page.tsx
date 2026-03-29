@@ -95,7 +95,7 @@ export default function StocksPage() {
   </>)
 
   return (
-    <div style={{background:'var(--bg-deep)',minHeight:'100vh',background:'var(--bg-deep)'}}>
+    <div style={{background:'var(--bg-deep)',minHeight:'100vh'}}>
       {modalArticle && (
         <Modal title="NOUVEL ARTICLE" onClose={()=>{setModalArticle(false);setDone(false)}}>
           {done ? <SuccessMessage message="Article créé !" /> : (<>
