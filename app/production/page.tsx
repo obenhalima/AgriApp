@@ -76,14 +76,14 @@ export default function ProductionPage() {
   const totalProd = items.reduce((s,p)=>s+(p.target_total_production||0), 0)
 
   return (
-    <div style={{background:'#030a07',minHeight:'100vh'}}>
+    <div style={{background:'var(--bg-deep)',minHeight:'100vh'}}>
       {modal && (
         <Modal title="NOUVELLE PLANTATION" onClose={()=>{setModal(false);setDone(false)}} size="lg">
           {done ? <SuccessMessage message="Plantation enregistrée !" /> : (<>
             <div className="section-label">AFFECTATION</div>
             <FormGroup label="Campagne *">
               {campagnes.length===0
-                ? <div style={{padding:'10px',background:'#ff4d6d18',border:'1px solid #ff4d6d40',borderRadius:7,color:'#ff4d6d',fontFamily:'DM Mono,monospace',fontSize:11}}>⚠ Aucune campagne — créez d'abord une campagne</div>
+                ? <div style={{padding:'10px',background:'var(--red-dim)',border:'1px solid var(--red)40',borderRadius:7,color:'var(--red)',fontFamily:'var(--font-mono)',fontSize:11}}>⚠ Aucune campagne — créez d'abord une campagne</div>
                 : <Select value={form.campaign_id} onChange={s('campaign_id')}>
                     <option value="">-- Sélectionner une campagne --</option>
                     {campagnes.map(c=><option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
@@ -126,7 +126,7 @@ export default function ProductionPage() {
               <Input type="number" value={form.estimated_cost} onChange={s('estimated_cost')} placeholder="Optionnel" />
             </FormGroup>
             {form.planted_area && form.target_yield_per_m2 && (
-              <div style={{padding:'10px 14px',background:'#00e87a18',border:'1px solid #00e87a40',borderRadius:7,fontFamily:'DM Mono,monospace',fontSize:11,color:'#00e87a',marginTop:4}}>
+              <div style={{padding:'10px 14px',background:'var(--neon-dim)',border:'1px solid var(--neon)40',borderRadius:7,fontFamily:'var(--font-mono)',fontSize:11,color:'var(--neon)',marginTop:4}}>
                 → Production théorique : {(Number(form.planted_area)*Number(form.target_yield_per_m2)/1000).toFixed(2)} tonnes
               </div>
             )}
@@ -147,10 +147,10 @@ export default function ProductionPage() {
 
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20}}>
         {[
-          {l:'Plantations actives', v:String(items.length),              c:'#00e87a'},
-          {l:'Surface totale',      v:(totalArea/10000).toFixed(2)+' ha', c:'#00ffc8'},
-          {l:'Prod. théorique',     v:(totalProd/1000).toFixed(1)+' t',   c:'#f5a623'},
-          {l:'Serres actives',      v:String(new Set(items.map(i=>i.greenhouse_id)).size), c:'#00b4d8'},
+          {l:'Plantations actives', v:String(items.length),              c:'var(--neon)'},
+          {l:'Surface totale',      v:(totalArea/10000).toFixed(2)+' ha', c:'var(--neon-2)'},
+          {l:'Prod. théorique',     v:(totalProd/1000).toFixed(1)+' t',   c:'var(--amber)'},
+          {l:'Serres actives',      v:String(new Set(items.map(i=>i.greenhouse_id)).size), c:'var(--blue)'},
         ].map((k,i)=>(
           <div key={i} className="kpi" style={{'--accent':k.c} as any}>
             <div className="kpi-label">{k.l}</div>
@@ -160,7 +160,7 @@ export default function ProductionPage() {
       </div>
 
       {loading ? (
-        <div style={{textAlign:'center',padding:60,color:'#3d6b52',fontFamily:'DM Mono,monospace',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
+        <div style={{textAlign:'center',padding:60,color:'var(--tx-3)',fontFamily:'var(--font-mono)',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
       ) : items.length===0 ? (
         <div className="empty-state">
           <div className="empty-icon">▲</div>
@@ -178,14 +178,14 @@ export default function ProductionPage() {
               <tbody>
                 {items.map((p:any)=>(
                   <tr key={p.id}>
-                    <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52'}}>{p.campaigns?.name||'—'}</span></td>
-                    <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{p.greenhouses?.name||'—'}</span></td>
-                    <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,color:'#7aab90'}}>{p.varieties?.commercial_name||'—'}</span></td>
-                    <td><span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#00e87a'}}>{(p.planted_area||0).toLocaleString('fr')} m²</span></td>
-                    <td><span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#7aab90'}}>{p.plant_count?.toLocaleString('fr')||'—'}</span></td>
-                    <td><span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#f5a623'}}>{p.target_yield_per_m2||'—'} kg/m²</span></td>
-                    <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:700,color:'#00e87a'}}>{p.target_total_production ? (p.target_total_production/1000).toFixed(2)+' t' : '—'}</span></td>
-                    <td><span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#7aab90'}}>{p.planting_date||'—'}</span></td>
+                    <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)'}}>{p.campaigns?.name||'—'}</span></td>
+                    <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--tx-1)'}}>{p.greenhouses?.name||'—'}</span></td>
+                    <td><span style={{fontFamily:'var(--font-display)',fontSize:13,color:'var(--tx-2)'}}>{p.varieties?.commercial_name||'—'}</span></td>
+                    <td><span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--neon)'}}>{(p.planted_area||0).toLocaleString('fr')} m²</span></td>
+                    <td><span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--tx-2)'}}>{p.plant_count?.toLocaleString('fr')||'—'}</span></td>
+                    <td><span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--amber)'}}>{p.target_yield_per_m2||'—'} kg/m²</span></td>
+                    <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--neon)'}}>{p.target_total_production ? (p.target_total_production/1000).toFixed(2)+' t' : '—'}</span></td>
+                    <td><span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--tx-2)'}}>{p.planting_date||'—'}</span></td>
                     <td><span className="tag tag-green">{p.status||'planifie'}</span></td>
                   </tr>
                 ))}
