@@ -72,12 +72,12 @@ export default function SerresPage() {
     await deleteSerre(id); setSerres(p=>p.filter(s=>s.id!==id))
   }
 
-  const ST: Record<string,string> = {active:'#00e87a',en_preparation:'#f5a623',hors_service:'#ff4d6d',renovation:'#00b4d8'}
+  const ST: Record<string,string> = {active:'var(--neon)',en_preparation:'var(--mbe)',hors_service:'var(--ed)',renovation:'var(--blue)'}
 
   const SForm = ({vals, onChange, readOnly=false}: any) => (<>
     {!readOnly && <FormGroup label="Ferme *">
       {farms.length===0
-        ? <div style={{padding:'10px',background:'#ff4d6d18',border:'1px solid #ff4d6d40',borderRadius:7,color:'#ff4d6d',fontFamily:'DM Mono,monospace',fontSize:11}}>⚠ Aucune ferme</div>
+        ? <div style={{padding:'10px',background:'var(--ed-dim)',border:'1px solid var(--red)40',borderRadius:7,color:'var(--ed)',fontFamily:'var(--font-mono)',fontSize:11}}>⚠ Aucune ferme</div>
         : <Select value={vals.farm_id} onChange={onChange('farm_id')}>
             <option value="">-- Sélectionner --</option>
             {farms.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}
@@ -108,7 +108,7 @@ export default function SerresPage() {
   </>)
 
   return (
-    <div style={{background:'#030a07',minHeight:'100vh'}}>
+    <div style={{background:'var(--bg-deep)',minHeight:'100vh',background:'var(--bg-deep)'}}>
       {modalNew && (
         <Modal title="NOUVELLE SERRE" onClose={()=>{setModalNew(false);setDone(false)}}>
           {done ? <SuccessMessage message="Serre créée !" /> : (<>
@@ -131,31 +131,31 @@ export default function SerresPage() {
         <button className="btn-primary" onClick={openNew}>+ NEW SERRE</button>
       </div>
 
-      {loading ? <div style={{textAlign:'center',padding:60,color:'#3d6b52',fontFamily:'DM Mono,monospace',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
+      {loading ? <div style={{textAlign:'center',padding:60,color:'var(--tx-3)',fontFamily:'var(--font-mono)',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
       : serres.length===0 ? (
         <div className="empty-state"><div className="empty-icon">⬡</div><div className="empty-title">Aucune serre</div><button className="btn-primary" onClick={openNew}>+ NEW SERRE</button></div>
       ) : (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}}>
           {serres.map((s:any)=>{
-            const c = ST[s.status]||'#3d6b52'
+            const c = ST[s.status]||'var(--tx-3)'
             return (
               <div key={s.id} className="card">
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12,paddingBottom:10,borderBottom:'1px solid #1a3526'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12,paddingBottom:10,borderBottom:'1px solid var(--border)'}}>
                   <div>
-                    <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:15,fontWeight:700,color:'#e8f5ee',textTransform:'uppercase',letterSpacing:.5}}>{s.name}</div>
-                    <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',letterSpacing:1,marginTop:2}}>{s.code} · {s.type} · {s.farms?.name}</div>
+                    <div style={{fontFamily:'var(--font-display)',fontSize:15,fontWeight:700,color:'var(--tx-1)',textTransform:'uppercase',letterSpacing:.5}}>{s.name}</div>
+                    <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,marginTop:2}}>{s.code} · {s.type} · {s.farms?.name}</div>
                   </div>
-                  <span style={{background:`${c}18`,color:c,padding:'2px 7px',borderRadius:4,fontFamily:'DM Mono,monospace',fontSize:8,border:`1px solid ${c}40`}}>{s.status?.replace('_',' ').toUpperCase()}</span>
+                  <span style={{background:`${c}18`,color:c,padding:'2px 7px',borderRadius:4,fontFamily:'var(--font-mono)',fontSize:8,border:`1px solid ${c}40`}}>{s.status?.replace('_',' ').toUpperCase()}</span>
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}}>
                   {[['SUPERFICIE',`${s.total_area?.toLocaleString('fr')} m²`],['EXPLOITABLE',`${s.exploitable_area?.toLocaleString('fr')} m²`]].map(([l,v])=>(
-                    <div key={l} style={{background:'#0d1f14',border:'1px solid #1a3526',borderRadius:6,padding:'7px 10px'}}>
-                      <div style={{fontFamily:'DM Mono,monospace',fontSize:8,color:'#3d6b52',letterSpacing:1,marginBottom:2}}>{l}</div>
-                      <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:14,fontWeight:700,color:'#e8f5ee'}}>{v}</div>
+                    <div key={l} style={{background:'var(--bg-card2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px'}}>
+                      <div style={{fontFamily:'var(--font-mono)',fontSize:8,color:'var(--tx-3)',letterSpacing:1,marginBottom:2}}>{l}</div>
+                      <div style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:700,color:'var(--tx-1)'}}>{v}</div>
                     </div>
                   ))}
                 </div>
-                {s.notes && <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',marginBottom:10,fontStyle:'italic'}}>{s.notes}</div>}
+                {s.notes && <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',marginBottom:10,fontStyle:'italic'}}>{s.notes}</div>}
                 <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:6}}>
                   <button onClick={()=>openEdit(s)} className="btn-secondary" style={{fontSize:10,justifyContent:'center'}}>✏️ MODIFIER</button>
                   <button onClick={()=>del(s.id,s.name)} className="btn-danger" style={{padding:'7px 10px',fontSize:11}}>🗑</button>
