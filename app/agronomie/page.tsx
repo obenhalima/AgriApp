@@ -5,9 +5,9 @@ import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, Succes
 
 const TYPES = ['traitement','irrigation','fertilisation','taille','effeuillage','palissage','desherbage','inspection','plantation','autre']
 const TYPE_COLORS: Record<string,string> = {
-  traitement:'#ff4d6d', irrigation:'#00b4d8', fertilisation:'#00e87a',
-  taille:'#f5a623', effeuillage:'#9b5de5', inspection:'#00ffc8',
-  plantation:'#f07050', autre:'#3d6b52'
+  traitement:'var(--red)', irrigation:'var(--blue)', fertilisation:'var(--neon)',
+  taille:'var(--amber)', effeuillage:'var(--purple)', inspection:'var(--neon-2)',
+  plantation:'#f07050', autre:'var(--tx-3)'
 }
 
 export default function AgronomePage() {
@@ -70,14 +70,14 @@ export default function AgronomePage() {
   }
 
   return (
-    <div style={{background:'#030a07',minHeight:'100vh'}}>
+    <div style={{background:'var(--bg-deep)',minHeight:'100vh'}}>
       {modal && (
         <Modal title="NOUVELLE INTERVENTION" onClose={()=>{setModal(false);setDone(false)}} size="lg">
           {done ? <SuccessMessage message="Intervention enregistrée !" /> : (<>
             <div className="section-label">IDENTIFICATION</div>
             <FormGroup label="Plantation / Serre *">
               {plantings.length===0
-                ? <div style={{padding:'10px',background:'#ff4d6d18',border:'1px solid #ff4d6d40',borderRadius:7,color:'#ff4d6d',fontFamily:'DM Mono,monospace',fontSize:11}}>⚠ Aucune plantation disponible</div>
+                ? <div style={{padding:'10px',background:'var(--red-dim)',border:'1px solid var(--red)40',borderRadius:7,color:'var(--red)',fontFamily:'var(--font-mono)',fontSize:11}}>⚠ Aucune plantation disponible</div>
                 : <Select value={form.campaign_planting_id} onChange={s('campaign_planting_id')}>
                     <option value="">-- Sélectionner --</option>
                     {plantings.map((p:any)=>(
@@ -132,7 +132,7 @@ export default function AgronomePage() {
         <button className="btn-primary" onClick={()=>setModal(true)}>+ INTERVENTION</button>
       </div>
       {loading ? (
-        <div style={{textAlign:'center',padding:60,color:'#3d6b52',fontFamily:'DM Mono,monospace',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
+        <div style={{textAlign:'center',padding:60,color:'var(--tx-3)',fontFamily:'var(--font-mono)',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
       ) : items.length===0 ? (
         <div className="empty-state">
           <div className="empty-icon">⬨</div>
@@ -149,20 +149,20 @@ export default function AgronomePage() {
               <tbody>
                 {items.map((op:any)=>{
                   const cp = op.campaign_plantings
-                  const c = TYPE_COLORS[op.operation_type]||'#3d6b52'
+                  const c = TYPE_COLORS[op.operation_type]||'var(--tx-3)'
                   return (
                     <tr key={op.id}>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{op.operation_date}</span></td>
-                      <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{cp?.greenhouses?.name||'—'}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52'}}>{cp?.varieties?.commercial_name||'—'}</span></td>
-                      <td><span style={{background:`${c}18`,color:c,padding:'2px 7px',borderRadius:4,fontFamily:'DM Mono,monospace',fontSize:9,border:`1px solid ${c}40`}}>{op.operation_type?.toUpperCase()}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{op.product_used||'—'}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#f5a623'}}>{op.dose_per_m2||'—'}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{op.total_quantity ? op.total_quantity+' '+op.unit : '—'}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#00b4d8'}}>{op.ec_ms_cm||'—'}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#00e87a'}}>{op.ph_value||'—'}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{op.worker_count||'—'}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52',maxWidth:120,display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{op.observations||'—'}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{op.operation_date}</span></td>
+                      <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--tx-1)'}}>{cp?.greenhouses?.name||'—'}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)'}}>{cp?.varieties?.commercial_name||'—'}</span></td>
+                      <td><span style={{background:`${c}18`,color:c,padding:'2px 7px',borderRadius:4,fontFamily:'var(--font-mono)',fontSize:9,border:`1px solid ${c}40`}}>{op.operation_type?.toUpperCase()}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{op.product_used||'—'}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--amber)'}}>{op.dose_per_m2||'—'}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{op.total_quantity ? op.total_quantity+' '+op.unit : '—'}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--blue)'}}>{op.ec_ms_cm||'—'}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--neon)'}}>{op.ph_value||'—'}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{op.worker_count||'—'}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)',maxWidth:120,display:'block',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{op.observations||'—'}</span></td>
                     </tr>
                   )
                 })}
