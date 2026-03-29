@@ -72,11 +72,11 @@ export default function CampagnesPage() {
   }
 
   const STATUS_COLORS: Record<string,string> = {
-    planification:'#00b4d8', en_cours:'#00e87a', terminee:'#3d6b52', annulee:'#ff4d6d'
+    planification:'var(--blue)', en_cours:'var(--neon)', terminee:'var(--tx-3)', annulee:'var(--red)'
   }
 
   return (
-    <div style={{background:'#030a07',minHeight:'100vh'}}>
+    <div style={{background:'var(--bg-deep)',minHeight:'100vh'}}>
       {modal && (
         <Modal title="NOUVELLE CAMPAGNE" onClose={()=>{setModal(false);setDone(false)}} size="lg">
           {done ? <SuccessMessage message="Campagne créée !" /> : (<>
@@ -92,7 +92,7 @@ export default function CampagnesPage() {
             </FormRow>
             <FormGroup label="Ferme *">
               {farms.length === 0 ? (
-                <div style={{padding:'10px 13px',background:'#ff4d6d18',border:'1px solid #ff4d6d40',borderRadius:7,color:'#ff4d6d',fontFamily:'DM Mono,monospace',fontSize:11}}>
+                <div style={{padding:'10px 13px',background:'var(--red-dim)',border:'1px solid var(--red)40',borderRadius:7,color:'var(--red)',fontFamily:'var(--font-mono)',fontSize:11}}>
                   ⚠ Aucune ferme trouvée — créez d'abord une ferme dans le menu Fermes
                 </div>
               ) : (
@@ -157,13 +157,13 @@ export default function CampagnesPage() {
       </div>
 
       {farms.length === 0 && !loading && (
-        <div style={{padding:'12px 16px',background:'#f5a62318',border:'1px solid #f5a62340',borderRadius:8,marginBottom:16,fontFamily:'DM Mono,monospace',fontSize:11,color:'#f5a623',letterSpacing:.5}}>
+        <div style={{padding:'12px 16px',background:'var(--amber-dim)',border:'1px solid var(--amber)40',borderRadius:8,marginBottom:16,fontFamily:'var(--font-mono)',fontSize:11,color:'var(--amber)',letterSpacing:.5}}>
           ⚠ Créez d'abord une ferme dans <strong>Fermes &amp; Sites</strong> avant de créer une campagne.
         </div>
       )}
 
       {loading ? (
-        <div style={{textAlign:'center',padding:60,color:'#3d6b52',fontFamily:'DM Mono,monospace',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
+        <div style={{textAlign:'center',padding:60,color:'var(--tx-3)',fontFamily:'var(--font-mono)',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
       ) : items.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">📅</div>
@@ -174,13 +174,13 @@ export default function CampagnesPage() {
       ) : (
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
           {items.map((c:any)=>{
-            const color = STATUS_COLORS[c.status] || '#3d6b52'
+            const color = STATUS_COLORS[c.status] || 'var(--tx-3)'
             return (
               <div key={c.id} className="card" style={{borderLeft:`3px solid ${color}`}}>
                 <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:14}}>
                   <div>
-                    <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:17,fontWeight:700,color:'#e8f5ee',textTransform:'uppercase',letterSpacing:.5,marginBottom:3}}>{c.name}</div>
-                    <div style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52',letterSpacing:1}}>{c.code} · {c.farms?.name}</div>
+                    <div style={{fontFamily:'var(--font-display)',fontSize:17,fontWeight:700,color:'var(--tx-1)',textTransform:'uppercase',letterSpacing:.5,marginBottom:3}}>{c.name}</div>
+                    <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)',letterSpacing:1}}>{c.code} · {c.farms?.name}</div>
                   </div>
                   <span className="tag" style={{background:`${color}18`,color:color,border:`1px solid ${color}40`}}>
                     {c.status?.replace('_',' ').toUpperCase()}
@@ -194,9 +194,9 @@ export default function CampagnesPage() {
                     ['Budget', c.budget_total ? (c.budget_total/1000000).toFixed(2)+' M MAD' : '—'],
                     ['Objectif', c.production_target_kg ? (c.production_target_kg/1000).toFixed(0)+' t' : '—'],
                   ].map(([l,v])=>(
-                    <div key={l} style={{background:'#0d1f14',border:'1px solid #1a3526',borderRadius:6,padding:'8px 10px'}}>
-                      <div style={{fontFamily:'DM Mono,monospace',fontSize:9,color:'#3d6b52',letterSpacing:1,marginBottom:3}}>{l}</div>
-                      <div style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{v}</div>
+                    <div key={l} style={{background:'var(--bg-card2)',border:'1px solid var(--border)',borderRadius:6,padding:'8px 10px'}}>
+                      <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,marginBottom:3}}>{l}</div>
+                      <div style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--tx-1)'}}>{v}</div>
                     </div>
                   ))}
                 </div>
