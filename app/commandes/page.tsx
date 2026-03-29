@@ -69,18 +69,18 @@ export default function CommandesPage() {
   }
 
   const ST: Record<string,string> = {
-    brouillon:'#3d6b52', confirme:'#00b4d8', en_preparation:'#f5a623',
-    expedie:'#9b5de5', livre:'#00e87a', facture:'#00ffc8', annule:'#ff4d6d'
+    brouillon:'var(--tx-3)', confirme:'var(--blue)', en_preparation:'var(--amber)',
+    expedie:'var(--purple)', livre:'var(--neon)', facture:'var(--neon-2)', annule:'var(--red)'
   }
 
   return (
-    <div style={{background:'#030a07',minHeight:'100vh'}}>
+    <div style={{background:'var(--bg-deep)',minHeight:'100vh'}}>
       {modal && (
         <Modal title="NOUVELLE COMMANDE" onClose={()=>{setModal(false);setDone(false)}}>
           {done ? <SuccessMessage message="Commande créée !" /> : (<>
             <FormGroup label="Client *">
               {clients.length===0
-                ? <div style={{padding:'10px',background:'#ff4d6d18',border:'1px solid #ff4d6d40',borderRadius:7,color:'#ff4d6d',fontFamily:'DM Mono,monospace',fontSize:11}}>⚠ Aucun client — créez d'abord un client</div>
+                ? <div style={{padding:'10px',background:'var(--red-dim)',border:'1px solid var(--red)40',borderRadius:7,color:'var(--red)',fontFamily:'var(--font-mono)',fontSize:11}}>⚠ Aucun client — créez d'abord un client</div>
                 : <Select value={form.client_id} onChange={s('client_id')}>
                     <option value="">-- Sélectionner un client --</option>
                     {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
@@ -120,7 +120,7 @@ export default function CommandesPage() {
         <button className="btn-primary" onClick={()=>setModal(true)}>+ NEW COMMANDE</button>
       </div>
       {loading ? (
-        <div style={{textAlign:'center',padding:60,color:'#3d6b52',fontFamily:'DM Mono,monospace',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
+        <div style={{textAlign:'center',padding:60,color:'var(--tx-3)',fontFamily:'var(--font-mono)',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
       ) : items.length===0 ? (
         <div className="empty-state">
           <div className="empty-icon">▣</div>
@@ -136,16 +136,16 @@ export default function CommandesPage() {
               </tr></thead>
               <tbody>
                 {items.map((o:any)=>{
-                  const c = ST[o.status]||'#3d6b52'
+                  const c = ST[o.status]||'var(--tx-3)'
                   return (
                     <tr key={o.id}>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#00e87a'}}>{o.order_number}</span></td>
-                      <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{o.clients?.name||'—'}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52'}}>{o.markets?.name||'—'}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#7aab90'}}>{o.order_date}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:11,color:'#7aab90'}}>{o.delivery_date||'—'}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#f5a623'}}>{o.currency}</span></td>
-                      <td><span style={{background:`${c}18`,color:c,padding:'2px 8px',borderRadius:4,fontFamily:'DM Mono,monospace',fontSize:9,border:`1px solid ${c}40`}}>{o.status?.toUpperCase()}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--neon)'}}>{o.order_number}</span></td>
+                      <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--tx-1)'}}>{o.clients?.name||'—'}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)'}}>{o.markets?.name||'—'}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--tx-2)'}}>{o.order_date}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--tx-2)'}}>{o.delivery_date||'—'}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--amber)'}}>{o.currency}</span></td>
+                      <td><span style={{background:`${c}18`,color:c,padding:'2px 8px',borderRadius:4,fontFamily:'var(--font-mono)',fontSize:9,border:`1px solid ${c}40`}}>{o.status?.toUpperCase()}</span></td>
                       <td>
                         <select className="form-input" style={{fontSize:10,padding:'3px 6px',width:'auto'}}
                           value={o.status} onChange={e=>updateStatus(o.id,e.target.value)}>
