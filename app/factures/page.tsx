@@ -82,7 +82,7 @@ export default function FacturesPage() {
               <div style={{fontWeight:700,color:'#1b3a2d'}}>{selFact.invoice_number} · {selFact.clients?.name}</div>
               <div style={{fontSize:12,color:'#5a7a66',marginTop:2}}>Montant total: {selFact.total_amount?.toLocaleString('fr')} MAD · Payé: {selFact.paid_amount?.toLocaleString('fr')} MAD · Reste: {((selFact.total_amount||0)-(selFact.paid_amount||0)).toLocaleString('fr')} MAD</div>
             </div>
-            <FormGroup label="Montant encaissé (MAD) *"><Input type="number" value={formP.amount} onChange={sp('amount')} placeholder="Montant reçu" max={(selFact.total_amount||0)-(selFact.paid_amount||0)} /></FormGroup>
+            <FormGroup label="Montant encaissé (MAD) *"><Input type="number" value={formP.amount} onChange={sp('amount')} placeholder="Montant reçu" max={String((selFact.total_amount||0)-(selFact.paid_amount||0))} /></FormGroup>
             <FormRow>
               <FormGroup label="Mode de paiement">
                 <Select value={formP.payment_method} onChange={sp('payment_method')}>
