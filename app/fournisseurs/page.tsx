@@ -75,7 +75,7 @@ export default function FournisseursPage() {
   </>)
 
   return (
-    <div style={{background:'var(--bg-deep)',minHeight:'100vh',background:'var(--bg-deep)'}}>
+    <div style={{background:'var(--bg-deep)',minHeight:'100vh'}}>
       {modalNew && (
         <Modal title="NOUVEAU FOURNISSEUR" onClose={()=>{setModalNew(false);setDone(false)}}>
           {done ? <SuccessMessage message="Fournisseur créé !" /> : (<>
