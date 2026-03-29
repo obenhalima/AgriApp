@@ -95,7 +95,7 @@ export default function StocksPage() {
   </>)
 
   return (
-    <div style={{background:'#030a07',minHeight:'100vh'}}>
+    <div style={{background:'var(--bg-deep)',minHeight:'100vh',background:'var(--bg-deep)'}}>
       {modalArticle && (
         <Modal title="NOUVEL ARTICLE" onClose={()=>{setModalArticle(false);setDone(false)}}>
           {done ? <SuccessMessage message="Article créé !" /> : (<>
@@ -115,8 +115,8 @@ export default function StocksPage() {
       {modalMvt && (
         <Modal title={`MOUVEMENT — ${modalMvt.name}`} onClose={()=>{setModalMvt(null);setDone(false)}}>
           {done ? <SuccessMessage message="Mouvement enregistré !" /> : (<>
-            <div style={{padding:'10px 14px',background:'#0d1f14',border:'1px solid #1a3526',borderRadius:8,marginBottom:16,fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>
-              Stock actuel : <strong style={{color:'#00e87a'}}>{modalMvt.current_qty} {modalMvt.unit}</strong> · Min : {modalMvt.min_qty} {modalMvt.unit}
+            <div style={{padding:'10px 14px',background:'var(--bg-card2)',border:'1px solid var(--border)',borderRadius:8,marginBottom:16,fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>
+              Stock actuel : <strong style={{color:'var(--neon)'}}>{modalMvt.current_qty} {modalMvt.unit}</strong> · Min : {modalMvt.min_qty} {modalMvt.unit}
             </div>
             <FormRow>
               <FormGroup label="Type">
@@ -147,12 +147,12 @@ export default function StocksPage() {
       </div>
 
       {items.filter(i=>i.current_qty<=i.min_qty&&i.min_qty>0).map(i=>(
-        <div key={i.id} style={{display:'flex',alignItems:'center',gap:9,padding:'10px 14px',borderRadius:9,marginBottom:6,background:'#f5a62312',border:'1px solid #f5a62340',fontFamily:'DM Mono,monospace',fontSize:11,color:'#f5a623'}}>
+        <div key={i.id} style={{display:'flex',alignItems:'center',gap:9,padding:'10px 14px',borderRadius:9,marginBottom:6,background:'#f5a62312',border:'1px solid var(--amber)40',fontFamily:'var(--font-mono)',fontSize:11,color:'var(--mbe)'}}>
           ⚠ <strong>{i.name}</strong> — Stock : {i.current_qty} {i.unit} | Seuil : {i.min_qty} {i.unit}
         </div>
       ))}
 
-      {loading ? <div style={{textAlign:'center',padding:60,color:'#3d6b52',fontFamily:'DM Mono,monospace',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
+      {loading ? <div style={{textAlign:'center',padding:60,color:'var(--tx-3)',fontFamily:'var(--font-mono)',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
       : items.length===0 ? (
         <div className="empty-state" style={{marginTop:14}}><div className="empty-icon">📦</div><div className="empty-title">Stock vide</div><button className="btn-primary" onClick={openNewArt}>+ NOUVEL ARTICLE</button></div>
       ) : (
@@ -165,18 +165,18 @@ export default function StocksPage() {
                   const alerte = i.current_qty<=i.min_qty&&i.min_qty>0
                   return (
                     <tr key={i.id}>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52'}}>{i.code}</span></td>
-                      <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{i.name}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)'}}>{i.code}</span></td>
+                      <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--tx-1)'}}>{i.name}</span></td>
                       <td><span className="tag tag-blue" style={{fontSize:9}}>{i.category}</span></td>
-                      <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:14,fontWeight:700,color:alerte?'#ff4d6d':'#00e87a'}}>{i.current_qty} {i.unit}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#3d6b52'}}>{i.min_qty} {i.unit}</span></td>
-                      <td><span style={{fontFamily:'DM Mono,monospace',fontSize:10,color:'#7aab90'}}>{i.unit_cost?.toFixed(2)||'—'} MAD</span></td>
-                      <td><span style={{fontFamily:'Rajdhani,sans-serif',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{((i.current_qty||0)*(i.unit_cost||0)).toLocaleString('fr',{maximumFractionDigits:0})} MAD</span></td>
+                      <td><span style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:700,color:alerte?'var(--ed)':'var(--neon)'}}>{i.current_qty} {i.unit}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)'}}>{i.min_qty} {i.unit}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{i.unit_cost?.toFixed(2)||'—'} MAD</span></td>
+                      <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--tx-1)'}}>{((i.current_qty||0)*(i.unit_cost||0)).toLocaleString('fr',{maximumFractionDigits:0})} MAD</span></td>
                       <td>{alerte?<span className="tag tag-red" style={{fontSize:8}}>⚠ ALERTE</span>:<span className="tag tag-green" style={{fontSize:8}}>✓ OK</span>}</td>
                       <td>
                         <div style={{display:'flex',gap:4}}>
-                          <button onClick={()=>openMvt(i,'entree')} style={{padding:'4px 8px',borderRadius:5,border:'1px solid #00e87a40',background:'#00e87a18',color:'#00e87a',fontSize:10,cursor:'pointer'}}>+ IN</button>
-                          <button onClick={()=>openMvt(i,'sortie')} style={{padding:'4px 8px',borderRadius:5,border:'1px solid #1a3526',background:'transparent',color:'#7aab90',fontSize:10,cursor:'pointer'}}>- OUT</button>
+                          <button onClick={()=>openMvt(i,'entree')} style={{padding:'4px 8px',borderRadius:5,border:'1px solid var(--neon)40',background:'var(--neon-dim)',color:'var(--neon)',fontSize:10,cursor:'pointer'}}>+ IN</button>
+                          <button onClick={()=>openMvt(i,'sortie')} style={{padding:'4px 8px',borderRadius:5,border:'1px solid var(--border)',background:'transparent',color:'var(--tx-2)',fontSize:10,cursor:'pointer'}}>- OUT</button>
                           <button onClick={()=>openEditArt(i)} className="btn-ghost" style={{padding:'4px 7px',fontSize:10}}>✏️</button>
                         </div>
                       </td>
