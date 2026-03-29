@@ -108,7 +108,7 @@ export default function SerresPage() {
   </>)
 
   return (
-    <div style={{background:'var(--bg-deep)',minHeight:'100vh',background:'var(--bg-deep)'}}>
+    <div style={{background:'var(--bg-deep)',minHeight:'100vh'}}>
       {modalNew && (
         <Modal title="NOUVELLE SERRE" onClose={()=>{setModalNew(false);setDone(false)}}>
           {done ? <SuccessMessage message="Serre créée !" /> : (<>
