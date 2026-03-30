@@ -65,6 +65,7 @@ export default function RecoltesPage() {
 
   /* Form récolte */
   const [formNew,  setFormNew]  = useState({ campaign_planting_id:'', harvest_date:'', total_qty:'', notes:'' })
+  const [dateError, setDateError] = useState('')
   const [formEdit, setFormEdit] = useState<Record<string,any>>({})
 
   /* Form dispatch */
@@ -101,7 +102,7 @@ export default function RecoltesPage() {
           .eq('category','station_dispatch')
           .order('created_at', { ascending: false }),
         supabase.from('campaign_plantings')
-          .select('id,variety_id,greenhouse_id,greenhouses(code,name),varieties(commercial_name),campaigns(name)'),
+          .select('id,variety_id,greenhouse_id,greenhouses(code,name),varieties(commercial_name),campaigns(name,harvest_start,harvest_end)'),
         supabase.from('markets').select('id,name,currency,type').eq('is_active',true).order('name'),
         supabase.from('alerts').select('*').eq('type','no_harvest').order('created_at',{ascending:false}).limit(100),
       ])
@@ -484,7 +485,7 @@ export default function RecoltesPage() {
 
       {/* ══ MODALE NOUVELLE RÉCOLTE ══ */}
       {modalNew && (
-        <Modal title="SAISIR UNE RÉCOLTE" onClose={()=>{setModalNew(false);setDone(false)}}>
+        <Modal title="SAISIR UNE RÉCOLTE" onClose={()=>{setModalNew(false);setDone(false);setDateError('')}}>
           {done ? <SuccessMessage message="Récolte enregistrée !" /> : (<>
             <FormGroup label="Plantation *">
               {plantings.length===0
@@ -497,7 +498,40 @@ export default function RecoltesPage() {
             </FormGroup>
             <FormRow>
               <FormGroup label="Date de récolte *">
-                <Input type="date" value={formNew.harvest_date} onChange={e=>setFormNew(f=>({...f,harvest_date:e.target.value}))} />
+                {(() => {
+                  const cp = plantings.find(p=>p.id===formNew.campaign_planting_id)
+                  const hStart = cp?.campaigns?.harvest_start
+                  const hEnd   = cp?.campaigns?.harvest_end
+                  return (
+                    <>
+                      <Input
+                        type="date"
+                        value={formNew.harvest_date}
+                        onChange={e=>{
+                          const d = e.target.value
+                          setFormNew(f=>({...f,harvest_date:d}))
+                          if (hStart && hEnd) {
+                            if (d < hStart || d > hEnd) {
+                              setDateError(`Hors période : récoltes ${hStart} → ${hEnd}`)
+                            } else { setDateError('') }
+                          } else { setDateError('') }
+                        }}
+                        min={hStart||undefined}
+                        max={hEnd||undefined}
+                      />
+                      {hStart && hEnd && (
+                        <div style={{marginTop:5,fontFamily:'var(--font-mono)',fontSize:9.5,color:'var(--tx-3)'}}>
+                          📅 Période de récolte : <strong style={{color:'var(--neon)'}}>{hStart}</strong> → <strong style={{color:'var(--neon)'}}>{hEnd}</strong>
+                        </div>
+                      )}
+                      {dateError && (
+                        <div style={{marginTop:5,padding:'6px 10px',background:'var(--red-dim)',border:'1px solid color-mix(in srgb,var(--red) 30%,transparent)',borderRadius:6,fontFamily:'var(--font-mono)',fontSize:10,color:'var(--red)'}}>
+                          ⚠ {dateError}
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
               </FormGroup>
               <FormGroup label="Quantité récoltée (kg) *">
                 <Input type="number" value={formNew.total_qty} onChange={e=>setFormNew(f=>({...f,total_qty:e.target.value}))} placeholder="ex: 500" autoFocus />
@@ -510,7 +544,7 @@ export default function RecoltesPage() {
               ℹ Le dispatch par marché se fait à l'étape suivante
             </div>
             <ModalFooter onCancel={()=>setModalNew(false)} onSave={saveNew} loading={saving}
-              disabled={!formNew.campaign_planting_id||!formNew.harvest_date||!formNew.total_qty} saveLabel="ENREGISTRER" />
+              disabled={!formNew.campaign_planting_id||!formNew.harvest_date||!formNew.total_qty||!!dateError} saveLabel="ENREGISTRER" />
           </>)}
         </Modal>
       )}
@@ -927,7 +961,7 @@ export default function RecoltesPage() {
 
       {/* ══ TABS ══ */}
       <div style={{display:'flex',gap:4,marginBottom:14,alignItems:'center',flexWrap:'wrap'}}>
-        {([['liste','RÉCOLTES',harvests.length],['sans_prix','SANS PRIX',sansPrix.length],['alertes','ALERTES',activAlertes.length]] as any[]).map(([t,l,c])=>(
+        {([['liste','RÉCOLTES',harvests.length],['sans_prix','SANS PRIX',sansPrix.length],['confirmes','CONFIRMÉS',avecPrix.length],['alertes','ALERTES',activAlertes.length]] as any[]).map(([t,l,c])=>(
           <button key={t} onClick={()=>setTab(t)}
             style={{padding:'7px 14px',borderRadius:6,border:'1px solid',fontFamily:'var(--font-mono)',fontSize:10,letterSpacing:.8,cursor:'pointer',transition:'all .15s',
               borderColor:tab===t?'var(--neon)':'var(--border)',background:tab===t?'var(--neon-dim)':'transparent',color:tab===t?'var(--neon)':'var(--tx-3)'}}>
