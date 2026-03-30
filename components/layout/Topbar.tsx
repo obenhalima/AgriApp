@@ -30,7 +30,7 @@ const PAGES: Record<string, { title:string; icon:string; sub:string; btn?:string
 export function Topbar() {
   const pathname = usePathname()
   const router   = useRouter()
-  const page     = PAGES[pathname] || { title:'TomatoPilot', icon:'🍅', sub:'' }
+  const page     = PAGES[pathname] || { title:'Domaine BENHALIMA', icon:'🍅', sub:'' }
   const [out,   setOut]        = useState(false)
   const [theme, setThemeState] = useState<'dark'|'light'>('dark')
 
