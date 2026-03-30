@@ -14,8 +14,8 @@ export default function LoginPage() {
   const loginDemo = async () => {
     setLoading(true)
     const { error } = await supabase.auth.signInWithPassword({
-      email: 'admin@tomatopilot.ma',
-      password: 'TomatoPilot2026!'
+      email: 'admin@domaine-benhalima.ma',
+      password: 'Domaine BENHALIMA2026!'
     })
     if (error) { setError('Erreur demo: ' + error.message); setLoading(false); return }
     router.replace('/')
@@ -47,8 +47,8 @@ export default function LoginPage() {
         {/* Logo */}
         <div style={{ textAlign:'center', marginBottom:36 }}>
           <div style={{ width:64, height:64, margin:'0 auto 16px', background:'linear-gradient(135deg,#00e87a,#006633)', borderRadius:14, display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, boxShadow:'0 0 40px var(--neon)30' }}>🍅</div>
-          <div style={{ fontFamily:'var(--font-display)', fontSize:28, fontWeight:700, color:'var(--tx-1)', letterSpacing:3, textTransform:'uppercase' }}>TomatoPilot</div>
-          <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--tx-3)', letterSpacing:3, marginTop:4 }}>AGRITECH MANAGEMENT SYSTEM</div>
+          <div style={{ fontFamily:'var(--font-display)', fontSize:28, fontWeight:700, color:'var(--tx-1)', letterSpacing:3, textTransform:'uppercase' }}>Domaine BENHALIMA</div>
+          <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--tx-3)', letterSpacing:3, marginTop:4 }}>PRODUCTION MES MANAGEMENT SYSTEM</div>
         </div>
 
         {/* Card */}
@@ -114,12 +114,12 @@ export default function LoginPage() {
                 {/* Hint credentials */}
                 <div style={{ marginTop:20, padding:'12px 14px', background:'var(--bg-card2)', border:'1px solid var(--border)', borderRadius:8 }}>
                   <div style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--tx-3)', letterSpacing:1, marginBottom:6 }}>CREDENTIALS ADMIN ·</div>
-                  <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--tx-2)' }}>admin@tomatopilot.ma</div>
-                  <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--tx-2)' }}>TomatoPilot2026!</div>
+                  <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--tx-2)' }}>admin@domaine-benhalima.ma</div>
+                  <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--tx-2)' }}>Domaine BENHALIMA2026!</div>
                 </div>
 
                 <div style={{ marginTop:16, fontFamily:'var(--font-mono)', fontSize:9, color:'var(--border-md)', textAlign:'center', letterSpacing:1 }}>
-                  TOMATOPILOT · AGRITECH v1.0
+                  DOMAINE BENHALIMA · MES PRODUCTION v1.0
                 </div>
               </>
             )}
