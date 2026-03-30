@@ -12,10 +12,10 @@ export function setTheme(t: Theme) {
 }
 
 export function applyTheme(t: Theme) {
-  const root = document.documentElement
+  const html = document.documentElement
   if (t === 'light') {
-    root.setAttribute('data-theme', 'light')
+    html.setAttribute('data-theme', 'light')
   } else {
-    root.removeAttribute('data-theme')
+    html.removeAttribute('data-theme')
   }
 }
