@@ -135,8 +135,8 @@ export function Sidebar() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
               <div style={{ width: 32, height: 32, borderRadius: 9, background: logoBg, border: `1px solid ${pinBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🍅</div>
               <div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 13.5, fontWeight: 800, color: logoText, letterSpacing: -.2, lineHeight: 1.1 }}>TomatoPilot</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: logoSub, letterSpacing: 1.5, marginTop: 2, textTransform: 'uppercase' }}>Production MES</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 13.5, fontWeight: 800, color: logoText, letterSpacing: -.2, lineHeight: 1.1 }}>Domaine BENHALIMA</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: logoSub, letterSpacing: 1.5, marginTop: 2, textTransform: 'uppercase' }}>MES Production</div>
               </div>
             </div>
           )}
