@@ -147,7 +147,7 @@ export default function StocksPage() {
       </div>
 
       {items.filter(i=>i.current_qty<=i.min_qty&&i.min_qty>0).map(i=>(
-        <div key={i.id} style={{display:'flex',alignItems:'center',gap:9,padding:'10px 14px',borderRadius:9,marginBottom:6,background:'#f5a62312',border:'1px solid var(--amber)40',fontFamily:'var(--font-mono)',fontSize:11,color:'var(--mbe)'}}>
+        <div key={i.id} style={{display:'flex',alignItems:'center',gap:9,padding:'10px 14px',borderRadius:9,marginBottom:6,background:'var(--amber)12',border:'1px solid var(--amber)40',fontFamily:'var(--font-mono)',fontSize:11,color:'var(--mbe)'}}>
           ⚠ <strong>{i.name}</strong> — Stock : {i.current_qty} {i.unit} | Seuil : {i.min_qty} {i.unit}
         </div>
       ))}
