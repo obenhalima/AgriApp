@@ -3,8 +3,8 @@ import './globals.css'
 import { AppShell } from '@/components/layout/AppShell'
 
 export const metadata: Metadata = {
-  title: 'TomatoPilot — AgriTech',
-  description: 'Gestion de ferme de tomates sous serre',
+  title: 'Domaine BENHALIMA — Production MES',
+  description: 'Pilotage de production agricole — Domaine BENHALIMA',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
