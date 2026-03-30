@@ -33,12 +33,12 @@ const harvestStatut = (h: any, disps: any[]) => {
 
 const statutStyle = (s: string) => {
   const map: Record<string,[string,string]> = {
-    'RÉCOLTÉE':                ['#3d6b52','#1a3526'],
-    'DISPATCHÉE':              ['#00b4d8','#00b4d818'],
-    'PARTIELLEMENT CONFIRMÉE': ['#f5a623','#f5a62318'],
-    'CLÔTURÉE':                ['#00e87a','#00e87a18'],
+    'RÉCOLTÉE':                ['var(--tx-3)','var(--border)'],
+    'DISPATCHÉE':              ['var(--blue)','var(--blue-dim)'],
+    'PARTIELLEMENT CONFIRMÉE': ['var(--amber)','var(--amber-dim)'],
+    'CLÔTURÉE':                ['var(--neon)','var(--neon-dim)'],
   }
-  const [color,bg] = map[s] || ['#3d6b52','#1a3526']
+  const [color,bg] = map[s] || ['var(--tx-3)','var(--border)']
   return { color, background: bg, border: `1px solid ${color}40` }
 }
 
@@ -475,12 +475,12 @@ export default function RecoltesPage() {
   ]
 
   const TH = (s:string) => (
-    <th key={s} style={{padding:'9px 12px',fontFamily:'var(--font-mono)',fontSize:9.5,fontWeight:500,color:'#3d6b52',textTransform:'uppercase',letterSpacing:1,borderBottom:'1px solid var(--border)',textAlign:'left',background:'#050d09',whiteSpace:'nowrap'}}>{s}</th>
+    <th key={s} style={{padding:'9px 12px',fontFamily:'var(--font-mono)',fontSize:9.5,fontWeight:500,color:'var(--tx-3)',textTransform:'uppercase',letterSpacing:1,borderBottom:'1px solid var(--border)',textAlign:'left',background:'var(--bg-deep)',whiteSpace:'nowrap'}}>{s}</th>
   )
 
   /* ═══════════════════════════════ RENDU ═══════════════════════════════ */
   return (
-    <div style={{background:'#030a07',minHeight:'100vh'}}>
+    <div style={{background:'var(--bg-deep)',minHeight:'100vh'}}>
 
       {/* ══ MODALE NOUVELLE RÉCOLTE ══ */}
       {modalNew && (
@@ -488,7 +488,7 @@ export default function RecoltesPage() {
           {done ? <SuccessMessage message="Récolte enregistrée !" /> : (<>
             <FormGroup label="Plantation *">
               {plantings.length===0
-                ? <div style={{padding:'10px',background:'#ff4d6d18',border:'1px solid #ff4d6d40',borderRadius:7,color:'#ff4d6d',fontFamily:'var(--font-mono)',fontSize:11}}>⚠ Aucune plantation disponible</div>
+                ? <div style={{padding:'10px',background:'var(--red-dim)',border:'1px solid color-mix(in srgb,var(--red) 25%,transparent)',borderRadius:7,color:'var(--red)',fontFamily:'var(--font-mono)',fontSize:11}}>⚠ Aucune plantation disponible</div>
                 : <Select value={formNew.campaign_planting_id} onChange={e=>setFormNew(f=>({...f,campaign_planting_id:e.target.value}))}>
                     <option value="">-- Sélectionner --</option>
                     {plantings.map((p:any)=><option key={p.id} value={p.id}>{p.greenhouses?.name} · {p.varieties?.commercial_name} [{p.campaigns?.name}]</option>)}
@@ -506,7 +506,7 @@ export default function RecoltesPage() {
             <FormGroup label="Notes qualité">
               <Textarea rows={2} value={formNew.notes} onChange={e=>setFormNew(f=>({...f,notes:e.target.value}))} placeholder="Observations..." />
             </FormGroup>
-            <div style={{padding:'9px 12px',background:'#00b4d818',border:'1px solid #00b4d840',borderRadius:7,fontFamily:'var(--font-mono)',fontSize:10,color:'#00b4d8',marginTop:6}}>
+            <div style={{padding:'9px 12px',background:'var(--blue-dim)',border:'1px solid var(--blue)40',borderRadius:7,fontFamily:'var(--font-mono)',fontSize:10,color:'var(--blue)',marginTop:6}}>
               ℹ Le dispatch par marché se fait à l'étape suivante
             </div>
             <ModalFooter onCancel={()=>setModalNew(false)} onSave={saveNew} loading={saving}
@@ -544,15 +544,15 @@ export default function RecoltesPage() {
       {modalDispatch && (
         <Modal title={`DISPATCHER — ${modalDispatch.lot_number}`} onClose={()=>{setModalDispatch(null);setDone(false)}}>
           {done ? <SuccessMessage message="Dispatches créés !" /> : (<>
-            <div style={{padding:'12px 14px',background:'#0d1f14',border:'1px solid var(--border)',borderRadius:8,marginBottom:16}}>
-              <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'#3d6b52',letterSpacing:1,marginBottom:4}}>RÉCOLTE</div>
-              <div style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:700,color:'#e8f5ee'}}>
+            <div style={{padding:'12px 14px',background:'var(--bg-card2)',border:'1px solid var(--border)',borderRadius:8,marginBottom:16}}>
+              <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,marginBottom:4}}>RÉCOLTE</div>
+              <div style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:700,color:'var(--tx-1)'}}>
                 {modalDispatch.campaign_plantings?.greenhouses?.name} · {modalDispatch.campaign_plantings?.varieties?.commercial_name}
               </div>
-              <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'#7aab90',marginTop:3}}>
-                {modalDispatch.harvest_date} · <strong style={{color:'#00e87a'}}>{modalDispatch.total_qty} kg disponibles</strong>
+              <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)',marginTop:3}}>
+                {modalDispatch.harvest_date} · <strong style={{color:'var(--neon)'}}>{modalDispatch.total_qty} kg disponibles</strong>
                 {dispatches.filter(d=>d.harvest_id===modalDispatch.id).length>0 && (
-                  <span style={{color:'#f5a623',marginLeft:10}}>
+                  <span style={{color:'var(--amber)',marginLeft:10}}>
                     · Déjà dispatché : {dispatches.filter(d=>d.harvest_id===modalDispatch.id).reduce((s,d)=>s+d.quantity_kg,0)} kg
                   </span>
                 )}
@@ -582,7 +582,7 @@ export default function RecoltesPage() {
             <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16}}>
               <button onClick={addDispLine} className="btn-ghost" style={{fontSize:10,padding:'5px 10px'}}>+ Ajouter marché</button>
               {dispLines.reduce((s,l)=>s+Number(l.qty||0),0)>0 && (
-                <span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'#00e87a'}}>
+                <span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--neon)'}}>
                   Total : {dispLines.reduce((s,l)=>s+Number(l.qty||0),0).toLocaleString('fr')} kg
                 </span>
               )}
@@ -598,13 +598,13 @@ export default function RecoltesPage() {
         <Modal title={modalConfirm.certificate_number ? "MODIFIER LA CONFIRMATION" : "CONFIRMER PRIX & QUANTITÉ"} onClose={()=>{setModalConfirm(null);setDone(false)}}>
           {done ? <SuccessMessage message="Dispatch confirmé !" /> : (<>
             {/* Résumé */}
-            <div style={{padding:'12px 14px',background:'#0d1f14',border:'1px solid var(--border)',borderRadius:8,marginBottom:16}}>
-              <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'#3d6b52',letterSpacing:1,marginBottom:4}}>DISPATCH</div>
-              <div style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:700,color:'#e8f5ee'}}>
+            <div style={{padding:'12px 14px',background:'var(--bg-card2)',border:'1px solid var(--border)',borderRadius:8,marginBottom:16}}>
+              <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,marginBottom:4}}>DISPATCH</div>
+              <div style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:700,color:'var(--tx-1)'}}>
                 {modalConfirm.markets?.name} — {modalConfirm.harvest_date}
               </div>
-              <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'#7aab90',marginTop:3}}>
-                Qté brute envoyée : <strong style={{color:'#f5a623'}}>{modalConfirm.quantity_kg} kg</strong>
+              <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)',marginTop:3}}>
+                Qté brute envoyée : <strong style={{color:'var(--amber)'}}>{modalConfirm.quantity_kg} kg</strong>
               </div>
             </div>
 
@@ -625,10 +625,10 @@ export default function RecoltesPage() {
 
             {/* Calcul intermédiaire */}
             {(Number(formC.freinte_pct)>0 || Number(formC.ecart_pct)>0) && (
-              <div style={{padding:'10px 14px',background:'#0a1810',border:'1px solid var(--border)',borderRadius:7,fontFamily:'var(--font-mono)',fontSize:10,color:'#7aab90',marginBottom:14,display:'flex',gap:20}}>
-                <span>Brute : <strong style={{color:'#f5a623'}}>{modalConfirm.quantity_kg} kg</strong></span>
-                <span>→ Freinte {formC.freinte_pct}% : <strong style={{color:'#f5a623'}}>{(modalConfirm.quantity_kg*(1-Number(formC.freinte_pct)/100)).toFixed(1)} kg</strong></span>
-                <span>→ Écart {formC.ecart_pct}% : <strong style={{color:'#00e87a'}}>{qtyAccCalc} kg</strong></span>
+              <div style={{padding:'10px 14px',background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:7,fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)',marginBottom:14,display:'flex',gap:20}}>
+                <span>Brute : <strong style={{color:'var(--amber)'}}>{modalConfirm.quantity_kg} kg</strong></span>
+                <span>→ Freinte {formC.freinte_pct}% : <strong style={{color:'var(--amber)'}}>{(modalConfirm.quantity_kg*(1-Number(formC.freinte_pct)/100)).toFixed(1)} kg</strong></span>
+                <span>→ Écart {formC.ecart_pct}% : <strong style={{color:'var(--neon)'}}>{qtyAccCalc} kg</strong></span>
               </div>
             )}
 
@@ -647,7 +647,7 @@ export default function RecoltesPage() {
                 )}
               </div>
               {qtyAccEffective !== modalConfirm.quantity_kg && (
-                <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'#f5a623',marginTop:4}}>
+                <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--amber)',marginTop:4}}>
                   ⚠ Rejet total : {(modalConfirm.quantity_kg - qtyAccEffective).toFixed(1)} kg
                 </div>
               )}
@@ -662,7 +662,7 @@ export default function RecoltesPage() {
               </FormGroup>
               <FormGroup label="">
                 {formC.price_per_kg && Number(formC.price_per_kg)>0 && (
-                  <div style={{padding:'9px 12px',background:'#00e87a18',border:'1px solid #00e87a40',borderRadius:7,fontFamily:'var(--font-display)',fontSize:16,fontWeight:700,color:'#00e87a',height:36,display:'flex',alignItems:'center'}}>
+                  <div style={{padding:'9px 12px',background:'var(--neon-dim)',border:'1px solid color-mix(in srgb,var(--neon) 25%,transparent)',borderRadius:7,fontFamily:'var(--font-display)',fontSize:16,fontWeight:700,color:'var(--neon)',height:36,display:'flex',alignItems:'center'}}>
                     CA : {caConfirm.toLocaleString('fr',{maximumFractionDigits:2})} {modalConfirm.markets?.currency||'MAD'}
                   </div>
                 )}
@@ -705,7 +705,7 @@ export default function RecoltesPage() {
             {periodeDebut && periodeFin && (
               <>
                 {dispatchesPeriode.length === 0 ? (
-                  <div style={{padding:'16px',textAlign:'center',fontFamily:'var(--font-mono)',fontSize:10,color:'#3d6b52',border:'1px dashed var(--border)',borderRadius:8,marginTop:12}}>
+                  <div style={{padding:'16px',textAlign:'center',fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)',border:'1px dashed var(--border)',borderRadius:8,marginTop:12}}>
                     Aucun dispatch sans prix dans cette période
                   </div>
                 ) : (
@@ -717,7 +717,7 @@ export default function RecoltesPage() {
                       </div>
                       <button onClick={()=>setPeriodeSelIds(new Set(dispatchesPeriode.map((d:any)=>d.id)))} className="btn-secondary" style={{fontSize:9,padding:'4px 8px'}}>TOUT</button>
                       <button onClick={()=>setPeriodeSelIds(new Set())} className="btn-ghost" style={{fontSize:9,padding:'4px 8px'}}>AUCUN</button>
-                      <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'#3d6b52'}}>{periodeSelIds.size}/{dispatchesPeriode.length}</span>
+                      <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)'}}>{periodeSelIds.size}/{dispatchesPeriode.length}</span>
                     </div>
 
                     {/* Un bloc par marché */}
@@ -736,18 +736,18 @@ export default function RecoltesPage() {
                       return (
                         <div key={mid} style={{border:'1px solid var(--border-md)',borderRadius:10,overflow:'hidden',marginBottom:14}}>
                           {/* Header marché — prix saisi ici */}
-                          <div style={{padding:'12px 16px',background:'#0d1f14',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:14,flexWrap:'wrap'}}>
+                          <div style={{padding:'12px 16px',background:'var(--bg-card2)',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:14,flexWrap:'wrap'}}>
                             <div style={{flex:1,minWidth:0}}>
-                              <div style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:700,color:'#e8f5ee',textTransform:'uppercase',letterSpacing:.5}}>
+                              <div style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:700,color:'var(--tx-1)',textTransform:'uppercase',letterSpacing:.5}}>
                                 {marche?.name || '—'}
                               </div>
-                              <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'#3d6b52',letterSpacing:1,marginTop:2}}>
+                              <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,marginTop:2}}>
                                 {dispsDuMarche.length} dispatch(s) · {marche?.currency}
                               </div>
                             </div>
                             {/* Prix unique pour ce marché */}
                             <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
-                              <label style={{fontFamily:'var(--font-mono)',fontSize:9,color:'#3d6b52',letterSpacing:1,whiteSpace:'nowrap'}}>PRIX / KG</label>
+                              <label style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,whiteSpace:'nowrap'}}>PRIX / KG</label>
                               <input
                                 className="form-input"
                                 type="number"
@@ -758,10 +758,10 @@ export default function RecoltesPage() {
                                   setMarchePrix(p => ({...p,[mid]:val}))
                                 }}
                                 placeholder={`${marche?.currency}/kg`}
-                                style={{width:110,padding:'6px 10px',fontSize:13,fontWeight:600,color:'#00e87a'}}
+                                style={{width:110,padding:'6px 10px',fontSize:13,fontWeight:600,color:'var(--neon)'}}
                               />
                               {caMarche > 0 && (
-                                <div style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'#00e87a',whiteSpace:'nowrap'}}>
+                                <div style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--neon)',whiteSpace:'nowrap'}}>
                                   = {caMarche.toLocaleString('fr',{maximumFractionDigits:2})} {marche?.currency}
                                 </div>
                               )}
@@ -772,9 +772,9 @@ export default function RecoltesPage() {
                           <div style={{overflowX:'auto'}}>
                             <table style={{width:'100%',borderCollapse:'collapse'}}>
                               <thead>
-                                <tr style={{background:'#050d09'}}>
+                                <tr style={{background:'var(--bg-deep)'}}>
                                   {['','Date','Brut (kg)','Freinte %','Écart %','Accepté (kg)','CA estimé'].map((h,i)=>(
-                                    <th key={i} style={{padding:'7px 10px',fontFamily:'var(--font-mono)',fontSize:8.5,color:'#3d6b52',letterSpacing:.8,borderBottom:'1px solid var(--border)',textAlign:'left',whiteSpace:'nowrap'}}>{h}</th>
+                                    <th key={i} style={{padding:'7px 10px',fontFamily:'var(--font-mono)',fontSize:8.5,color:'var(--tx-3)',letterSpacing:.8,borderBottom:'1px solid var(--border)',textAlign:'left',whiteSpace:'nowrap'}}>{h}</th>
                                   ))}
                                 </tr>
                               </thead>
@@ -785,18 +785,18 @@ export default function RecoltesPage() {
                                   const qtyA = row.qty_man !== '' ? Number(row.qty_man) : row.qty_calc
                                   const ca   = prixMarche ? calcCA(qtyA, Number(prixMarche)) : null
                                   return (
-                                    <tr key={d.id} style={{borderBottom:'1px solid var(--border)',background:sel?'#00e87a08':'transparent'}}>
+                                    <tr key={d.id} style={{borderBottom:'1px solid var(--border)',background:sel?'var(--neon)08':'transparent'}}>
                                       {/* Checkbox */}
                                       <td style={{padding:'8px 10px',width:28}}>
                                         <div onClick={()=>togglePer(d.id)}
-                                          style={{width:15,height:15,borderRadius:3,border:`1px solid ${sel?'#00e87a':'#1f4030'}`,background:sel?'#00e87a':'transparent',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'#030a07',fontWeight:700,cursor:'pointer',flexShrink:0}}>
+                                          style={{width:15,height:15,borderRadius:3,border:`1px solid ${sel?'var(--neon)':'var(--border-md)'}`,background:sel?'var(--neon)':'transparent',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'var(--bg-deep)',fontWeight:700,cursor:'pointer',flexShrink:0}}>
                                           {sel?'✓':''}
                                         </div>
                                       </td>
                                       {/* Date */}
-                                      <td style={{padding:'8px 10px'}}><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'#7aab90'}}>{d.harvest_date}</span></td>
+                                      <td style={{padding:'8px 10px'}}><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{d.harvest_date}</span></td>
                                       {/* Brut */}
-                                      <td style={{padding:'8px 10px'}}><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'#f5a623'}}>{d.quantity_kg}</span></td>
+                                      <td style={{padding:'8px 10px'}}><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--amber)'}}>{d.quantity_kg}</span></td>
                                       {/* Freinte% */}
                                       <td style={{padding:'8px 6px'}}>
                                         <input className="form-input" type="number" step="0.1"
@@ -816,11 +816,11 @@ export default function RecoltesPage() {
                                         <input className="form-input" type="number" step="0.01"
                                           value={row.qty_man !== '' ? row.qty_man : String(row.qty_calc)}
                                           onChange={e=>updatePeriodeRow(d.id,'qty_man',e.target.value)}
-                                          style={{padding:'4px 7px',fontSize:11,width:80,color:row.qty_man!==''?'#f5a623':'#7aab90'}} />
+                                          style={{padding:'4px 7px',fontSize:11,width:80,color:row.qty_man!==''?'var(--amber)':'var(--tx-2)'}} />
                                       </td>
                                       {/* CA estimé */}
                                       <td style={{padding:'8px 10px'}}>
-                                        <span style={{fontFamily:'var(--font-display)',fontSize:12,fontWeight:600,color:ca?'#00e87a':'#1f4030'}}>
+                                        <span style={{fontFamily:'var(--font-display)',fontSize:12,fontWeight:600,color:ca?'var(--neon)':'var(--border-md)'}}>
                                           {ca ? ca.toLocaleString('fr',{maximumFractionDigits:2})+' '+marche?.currency : '—'}
                                         </span>
                                       </td>
@@ -836,12 +836,12 @@ export default function RecoltesPage() {
 
                     {/* CA total global */}
                     {periodeSelIds.size > 0 && Object.values(caParMarchePeriode).some((m:any)=>m.ca>0) && (
-                      <div style={{padding:'10px 16px',background:'#0a1810',border:'1px solid var(--border)',borderRadius:8,display:'flex',gap:20,flexWrap:'wrap'}}>
-                        <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'#3d6b52',letterSpacing:1,alignSelf:'center'}}>CA TOTAL PÉRIODE :</span>
+                      <div style={{padding:'10px 16px',background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:8,display:'flex',gap:20,flexWrap:'wrap'}}>
+                        <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,alignSelf:'center'}}>CA TOTAL PÉRIODE :</span>
                         {Object.values(caParMarchePeriode).filter((m:any)=>m.ca>0).map((m:any,i:number)=>(
                           <div key={i} style={{fontFamily:'var(--font-mono)',fontSize:10}}>
-                            <span style={{color:'#3d6b52'}}>{m.nom} : </span>
-                            <strong style={{color:'#00e87a'}}>{m.ca.toLocaleString('fr',{maximumFractionDigits:2})} {m.currency}</strong>
+                            <span style={{color:'var(--tx-3)'}}>{m.nom} : </span>
+                            <strong style={{color:'var(--neon)'}}>{m.ca.toLocaleString('fr',{maximumFractionDigits:2})} {m.currency}</strong>
                           </div>
                         ))}
                       </div>
@@ -862,7 +862,7 @@ export default function RecoltesPage() {
       {modalAlerte && (
         <Modal title="JOURNÉE SANS RÉCOLTE" onClose={()=>{setModalAlerte(false);setDone(false)}}>
           {done ? <SuccessMessage message="Alerte enregistrée !" /> : (<>
-            <div style={{padding:'10px 14px',background:'#ff4d6d18',border:'1px solid #ff4d6d40',borderRadius:7,fontFamily:'var(--font-mono)',fontSize:11,color:'#ff4d6d',marginBottom:16}}>⚠ Cette journée sera marquée sans récolte.</div>
+            <div style={{padding:'10px 14px',background:'var(--red-dim)',border:'1px solid color-mix(in srgb,var(--red) 25%,transparent)',borderRadius:7,fontFamily:'var(--font-mono)',fontSize:11,color:'var(--red)',marginBottom:16}}>⚠ Cette journée sera marquée sans récolte.</div>
             <FormGroup label="Date *"><Input type="date" value={formAlerte.date} onChange={e=>setFormAlerte(f=>({...f,date:e.target.value}))} autoFocus /></FormGroup>
             <FormGroup label="Motif">
               <Select value={formAlerte.reason} onChange={e=>setFormAlerte(f=>({...f,reason:e.target.value}))}>
@@ -881,11 +881,11 @@ export default function RecoltesPage() {
           <div className="page-title">RÉCOLTES</div>
           <div className="page-sub">
             {harvests.length} lot(s) · {(totalKg/1000).toFixed(2)} t récoltées
-            {totalCA>0 && <> · CA confirmé : <strong style={{color:'#00e87a'}}>{totalCA.toLocaleString('fr',{maximumFractionDigits:0})} MAD</strong></>}
+            {totalCA>0 && <> · CA confirmé : <strong style={{color:'var(--neon)'}}>{totalCA.toLocaleString('fr',{maximumFractionDigits:0})} MAD</strong></>}
           </div>
         </div>
         <div style={{display:'flex',gap:8}}>
-          <button className="btn-ghost" onClick={()=>setModalAlerte(true)} style={{fontSize:11,color:'#ff4d6d',borderColor:'#ff4d6d40'}}>⚠ SANS RÉCOLTE</button>
+          <button className="btn-ghost" onClick={()=>setModalAlerte(true)} style={{fontSize:11,color:'var(--red)',borderColor:'color-mix(in srgb,var(--red) 25%,transparent)'}}>⚠ SANS RÉCOLTE</button>
           <button className="btn-primary" onClick={()=>setModalNew(true)}>+ SAISIR RÉCOLTE</button>
         </div>
       </div>
@@ -893,12 +893,12 @@ export default function RecoltesPage() {
       {/* ══ KPIs ══ */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:10,marginBottom:16}}>
         {[
-          {l:'Lots',       v:String(harvests.length),              c:'#00e87a'},
-          {l:'Récoltés',   v:(totalKg/1000).toFixed(1)+' t',      c:'#00ffc8'},
-          {l:'Dispatches', v:String(dispatches.length),            c:'#00b4d8'},
-          {l:'Sans prix',  v:String(sansPrix.length),              c:'#f5a623'},
-          {l:'CA confirmé',v:(totalCA/1000).toFixed(1)+' k MAD',  c:'#9b5de5'},
-          {l:'Alertes',    v:String(activAlertes.length),          c:'#ff4d6d'},
+          {l:'Lots',       v:String(harvests.length),              c:'var(--neon)'},
+          {l:'Récoltés',   v:(totalKg/1000).toFixed(1)+' t',      c:'var(--neon-2)'},
+          {l:'Dispatches', v:String(dispatches.length),            c:'var(--blue)'},
+          {l:'Sans prix',  v:String(sansPrix.length),              c:'var(--amber)'},
+          {l:'CA confirmé',v:(totalCA/1000).toFixed(1)+' k MAD',  c:'var(--purple)'},
+          {l:'Alertes',    v:String(activAlertes.length),          c:'var(--red)'},
         ].map((k,i)=>(
           <div key={i} className="kpi" style={{'--accent':k.c} as any}>
             <div className="kpi-label">{k.l}</div>
@@ -911,15 +911,15 @@ export default function RecoltesPage() {
       {Object.keys(caParMarche).length>0 && (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10,marginBottom:16}}>
           {Object.values(caParMarche).map((m,i)=>(
-            <div key={i} style={{background:'#0a1810',border:`1px solid ${m.sansPrix>0?'#f5a62340':'#1a3526'}`,borderRadius:8,padding:'12px 14px'}}>
-              <div style={{fontFamily:'var(--font-mono)',fontSize:8.5,color:'#3d6b52',letterSpacing:1,marginBottom:5}}>{m.nom.toUpperCase()}</div>
-              <div style={{fontFamily:'var(--font-display)',fontSize:20,fontWeight:700,color:m.ca>0?'#00e87a':'#3d6b52',marginBottom:2}}>
+            <div key={i} style={{background:'var(--bg-card)',border:`1px solid ${m.sansPrix>0?'color-mix(in srgb,var(--amber) 25%,transparent)':'var(--border)'}`,borderRadius:8,padding:'12px 14px'}}>
+              <div style={{fontFamily:'var(--font-mono)',fontSize:8.5,color:'var(--tx-3)',letterSpacing:1,marginBottom:5}}>{m.nom.toUpperCase()}</div>
+              <div style={{fontFamily:'var(--font-display)',fontSize:20,fontWeight:700,color:m.ca>0?'var(--neon)':'var(--tx-3)',marginBottom:2}}>
                 {m.ca>0 ? m.ca.toLocaleString('fr',{maximumFractionDigits:0})+' '+m.currency : '—'}
               </div>
-              <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'#7aab90'}}>
+              <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-2)'}}>
                 {m.qtyEnv.toLocaleString('fr')} kg env · {m.qtyAcc.toLocaleString('fr',{maximumFractionDigits:0})} kg acc
               </div>
-              {m.sansPrix>0&&<div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'#f5a623',marginTop:2}}>⚠ {m.sansPrix} sans prix</div>}
+              {m.sansPrix>0&&<div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--amber)',marginTop:2}}>⚠ {m.sansPrix} sans prix</div>}
             </div>
           ))}
         </div>
@@ -930,14 +930,14 @@ export default function RecoltesPage() {
         {([['liste','RÉCOLTES',harvests.length],['sans_prix','SANS PRIX',sansPrix.length],['alertes','ALERTES',activAlertes.length]] as any[]).map(([t,l,c])=>(
           <button key={t} onClick={()=>setTab(t)}
             style={{padding:'7px 14px',borderRadius:6,border:'1px solid',fontFamily:'var(--font-mono)',fontSize:10,letterSpacing:.8,cursor:'pointer',transition:'all .15s',
-              borderColor:tab===t?'#00e87a':'#1a3526',background:tab===t?'#00e87a18':'transparent',color:tab===t?'#00e87a':'#3d6b52'}}>
+              borderColor:tab===t?'var(--neon)':'var(--border)',background:tab===t?'var(--neon-dim)':'transparent',color:tab===t?'var(--neon)':'var(--tx-3)'}}>
             {l}
-            {c>0&&<span style={{marginLeft:6,background:t==='alertes'?'#ff4d6d':t==='sans_prix'?'#f5a623':'#00e87a',color:'#030a07',borderRadius:10,padding:'1px 6px',fontSize:8,fontWeight:700}}>{c}</span>}
+            {c>0&&<span style={{marginLeft:6,background:t==='alertes'?'var(--red)':t==='sans_prix'?'var(--amber)':'var(--neon)',color:'var(--bg-deep)',borderRadius:10,padding:'1px 6px',fontSize:8,fontWeight:700}}>{c}</span>}
           </button>
         ))}
         {tab==='sans_prix' && sansPrix.length>0 && (
           <div style={{marginLeft:'auto',display:'flex',gap:8}}>
-            <button className="btn-ghost" style={{fontSize:10,padding:'7px 12px',color:'#00ffc8',borderColor:'#00ffc840'}} onClick={openPeriode}>
+            <button className="btn-ghost" style={{fontSize:10,padding:'7px 12px',color:'var(--neon-2)',borderColor:'var(--neon-2)40'}} onClick={openPeriode}>
               📅 SAISIE PAR PÉRIODE
             </button>
           </div>
@@ -946,7 +946,7 @@ export default function RecoltesPage() {
 
       {/* ══ CONTENU ══ */}
       {loading ? (
-        <div style={{textAlign:'center',padding:60,color:'#3d6b52',fontFamily:'var(--font-mono)',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
+        <div style={{textAlign:'center',padding:60,color:'var(--tx-3)',fontFamily:'var(--font-mono)',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
 
       ) : tab==='liste' ? (
         harvests.length===0 ? (
@@ -977,30 +977,30 @@ export default function RecoltesPage() {
                     const avgEcart   = confDisps.length ? confDisps.reduce((s,d)=>s+(parseMeta(d.notes).ecart_pct||0),0)/confDisps.length : null
                     return (
                       <tr key={h.id}>
-                        <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'#00e87a'}}>{h.lot_number}</span></td>
-                        <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'#7aab90'}}>{h.harvest_date}</span></td>
-                        <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{h.campaign_plantings?.greenhouses?.name||'—'}</span></td>
-                        <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'#3d6b52'}}>{h.campaign_plantings?.varieties?.commercial_name||'—'}</span></td>
-                        <td><span style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:700,color:'#00e87a'}}>{(h.total_qty||0).toLocaleString('fr')} kg</span></td>
-                        <td>{inv>0 ? <span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'#f5a623'}}>{inv.toLocaleString('fr')} kg</span> : <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'#00e87a'}}>—</span>}</td>
+                        <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--neon)'}}>{h.lot_number}</span></td>
+                        <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{h.harvest_date}</span></td>
+                        <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--tx-1)'}}>{h.campaign_plantings?.greenhouses?.name||'—'}</span></td>
+                        <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)'}}>{h.campaign_plantings?.varieties?.commercial_name||'—'}</span></td>
+                        <td><span style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:700,color:'var(--neon)'}}>{(h.total_qty||0).toLocaleString('fr')} kg</span></td>
+                        <td>{inv>0 ? <span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--amber)'}}>{inv.toLocaleString('fr')} kg</span> : <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--neon)'}}>—</span>}</td>
                         <td style={{minWidth:90}}>
                           {hMarchés.length>0
                             ? <div style={{display:'flex',flexWrap:'wrap',gap:3}}>{hMarchés.map(m=><span key={m} className="tag tag-blue" style={{fontSize:8}}>{m}</span>)}</div>
-                            : <span style={{color:'#1f4030',fontFamily:'var(--font-mono)',fontSize:9}}>—</span>}
+                            : <span style={{color:'var(--border-md)',fontFamily:'var(--font-mono)',fontSize:9}}>—</span>}
                         </td>
                         <td>
                           {avgFreinte!==null
-                            ? <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'#7aab90'}}>
+                            ? <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-2)'}}>
                                 F:{avgFreinte.toFixed(1)}% E:{(avgEcart||0).toFixed(1)}%
                               </span>
-                            : <span style={{color:'#1f4030',fontFamily:'var(--font-mono)',fontSize:9}}>—</span>}
+                            : <span style={{color:'var(--border-md)',fontFamily:'var(--font-mono)',fontSize:9}}>—</span>}
                         </td>
                         <td>
                           {hCA>0
-                            ? <span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'#9b5de5'}}>{hCA.toLocaleString('fr',{maximumFractionDigits:0})} MAD</span>
+                            ? <span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--purple)'}}>{hCA.toLocaleString('fr',{maximumFractionDigits:0})} MAD</span>
                             : hSansP>0
-                              ? <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'#f5a623'}}>⏳ {hSansP} att.</span>
-                              : <span style={{color:'#1f4030',fontFamily:'var(--font-mono)',fontSize:9}}>—</span>}
+                              ? <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--amber)'}}>⏳ {hSansP} att.</span>
+                              : <span style={{color:'var(--border-md)',fontFamily:'var(--font-mono)',fontSize:9}}>—</span>}
                         </td>
                         <td><span className="tag" style={{...st,fontSize:8}}>{statut}</span></td>
                         <td>
@@ -1027,10 +1027,10 @@ export default function RecoltesPage() {
           </div>
         ) : (
           <div className="card" style={{padding:0,overflow:'hidden'}}>
-            <div style={{padding:'10px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:12,background:'#f5a62308'}}>
-              <span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'#f5a623'}}>⚠ {sansPrix.length} DISPATCH(S) EN ATTENTE</span>
+            <div style={{padding:'10px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:12,background:'var(--amber)08'}}>
+              <span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--amber)'}}>⚠ {sansPrix.length} DISPATCH(S) EN ATTENTE</span>
               <div style={{marginLeft:'auto',display:'flex',gap:8}}>
-                <button className="btn-ghost" style={{fontSize:10,padding:'6px 12px',color:'#00ffc8',borderColor:'#00ffc840'}} onClick={openPeriode}>📅 PAR PÉRIODE</button>
+                <button className="btn-ghost" style={{fontSize:10,padding:'6px 12px',color:'var(--neon-2)',borderColor:'var(--neon-2)40'}} onClick={openPeriode}>📅 PAR PÉRIODE</button>
               </div>
             </div>
             <div style={{overflowX:'auto'}}>
@@ -1041,13 +1041,13 @@ export default function RecoltesPage() {
                 <tbody>
                   {sansPrix.map(d=>(
                     <tr key={d.id}>
-                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'#00e87a'}}>{d.lot_number}</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--neon)'}}>{d.lot_number}</span></td>
                       <td>
-                        <span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'#e8f5ee'}}>{d.markets?.name||'—'}</span>
-                        <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'#3d6b52',marginLeft:5}}>{d.markets?.currency}</span>
+                        <span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--tx-1)'}}>{d.markets?.name||'—'}</span>
+                        <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',marginLeft:5}}>{d.markets?.currency}</span>
                       </td>
-                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'#7aab90'}}>{d.harvest_date}</span></td>
-                      <td><span style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:700,color:'#f5a623'}}>{d.quantity_kg?.toLocaleString('fr')} kg</span></td>
+                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{d.harvest_date}</span></td>
+                      <td><span style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:700,color:'var(--amber)'}}>{d.quantity_kg?.toLocaleString('fr')} kg</span></td>
                       <td>
                         <div style={{display:'flex',gap:6}}>
                           <button onClick={()=>openConfirm(d)} className="btn-primary" style={{fontSize:10,padding:'5px 10px'}}>⚡ CONFIRMER</button>
@@ -1067,13 +1067,13 @@ export default function RecoltesPage() {
           {activAlertes.length>0 && (
             <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:16}}>
               {activAlertes.map(a=>(
-                <div key={a.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'#ff4d6d12',border:'1px solid #ff4d6d30',borderRadius:8}}>
+                <div key={a.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'var(--red)12',border:'1px solid var(--red)30',borderRadius:8}}>
                   <span style={{fontSize:18,flexShrink:0}}>⚠</span>
                   <div style={{flex:1}}>
-                    <div style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'#ff4d6d'}}>{a.title}</div>
-                    <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'#7aab90',marginTop:2}}>{a.message}</div>
+                    <div style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--red)'}}>{a.title}</div>
+                    <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)',marginTop:2}}>{a.message}</div>
                   </div>
-                  <button onClick={()=>resolveAlerte(a.id)} className="btn-ghost" style={{fontSize:10,padding:'5px 10px',color:'#00e87a',borderColor:'#00e87a40',flexShrink:0}}>✓ RÉSOUDRE</button>
+                  <button onClick={()=>resolveAlerte(a.id)} className="btn-ghost" style={{fontSize:10,padding:'5px 10px',color:'var(--neon)',borderColor:'color-mix(in srgb,var(--neon) 25%,transparent)',flexShrink:0}}>✓ RÉSOUDRE</button>
                 </div>
               ))}
             </div>
@@ -1081,9 +1081,9 @@ export default function RecoltesPage() {
           {alertes.filter(a=>a.is_resolved).length>0 && (
             <div style={{display:'flex',flexDirection:'column',gap:5}}>
               {alertes.filter(a=>a.is_resolved).map(a=>(
-                <div key={a.id} style={{display:'flex',alignItems:'center',gap:12,padding:'9px 16px',background:'#0a1810',border:'1px solid var(--border)',borderRadius:8,opacity:.6}}>
-                  <span style={{fontSize:12,color:'#00e87a'}}>✓</span>
-                  <div style={{flex:1}}><div style={{fontFamily:'var(--font-display)',fontSize:12,color:'#7aab90'}}>{a.title}</div><div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'#3d6b52'}}>{a.message}</div></div>
+                <div key={a.id} style={{display:'flex',alignItems:'center',gap:12,padding:'9px 16px',background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:8,opacity:.6}}>
+                  <span style={{fontSize:12,color:'var(--neon)'}}>✓</span>
+                  <div style={{flex:1}}><div style={{fontFamily:'var(--font-display)',fontSize:12,color:'var(--tx-2)'}}>{a.title}</div><div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)'}}>{a.message}</div></div>
                   <span className="tag tag-green" style={{fontSize:8}}>RÉSOLU</span>
                 </div>
               ))}
@@ -1093,7 +1093,7 @@ export default function RecoltesPage() {
             <div className="empty-state">
               <div className="empty-icon">✅</div>
               <div className="empty-title">Aucune alerte</div>
-              <button className="btn-ghost" onClick={()=>setModalAlerte(true)} style={{color:'#ff4d6d',borderColor:'#ff4d6d40',fontSize:11}}>⚠ SIGNALER UNE JOURNÉE SANS RÉCOLTE</button>
+              <button className="btn-ghost" onClick={()=>setModalAlerte(true)} style={{color:'var(--red)',borderColor:'color-mix(in srgb,var(--red) 25%,transparent)',fontSize:11}}>⚠ SIGNALER UNE JOURNÉE SANS RÉCOLTE</button>
             </div>
           )}
         </div>
