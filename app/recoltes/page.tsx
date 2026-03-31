@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 
-type Tab = 'liste' | 'sans_prix' | 'alertes'
+type Tab = 'liste' | 'sans_prix' | 'confirmes' | 'alertes'
 
 /* ── Helpers ── */
 const parseMeta = (notes: string | null) => {
@@ -80,6 +80,9 @@ export default function RecoltesPage() {
   const [periodeFin,     setPeriodeFin]     = useState('')
   const [periodeRef,     setPeriodeRef]     = useState('')
   const [periodeDate,    setPeriodeDate]    = useState('')
+  const [prixFilterDebut, setPrixFilterDebut] = useState('')
+  const [prixFilterFin, setPrixFilterFin] = useState('')
+  const [prixFilterMarche, setPrixFilterMarche] = useState('')
   // Prix par marché pour la période
   const [marchePrix,     setMarchePrix]     = useState<Record<string,string>>({})
   // Rows du tableau période : dispatchId → {freinte, ecart, qty_acceptee_manuelle, qty_acceptee_calc}
@@ -188,6 +191,15 @@ export default function RecoltesPage() {
     if (!modalDispatch) return
     const validLines = dispLines.filter(l=>l.market_id&&l.qty&&Number(l.qty)>0)
     if (validLines.length===0) return
+    const dejaDispatch = dispatches
+      .filter(d=>d.harvest_id===modalDispatch.id)
+      .reduce((s,d)=>s+(d.quantity_kg||0),0)
+    const qtyDemandee = validLines.reduce((s,l)=>s+Number(l.qty||0),0)
+    const qtyDisponible = Math.max(0, (modalDispatch.total_qty||0) - dejaDispatch)
+    if (qtyDemandee > qtyDisponible) {
+      alert(`Quantite depassee: ${qtyDemandee.toLocaleString('fr')} kg demandes pour ${qtyDisponible.toLocaleString('fr')} kg disponibles.`)
+      return
+    }
     setSaving(true)
     try {
       const cp = plantings.find(p=>p.id===modalDispatch.campaign_planting_id)
@@ -314,11 +326,17 @@ export default function RecoltesPage() {
   // Marchés distincts dans la période
   const marchesInPeriode = useMemo(() => {
     const seen = new Set<string>()
-    const result: any[] = []
-    ;(dispatchesPeriode||[]).forEach((d:any) => {
-      if (!seen.has(d.market_id)) { seen.add(d.market_id); result.push(d.markets) }
+    const result: Array<{ id: string; name: string; currency: string }> = []
+    ;(dispatchesPeriode || []).forEach((d: any) => {
+      if (!d.market_id || seen.has(d.market_id)) return
+      seen.add(d.market_id)
+      result.push({
+        id: d.market_id,
+        name: d.markets?.name || '—',
+        currency: d.markets?.currency || 'MAD',
+      })
     })
-    return result.filter(Boolean)
+    return result
   }, [dispatchesPeriode])
 
   // Init periodeRows quand les dispatches changent
@@ -448,6 +466,104 @@ export default function RecoltesPage() {
   const totalCA      = useMemo(() => avecPrix.reduce((s,d) => s+getCA(d), 0), [avecPrix])
   const totalKg      = useMemo(() => harvests.reduce((s,h) => s+(h.total_qty||0), 0), [harvests])
   const activAlertes = useMemo(() => alertes.filter(a=>!a.is_resolved), [alertes])
+  const analyseEcarts = useMemo(() => {
+    const base = {
+      avgFreinte: 0,
+      avgEcart: 0,
+      totalBrut: 0,
+      totalAccepte: 0,
+      totalPerte: 0,
+      tauxPerte: 0,
+      byMarket: [] as Array<{
+        marketId: string
+        nom: string
+        currency: string
+        dispatches: number
+        qtyBrute: number
+        qtyAcceptee: number
+        perteKg: number
+        avgFreinte: number
+        avgEcart: number
+      }>,
+    }
+
+    if (avecPrix.length === 0) return base
+
+    let sumFreinte = 0
+    let sumEcart = 0
+    let count = 0
+    let totalBrut = 0
+    let totalAccepte = 0
+    const byMarket = new Map<string, {
+      marketId: string
+      nom: string
+      currency: string
+      dispatches: number
+      qtyBrute: number
+      qtyAcceptee: number
+      perteKg: number
+      sumFreinte: number
+      sumEcart: number
+    }>()
+
+    for (const d of avecPrix) {
+      const meta = parseMeta(d.notes)
+      const freinte = Number(meta.freinte_pct || 0)
+      const ecart = Number(meta.ecart_pct || 0)
+      const qtyBrute = Number(meta.qty_brute ?? d.quantity_kg ?? 0)
+      const qtyAcceptee = Number(meta.qty_acceptee ?? getQtyA(d) ?? 0)
+      const perteKg = Math.max(0, qtyBrute - qtyAcceptee)
+      const marketId = d.market_id || 'unknown'
+
+      sumFreinte += freinte
+      sumEcart += ecart
+      count += 1
+      totalBrut += qtyBrute
+      totalAccepte += qtyAcceptee
+
+      const current = byMarket.get(marketId) ?? {
+        marketId,
+        nom: d.markets?.name || '—',
+        currency: d.markets?.currency || 'MAD',
+        dispatches: 0,
+        qtyBrute: 0,
+        qtyAcceptee: 0,
+        perteKg: 0,
+        sumFreinte: 0,
+        sumEcart: 0,
+      }
+
+      current.dispatches += 1
+      current.qtyBrute += qtyBrute
+      current.qtyAcceptee += qtyAcceptee
+      current.perteKg += perteKg
+      current.sumFreinte += freinte
+      current.sumEcart += ecart
+      byMarket.set(marketId, current)
+    }
+
+    return {
+      avgFreinte: count ? sumFreinte / count : 0,
+      avgEcart: count ? sumEcart / count : 0,
+      totalBrut,
+      totalAccepte,
+      totalPerte: Math.max(0, totalBrut - totalAccepte),
+      tauxPerte: totalBrut ? ((totalBrut - totalAccepte) / totalBrut) * 100 : 0,
+      byMarket: Array.from(byMarket.values())
+        .map(item => ({
+          marketId: item.marketId,
+          nom: item.nom,
+          currency: item.currency,
+          dispatches: item.dispatches,
+          qtyBrute: item.qtyBrute,
+          qtyAcceptee: item.qtyAcceptee,
+          perteKg: item.perteKg,
+          avgFreinte: item.dispatches ? item.sumFreinte / item.dispatches : 0,
+          avgEcart: item.dispatches ? item.sumEcart / item.dispatches : 0,
+        }))
+        .sort((a, b) => b.perteKg - a.perteKg),
+    }
+  }, [avecPrix])
 
   const caParMarche = useMemo(() => {
     const res: Record<string,{nom:string;qtyEnv:number;qtyAcc:number;ca:number;currency:string;sansPrix:number}> = {}
@@ -461,6 +577,73 @@ export default function RecoltesPage() {
     }
     return res
   }, [dispatches])
+
+  const synthesePrix = useMemo(() => {
+    const normalizeDate = (value: any) => typeof value === 'string' && value.length >= 10 ? value.slice(0, 10) : ''
+    const filtered = avecPrix.filter((d:any) => {
+      const meta = parseMeta(d.notes)
+      const refDate =
+        normalizeDate(meta.receipt_date) ||
+        normalizeDate(meta.periode_fin) ||
+        normalizeDate(meta.periode_debut) ||
+        normalizeDate(d.harvest_date)
+      if (prixFilterDebut && (!refDate || refDate < prixFilterDebut)) return false
+      if (prixFilterFin && (!refDate || refDate > prixFilterFin)) return false
+      if (prixFilterMarche && d.market_id !== prixFilterMarche) return false
+      return true
+    })
+
+    const byPeriod = new Map<string, {
+      label: string
+      dispatches: number
+      qtyAcceptee: number
+      totalCA: number
+      weightedPriceAmount: number
+    }>()
+
+    for (const d of filtered) {
+      const meta = parseMeta(d.notes)
+      const periodStart = normalizeDate(meta.periode_debut)
+      const periodEnd = normalizeDate(meta.periode_fin)
+      const label = periodStart && periodEnd
+        ? `${periodStart} -> ${periodEnd}`
+        : normalizeDate(meta.receipt_date) || normalizeDate(d.harvest_date) || 'Sans periode'
+      const qtyAcceptee = getQtyA(d)
+      const totalCA = getCA(d)
+      const price = Number(meta.price_per_kg || 0)
+      const current = byPeriod.get(label) ?? {
+        label,
+        dispatches: 0,
+        qtyAcceptee: 0,
+        totalCA: 0,
+        weightedPriceAmount: 0,
+      }
+
+      current.dispatches += 1
+      current.qtyAcceptee += qtyAcceptee
+      current.totalCA += totalCA
+      current.weightedPriceAmount += qtyAcceptee * price
+      byPeriod.set(label, current)
+    }
+
+    const periods = Array.from(byPeriod.values())
+      .map(item => ({
+        ...item,
+        avgPrice: item.qtyAcceptee ? item.weightedPriceAmount / item.qtyAcceptee : 0,
+      }))
+      .sort((a, b) => b.label.localeCompare(a.label))
+
+    const totalQty = filtered.reduce((sum, d:any) => sum + getQtyA(d), 0)
+    const totalCAFiltered = filtered.reduce((sum, d:any) => sum + getCA(d), 0)
+
+    return {
+      items: filtered,
+      periods,
+      totalQty,
+      totalCA: totalCAFiltered,
+      avgPrice: totalQty ? totalCAFiltered / totalQty : 0,
+    }
+  }, [avecPrix, prixFilterDebut, prixFilterFin, prixFilterMarche])
 
   const invendus = (h:any) => {
     const disp = dispatches.filter(d=>d.harvest_id===h.id).reduce((s,d)=>s+(d.quantity_kg||0),0)
@@ -959,6 +1142,63 @@ export default function RecoltesPage() {
         </div>
       )}
 
+      {avecPrix.length > 0 && (
+        <div style={{display:'grid',gridTemplateColumns:'1.05fr 1.35fr',gap:12,marginBottom:16}}>
+          <div className="card">
+            <div className="section-label">ANALYSE FREINTES & ECARTS</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:10}}>
+              {[
+                { l:'Freinte moyenne', v:`${analyseEcarts.avgFreinte.toFixed(1)}%`, c:'var(--amber)' },
+                { l:'Ecart moyen', v:`${analyseEcarts.avgEcart.toFixed(1)}%`, c:'var(--blue)' },
+                { l:'Perte estimee', v:`${analyseEcarts.totalPerte.toLocaleString('fr',{maximumFractionDigits:1})} kg`, c:'var(--red)' },
+                { l:'Taux de perte', v:`${analyseEcarts.tauxPerte.toFixed(1)}%`, c:'var(--purple)' },
+              ].map((item)=>(
+                <div key={item.l} style={{padding:'12px 14px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg-card2)'}}>
+                  <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,marginBottom:4}}>{item.l}</div>
+                  <div style={{fontFamily:'var(--font-display)',fontSize:18,fontWeight:700,color:item.c}}>{item.v}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{marginTop:12,padding:'10px 12px',borderRadius:8,background:'var(--bg-card)',border:'1px solid var(--border)',fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>
+              Brut confirme : <strong style={{color:'var(--amber)'}}>{analyseEcarts.totalBrut.toLocaleString('fr',{maximumFractionDigits:1})} kg</strong>
+              {' · '}
+              Accepte : <strong style={{color:'var(--neon)'}}>{analyseEcarts.totalAccepte.toLocaleString('fr',{maximumFractionDigits:1})} kg</strong>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="section-label">DETAIL PAR MARCHE</div>
+            {analyseEcarts.byMarket.length === 0 ? (
+              <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)'}}>Aucune confirmation analysee.</div>
+            ) : (
+              <div style={{overflowX:'auto'}}>
+                <table className="tbl">
+                  <thead>
+                    <tr>
+                      {['Marche','Dispatches','Freinte moy.','Ecart moy.','Perte kg','Accepte'].map(h => <th key={h}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analyseEcarts.byMarket.map((m) => (
+                      <tr key={m.marketId}>
+                        <td>
+                          <span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--tx-1)'}}>{m.nom}</span>
+                        </td>
+                        <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{m.dispatches}</span></td>
+                        <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--amber)'}}>{m.avgFreinte.toFixed(1)}%</span></td>
+                        <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--blue)'}}>{m.avgEcart.toFixed(1)}%</span></td>
+                        <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--red)'}}>{m.perteKg.toLocaleString('fr',{maximumFractionDigits:1})} kg</span></td>
+                        <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--neon)'}}>{m.qtyAcceptee.toLocaleString('fr',{maximumFractionDigits:1})} kg</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ══ TABS ══ */}
       <div style={{display:'flex',gap:4,marginBottom:14,alignItems:'center',flexWrap:'wrap'}}>
         {([['liste','RÉCOLTES',harvests.length],['sans_prix','SANS PRIX',sansPrix.length],['confirmes','CONFIRMÉS',avecPrix.length],['alertes','ALERTES',activAlertes.length]] as any[]).map(([t,l,c])=>(
@@ -1092,6 +1332,103 @@ export default function RecoltesPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )
+
+      ) : tab==='confirmes' ? (
+        avecPrix.length===0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">OK</div>
+            <div className="empty-title">Aucun dispatch confirme</div>
+            <div className="empty-sub">Les dispatches confirmes avec prix apparaitront ici.</div>
+          </div>
+        ) : (
+          <div style={{display:'grid',gap:12}}>
+            <div className="card">
+              <div className="section-label">SYNTHESE PRIX PAR PERIODE</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:12}}>
+                <FormGroup label="Debut">
+                  <Input type="date" value={prixFilterDebut} onChange={e=>setPrixFilterDebut(e.target.value)} />
+                </FormGroup>
+                <FormGroup label="Fin">
+                  <Input type="date" value={prixFilterFin} onChange={e=>setPrixFilterFin(e.target.value)} />
+                </FormGroup>
+                <FormGroup label="Marche">
+                  <Select value={prixFilterMarche} onChange={e=>setPrixFilterMarche(e.target.value)}>
+                    <option value="">-- Tous les marches --</option>
+                    {markets.map((m:any)=><option key={m.id} value={m.id}>{m.name}</option>)}
+                  </Select>
+                </FormGroup>
+              </div>
+
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:10,marginBottom:12}}>
+                {[
+                  { l:'Dispatches filtres', v:String(synthesePrix.items.length), c:'var(--blue)' },
+                  { l:'Prix moyen pondere', v:synthesePrix.avgPrice ? `${synthesePrix.avgPrice.toLocaleString('fr',{maximumFractionDigits:3})} MAD/kg` : '—', c:'var(--amber)' },
+                  { l:'CA filtre', v:synthesePrix.totalCA ? `${synthesePrix.totalCA.toLocaleString('fr',{maximumFractionDigits:0})} MAD` : '—', c:'var(--purple)' },
+                ].map((item)=>(
+                  <div key={item.l} style={{padding:'12px 14px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg-card2)'}}>
+                    <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,marginBottom:4}}>{item.l}</div>
+                    <div style={{fontFamily:'var(--font-display)',fontSize:18,fontWeight:700,color:item.c}}>{item.v}</div>
+                  </div>
+                ))}
+              </div>
+
+              {synthesePrix.periods.length===0 ? (
+                <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)'}}>Aucune confirmation ne correspond aux filtres.</div>
+              ) : (
+                <div style={{overflowX:'auto'}}>
+                  <table className="tbl">
+                    <thead><tr>
+                      {['Periode','Dispatches','Qté acceptee','Prix moyen','CA'].map(h=><th key={h}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>
+                      {synthesePrix.periods.map(p=>(
+                        <tr key={p.label}>
+                          <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{p.label}</span></td>
+                          <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{p.dispatches}</span></td>
+                          <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--neon)'}}>{p.qtyAcceptee.toLocaleString('fr',{maximumFractionDigits:1})} kg</span></td>
+                          <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--amber)'}}>{p.avgPrice ? `${p.avgPrice.toLocaleString('fr',{maximumFractionDigits:3})} MAD/kg` : '—'}</span></td>
+                          <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--purple)'}}>{p.totalCA.toLocaleString('fr',{maximumFractionDigits:2})} MAD</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="card" style={{padding:0,overflow:'hidden'}}>
+              <div style={{overflowX:'auto'}}>
+                <table className="tbl">
+                  <thead><tr>
+                    {['Dispatch','Marche','Date recolte','Qté envoyee','Qté acceptee','Prix/kg','CA confirme'].map(h=><th key={h}>{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    {synthesePrix.items.map(d=>{
+                      const meta = parseMeta(d.notes)
+                      const prix = Number(meta.price_per_kg || 0)
+                      const qtyA = getQtyA(d)
+                      const ca = getCA(d)
+                      return (
+                        <tr key={d.id}>
+                          <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--neon)'}}>{d.lot_number}</span></td>
+                          <td>
+                            <span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--tx-1)'}}>{d.markets?.name||'—'}</span>
+                            <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',marginLeft:5}}>{d.markets?.currency}</span>
+                          </td>
+                          <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{d.harvest_date}</span></td>
+                          <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--amber)'}}>{d.quantity_kg?.toLocaleString('fr')} kg</span></td>
+                          <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--neon)'}}>{qtyA.toLocaleString('fr',{maximumFractionDigits:2})} kg</span></td>
+                          <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{prix ? `${prix.toLocaleString('fr',{maximumFractionDigits:3})} ${d.markets?.currency||'MAD'}` : '—'}</span></td>
+                          <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--purple)'}}>{ca.toLocaleString('fr',{maximumFractionDigits:2})} {d.markets?.currency||'MAD'}</span></td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )

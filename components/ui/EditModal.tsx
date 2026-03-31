@@ -1,5 +1,5 @@
 'use client'
-import { Modal, ModalFooter } from './Modal'
+import { Input, Modal, ModalFooter } from './Modal'
 
 interface Field {
   key: string
@@ -47,7 +47,7 @@ export function EditModal({ title, fields, values, onChange, onSave, onCancel, l
           ) : f.type === 'textarea' ? (
             <textarea className="form-input" rows={3} value={values[f.key] ?? ''} onChange={e => onChange(f.key, e.target.value)} placeholder={f.placeholder} style={{ resize: 'vertical' }} />
           ) : (
-            <input className="form-input" type={f.type || 'text'} value={values[f.key] ?? ''} onChange={e => onChange(f.key, e.target.value)} placeholder={f.placeholder} />
+            <Input type={f.type || 'text'} value={values[f.key] ?? ''} onChange={e => onChange(f.key, e.target.value)} placeholder={f.placeholder} />
           )}
         </div>
       ))}

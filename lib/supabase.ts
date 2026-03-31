@@ -119,14 +119,105 @@ export const createFacture = async (p: { client_id:string; invoice_date:string; 
   if (error) throw error; return data
 }
 export const payerFacture = async (p: { invoice_id:string; amount:number; payment_method:string; reference?:string }) => {
-  const { error: e1 } = await supabase.from('payments_received').insert({ invoice_id: p.invoice_id, payment_date: new Date().toISOString().slice(0,10), amount: p.amount, payment_method: p.payment_method, reference: p.reference })
-  if (e1) throw e1
   const inv = await supabase.from('invoices').select('paid_amount, total_amount').eq('id', p.invoice_id).single()
-  if (inv.data) {
-    const newPaid = (inv.data.paid_amount || 0) + p.amount
-    const status = newPaid >= inv.data.total_amount ? 'paye' : 'partiellement_paye'
-    await supabase.from('invoices').update({ paid_amount: newPaid, status }).eq('id', p.invoice_id)
+  if (inv.error) throw inv.error
+  if (!inv.data) throw new Error('Facture introuvable')
+
+  const amount = Number(p.amount)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error('Le montant du paiement doit etre superieur a zero')
   }
+
+  const currentPaid = Number(inv.data.paid_amount || 0)
+  const totalAmount = Number(inv.data.total_amount || 0)
+  const remaining = totalAmount - currentPaid
+
+  if (remaining <= 0) {
+    throw new Error('Cette facture est deja soldee')
+  }
+  if (amount > remaining) {
+    throw new Error(`Le paiement depasse le reste a encaisser (${remaining.toFixed(2)} MAD)`)
+  }
+
+  const { error: e1 } = await supabase.from('payments_received').insert({
+    invoice_id: p.invoice_id,
+    payment_date: new Date().toISOString().slice(0,10),
+    amount,
+    payment_method: p.payment_method,
+    reference: p.reference,
+  })
+  if (e1) throw e1
+
+  const newPaid = currentPaid + amount
+  const status = newPaid >= totalAmount ? 'paye' : 'partiellement_paye'
+  const { error: e2 } = await supabase.from('invoices').update({ paid_amount: newPaid, status }).eq('id', p.invoice_id)
+  if (e2) throw e2
+}
+
+export const getFacturesFournisseurs = async () => {
+  const { data, error } = await supabase
+    .from('supplier_invoices')
+    .select('*, suppliers(name,category), campaigns(name), greenhouses(code,name)')
+    .order('invoice_date', { ascending: false })
+    .limit(100)
+  if (error) throw error; return data ?? []
+}
+export const createFactureFournisseur = async (p: {
+  supplier_id:string
+  invoice_date:string
+  due_date:string
+  subtotal:number
+  total_amount:number
+  campaign_id?:string
+  greenhouse_id?:string
+  cost_category?:string
+  notes?:string
+}) => {
+  const num = `FF-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`
+  const { data, error } = await supabase.from('supplier_invoices').insert({
+    ...p,
+    invoice_number: num,
+    tax_amount: 0,
+    paid_amount: 0,
+    status: 'en_attente',
+    currency: 'MAD',
+  }).select('*, suppliers(name,category), campaigns(name), greenhouses(code,name)').single()
+  if (error) throw error; return data
+}
+export const payerFactureFournisseur = async (p: { supplier_invoice_id:string; amount:number; payment_method:string; reference?:string }) => {
+  const inv = await supabase.from('supplier_invoices').select('paid_amount, total_amount').eq('id', p.supplier_invoice_id).single()
+  if (inv.error) throw inv.error
+  if (!inv.data) throw new Error('Facture fournisseur introuvable')
+
+  const amount = Number(p.amount)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error('Le montant du paiement doit etre superieur a zero')
+  }
+
+  const currentPaid = Number(inv.data.paid_amount || 0)
+  const totalAmount = Number(inv.data.total_amount || 0)
+  const remaining = totalAmount - currentPaid
+
+  if (remaining <= 0) {
+    throw new Error('Cette facture fournisseur est deja soldee')
+  }
+  if (amount > remaining) {
+    throw new Error(`Le paiement depasse le reste a regler (${remaining.toFixed(2)} MAD)`)
+  }
+
+  const { error: e1 } = await supabase.from('payments_made').insert({
+    supplier_invoice_id: p.supplier_invoice_id,
+    payment_date: new Date().toISOString().slice(0,10),
+    amount,
+    payment_method: p.payment_method,
+    reference: p.reference,
+  })
+  if (e1) throw e1
+
+  const newPaid = currentPaid + amount
+  const status = newPaid >= totalAmount ? 'paye' : 'partiellement_paye'
+  const { error: e2 } = await supabase.from('supplier_invoices').update({ paid_amount: newPaid, status }).eq('id', p.supplier_invoice_id)
+  if (e2) throw e2
 }
 
 /* ── COUTS ── */
