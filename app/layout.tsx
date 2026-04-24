@@ -8,23 +8,11 @@ export const metadata: Metadata = {
   description: 'Pilotage de production agricole — Domaine BENHALIMA',
 }
 
-// Script exécuté avant l'hydratation React : lit le thème stocké et l'applique immédiatement.
-// Évite le "flash" de thème (FOUC) au chargement.
-const themeInitScript = `
-(function(){
-  try {
-    var t = localStorage.getItem('tp_theme') || 'light';
-    if (t === 'light') document.documentElement.setAttribute('data-theme','light');
-  } catch(e) {}
-})();
-`
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Le thème clair est l'état par défaut (CSS :root = light).
+  // AppShell appliquera le thème stocké via applyTheme(getTheme()) en useEffect.
   return (
-    <html lang="fr">
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-      </head>
+    <html lang="fr" data-theme="light" suppressHydrationWarning>
       <body>
         <AuthProvider>
           <AppShell>{children}</AppShell>

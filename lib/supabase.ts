@@ -10,7 +10,14 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   )
 }
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+// Désactive le navigatorLock de Supabase (source de NavigatorLockAcquireTimeoutError
+// quand plusieurs onglets/recharges HMR partagent la session). Lock noop = on
+// laisse chaque appel auth s'exécuter directement.
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    lock: async (_name, _timeout, fn) => await fn(),
+  },
+})
 
 /* ── FERMES ── */
 export const getFarms = async () => {

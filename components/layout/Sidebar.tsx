@@ -54,7 +54,8 @@ const NAV = [
     items: [
       { href:'/admin/account-categories',  moduleCode:'plan_comptable',      label:'Plan comptable',        icon:'📒', color:'#0ea5e9', bg:'rgba(14,165,233,.15)' },
       { href:'/admin/budgets',             moduleCode:'budgets',             label:'Budgets',               icon:'💼', color:'#8b5cf6', bg:'rgba(139,92,246,.15)' },
-      { href:'/admin/imports',             moduleCode:'imports',             label:'Imports',               icon:'📥', color:'#06b6d4', bg:'rgba(6,182,212,.15)'  },
+      // Imports masqué pour la présentation — à réactiver après finalisation
+      // { href:'/admin/imports',             moduleCode:'imports',             label:'Imports',               icon:'📥', color:'#06b6d4', bg:'rgba(6,182,212,.15)'  },
       { href:'/admin/compte-exploitation', moduleCode:'compte_exploitation', label:'Compte d\'exploitation', icon:'📈', color:'#10b981', bg:'rgba(16,185,129,.15)' },
       { href:'/admin/workflows',           moduleCode:'workflows',           label:'Workflows',             icon:'🔀', color:'#64748b', bg:'rgba(100,116,139,.15)' },
     ],
