@@ -32,3 +32,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude Code session cache
+.claude/
+
+# Excel lock files (fichiers temporaires d'Excel ouverts)
+~$*.xlsx
+~$*.xls

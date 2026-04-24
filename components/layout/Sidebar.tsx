@@ -1,67 +1,112 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useAuth } from '@/lib/auth'
 
-/* ── Config navigation avec icônes colorées ── */
+/* ── Config navigation avec icônes colorées + code module (pour permissions) ── */
 const NAV = [
   {
     section: 'PILOTAGE',
     items: [
-      { href:'/',            label:'Dashboard',    icon:'📊', color:'#6366f1', bg:'rgba(99,102,241,.15)' },
-      { href:'/recoltes',   label:'Récoltes',     icon:'🌿', color:'#10b981', bg:'rgba(16,185,129,.15)' },
-      { href:'/production', label:'Production',   icon:'⚙️', color:'#f59e0b', bg:'rgba(245,158,11,.15)' },
-      { href:'/agronomie',  label:'Agronomie',    icon:'🔬', color:'#06b6d4', bg:'rgba(6,182,212,.15)'  },
+      { href:'/',            moduleCode:'dashboard',  label:'Dashboard',    icon:'📊', color:'#6366f1', bg:'rgba(99,102,241,.15)' },
+      { href:'/recoltes',   moduleCode:'recoltes',   label:'Récoltes',     icon:'🌿', color:'#10b981', bg:'rgba(16,185,129,.15)' },
+      { href:'/production', moduleCode:'production', label:'Production',   icon:'⚙️', color:'#f59e0b', bg:'rgba(245,158,11,.15)' },
+      { href:'/agronomie',  moduleCode:'agronomie',  label:'Agronomie',    icon:'🔬', color:'#06b6d4', bg:'rgba(6,182,212,.15)'  },
     ],
   },
   {
     section: 'COMMERCE',
     items: [
-      { href:'/marches',    label:'Marchés',      icon:'🌍', color:'#3b82f6', bg:'rgba(59,130,246,.15)' },
-      { href:'/clients',    label:'Clients',      icon:'🤝', color:'#8b5cf6', bg:'rgba(139,92,246,.15)' },
-      { href:'/commandes',  label:'Commandes',    icon:'📋', color:'#ec4899', bg:'rgba(236,72,153,.15)' },
-      { href:'/factures',   label:'Factures',     icon:'🧾', color:'#f43f5e', bg:'rgba(244,63,94,.15)'  },
+      { href:'/marches',    moduleCode:'marches',   label:'Marchés',      icon:'🌍', color:'#3b82f6', bg:'rgba(59,130,246,.15)' },
+      { href:'/clients',    moduleCode:'clients',   label:'Clients',      icon:'🤝', color:'#8b5cf6', bg:'rgba(139,92,246,.15)' },
+      { href:'/commandes',  moduleCode:'commandes', label:'Commandes',    icon:'📋', color:'#ec4899', bg:'rgba(236,72,153,.15)' },
+      { href:'/factures',   moduleCode:'factures',  label:'Factures',     icon:'🧾', color:'#f43f5e', bg:'rgba(244,63,94,.15)'  },
     ],
   },
   {
     section: 'EXPLOITATION',
     items: [
-      { href:'/fermes',      label:'Fermes',      icon:'🏭', color:'#64748b', bg:'rgba(100,116,139,.15)'},
-      { href:'/serres',      label:'Serres',      icon:'🏗️', color:'#0ea5e9', bg:'rgba(14,165,233,.15)' },
-      { href:'/varietes',    label:'Variétés',    icon:'🧬', color:'#a855f7', bg:'rgba(168,85,247,.15)' },
-      { href:'/campagnes',   label:'Campagnes',   icon:'📅', color:'#22c55e', bg:'rgba(34,197,94,.15)'  },
+      { href:'/fermes',      moduleCode:'fermes',    label:'Fermes',      icon:'🏭', color:'#64748b', bg:'rgba(100,116,139,.15)'},
+      { href:'/serres',      moduleCode:'serres',    label:'Serres',      icon:'🏗️', color:'#0ea5e9', bg:'rgba(14,165,233,.15)' },
+      { href:'/varietes',    moduleCode:'varietes',  label:'Variétés',    icon:'🧬', color:'#a855f7', bg:'rgba(168,85,247,.15)' },
+      { href:'/campagnes',   moduleCode:'campagnes', label:'Campagnes',   icon:'📅', color:'#22c55e', bg:'rgba(34,197,94,.15)'  },
     ],
   },
   {
     section: 'RESSOURCES',
     items: [
-      { href:'/fournisseurs',label:'Fournisseurs',icon:'🏢', color:'#f97316', bg:'rgba(249,115,22,.15)' },
-      { href:'/achats',      label:'Achats',      icon:'🛒', color:'#eab308', bg:'rgba(234,179,8,.15)'  },
-      { href:'/stocks',      label:'Stocks',      icon:'📦', color:'#14b8a6', bg:'rgba(20,184,166,.15)' },
+      { href:'/fournisseurs', moduleCode:'fournisseurs', label:'Fournisseurs',icon:'🏢', color:'#f97316', bg:'rgba(249,115,22,.15)' },
+      { href:'/achats',       moduleCode:'achats',       label:'Achats',      icon:'🛒', color:'#eab308', bg:'rgba(234,179,8,.15)'  },
+      { href:'/stocks',       moduleCode:'stocks',       label:'Stocks',      icon:'📦', color:'#14b8a6', bg:'rgba(20,184,166,.15)' },
     ],
   },
   {
     section: 'FINANCES',
     items: [
-      { href:'/couts',      label:'Coûts',        icon:'💰', color:'#f59e0b', bg:'rgba(245,158,11,.15)' },
-      { href:'/marges',     label:'Marges',       icon:'📈', color:'#10b981', bg:'rgba(16,185,129,.15)' },
-      { href:'/analytique', label:'IA & Prévisions',icon:'🤖',color:'#6366f1',bg:'rgba(99,102,241,.15)'},
+      { href:'/couts',      moduleCode:'couts',      label:'Coûts',        icon:'💰', color:'#f59e0b', bg:'rgba(245,158,11,.15)' },
+      { href:'/marges',     moduleCode:'marges',     label:'Marges',       icon:'📈', color:'#10b981', bg:'rgba(16,185,129,.15)' },
+      { href:'/analytique', moduleCode:'analytique', label:'IA & Prévisions',icon:'🤖',color:'#6366f1',bg:'rgba(99,102,241,.15)'},
+    ],
+  },
+  {
+    section: 'PARAMÉTRAGE',
+    items: [
+      { href:'/admin/account-categories',  moduleCode:'plan_comptable',      label:'Plan comptable',        icon:'📒', color:'#0ea5e9', bg:'rgba(14,165,233,.15)' },
+      { href:'/admin/budgets',             moduleCode:'budgets',             label:'Budgets',               icon:'💼', color:'#8b5cf6', bg:'rgba(139,92,246,.15)' },
+      { href:'/admin/imports',             moduleCode:'imports',             label:'Imports',               icon:'📥', color:'#06b6d4', bg:'rgba(6,182,212,.15)'  },
+      { href:'/admin/compte-exploitation', moduleCode:'compte_exploitation', label:'Compte d\'exploitation', icon:'📈', color:'#10b981', bg:'rgba(16,185,129,.15)' },
+      { href:'/admin/workflows',           moduleCode:'workflows',           label:'Workflows',             icon:'🔀', color:'#64748b', bg:'rgba(100,116,139,.15)' },
+    ],
+  },
+  {
+    section: 'ADMINISTRATION',
+    items: [
+      { href:'/admin/users', moduleCode:'users', label:'Utilisateurs',        icon:'👥', color:'#ef4444', bg:'rgba(239,68,68,.15)' },
+      { href:'/admin/roles', moduleCode:'roles', label:'Rôles & Permissions', icon:'🔐', color:'#ef4444', bg:'rgba(239,68,68,.15)' },
     ],
   },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
+  const { canAccessModule, loading: authLoading } = useAuth()
   const [collapsed, setCollapsed] = useState(false)
   const [pinned,    setPinned]    = useState(true)
-  const [isDark,    setIsDark]    = useState(true)
+  const [isDark,    setIsDark]    = useState(false)
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
+  const [sectionsInitialized, setSectionsInitialized] = useState(false)
+
+  // Filtre les items selon les permissions (tant que l'auth charge, on affiche vide)
+  const filteredNav = useMemo(() => {
+    if (authLoading) return []
+    return NAV
+      .map(group => ({
+        ...group,
+        items: group.items.filter(item => canAccessModule(item.moduleCode)),
+      }))
+      .filter(group => group.items.length > 0)
+  }, [authLoading, canAccessModule])
+
+  // Section courante (celle qui contient l'item actif)
+  const activeSection = useMemo(() => {
+    return filteredNav.find(g => g.items.some(i => i.href === pathname))?.section
+  }, [filteredNav, pathname])
 
   useEffect(() => {
-    // Charger préférences
+    // Charger préférences au mount uniquement (pas de boucle possible)
     const savedCollapsed = localStorage.getItem('tp_sidebar_collapsed') === 'true'
     const savedPinned    = localStorage.getItem('tp_sidebar_pinned') !== 'false'
     setCollapsed(savedCollapsed)
     setPinned(savedPinned)
+
+    const savedSections = localStorage.getItem('tp_sidebar_sections')
+    const initial = new Set<string>()
+    if (savedSections) {
+      try { JSON.parse(savedSections).forEach((s: string) => initial.add(s)) } catch {}
+    }
+    setExpandedSections(initial)
+    setSectionsInitialized(true)
 
     const check = () => setIsDark(document.documentElement.getAttribute('data-theme') !== 'light')
     check()
@@ -69,6 +114,38 @@ export function Sidebar() {
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
     return () => obs.disconnect()
   }, [])
+
+  // Auto-déplie la section active quand on navigue
+  useEffect(() => {
+    if (!sectionsInitialized || !activeSection) return
+    setExpandedSections(prev => {
+      if (prev.has(activeSection)) return prev
+      const next = new Set(prev)
+      next.add(activeSection)
+      return next
+    })
+  }, [activeSection, sectionsInitialized])
+
+  const persistSections = (next: Set<string>) => {
+    try { localStorage.setItem('tp_sidebar_sections', JSON.stringify(Array.from(next))) } catch {}
+  }
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev)
+      if (next.has(section)) next.delete(section); else next.add(section)
+      persistSections(next)
+      return next
+    })
+  }
+  const expandAllSections = () => {
+    const next = new Set(filteredNav.map(g => g.section))
+    setExpandedSections(next); persistSections(next)
+  }
+  const collapseAllSections = () => {
+    const next = activeSection ? new Set([activeSection]) : new Set<string>()
+    setExpandedSections(next); persistSections(next)
+  }
 
   const toggleCollapse = () => {
     const next = !collapsed
@@ -144,18 +221,55 @@ export function Sidebar() {
 
         {/* ── Navigation ── */}
         <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingTop: 6, position: 'relative', zIndex: 1 }}>
-          {NAV.map((group, gi) => (
+          {/* Boutons rapides en mode étendu */}
+          {!collapsed && filteredNav.length > 0 && (
+            <div style={{ display: 'flex', gap: 4, padding: '6px 10px 10px' }}>
+              <button onClick={expandAllSections}
+                style={{ flex: 1, padding: '4px 6px', border: `1px solid ${pinBorder}`, background: 'transparent', color: pinColor, borderRadius: 5, fontSize: 9, fontFamily: 'var(--font-mono)', letterSpacing: .5, cursor: 'pointer' }}>
+                ⇓ Tout
+              </button>
+              <button onClick={collapseAllSections}
+                style={{ flex: 1, padding: '4px 6px', border: `1px solid ${pinBorder}`, background: 'transparent', color: pinColor, borderRadius: 5, fontSize: 9, fontFamily: 'var(--font-mono)', letterSpacing: .5, cursor: 'pointer' }}>
+                ⇑ Replier
+              </button>
+            </div>
+          )}
+
+          {filteredNav.map((group, gi) => {
+            const isExpanded = collapsed ? true : expandedSections.has(group.section)
+            const hasActiveItem = group.items.some(i => i.href === pathname)
+            return (
             <div key={gi} style={{ marginBottom: 2 }}>
               {/* Section header */}
               {!collapsed && (
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, fontWeight: 600, color: sectionColor, textTransform: 'uppercase', letterSpacing: '1.8px', padding: '8px 14px 3px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span>{group.section}</span>
-                  <span style={{ flex: 1, height: 1, background: dividerColor }} />
-                </div>
+                <button
+                  onClick={() => toggleSection(group.section)}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '9px 14px 7px', marginTop: gi > 0 ? 4 : 0,
+                    background: hasActiveItem && !isExpanded ? (isDark ? 'rgba(0,232,122,.04)' : 'rgba(255,255,255,.06)') : 'transparent',
+                    border: 'none', cursor: 'pointer',
+                    fontFamily: 'var(--font-mono)', fontSize: 8.5, fontWeight: 600,
+                    color: hasActiveItem ? (isDark ? 'var(--neon)' : '#fff') : sectionColor,
+                    textTransform: 'uppercase', letterSpacing: '1.8px',
+                    transition: 'background .12s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = isDark ? 'rgba(255,255,255,.03)' : 'rgba(255,255,255,.08)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = hasActiveItem && !isExpanded ? (isDark ? 'rgba(0,232,122,.04)' : 'rgba(255,255,255,.06)') : 'transparent')}
+                >
+                  <span style={{ fontSize: 9, opacity: .7, transition: 'transform .15s', display: 'inline-block', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▸</span>
+                  <span style={{ flex: 1, textAlign: 'left' }}>{group.section}</span>
+                  <span style={{ fontSize: 8, opacity: .5, fontFamily: 'var(--font-mono)', letterSpacing: 0 }}>
+                    {group.items.length}
+                  </span>
+                  {hasActiveItem && !isExpanded && (
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: isDark ? '#00e87a' : '#fff' }} />
+                  )}
+                </button>
               )}
               {collapsed && gi > 0 && <div style={{ height: 1, background: dividerColor, margin: '4px 10px' }} />}
 
-              {group.items.map(item => {
+              {isExpanded && group.items.map(item => {
                 const active = pathname === item.href
                 return collapsed ? (
                   /* Mode rétracté — icône seule avec tooltip */
@@ -191,7 +305,7 @@ export function Sidebar() {
                 )
               })}
             </div>
-          ))}
+          )})}
         </div>
 
         {/* ── Boutons Fixe / Réduire ── */}

@@ -1,8 +1,8 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
 import { getTheme, setTheme } from '@/lib/theme'
+import { useAuth } from '@/lib/auth'
 import { useState, useEffect } from 'react'
 
 const PAGES: Record<string, { title:string; icon:string; sub:string; btn?:string; href?:string }> = {
@@ -30,6 +30,7 @@ const PAGES: Record<string, { title:string; icon:string; sub:string; btn?:string
 export function Topbar() {
   const pathname = usePathname()
   const router   = useRouter()
+  const { profile, role, signOut } = useAuth()
   const page     = PAGES[pathname] || { title:'Domaine BENHALIMA', icon:'🍅', sub:'' }
   const [out,   setOut]        = useState(false)
   const [theme, setThemeState] = useState<'dark'|'light'>('dark')
@@ -40,7 +41,7 @@ export function Topbar() {
     const next = theme === 'dark' ? 'light' : 'dark'
     setTheme(next); setThemeState(next)
   }
-  const logout = async () => { setOut(true); await supabase.auth.signOut(); router.replace('/login') }
+  const logout = async () => { setOut(true); await signOut(); router.replace('/login') }
 
   return (
     <header style={{
@@ -82,6 +83,21 @@ export function Topbar() {
           <div className="theme-toggle-track"><div className="theme-toggle-thumb"/></div>
           <span className="theme-toggle-label">{theme==='dark'?'DARK':'LIGHT'}</span>
         </button>
+
+        {/* User badge */}
+        {profile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', borderRadius: 6, background: 'var(--bg-deep)', border: '1px solid var(--bd-1)' }}>
+            <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'color-mix(in srgb, var(--neon) 25%, transparent)', color: 'var(--neon)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>
+              {(profile.full_name ?? profile.email).slice(0, 1).toUpperCase()}
+            </div>
+            <div style={{ lineHeight: 1 }}>
+              <div style={{ fontSize: 11, color: 'var(--tx-1)', fontWeight: 600 }}>{profile.full_name ?? profile.email}</div>
+              <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+                {role?.name ?? 'Sans rôle'}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Logout */}
         <button onClick={logout} disabled={out} className="btn-ghost" style={{ fontSize:10.5, padding:'6px 11px' }}>

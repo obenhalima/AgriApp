@@ -1,7 +1,13 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
+import {
+  getDefaultDefinition, getStates, applyTransition, getEntityHistory,
+  WorkflowState, WorkflowTransition, WorkflowHistoryEntry,
+} from '@/lib/workflow'
+
+const ENTITY_TYPE = 'sales_order'
 
 export default function CommandesPage() {
   const [items, setItems]   = useState<any[]>([])
@@ -19,14 +25,44 @@ export default function CommandesPage() {
   })
   const s = (k:string) => (e:any) => setForm(f=>({...f,[k]:e.target.value}))
 
+  // ── Workflow state ──
+  const [states, setStates] = useState<WorkflowState[]>([])
+  const [allTrans, setAllTrans] = useState<WorkflowTransition[]>([])
+  const [transitingId, setTransitingId] = useState<string|null>(null)
+
+  // ── Historique ──
+  const [histOrderId, setHistOrderId] = useState<string|null>(null)
+  const [histEntries, setHistEntries] = useState<WorkflowHistoryEntry[]>([])
+  const [histLoading, setHistLoading] = useState(false)
+
   const load = async () => {
-    const [o,c,m,camp] = await Promise.all([
+    const [o,c,m,camp,def] = await Promise.all([
       supabase.from('sales_orders').select('*, clients(name), markets(name)').order('order_date',{ascending:false}).limit(100),
       supabase.from('clients').select('id,name,code').eq('is_active',true).order('name'),
       supabase.from('markets').select('id,name,currency').eq('is_active',true).order('name'),
       supabase.from('campaigns').select('id,name').order('name'),
+      getDefaultDefinition(ENTITY_TYPE),
     ])
     setItems(o.data||[]); setClients(c.data||[]); setMarches(m.data||[]); setCampagnes(camp.data||[])
+
+    console.log('[WF] definition chargée:', def)
+    if (def) {
+      const [st, tr] = await Promise.all([
+        getStates(def.id),
+        supabase.from('workflow_transitions')
+          .select('*')
+          .eq('definition_id', def.id)
+          .eq('is_active', true)
+          .order('order_idx'),
+      ])
+      console.log('[WF] states:', st.length, st)
+      console.log('[WF] transitions:', tr.data?.length, tr.data, 'error:', tr.error)
+      setStates(st)
+      setAllTrans((tr.data ?? []) as WorkflowTransition[])
+    } else {
+      console.warn('[WF] Aucune définition trouvée pour entity_type=sales_order')
+    }
+
     setLoading(false)
   }
   useEffect(()=>{ load() },[])
@@ -63,14 +99,49 @@ export default function CommandesPage() {
     setSaving(false)
   }
 
-  const updateStatus = async (id:string, status:string) => {
-    await supabase.from('sales_orders').update({status}).eq('id',id)
-    setItems(p=>p.map(i=>i.id===id ? {...i,status} : i))
+  // Map code -> state pour les couleurs/libellés
+  const stateByCode = useMemo(() => {
+    const m: Record<string, WorkflowState> = {}
+    states.forEach(s => { m[s.code] = s })
+    return m
+  }, [states])
+
+  // Transitions disponibles pour un statut donné
+  const transitionsFor = (status: string): WorkflowTransition[] => {
+    const fromState = states.find(s => s.code === status)
+    if (!fromState) return []
+    return allTrans.filter(t => t.from_state_id === fromState.id)
   }
 
-  const ST: Record<string,string> = {
-    brouillon:'var(--tx-3)', confirme:'var(--blue)', en_preparation:'var(--amber)',
-    expedie:'var(--purple)', livre:'var(--neon)', facture:'var(--neon-2)', annule:'var(--red)'
+  // Récupère la cible (to_state) d'une transition
+  const toStateOf = (t: WorkflowTransition): WorkflowState | undefined =>
+    states.find(s => s.id === t.to_state_id)
+
+  const triggerTransition = async (order: any, t: WorkflowTransition) => {
+    const target = toStateOf(t)
+    if (!target) return
+    setTransitingId(order.id)
+    try {
+      await applyTransition({ entityType: ENTITY_TYPE, entityId: order.id, transitionId: t.id })
+      setItems(prev => prev.map(o => o.id === order.id ? { ...o, status: target.code } : o))
+    } catch (e: any) {
+      alert('Transition refusée : ' + (e?.message ?? 'erreur inconnue'))
+    } finally {
+      setTransitingId(null)
+    }
+  }
+
+  const openHistory = async (orderId: string) => {
+    setHistOrderId(orderId)
+    setHistLoading(true)
+    try {
+      const entries = await getEntityHistory(ENTITY_TYPE, orderId)
+      setHistEntries(entries)
+    } catch (e: any) {
+      alert('Erreur chargement historique : ' + e.message)
+    } finally {
+      setHistLoading(false)
+    }
   }
 
   return (
@@ -115,6 +186,34 @@ export default function CommandesPage() {
           </>)}
         </Modal>
       )}
+
+      {/* MODAL HISTORIQUE */}
+      {histOrderId && (
+        <Modal title="HISTORIQUE DES TRANSITIONS" onClose={()=>{ setHistOrderId(null); setHistEntries([]) }} size="md">
+          {histLoading ? (
+            <div style={{padding:20,color:'var(--tx-3)',fontFamily:'var(--font-mono)',fontSize:11}}>CHARGEMENT...</div>
+          ) : histEntries.length === 0 ? (
+            <div style={{padding:20,color:'var(--tx-3)'}}>Aucune transition enregistrée.</div>
+          ) : (
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              {histEntries.map(h => (
+                <div key={h.id} style={{padding:10,border:'1px solid var(--bd-1)',borderRadius:6}}>
+                  <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)'}}>
+                    {new Date(h.created_at).toLocaleString('fr')}
+                  </div>
+                  <div style={{marginTop:4,fontSize:13}}>
+                    <code style={{color:'var(--tx-3)'}}>{h.from_state_code ?? '∅'}</code>
+                    {' → '}
+                    <code style={{color:'var(--neon)'}}>{h.to_state_code}</code>
+                  </div>
+                  {h.comment && <div style={{marginTop:4,fontSize:12,color:'var(--tx-2)'}}>{h.comment}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </Modal>
+      )}
+
       <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:20}}>
         <div><div className="page-title">COMMANDES</div><div className="page-sub">{items.length} commande(s)</div></div>
         <button className="btn-primary" onClick={()=>setModal(true)}>+ NEW COMMANDE</button>
@@ -132,11 +231,15 @@ export default function CommandesPage() {
           <div style={{overflowX:'auto'}}>
             <table className="tbl">
               <thead><tr>
-                {['N° Commande','Client','Marché','Date','Livraison','Devise','Statut','Actions'].map(h=><th key={h}>{h}</th>)}
+                {['N° Commande','Client','Marché','Date','Livraison','Devise','Statut','Actions',''].map(h=><th key={h}>{h}</th>)}
               </tr></thead>
               <tbody>
                 {items.map((o:any)=>{
-                  const c = ST[o.status]||'var(--tx-3)'
+                  const st = stateByCode[o.status]
+                  const color = st?.color ?? 'var(--tx-3)'
+                  const label = st?.label ?? o.status
+                  const available = transitionsFor(o.status)
+                  const isLoading = transitingId === o.id
                   return (
                     <tr key={o.id}>
                       <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--neon)'}}>{o.order_number}</span></td>
@@ -145,14 +248,34 @@ export default function CommandesPage() {
                       <td><span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--tx-2)'}}>{o.order_date}</span></td>
                       <td><span style={{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--tx-2)'}}>{o.delivery_date||'—'}</span></td>
                       <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--amber)'}}>{o.currency}</span></td>
-                      <td><span style={{background:`${c}18`,color:c,padding:'2px 8px',borderRadius:4,fontFamily:'var(--font-mono)',fontSize:9,border:`1px solid ${c}40`}}>{o.status?.toUpperCase()}</span></td>
+                      <td><span style={{background:`${color}18`,color,padding:'2px 8px',borderRadius:4,fontFamily:'var(--font-mono)',fontSize:9,border:`1px solid ${color}40`}}>{label?.toUpperCase()}</span></td>
                       <td>
-                        <select className="form-input" style={{fontSize:10,padding:'3px 6px',width:'auto'}}
-                          value={o.status} onChange={e=>updateStatus(o.id,e.target.value)}>
-                          {['brouillon','confirme','en_preparation','expedie','livre','facture','annule'].map(st=>(
-                            <option key={st} value={st}>{st}</option>
-                          ))}
-                        </select>
+                        {available.length === 0 ? (
+                          <span style={{fontSize:10,color:'var(--tx-3)',fontFamily:'var(--font-mono)'}}>—</span>
+                        ) : (
+                          <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                            {available.map(t => {
+                              const tgt = toStateOf(t)
+                              const tgtColor = tgt?.color ?? 'var(--tx-2)'
+                              return (
+                                <button key={t.id}
+                                  onClick={() => triggerTransition(o, t)}
+                                  disabled={isLoading}
+                                  title={`${o.status} → ${tgt?.code ?? '?'}`}
+                                  style={{padding:'3px 8px',border:`1px solid ${tgtColor}40`,background:`${tgtColor}12`,color:tgtColor,borderRadius:5,fontSize:10,fontFamily:'var(--font-mono)',cursor:isLoading?'wait':'pointer'}}>
+                                  {isLoading ? '...' : t.label}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <button onClick={()=>openHistory(o.id)}
+                          title="Voir l'historique"
+                          style={{background:'transparent',border:'1px solid var(--bd-1)',borderRadius:6,padding:'3px 8px',fontSize:11,cursor:'pointer',color:'var(--tx-2)'}}>
+                          📋
+                        </button>
                       </td>
                     </tr>
                   )

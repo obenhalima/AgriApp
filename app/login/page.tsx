@@ -1,32 +1,31 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [mode, setMode] = useState<'choose' | 'login'>('choose')
+  const { user, signIn, loading: authLoading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const loginDemo = async () => {
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({
-      email: 'admin@domaine-benhalima.ma',
-      password: 'Domaine BENHALIMA2026!'
-    })
-    if (error) { setError('Erreur demo: ' + error.message); setLoading(false); return }
-    router.replace('/')
-  }
+  // Si déjà connecté, rediriger
+  useEffect(() => {
+    if (!authLoading && user) router.replace('/')
+  }, [user, authLoading, router])
 
-  const loginReel = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!email || !password) return
     setLoading(true); setError('')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) { setError('Email ou mot de passe incorrect'); setLoading(false); return }
-    router.replace('/')
+    try {
+      await signIn(email, password)
+      router.replace('/')
+    } catch (err: any) {
+      setError(err?.message?.includes('Invalid') ? 'Email ou mot de passe incorrect' : (err?.message ?? 'Erreur de connexion'))
+    } finally { setLoading(false) }
   }
 
   return (
@@ -34,96 +33,72 @@ export default function LoginPage() {
       minHeight: '100vh',
       background: 'var(--bg-deep)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: 24, position: 'relative', overflow: 'hidden',
+      padding: 24,
       fontFamily: 'var(--font-body)',
     }}>
-      {/* Grid */}
-      <div style={{ position:'absolute', inset:0, backgroundImage:'linear-gradient(#1a352618 1px,transparent 1px),linear-gradient(90deg,#1a352618 1px,transparent 1px)', backgroundSize:'40px 40px', pointerEvents:'none' }} />
-      {/* Glow */}
-      <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:600, height:600, background:'radial-gradient(circle,#00e87a09 0%,transparent 70%)', pointerEvents:'none' }} />
-
-      <div style={{ width:'100%', maxWidth:440, position:'relative', zIndex:1 }}>
-
+      <div style={{
+        width: 420,
+        padding: '32px 36px',
+        background: 'var(--bg-card)',
+        border: '1px solid var(--bd-1)',
+        borderRadius: 16,
+        boxShadow: '0 24px 60px rgba(0,0,0,.35)',
+      }}>
         {/* Logo */}
-        <div style={{ textAlign:'center', marginBottom:36 }}>
-          <div style={{ width:64, height:64, margin:'0 auto 16px', background:'linear-gradient(135deg,#00e87a,#006633)', borderRadius:14, display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, boxShadow:'0 0 40px var(--neon)30' }}>🍅</div>
-          <div style={{ fontFamily:'var(--font-display)', fontSize:28, fontWeight:700, color:'var(--tx-1)', letterSpacing:3, textTransform:'uppercase' }}>Domaine BENHALIMA</div>
-          <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--tx-3)', letterSpacing:3, marginTop:4 }}>PRODUCTION MES MANAGEMENT SYSTEM</div>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{ fontSize: 44, marginBottom: 6 }}>🍅</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, color: 'var(--tx-1)', letterSpacing: -.2 }}>
+            Domaine BENHALIMA
+          </div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--tx-3)', letterSpacing: 1.5, marginTop: 3, textTransform: 'uppercase' }}>
+            MES Production
+          </div>
         </div>
 
-        {/* Card */}
-        <div style={{ background:'var(--bg-card)', border:'1px solid var(--border-md)', borderRadius:14, overflow:'hidden', boxShadow:'0 0 60px var(--neon)09,0 24px 48px #00000080' }}>
-          <div style={{ height:2, background:'linear-gradient(90deg,transparent,#00e87a,transparent)' }} />
-          <div style={{ padding:'32px 36px 36px' }}>
-
-            {mode === 'login' ? (
-              <>
-                <div style={{ marginBottom:24 }}>
-                  <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:700, color:'var(--tx-1)', textTransform:'uppercase', letterSpacing:1, marginBottom:3 }}>Connexion</div>
-                  <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--tx-3)', letterSpacing:1 }}>Acces securise production</div>
-                </div>
-                <form onSubmit={loginReel}>
-                  {error && <div style={{ padding:'10px 13px', background:'var(--red-dim)', border:'1px solid var(--red)40', borderRadius:7, color:'var(--red)', fontFamily:'var(--font-mono)', fontSize:11, marginBottom:16, letterSpacing:.5 }}>⚠ {error}</div>}
-                  <div style={{ marginBottom:14 }}>
-                    <label style={{ display:'block', fontFamily:'var(--font-mono)', fontSize:10, color:'var(--tx-3)', textTransform:'uppercase', letterSpacing:1.2, marginBottom:7 }}>Email</label>
-                    <input className="form-input" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="admin@ferme.ma" required autoFocus />
-                  </div>
-                  <div style={{ marginBottom:22 }}>
-                    <label style={{ display:'block', fontFamily:'var(--font-mono)', fontSize:10, color:'var(--tx-3)', textTransform:'uppercase', letterSpacing:1.2, marginBottom:7 }}>Mot de passe</label>
-                    <input className="form-input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" required />
-                  </div>
-                  <button type="submit" className="btn-primary" style={{ width:'100%', justifyContent:'center', fontSize:12, letterSpacing:2 }} disabled={loading}>
-                    {loading ? 'CONNEXION...' : '⮞ SE CONNECTER'}
-                  </button>
-                </form>
-                <button onClick={()=>setMode('choose')} style={{ width:'100%', marginTop:10, padding:'9px', background:'transparent', border:'1px solid var(--border)', borderRadius:7, color:'var(--tx-3)', fontFamily:'var(--font-mono)', fontSize:10, cursor:'pointer', letterSpacing:1.5 }}>
-                  ← RETOUR
-                </button>
-              </>
-            ) : (
-              <>
-                <div style={{ marginBottom:26 }}>
-                  <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:700, color:'var(--tx-1)', textTransform:'uppercase', letterSpacing:1, marginBottom:3 }}>Acces Systeme</div>
-                  <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--tx-3)', letterSpacing:1 }}>Selectionnez un mode</div>
-                </div>
-
-                {/* Production */}
-                <div onClick={()=>setMode('login')} style={{ border:'1px solid var(--border-md)', borderRadius:10, padding:'18px 20px', marginBottom:10, cursor:'pointer', background:'var(--bg-card2)', display:'flex', alignItems:'center', gap:14, transition:'all .2s' }}
-                  onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.borderColor='var(--neon)';(e.currentTarget as HTMLElement).style.boxShadow='0 0 20px var(--neon)12'}}
-                  onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.borderColor='var(--border-md)';(e.currentTarget as HTMLElement).style.boxShadow='none'}}>
-                  <div style={{ width:44, height:44, background:'var(--neon-dim)', border:'1px solid var(--neon)30', borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>🏭</div>
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:700, color:'var(--tx-1)', textTransform:'uppercase', letterSpacing:.5, marginBottom:2 }}>Mode Production</div>
-                    <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--tx-3)' }}>Connexion securisee · Donnees reelles</div>
-                  </div>
-                  <span style={{ fontFamily:'var(--font-mono)', fontSize:16, color:'var(--neon)' }}>→</span>
-                </div>
-
-                {/* Demo */}
-                <div onClick={loginDemo} style={{ border:'1px solid var(--border)', borderRadius:10, padding:'18px 20px', cursor:'pointer', background:'var(--bg-card)', display:'flex', alignItems:'center', gap:14, transition:'all .2s' }}
-                  onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.borderColor='var(--amber)';(e.currentTarget as HTMLElement).style.boxShadow='0 0 20px var(--amber)12'}}
-                  onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.borderColor='var(--border)';(e.currentTarget as HTMLElement).style.boxShadow='none'}}>
-                  <div style={{ width:44, height:44, background:'var(--amber-dim)', border:'1px solid var(--amber)30', borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>🌱</div>
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:700, color:'var(--tx-1)', textTransform:'uppercase', letterSpacing:.5, marginBottom:2 }}>Mode Demo</div>
-                    <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--tx-3)' }}>Exploration · Sans donnees reelles</div>
-                  </div>
-                  <span style={{ fontFamily:'var(--font-mono)', fontSize:16, color:'var(--amber)' }}>{loading ? '...' : '→'}</span>
-                </div>
-
-                {/* Hint credentials */}
-                <div style={{ marginTop:20, padding:'12px 14px', background:'var(--bg-card2)', border:'1px solid var(--border)', borderRadius:8 }}>
-                  <div style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--tx-3)', letterSpacing:1, marginBottom:6 }}>CREDENTIALS ADMIN ·</div>
-                  <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--tx-2)' }}>admin@domaine-benhalima.ma</div>
-                  <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--tx-2)' }}>Domaine BENHALIMA2026!</div>
-                </div>
-
-                <div style={{ marginTop:16, fontFamily:'var(--font-mono)', fontSize:9, color:'var(--border-md)', textAlign:'center', letterSpacing:1 }}>
-                  DOMAINE BENHALIMA · MES PRODUCTION v1.0
-                </div>
-              </>
-            )}
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ display: 'block', fontSize: 11, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 5 }}>
+              EMAIL
+            </label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="admin@domaine-benhalima.ma" required autoFocus
+              style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }} />
           </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', fontSize: 11, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 5 }}>
+              MOT DE PASSE
+            </label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••" required
+              style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }} />
+          </div>
+
+          {error && (
+            <div style={{ padding: 10, marginBottom: 14, background: 'var(--red-dim)', border: '1px solid color-mix(in srgb, var(--red) 30%, transparent)', borderRadius: 8, color: 'var(--red)', fontSize: 12 }}>
+              ⚠ {error}
+            </div>
+          )}
+
+          <button type="submit" disabled={loading || !email || !password}
+            style={{
+              width: '100%', padding: '12px',
+              background: loading || !email || !password ? 'var(--bg-deep)' : 'linear-gradient(135deg, var(--neon), color-mix(in srgb, var(--neon) 70%, var(--blue)))',
+              color: loading || !email || !password ? 'var(--tx-3)' : '#042416',
+              border: '1px solid color-mix(in srgb, var(--neon) 40%, transparent)',
+              borderRadius: 8,
+              cursor: loading || !email || !password ? 'not-allowed' : 'pointer',
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: 'var(--font-mono)',
+              letterSpacing: 1.5,
+            }}>
+            {loading ? 'CONNEXION...' : 'SE CONNECTER'}
+          </button>
+        </form>
+
+        <div style={{ marginTop: 20, padding: 10, background: 'var(--bg-deep)', border: '1px solid var(--bd-1)', borderRadius: 8, fontSize: 11, color: 'var(--tx-3)', lineHeight: 1.5 }}>
+          Pas encore de compte ? Contacte ton administrateur pour recevoir une invitation.
         </div>
       </div>
     </div>

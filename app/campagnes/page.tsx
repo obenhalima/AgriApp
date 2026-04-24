@@ -5,6 +5,14 @@ import { getFarms } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { genCampagneCode } from '@/lib/utils'
 
+const EMPTY_FORM = {
+  code:'', name:'', farm_id:'', status:'planification',
+  preparation_start:'', planting_start:'', harvest_start:'',
+  harvest_end:'', campaign_end:'',
+  budget_total:'', production_target_kg:'',
+  notes:''
+}
+
 export default function CampagnesPage() {
   const [items, setItems] = useState<any[]>([])
   const [farms, setFarms] = useState<any[]>([])
@@ -12,14 +20,11 @@ export default function CampagnesPage() {
   const [modal, setModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
-  const [form, setForm] = useState({
-    code:'', name:'', farm_id:'',
-    preparation_start:'', planting_start:'', harvest_start:'',
-    harvest_end:'', campaign_end:'',
-    budget_total:'', production_target_kg:'',
-    notes:''
-  })
+  const [editingId, setEditingId] = useState<string|null>(null)
+  const [form, setForm] = useState(EMPTY_FORM)
   const s = (k:string) => (e:any) => setForm(f=>({...f,[k]:e.target.value}))
+
+  const closeModal = () => { setModal(false); setDone(false); setEditingId(null); setForm(EMPTY_FORM) }
 
   const load = async () => {
     try {
@@ -35,13 +40,33 @@ export default function CampagnesPage() {
 
   useEffect(()=>{ load() },[])
 
-  const openModal = () => {
+  const openCreate = () => {
     const codes = items.map(i=>i.code)
     const year = new Date().getFullYear()
     const autoCode = genCampagneCode(codes)
     const autoName = `Campagne ${year}-${year+1}`
     const farmId = farms.length === 1 ? farms[0].id : ''
-    setForm(f=>({...f, code:autoCode, name:autoName, farm_id:farmId}))
+    setEditingId(null)
+    setForm({ ...EMPTY_FORM, code:autoCode, name:autoName, farm_id:farmId })
+    setModal(true)
+  }
+
+  const openEdit = (c:any) => {
+    setEditingId(c.id)
+    setForm({
+      code:                 c.code || '',
+      name:                 c.name || '',
+      farm_id:              c.farm_id || '',
+      status:               c.status || 'planification',
+      preparation_start:    c.preparation_start || '',
+      planting_start:       c.planting_start || '',
+      harvest_start:        c.harvest_start || '',
+      harvest_end:          c.harvest_end || '',
+      campaign_end:         c.campaign_end || '',
+      budget_total:         c.budget_total != null ? String(c.budget_total) : '',
+      production_target_kg: c.production_target_kg != null ? String(c.production_target_kg / 1000) : '',
+      notes:                c.notes || '',
+    })
     setModal(true)
   }
 
@@ -49,11 +74,11 @@ export default function CampagnesPage() {
     if (!form.farm_id || !form.name) return
     setSaving(true)
     try {
-      const { data, error } = await supabase.from('campaigns').insert({
+      const payload = {
         code: form.code,
         name: form.name,
         farm_id: form.farm_id,
-        status: 'planification',
+        status: form.status || 'planification',
         preparation_start: form.preparation_start || null,
         planting_start: form.planting_start || null,
         harvest_start: form.harvest_start || null,
@@ -62,11 +87,22 @@ export default function CampagnesPage() {
         budget_total: form.budget_total ? Number(form.budget_total) : null,
         production_target_kg: form.production_target_kg ? Number(form.production_target_kg)*1000 : null,
         notes: form.notes,
-      }).select('*, farms(name)').single()
-      if (error) throw error
-      setItems(p=>[data,...p])
+      }
+
+      if (editingId) {
+        const { data, error } = await supabase.from('campaigns')
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('id', editingId)
+          .select('*, farms(name)').single()
+        if (error) throw error
+        setItems(prev => prev.map(i => i.id === editingId ? data : i))
+      } else {
+        const { data, error } = await supabase.from('campaigns').insert(payload).select('*, farms(name)').single()
+        if (error) throw error
+        setItems(prev => [data, ...prev])
+      }
       setDone(true)
-      setTimeout(()=>{ setModal(false); setDone(false) }, 1400)
+      setTimeout(closeModal, 1400)
     } catch(e:any){ alert('Erreur: '+e.message) }
     setSaving(false)
   }
@@ -78,8 +114,8 @@ export default function CampagnesPage() {
   return (
     <div style={{background:'var(--bg-deep)',minHeight:'100vh'}}>
       {modal && (
-        <Modal title="NOUVELLE CAMPAGNE" onClose={()=>{setModal(false);setDone(false)}} size="lg">
-          {done ? <SuccessMessage message="Campagne créée !" /> : (<>
+        <Modal title={editingId ? 'MODIFIER CAMPAGNE' : 'NOUVELLE CAMPAGNE'} onClose={closeModal} size="lg">
+          {done ? <SuccessMessage message={editingId ? 'Campagne modifiée !' : 'Campagne créée !'} /> : (<>
 
             <div className="section-label" style={{marginBottom:14}}>IDENTIFICATION</div>
             <FormRow>
@@ -90,18 +126,28 @@ export default function CampagnesPage() {
                 <Input value={form.name} onChange={s('name')} placeholder="ex: Campagne 2026-2027" autoFocus />
               </FormGroup>
             </FormRow>
-            <FormGroup label="Ferme *">
-              {farms.length === 0 ? (
-                <div style={{padding:'10px 13px',background:'var(--red-dim)',border:'1px solid var(--red)40',borderRadius:7,color:'var(--red)',fontFamily:'var(--font-mono)',fontSize:11}}>
-                  ⚠ Aucune ferme trouvée — créez d'abord une ferme dans le menu Fermes
-                </div>
-              ) : (
-                <Select value={form.farm_id} onChange={s('farm_id')}>
-                  <option value="">-- Sélectionner une ferme --</option>
-                  {farms.map(f=><option key={f.id} value={f.id}>{f.name} ({f.code})</option>)}
+            <FormRow>
+              <FormGroup label="Ferme *">
+                {farms.length === 0 ? (
+                  <div style={{padding:'10px 13px',background:'var(--red-dim)',border:'1px solid var(--red)40',borderRadius:7,color:'var(--red)',fontFamily:'var(--font-mono)',fontSize:11}}>
+                    ⚠ Aucune ferme trouvée
+                  </div>
+                ) : (
+                  <Select value={form.farm_id} onChange={s('farm_id')}>
+                    <option value="">-- Sélectionner une ferme --</option>
+                    {farms.map(f=><option key={f.id} value={f.id}>{f.name} ({f.code})</option>)}
+                  </Select>
+                )}
+              </FormGroup>
+              <FormGroup label="Statut">
+                <Select value={form.status} onChange={s('status')}>
+                  <option value="planification">Planification</option>
+                  <option value="en_cours">En cours</option>
+                  <option value="terminee">Terminée</option>
+                  <option value="annulee">Annulée</option>
                 </Select>
-              )}
-            </FormGroup>
+              </FormGroup>
+            </FormRow>
 
             <div className="section-label" style={{marginBottom:14,marginTop:20}}>CALENDRIER</div>
             <FormRow>
@@ -138,11 +184,11 @@ export default function CampagnesPage() {
             </FormGroup>
 
             <ModalFooter
-              onCancel={()=>setModal(false)}
+              onCancel={closeModal}
               onSave={save}
               loading={saving}
               disabled={!form.farm_id || !form.name}
-              saveLabel="CRÉER LA CAMPAGNE"
+              saveLabel={editingId ? 'ENREGISTRER' : 'CRÉER LA CAMPAGNE'}
             />
           </>)}
         </Modal>
@@ -153,7 +199,7 @@ export default function CampagnesPage() {
           <div className="page-title">CAMPAGNES</div>
           <div className="page-sub">{items.length} campagne(s) · {farms.length} ferme(s) disponible(s)</div>
         </div>
-        <button className="btn-primary" onClick={openModal}>+ NEW CAMPAGNE</button>
+        <button className="btn-primary" onClick={openCreate}>+ NEW CAMPAGNE</button>
       </div>
 
       {farms.length === 0 && !loading && (
@@ -169,7 +215,7 @@ export default function CampagnesPage() {
           <div className="empty-icon">📅</div>
           <div className="empty-title">Aucune campagne</div>
           <div className="empty-sub">Créez votre première campagne de production.</div>
-          <button className="btn-primary" onClick={openModal} disabled={farms.length===0}>+ NEW CAMPAGNE</button>
+          <button className="btn-primary" onClick={openCreate} disabled={farms.length===0}>+ NEW CAMPAGNE</button>
         </div>
       ) : (
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
@@ -177,14 +223,20 @@ export default function CampagnesPage() {
             const color = STATUS_COLORS[c.status] || 'var(--tx-3)'
             return (
               <div key={c.id} className="card" style={{borderLeft:`3px solid ${color}`}}>
-                <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:14}}>
+                <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:14,gap:10}}>
                   <div>
                     <div style={{fontFamily:'var(--font-display)',fontSize:17,fontWeight:700,color:'var(--tx-1)',textTransform:'uppercase',letterSpacing:.5,marginBottom:3}}>{c.name}</div>
                     <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)',letterSpacing:1}}>{c.code} · {c.farms?.name}</div>
                   </div>
-                  <span className="tag" style={{background:`${color}18`,color:color,border:`1px solid ${color}40`}}>
-                    {c.status?.replace('_',' ').toUpperCase()}
-                  </span>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <span className="tag" style={{background:`${color}18`,color:color,border:`1px solid ${color}40`}}>
+                      {c.status?.replace('_',' ').toUpperCase()}
+                    </span>
+                    <button onClick={()=>openEdit(c)} title="Modifier la campagne"
+                      style={{background:'transparent',border:'1px solid var(--bd-1)',borderRadius:6,padding:'4px 10px',fontSize:12,cursor:'pointer',color:'var(--tx-2)'}}>
+                      ✏️
+                    </button>
+                  </div>
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8}}>
                   {[

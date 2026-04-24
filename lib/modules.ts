@@ -18,6 +18,7 @@ export function getModuleKeyForPath(pathname: string): string | null {
     '/marges': 'marges',
     '/analytique': 'analytique',
     '/alertes': 'alertes',
+    '/admin/imports': 'imports',
   }
   return map[pathname] ?? null
 }

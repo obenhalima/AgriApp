@@ -141,7 +141,10 @@ export default function StocksPage() {
       <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:16}}>
         <div><div className="page-title">STOCKS</div><div className="page-sub">{items.length} article(s) · {items.filter(i=>i.current_qty<=i.min_qty&&i.min_qty>0).length} alerte(s)</div></div>
         <div style={{display:'flex',gap:8}}>
-          <button onClick={()=>setModalMvt(null)} style={{display:'none'}} />
+          <a href="/stocks/mouvements"
+            style={{padding:'9px 14px',background:'transparent',border:'1px solid var(--bd-1)',color:'var(--tx-2)',borderRadius:7,fontSize:12,textDecoration:'none',fontFamily:'var(--font-mono)',letterSpacing:1}}>
+            📊 MOUVEMENTS
+          </a>
           <button className="btn-primary" onClick={openNewArt}>+ NOUVEL ARTICLE</button>
         </div>
       </div>

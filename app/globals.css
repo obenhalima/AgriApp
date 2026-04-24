@@ -40,6 +40,37 @@
   --topbar-h:   52px;
   --radius:     8px;
   --shadow-card: none;
+
+  /* Alias utilisés dans le code (pour éviter les valeurs manquantes) */
+  --bd-1: var(--border);
+  --bd-2: var(--border-md);
+  --text-main:  var(--tx-1);
+  --text-sub:   var(--tx-2);
+  --text-muted: var(--tx-3);
+  --shadow-hover: 0 4px 12px rgba(0,0,0,.15);
+  /* Alias coloris agritech (dark) */
+  --leaf: #00e87a;
+  --rust: #f5a623;
+  --sand: #d4a574;
+  --mbe:  #9b5de5;
+  --ed:   #00b4d8;
+  --ed-dim: rgba(0,180,216,.14);
+}
+
+[data-theme="light"] {
+  --bd-1: var(--border);
+  --bd-2: var(--border-md);
+  --text-main:  var(--tx-1);
+  --text-sub:   var(--tx-2);
+  --text-muted: var(--tx-3);
+  --shadow-hover: 0 4px 12px rgba(15,23,42,.08);
+  /* Alias coloris (light) */
+  --leaf: #10b981;
+  --rust: #f59e0b;
+  --sand: #b08968;
+  --mbe:  #8b5cf6;
+  --ed:   #3b82f6;
+  --ed-dim: rgba(59,130,246,.1);
 }
 
 /* ══════════════════════════════════════════
