@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Guide Utilisateur — Domaine BENHALIMA Production MES</title>
+<style>
+:root{--p:#4f46e5;--pl:#eef2ff;--g:#10b981;--w:#f59e0b;--r:#ef4444;--t:#1e293b;--m:#64748b;--b:#e2e8f0;--bg:#f8fafc;--wh:#ffffff;--sb:#1e1b4b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;color:var(--t);background:var(--bg);line-height:1.6}
+.cover{background:linear-gradient(135deg,#1e1b4b,#312e81,#4338ca);color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 40px;page-break-after:always}
+.cover .lw{background:rgba(255,255,255,.12);border-radius:24px;padding:20px 36px;margin-bottom:40px;border:1px solid rgba(255,255,255,.2)}
+.cover .lw h1{font-size:2.2rem;font-weight:800}.cover .lw p{font-size:.85rem;opacity:.6;letter-spacing:2px;text-transform:uppercase;margin-top:4px}
+.cover h2{font-size:3.5rem;font-weight:800;line-height:1.1;margin-bottom:16px}
+.cover .sub{font-size:1.15rem;opacity:.8;max-width:500px}
+.cover .pill{display:inline-block;background:rgba(16,185,129,.2);border:1px solid rgba(16,185,129,.5);color:#6ee7b7;border-radius:20px;padding:6px 20px;font-size:.85rem;margin-top:24px;letter-spacing:1px}
+.cover .meta{margin-top:60px;font-size:.82rem;opacity:.45}
+
+.toc{max-width:860px;margin:0 auto;padding:60px 40px;page-break-after:always}
+.toc h2{font-size:1.8rem;font-weight:700;margin-bottom:32px;color:var(--p);border-bottom:3px solid var(--p);padding-bottom:12px}
+.tg{margin-bottom:28px}.tg-t{font-size:.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--m);margin-bottom:8px}
+.ti{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px dotted var(--b);font-size:.93rem}
+.ti .n{font-size:.78rem;color:var(--m);min-width:36px;font-weight:700}
+
+.page{max-width:1060px;margin:0 auto;padding:60px 40px;page-break-after:always}
+.sh{display:flex;align-items:flex-start;gap:20px;margin-bottom:36px;padding-bottom:24px;border-bottom:2px solid var(--b)}
+.si{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0}
+.sn{font-size:.72rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--p);margin-bottom:4px}
+.st{font-size:1.9rem;font-weight:800;line-height:1.1}.sd{font-size:.93rem;color:var(--m);margin-top:6px}
+
+.sb{margin:28px 0}.sl{display:flex;align-items:center;gap:8px;font-size:.76rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--m);margin-bottom:10px}
+.sl::before{content:'';display:block;width:12px;height:12px;border-radius:3px;background:var(--p);flex-shrink:0}
+.sw{border-radius:14px;overflow:hidden;border:1px solid var(--b);box-shadow:0 4px 24px rgba(0,0,0,.08)}
+.sw img{width:100%;display:block}
+.sc{font-size:.82rem;color:var(--m);margin-top:10px;padding:10px 14px;background:var(--wh);border-radius:8px;border-left:3px solid var(--p);line-height:1.6}
+
+.cb{font-size:.95rem;line-height:1.8;color:#334155;margin-bottom:20px}
+.kg{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:20px 0}
+.kc{background:var(--wh);border:1px solid var(--b);border-radius:12px;padding:16px;border-top:3px solid var(--p)}
+.kc.g{border-top-color:var(--g)}.kc.o{border-top-color:var(--w)}.kc.r{border-top-color:var(--r)}.kc.pu{border-top-color:#8b5cf6}.kc.pk{border-top-color:#ec4899}
+.kl{font-size:.68rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--m)}
+.kv{font-size:1.5rem;font-weight:800;margin:4px 0 2px}
+.ks{font-size:.76rem;color:var(--m)}
+
+.steps{counter-reset:s;list-style:none;margin:16px 0}
+.steps li{counter-increment:s;display:flex;gap:16px;margin-bottom:16px;align-items:flex-start}
+.steps li::before{content:counter(s);min-width:28px;height:28px;background:var(--p);color:#fff;border-radius:50%;font-size:.8rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.steps li p{font-size:.92rem;line-height:1.6}
+.steps li strong{display:block;font-size:.88rem;margin-bottom:2px}
+
+.ib{background:var(--pl);border:1px solid #c7d2fe;border-radius:10px;padding:14px 18px;margin:16px 0;font-size:.88rem;line-height:1.6;display:flex;gap:12px;align-items:flex-start}
+.wb{background:#fffbeb;border-color:#fcd34d}
+.ic{font-size:1.1rem;flex-shrink:0;margin-top:1px}
+
+table{width:100%;border-collapse:collapse;font-size:.87rem;margin:16px 0}
+th{background:#f1f5f9;font-weight:700;padding:10px 14px;text-align:left;font-size:.76rem;letter-spacing:.5px;border-bottom:2px solid var(--b);color:var(--m);text-transform:uppercase}
+td{padding:10px 14px;border-bottom:1px solid var(--b);vertical-align:top}
+tr:hover td{background:#fafafa}
+
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:.7rem;font-weight:700;letter-spacing:.5px}
+.bg{background:#dcfce7;color:#166534}.bo{background:#fef3c7;color:#92400e}.bb{background:#dbeafe;color:#1e40af}
+.bpu{background:#ede9fe;color:#5b21b6}.br{background:#fee2e2;color:#991b1b}.bt{background:#ccfbf1;color:#134e4a}
+
+.tc{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:20px 0}
+.fc{background:var(--wh);border:1px solid var(--b);border-radius:12px;padding:20px}
+.fc h4{font-size:.95rem;font-weight:700;margin-bottom:8px}
+.fc p{font-size:.85rem;color:var(--m);line-height:1.6}
+.fc ul{margin-top:8px;padding-left:18px;font-size:.84rem;color:var(--m)}
+.fc ul li{margin-bottom:4px}
+
+.nm{background:#1e1b4b;color:#fff;border-radius:14px;padding:28px;margin:20px 0;display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.ng h4{font-size:.62rem;letter-spacing:2px;text-transform:uppercase;opacity:.5;margin-bottom:8px}
+.ng ul{list-style:none}.ng li{font-size:.82rem;opacity:.85;padding:3px 0}
+.ng li::before{content:'›';margin-right:6px;opacity:.5}
+
+h2.sub{font-size:1.3rem;font-weight:700;margin:28px 0 12px;color:var(--t)}
+h3.sub{font-size:1.05rem;font-weight:700;margin:20px 0 8px;color:var(--p)}
+hr.dv{border:none;border-top:1px solid var(--b);margin:32px 0}
+</style>
+</head><body>
+
+<div class="cover">
+  <div class="lw"><h1>🌿 Domaine BENHALIMA</h1><p>MES Production</p></div>
+  <h2>Guide<br>Utilisateur</h2>
+  <p class="sub">Manuel complet de l'application de gestion de production agricole sous serres</p>
+  <div class="pill">● LIVE · Campagne 2025–2026</div>
+  <p class="meta">Version 1.0 · Avril 2026 · Administrateur : Omar BENKIRANE</p>
+</div>
+
+<div class="toc">
+  <h2>📋 Table des matières</h2>
+  <div class="tg"><div class="tg-t">Introduction</div>
+    <div class="ti"><span class="n">—</span>Présentation générale &amp; navigation</div>
+    <div class="ti"><span class="n">—</span>Barre d'état &amp; éléments globaux</div>
+  </div>
+  <div class="tg"><div class="tg-t">Pilotage</div>
+    <div class="ti"><span class="n">01</span>Dashboard exécutif — Vue générale consolidée</div>
+    <div class="ti"><span class="n">02</span>Récoltes — Lots &amp; qualité</div>
+    <div class="ti"><span class="n">03</span>Production — Suivi des plantations</div>
+    <div class="ti"><span class="n">04</span>Agronomie — Journal cultural</div>
+  </div>
+  <div class="tg"><div class="tg-t">Commerce</div>
+    <div class="ti"><span class="n">05</span>Marchés · Clients · Commandes</div>
+    <div class="ti"><span class="n">06</span>Factures — Crédit clients &amp; Débit fournisseurs</div>
+  </div>
+  <div class="tg"><div class="tg-t">Exploitation</div>
+    <div class="ti"><span class="n">07</span>Fermes · Serres · Variétés · Campagnes</div>
+  </div>
+  <div class="tg"><div class="tg-t">Ressources</div>
+    <div class="ti"><span class="n">08</span>Fournisseurs — Annuaire achats</div>
+    <div class="ti"><span class="n">09</span>Achats — Bons de commande</div>
+    <div class="ti"><span class="n">10</span>Stocks — Inventaire &amp; alertes</div>
+  </div>
+  <div class="tg"><div class="tg-t">Finances &amp; Configuration</div>
+    <div class="ti"><span class="n">11</span>Coûts &amp; Budget</div>
+    <div class="ti"><span class="n">12</span>Marges &amp; IA Prévisions</div>
+    <div class="ti"><span class="n">13</span>Paramétrage &amp; Administration</div>
+  </div>
+  <div class="tg"><div class="tg-t">Annexes</div>
+    <div class="ti"><span class="n">A</span>Workflow de premier démarrage — 13 étapes</div>
+    <div class="ti"><span class="n">B</span>Codes couleurs &amp; badges de statut</div>
+  </div>
+</div>
+<div class="page" id="intro">
+  <div class="sh"><div class="si" style="background:#eef2ff">🗺️</div><div>
+    <div class="sn">Introduction</div>
+    <div class="st">Présentation &amp; Navigation</div>
+    <div class="sd">Structure générale de l'application et repères d'interface</div>
+  </div></div>
+  <p class="cb"><strong>Domaine BENHALIMA — Production MES</strong> est un système de gestion d'exécution agricole (MES) basé sur le web. Il centralise en temps réel le suivi des productions sous serres, la traçabilité des récoltes, la gestion commerciale, le contrôle des ressources et le pilotage financier sur une seule plateforme.</p>
+  <h2 class="sub">Structure de la navigation</h2>
+  <p class="cb">L'interface est organisée autour d'une <strong>barre de navigation latérale gauche</strong> regroupant 7 sections développables/réductibles. La page active est identifiée par un point (•) à droite de son nom.</p>
+  <div class="nm">
+    <div class="ng"><h4>Pilotage</h4><ul><li>Dashboard</li><li>Récoltes</li><li>Production</li><li>Agronomie</li></ul></div>
+    <div class="ng"><h4>Commerce</h4><ul><li>Marchés</li><li>Clients</li><li>Commandes</li><li>Factures</li></ul></div>
+    <div class="ng"><h4>Exploitation</h4><ul><li>Fermes</li><li>Serres</li><li>Variétés</li><li>Campagnes</li></ul></div>
+    <div class="ng"><h4>Ressources · Finances</h4><ul><li>Fournisseurs</li><li>Achats · Stocks</li><li>Coûts · Marges</li><li>IA &amp; Prévisions</li></ul></div>
+  </div>
+  <h2 class="sub">Barre supérieure</h2>
+  <table>
+    <thead><tr><th>Élément</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge bg">● LIVE · 2025-2026</span></td><td>Application connectée à la base de données en mode production, campagne active</td></tr>
+      <tr><td>☀️ LIGHT / 🌙</td><td>Basculer entre thème clair et sombre</td></tr>
+      <tr><td><strong>Omar BENKIRANE · Administrateur</strong></td><td>Utilisateur connecté et son rôle dans l'application</td></tr>
+      <tr><td>Logout</td><td>Bouton de déconnexion de la session</td></tr>
+      <tr><td><strong>Bouton contextuel (haut droite)</strong></td><td>Change selon le module : + PLANTATION, + RÉCOLTE, + INTERVENTION, + FACTURE…</td></tr>
+    </tbody>
+  </table>
+  <h2 class="sub">Boutons de la sidebar</h2>
+  <div class="tc">
+    <div class="fc"><h4>📌 FIXE / RÉD.</h4><p>Épingle ou réduit la largeur de la sidebar. Utile pour agrandir l'espace de travail, disponible en bas à gauche du menu de navigation.</p></div>
+    <div class="fc"><h4># Tout / # Replier</h4><p>Développe ou replie en une seule fois tous les groupes du menu de navigation, disponibles en haut de la sidebar.</p></div>
+  </div>
+  <div class="ib"><span class="ic">💡</span><span>Le numéro affiché à droite de chaque titre de groupe (ex: PILOTAGE 4) indique le nombre de pages dans ce groupe.</span></div>
+</div>
+
+<div class="page" id="dashboard">
+  <div class="sh"><div class="si" style="background:#eef2ff">📊</div><div>
+    <div class="sn">Module 01 · Pilotage</div>
+    <div class="st">Dashboard Exécutif</div>
+    <div class="sd">Vue générale consolidée — Production · Finance · Qualité · Campagne active</div>
+  </div></div>
+  <p class="cb">Le Dashboard est le <strong>tableau de bord central</strong> de l'application. Il offre une vision 360° de l'activité, avec un filtre temporel unique pour analyser production, revenus, coûts et qualité sur le même axe de temps.</p>
+  <div class="sb">
+    <div class="sl">Vue principale du Dashboard exécutif</div>
+    <div class="sw"><img src="/guide-screenshots/dashboard.png" alt="Dashboard" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/dashboard.png</div>')"/></div>
+    <div class="sc">Le Dashboard affiche la synchronisation en temps réel (28/04/2026 · 15:09), des raccourcis d'actions rapides (Nouvelle récolte, Suivre les serres, Mettre à jour les prix, Vérifier les marges), le filtre temporel et 6 indicateurs KPI.</div>
+  </div>
+  <h2 class="sub">Les 6 indicateurs clés (KPIs)</h2>
+  <div class="kg">
+    <div class="kc"><div class="kl">Production filtrée</div><div class="kv" style="color:#2563eb">0 – ∞ t</div><div class="ks">Volume récolté sur la période</div></div>
+    <div class="kc"><div class="kl">CA filtré</div><div class="kv" style="color:#2563eb">k MAD</div><div class="ks">CA confirmé — factures sur la période</div></div>
+    <div class="kc o"><div class="kl">Coûts réels</div><div class="kv" style="color:#d97706">k MAD</div><div class="ks">Charges engagées sur la période</div></div>
+    <div class="kc r"><div class="kl">Marge brute</div><div class="kv" style="color:#dc2626">±k MAD</div><div class="ks">CA – Coûts = pression marge</div></div>
+    <div class="kc g"><div class="kl">Premium</div><div class="kv" style="color:#059669">%</div><div class="ks">Part production catégorie 1</div></div>
+    <div class="kc pk"><div class="kl">Recouvrement</div><div class="kv" style="color:#db2777">%</div><div class="ks">Taux d'encaissement</div></div>
+  </div>
+  <div class="sb">
+    <div class="sl">KPIs &amp; Graphique Production / Finance + Synthèse Direction</div>
+    <div class="sw"><img src="/guide-screenshots/dashboard-kpis.png" alt="Dashboard — KPIs" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/dashboard-kpis.png</div>')"/></div>
+    <div class="sc">Le graphique <strong>Production et Finance</strong> superpose 4 courbes (Production, Déchets, CA, Coûts) sur double axe. La <strong>Synthèse Direction</strong> résume : Marge brute, Recouvrement, Taux premium, Taux de perte, et le nombre de campagnes actives (5 serres suivies).</div>
+  </div>
+  <h2 class="sub">Filtre temporel</h2>
+  <table><thead><tr><th>Mode</th><th>Utilisation</th></tr></thead><tbody>
+    <tr><td><span class="badge bb">Par mois</span></td><td>Sélectionner un mois précis via le menu déroulant (ex : juin 2026)</td></tr>
+    <tr><td><span class="badge bb">Par semaine</span></td><td>Analyse semaine par semaine de la campagne en cours</td></tr>
+    <tr><td><span class="badge bb">Période précise</span></td><td>Saisie libre d'une date de début et de fin personnalisée</td></tr>
+  </tbody></table>
+  <h2 class="sub">Raccourcis rapides</h2>
+  <div class="tc">
+    <div class="fc"><h4>🌿 Nouvelle récolte</h4><p>Ouvre directement le formulaire de saisie d'un nouveau lot, sans passer par le menu Récoltes.</p></div>
+    <div class="fc"><h4>🏠 Suivre les serres</h4><p>Accès rapide à la vue de suivi des serres actives et de leurs interventions récentes.</p></div>
+    <div class="fc"><h4>💰 Mettre à jour les prix</h4><p>Raccourci vers les lots récoltes sans prix assigné, pour tarification rapide.</p></div>
+    <div class="fc"><h4>📈 Vérifier les marges</h4><p>Accès direct au module Marges pour contrôler la rentabilité par variété.</p></div>
+  </div>
+</div>
+<div class="page" id="recoltes">
+  <div class="sh"><div class="si" style="background:#f0fdf4">🌾</div><div>
+    <div class="sn">Module 02 · Pilotage</div>
+    <div class="st">Récoltes</div>
+    <div class="sd">Saisie et suivi des lots récoltés — qualité · dispatches · marchés · CA</div>
+  </div></div>
+  <p class="cb">La page <strong>Récoltes</strong> centralise tous les lots récoltés. Elle affiche des indicateurs de qualité (freinte, écart, perte), le détail par marché, et la liste complète des lots avec leur statut.</p>
+  <div class="sb">
+    <div class="sl">Page Récoltes — Campagne 2025-2026 (données réelles)</div>
+    <div class="sw"><img src="/guide-screenshots/recoltes.png" alt="Récoltes" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/recoltes.png</div>')"/></div>
+    <div class="sc">9 lots · 13,7 t récoltées · CA confirmé 146 112 MAD. Dispatches sur 2 marchés : <em>EXPORT – Salade Time</em> (9 dispatches) et <em>Marché Local Souss</em> (5 dispatches). Freinte moyenne 1,1% · Écart moyen 2,5% · Perte estimée 375,6 kg.</div>
+  </div>
+  <h2 class="sub">Indicateurs sommaires</h2>
+  <div class="kg">
+    <div class="kc"><div class="kl">Lots</div><div class="kv" style="color:#2563eb">9</div><div class="ks">Nombre total de lots</div></div>
+    <div class="kc"><div class="kl">Récoltés</div><div class="kv" style="color:#2563eb">13.7 t</div><div class="ks">Poids total</div></div>
+    <div class="kc"><div class="kl">Dispatches</div><div class="kv" style="color:#2563eb">14</div><div class="ks">Dispatches créés</div></div>
+    <div class="kc o"><div class="kl">Sans prix</div><div class="kv" style="color:#d97706">0</div><div class="ks">Lots à tarifier</div></div>
+    <div class="kc pu"><div class="kl">CA Confirmé</div><div class="kv" style="color:#7c3aed">146 k</div><div class="ks">Chiffre d'affaires validé</div></div>
+    <div class="kc r"><div class="kl">Alertes</div><div class="kv" style="color:#dc2626">0</div><div class="ks">Anomalies à traiter</div></div>
+  </div>
+  <h2 class="sub">Colonnes du tableau des lots</h2>
+  <table><thead><tr><th>Colonne</th><th>Description</th></tr></thead><tbody>
+    <tr><td><strong>N° LOT</strong></td><td>Identifiant unique auto-généré (ex : LOT-20260425-5140)</td></tr>
+    <tr><td><strong>DATE</strong></td><td>Date de la récolte</td></tr>
+    <tr><td><strong>SERRE · VARIÉTÉ</strong></td><td>Origine du lot (ex : Serre / VITALIA)</td></tr>
+    <tr><td><strong>QUANTITÉ</strong></td><td>Poids brut récolté (ex : 900 kg, 1 000 kg)</td></tr>
+    <tr><td><strong>MARCHÉS</strong></td><td>Marchés de destination assignés au lot</td></tr>
+    <tr><td><strong>FREINTE / ÉCART</strong></td><td>Taux de déchet (F%) et d'écart de calibrage (E%)</td></tr>
+    <tr><td><strong>CA CONFIRMÉ</strong></td><td>Valeur financière validée du lot en MAD</td></tr>
+    <tr><td><strong>STATUT</strong></td><td><span class="badge bg">CLÔTURÉE</span> <span class="badge bt">EN COURS</span> <span class="badge bo">SANS PRIX</span></td></tr>
+  </tbody></table>
+  <h2 class="sub">Saisir une nouvelle récolte</h2>
+  <ol class="steps">
+    <li><p><strong>Cliquer sur « + SAISIR RÉCOLTE »</strong> (haut droite) ou « + RÉCOLTE » dans la barre supérieure.</p></li>
+    <li><p><strong>Sélectionner la serre</strong> d'origine et la <strong>variété</strong> récoltée.</p></li>
+    <li><p><strong>Saisir la quantité brute</strong>, la date et les mesures de freinte/écart.</p></li>
+    <li><p><strong>Assigner le(s) marché(s)</strong> de destination pour créer les dispatches.</p></li>
+    <li><p><strong>Ajouter le prix de vente</strong> — le lot passe en statut <span class="badge bg">CLÔTURÉE</span>.</p></li>
+  </ol>
+  <div class="ib wb"><span class="ic">⚠️</span><span>Les lots sans prix apparaissent dans l'onglet <strong>Sans prix</strong> et ne contribuent pas au CA confirmé. Ils doivent être tarifés rapidement pour une comptabilité à jour.</span></div>
+  <h2 class="sub">Onglets de filtrage</h2>
+  <table><thead><tr><th>Onglet</th><th>Contenu</th></tr></thead><tbody>
+    <tr><td><strong>RÉCOLTES</strong></td><td>Tous les lots de la campagne, triés par date décroissante</td></tr>
+    <tr><td><strong>SANS PRIX</strong></td><td>Lots en attente de tarification — priorité de traitement</td></tr>
+    <tr><td><strong>CONFIRMÉS</strong></td><td>Dispatches validés avec CA et marchés confirmés</td></tr>
+    <tr><td><strong>ALERTES</strong></td><td>Anomalies détectées : écarts importants, données manquantes</td></tr>
+  </tbody></table>
+</div>
+
+<div class="page" id="production">
+  <div class="sh"><div class="si" style="background:#fffbeb">🏭</div><div>
+    <div class="sn">Module 03 · Pilotage</div>
+    <div class="st">Production</div>
+    <div class="sd">Suivi des plantations actives — rendements &amp; objectifs théoriques par serre</div>
+  </div></div>
+  <p class="cb">La page <strong>Suivi Production</strong> liste toutes les plantations de la campagne en cours, avec leurs paramètres techniques et les objectifs de production théorique calculés automatiquement.</p>
+  <div class="sb">
+    <div class="sl">Suivi Production — Campagne 2025-2026</div>
+    <div class="sw"><img src="/guide-screenshots/production.png" alt="Production" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/production.png</div>')"/></div>
+    <div class="sc">5 plantations sur 2,12 ha · Objectif 1 003 t · 5 serres. Variétés : VITALIA (serre principale) et MIRRAVIA (S1, S2, S3). Rendements entre 45 et 50 kg/m². Toutes en statut <span class="badge bg">PLANIFIÉ</span>.</div>
+  </div>
+  <h2 class="sub">Colonnes du tableau de plantations</h2>
+  <table><thead><tr><th>Colonne</th><th>Description</th></tr></thead><tbody>
+    <tr><td><strong>SERRE</strong></td><td>Identifiant de la serre (Serre, S1, S2, S3…)</td></tr>
+    <tr><td><strong>VARIÉTÉ</strong></td><td>Variété plantée (du référentiel Variétés)</td></tr>
+    <tr><td><strong>SURFACE</strong></td><td>Surface en m² allouée à la plantation</td></tr>
+    <tr><td><strong>REND.</strong></td><td>Rendement attendu en kg/m² (orange si critique)</td></tr>
+    <tr><td><strong>PROD. THÉO.</strong></td><td>Surface × Rendement = production attendue en tonnes</td></tr>
+    <tr><td><strong>DATE PLANT.</strong></td><td>Date de mise en culture</td></tr>
+    <tr><td><strong>SURF. DISPO</strong></td><td>Surface disponible restante dans la serre</td></tr>
+    <tr><td><strong>STATUT</strong></td><td><span class="badge bg">PLANIFIÉ</span> <span class="badge bt">EN COURS</span> <span class="badge bb">TERMINÉ</span></td></tr>
+  </tbody></table>
+  <h2 class="sub">Créer une plantation</h2>
+  <ol class="steps">
+    <li><p><strong>Cliquer sur « + PLANTATION »</strong> (bouton violet haut droite).</p></li>
+    <li><p><strong>Choisir la campagne</strong> active, la <strong>serre</strong> disponible et la <strong>variété</strong>.</p></li>
+    <li><p><strong>Saisir la surface</strong> (m²) et le <strong>rendement attendu</strong> (kg/m²) — la production théorique est calculée automatiquement.</p></li>
+    <li><p><strong>Indiquer la date de plantation</strong> et valider.</p></li>
+  </ol>
+  <div class="ib"><span class="ic">💡</span><span>La <strong>production théorique totale</strong> en haut de page (orange) est la somme de toutes les plantations. Elle sert d'objectif de référence pour la campagne. Cliquer sur l'icône 🖊 pour modifier une plantation existante.</span></div>
+</div>
+<div class="page" id="agronomie">
+  <div class="sh"><div class="si" style="background:#f0fdf4">🧪</div><div>
+    <div class="sn">Module 04 · Pilotage</div>
+    <div class="st">Agronomie — Journal Cultural</div>
+    <div class="sd">Traçabilité complète des interventions techniques sur les cultures</div>
+  </div></div>
+  <p class="cb">Le <strong>Journal Agronomique</strong> est le carnet de bord technique des cultures. Chaque intervention (fertilisation, traitement phytosanitaire, irrigation, taille…) est horodatée et liée à une serre et une variété précises.</p>
+  <div class="sb">
+    <div class="sl">Journal Agronomique</div>
+    <div class="sw"><img src="/guide-screenshots/agronomie.png" alt="Agronomie" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/agronomie.png</div>')"/></div>
+    <div class="sc">Intervention de fertilisation sur la serre S1 (MIRRAVIA) le 24/03/2026, produit <em>test01</em>, dose 50, quantité 3 L, 5 ouvriers. Les colonnes EC et pH permettent de tracer les paramètres de la solution nutritive.</div>
+  </div>
+  <h2 class="sub">Colonnes du journal</h2>
+  <table><thead><tr><th>Colonne</th><th>Description</th></tr></thead><tbody>
+    <tr><td><strong>DATE</strong></td><td>Date de l'intervention</td></tr>
+    <tr><td><strong>SERRE · VARIÉTÉ</strong></td><td>Culture concernée</td></tr>
+    <tr><td><strong>TYPE</strong></td><td>FERTILISATION, PHYTOSANITAIRE, IRRIGATION, TAILLE, AUTRE…</td></tr>
+    <tr><td><strong>PRODUIT</strong></td><td>Nom du produit utilisé</td></tr>
+    <tr><td><strong>DOSE/M²</strong></td><td>Dosage appliqué par m² (orange si hors norme)</td></tr>
+    <tr><td><strong>QTÉ</strong></td><td>Quantité totale utilisée avec unité</td></tr>
+    <tr><td><strong>EC / PH</strong></td><td>Conductivité électrique et pH de la solution (optionnels)</td></tr>
+    <tr><td><strong>OUVRIERS</strong></td><td>Nombre d'ouvriers mobilisés pour l'intervention</td></tr>
+    <tr><td><strong>NOTES</strong></td><td>Observations et commentaires libres</td></tr>
+  </tbody></table>
+  <h2 class="sub">Enregistrer une intervention</h2>
+  <ol class="steps">
+    <li><p><strong>Cliquer sur « + INTERVENTION »</strong> (haut droite ou barre supérieure).</p></li>
+    <li><p><strong>Sélectionner la serre</strong> et la <strong>variété</strong> concernées.</p></li>
+    <li><p><strong>Choisir le type d'intervention</strong> dans la liste déroulante.</p></li>
+    <li><p><strong>Renseigner le produit</strong>, la dose par m² et la quantité totale.</p></li>
+    <li><p>(Optionnel) Saisir <strong>EC</strong>, <strong>pH</strong>, le <strong>nombre d'ouvriers</strong> et des <strong>notes</strong>.</p></li>
+    <li><p><strong>Valider</strong> — l'intervention est enregistrée avec horodatage automatique.</p></li>
+  </ol>
+</div>
+
+<div class="page" id="commerce">
+  <div class="sh"><div class="si" style="background:#fff7ed">🛒</div><div>
+    <div class="sn">Modules 05-06 · Commerce</div>
+    <div class="st">Marchés · Clients · Commandes · Factures</div>
+    <div class="sd">Gestion commerciale — débouchés, clients, ventes et facturation</div>
+  </div></div>
+  <div class="tc">
+    <div class="fc"><h4>🌍 Marchés</h4><p>Registre des marchés de vente (export, local, grossiste…). Chaque marché est assignable aux dispatches de récoltes.</p><ul><li>Bouton : <strong>+ NEW MARCHÉ</strong></li><li>Définir type et conditions tarifaires</li></ul></div>
+    <div class="fc"><h4>👥 Clients</h4><p>Annuaire des clients acheteurs liés aux commandes et factures pour la traçabilité commerciale complète.</p><ul><li>Bouton : <strong>+ NEW CLIENT</strong></li><li>Nom, coordonnées, conditions de paiement</li></ul></div>
+    <div class="fc"><h4>📝 Commandes</h4><p>Bons de commande clients liant un client, une quantité, une variété et un prix de vente.</p><ul><li>Bouton : <strong>+ NEW COMMANDE</strong></li><li>Lier à un client et à un lot récolté</li></ul></div>
+    <div class="fc"><h4>💡 Flux recommandé</h4><p>1. Créer le <strong>Marché</strong><br>2. Créer le <strong>Client</strong><br>3. Enregistrer la <strong>Commande</strong><br>4. Générer la <strong>Facture</strong></p></div>
+  </div>
+  <hr class="dv"/>
+  <div class="sh" style="margin-top:24px;margin-bottom:24px"><div class="si" style="background:#f0fdf4;font-size:1.4rem">🧾</div><div>
+    <div class="sn">Module 06 · Commerce</div>
+    <div class="st">Factures</div>
+    <div class="sd">Facturation clients (crédit) et fournisseurs (débit) — encaissements et échéances</div>
+  </div></div>
+  <div class="sb">
+    <div class="sl">Page Factures — Vue Crédit clients</div>
+    <div class="sw"><img src="/guide-screenshots/factures.png" alt="Factures" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/factures.png</div>')"/></div>
+    <div class="sc">95 000 MAD encaissés · 61 865 MAD de paiements · Solde net 33 135 MAD. Le calendrier mensuel (Avril 2026) et le relevé des prochaines échéances classent les règlements par proximité, en bleu (crédit à recevoir) et ambre (débit à payer).</div>
+  </div>
+  <h2 class="sub">Indicateurs financiers</h2>
+  <table><thead><tr><th>Indicateur</th><th>Signification</th></tr></thead><tbody>
+    <tr><td><strong>Encaissements</strong></td><td>Total règlements reçus des clients sur la campagne</td></tr>
+    <tr><td><strong>Paiements</strong></td><td>Total règlements effectués aux fournisseurs</td></tr>
+    <tr><td><strong>Solde net</strong></td><td>Encaissements – Paiements = position nette de trésorerie</td></tr>
+    <tr><td><strong>Créances</strong></td><td>Montant restant à encaisser (factures clients non réglées)</td></tr>
+    <tr><td><strong>Dettes</strong></td><td>Montant restant à payer (factures fournisseurs non réglées)</td></tr>
+  </tbody></table>
+  <h2 class="sub">Créer une facture client</h2>
+  <ol class="steps">
+    <li><p><strong>Cliquer sur « + FACTURE CLIENT ».</strong></p></li>
+    <li><p><strong>Sélectionner le client</strong> et lier la commande ou les dispatches concernés.</p></li>
+    <li><p><strong>Vérifier les montants</strong>, date d'échéance et conditions de paiement.</p></li>
+    <li><p><strong>Valider</strong> — la facture apparaît dans le relevé d'échéances.</p></li>
+  </ol>
+</div>
+<div class="page" id="exploitation">
+  <div class="sh"><div class="si" style="background:#f0f9ff">🏗️</div><div>
+    <div class="sn">Module 07 · Exploitation</div>
+    <div class="st">Fermes · Serres · Variétés · Campagnes</div>
+    <div class="sd">Référentiels de base — configuration de l'infrastructure et des saisons</div>
+  </div></div>
+  <p class="cb">La section <strong>Exploitation</strong> contient les référentiels sur lesquels repose toute l'application. Elle doit être configurée en premier lors de la mise en place initiale.</p>
+  <div class="tc">
+    <div class="fc"><h4>🏘️ Fermes &amp; Sites</h4><p>Niveau géographique supérieur. Regroupe plusieurs serres. Bouton : <strong>+ NEW FERME</strong>.</p><ul><li>Nom, code, localisation</li><li>Rattacher ensuite les serres</li></ul></div>
+    <div class="fc"><h4>🏠 Serres</h4><p>Unité de production élémentaire, rattachée à une ferme. Bouton : <strong>+ NEW SERRE</strong>.</p><ul><li>Identifiant (S1, S2…), surface m²</li><li>Utilisée partout dans l'appli</li></ul></div>
+    <div class="fc"><h4>🌱 Variétés</h4><p>Catalogue des variétés cultivées. Bouton : <strong>+ NEW VARIÉTÉ</strong>.</p><ul><li>MIRRAVIA, VITALIA, etc.</li><li>Rendement de référence, catégorie</li></ul></div>
+    <div class="fc"><h4>📅 Campagnes</h4><p>Définit une saison avec ses dates et objectifs. Bouton : <strong>+ NEW CAMPAGNE</strong>.</p><ul><li>Dates plantation/récolte</li><li>Budget et objectif tonnage</li></ul></div>
+  </div>
+  <div class="sb">
+    <div class="sl">Campagnes — Campagne 2025-2026 active</div>
+    <div class="sw"><img src="/guide-screenshots/campagnes.png" alt="Campagnes" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/campagnes.png</div>')"/></div>
+    <div class="sc">CAMPAGNE 2025-2026 (CAMP-2026-01, Domaine Souss Agri) — statut PLANIFICATION. Plantation : 2026-08-31 · Début récolte : 2025-07-01 · Fin récolte : 2026-08-31. 3 fermes disponibles. Budget et objectif tonnage à définir.</div>
+  </div>
+  <div class="ib wb"><span class="ic">⚠️</span><span><strong>Ordre obligatoire :</strong> Ferme → Serres → Variétés → Campagne. Sans ces données de base, les modules Production, Récoltes et Agronomie ne fonctionnent pas.</span></div>
+</div>
+
+<div class="page" id="ressources">
+  <div class="sh"><div class="si" style="background:#fef9f0">📦</div><div>
+    <div class="sn">Modules 08-09-10 · Ressources</div>
+    <div class="st">Fournisseurs · Achats · Stocks</div>
+    <div class="sd">Gestion des approvisionnements et contrôle de l'inventaire</div>
+  </div></div>
+  <div class="sb">
+    <div class="sl">Fournisseurs — Annuaire des fournisseurs</div>
+    <div class="sw"><img src="/guide-screenshots/fournisseurs.png" alt="Fournisseurs" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/fournisseurs.png</div>')"/></div>
+    <div class="sc">3 fournisseurs : <em>fOUNI3</em> (Engrais), <em>Fournisseur 1a</em> (Emballage), <em>Test 1</em> (Phytosanitaires, Casablanca, test@test.com). Tous avec délai paiement 30 jours.</div>
+  </div>
+  <table><thead><tr><th>Colonne</th><th>Description</th></tr></thead><tbody>
+    <tr><td><strong>CODE · NOM</strong></td><td>Identifiant unique et raison sociale du fournisseur</td></tr>
+    <tr><td><strong>CATÉGORIE</strong></td><td><span class="badge bg">ENGRAIS</span> <span class="badge bo">EMBALLAGE</span> <span class="badge bb">PHYTOSANITAIRES</span></td></tr>
+    <tr><td><strong>DÉLAI PMT</strong></td><td>Délai contractuel de paiement en jours (ex : 30 j)</td></tr>
+  </tbody></table>
+  <h2 class="sub">Achats — Bons de commande</h2>
+  <div class="tc">
+    <div class="fc"><h4>📋 + BON D'ACHAT</h4><p>Crée un bon de commande formel auprès d'un fournisseur. Permet le suivi de la réception et du règlement.</p></div>
+    <div class="fc"><h4>⚡ ACHAT DIRECT</h4><p>Enregistre un achat spot sans bon de commande. Idéal pour les petits achats urgents ou imprévus.</p></div>
+  </div>
+  <hr class="dv"/>
+  <div class="sb">
+    <div class="sl">Stocks — Inventaire avec alerte critique</div>
+    <div class="sw"><img src="/guide-screenshots/stocks.png" alt="Stocks" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/stocks.png</div>')"/></div>
+    <div class="sc">4 articles. <em>Produit 1</em> (Semences) : stock -395 kg / seuil 10 kg → <span class="badge br">⚠ ALERTE</span>. <em>Filet</em> (Pièces rechange) : 109 rouleaux OK. <em>Tuyau</em> (Consommables) : 100 rouleaux OK. Le bandeau orange signale l'article en alerte.</div>
+  </div>
+  <h2 class="sub">Mouvements de stock</h2>
+  <table><thead><tr><th>Action</th><th>Description</th></tr></thead><tbody>
+    <tr><td><strong>+ IN</strong></td><td>Entrée de marchandise ou réapprovisionnement — incrémente la quantité</td></tr>
+    <tr><td><strong>- OUT</strong></td><td>Consommation ou sortie de stock — décrémente la quantité</td></tr>
+    <tr><td><strong>MOUVEMENTS</strong></td><td>Historique complet de tous les mouvements d'entrée et sortie par article</td></tr>
+  </tbody></table>
+  <div class="ib"><span class="ic">💡</span><span>Quand un article passe sous son seuil, une <span class="badge br">⚠ ALERTE</span> s'affiche dans la colonne statut et un bandeau d'avertissement apparaît en haut de la page. Cliquer sur le lien du bandeau pour accéder directement à l'article concerné.</span></div>
+</div>
+<div class="page" id="finances">
+  <div class="sh"><div class="si" style="background:#fff7ed">💰</div><div>
+    <div class="sn">Modules 11-12 · Finances</div>
+    <div class="st">Coûts &amp; Budget · Marges · IA &amp; Prévisions</div>
+    <div class="sd">Pilotage financier — charges réelles vs budget, rentabilité et analytique</div>
+  </div></div>
+  <div class="sb">
+    <div class="sl">Coûts &amp; Budget — Vue Coûts réels</div>
+    <div class="sw"><img src="/guide-screenshots/couts.png" alt="Coûts & Budget" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/couts.png</div>')"/></div>
+    <div class="sc">99 entrées totales : 38 coûts réels (1 135 kMAD) + 61 entrées budgétaires. Écart budget→réel de <strong>-61,4%</strong>. Les coûts sont regroupés par catégorie <em>CHARGES VARIABLES</em> avec filtres par Campagne / Ferme / Serre / Type / Période.</div>
+  </div>
+  <h2 class="sub">Deux onglets principaux</h2>
+  <div class="tc">
+    <div class="fc"><h4>Coûts réels <span class="badge bb" style="margin-left:6px">38</span></h4><p>Charges effectivement engagées. Saisies manuellement ou générées par les sorties de stock et les achats.</p><ul><li>Total réels en kMAD</li><li>Entrées affichées</li><li>Écart Budget → Réel (%)</li></ul></div>
+    <div class="fc"><h4>Budget prévisionnel <span class="badge bpu" style="margin-left:6px">61</span></h4><p>Enveloppes budgétaires planifiées par catégorie. Sert de référence pour calculer l'écart.</p><ul><li>Défini dans Paramétrage → Budgets</li><li>Ventilé par campagne / serre / type</li><li>Comparé aux réels en temps réel</li></ul></div>
+  </div>
+  <h2 class="sub">Filtres disponibles</h2>
+  <table><thead><tr><th>Filtre</th><th>Options</th></tr></thead><tbody>
+    <tr><td><strong>Campagne / Ferme / Serre</strong></td><td>Cibler une combinaison précise ou afficher tout</td></tr>
+    <tr><td><strong>Type</strong></td><td>Charges variables, charges fixes, main-d'œuvre, etc.</td></tr>
+    <tr><td><strong>Date de / Date à</strong></td><td>Période de saisie ou d'occurrence du coût</td></tr>
+    <tr><td><strong>Recherche</strong></td><td>Texte libre sur description ou catégorie</td></tr>
+  </tbody></table>
+  <h2 class="sub">Saisir un coût</h2>
+  <ol class="steps">
+    <li><p><strong>Cliquer sur « + SAISIR UN COÛT ».</strong></p></li>
+    <li><p><strong>Choisir la campagne et la serre</strong> d'imputation.</p></li>
+    <li><p><strong>Sélectionner le type et la catégorie</strong> de charge.</p></li>
+    <li><p><strong>Saisir le montant</strong> (MAD), la date et une description.</p></li>
+    <li><p><strong>Valider</strong> — l'écart budget/réel est recalculé automatiquement.</p></li>
+  </ol>
+  <hr class="dv"/>
+  <div class="tc">
+    <div class="fc"><h4>📊 Marges (Rentabilité)</h4><p>Calcul automatique des marges brutes par variété et par serre. Compare CA vs Coûts imputés.</p><div class="ib" style="margin-top:10px"><span class="ic">🔧</span><span style="font-size:.82rem">Module en attente de connexion aux données réelles.</span></div></div>
+    <div class="fc"><h4>🤖 IA &amp; Prévisions</h4><p>Simulations et prévisions basées sur des modèles analytiques de production et revenus.</p><div class="ib" style="margin-top:10px"><span class="ic">🔧</span><span style="font-size:.82rem">Module en attente de connexion aux données réelles.</span></div></div>
+  </div>
+</div>
+
+<div class="page" id="admin">
+  <div class="sh"><div class="si" style="background:#f8f4ff">⚙️</div><div>
+    <div class="sn">Module 13 · Paramétrage &amp; Administration</div>
+    <div class="st">Configuration &amp; Gestion des accès</div>
+    <div class="sd">Plan comptable, budgets, workflows, utilisateurs et rôles</div>
+  </div></div>
+  <h2 class="sub">Paramétrage</h2>
+  <table><thead><tr><th>Sous-module</th><th>Rôle</th></tr></thead><tbody>
+    <tr><td><strong>📒 Plan comptable</strong></td><td>Définit l'arborescence des catégories comptables pour classer coûts et revenus. Base du reporting.</td></tr>
+    <tr><td><strong>💼 Budgets</strong></td><td>Enveloppes budgétaires par campagne, serre et type de charge. Alimente l'onglet Budget prévisionnel.</td></tr>
+    <tr><td><strong>📋 Compte d'exploitation</strong></td><td>Configure la structure du compte de résultat. Utilisé pour les rapports financiers de direction.</td></tr>
+    <tr><td><strong>🔁 Workflows</strong></td><td>Règles d'automatisation et circuits de validation (approbations, alertes sur dépassement de budget).</td></tr>
+  </tbody></table>
+  <hr class="dv"/>
+  <h2 class="sub">Administration</h2>
+  <div class="tc">
+    <div class="fc"><h4>👤 Utilisateurs</h4><p>Gestion des comptes utilisateurs — liste des actifs, rôles assignés et droits d'accès.</p><ul><li>Consulter les utilisateurs actifs</li><li>Voir les rôles assignés</li></ul></div>
+    <div class="fc"><h4>🔐 Rôles &amp; Permissions</h4><p>Profils d'accès personnalisables (Administrateur, Responsable production, Commercial…) avec permissions par module.</p><ul><li>Créer des rôles</li><li>Associer des permissions</li><li>Restreindre lecture/écriture</li></ul></div>
+  </div>
+  <div class="ib wb"><span class="ic">⚠️</span><span>Seul le profil <strong>Administrateur</strong> a accès aux modules Administration et Paramétrage. Les autres profils sont limités aux modules autorisés dans Rôles &amp; Permissions.</span></div>
+</div>
+<div class="page" id="workflow">
+  <div class="sh"><div class="si" style="background:#f0fdf4">🚀</div><div>
+    <div class="sn">Annexe A</div>
+    <div class="st">Workflow de premier démarrage</div>
+    <div class="sd">Configuration initiale recommandée — 13 étapes pour être opérationnel</div>
+  </div></div>
+  <p class="cb">Pour configurer l'application depuis zéro, suivre cet ordre de saisie. Chaque étape dépend de la précédente pour assurer la cohérence des données.</p>
+  <ol class="steps">
+    <li><p><strong>Exploitation → Fermes :</strong> Créer la ferme du domaine (entité géographique racine).</p></li>
+    <li><p><strong>Exploitation → Serres :</strong> Ajouter chaque serre avec son identifiant, sa surface et sa ferme de rattachement.</p></li>
+    <li><p><strong>Exploitation → Variétés :</strong> Créer le catalogue (VITALIA, MIRRAVIA…) avec rendements de référence.</p></li>
+    <li><p><strong>Exploitation → Campagnes :</strong> Créer la campagne avec les dates de plantation, début et fin de récolte.</p></li>
+    <li><p><strong>Ressources → Fournisseurs :</strong> Enregistrer les fournisseurs par catégorie avec délais de paiement.</p></li>
+    <li><p><strong>Ressources → Stocks :</strong> Créer les articles avec seuils d'alerte et coûts unitaires. Saisir le stock initial via <strong>+ IN</strong>.</p></li>
+    <li><p><strong>Commerce → Clients :</strong> Enregistrer les acheteurs (exportateurs, marchés locaux) et leurs conditions.</p></li>
+    <li><p><strong>Commerce → Marchés :</strong> Définir les marchés de destination (EXPORT, LOCAL…) pour les dispatches.</p></li>
+    <li><p><strong>Paramétrage → Plan comptable &amp; Budgets :</strong> Configurer les catégories de coûts et les enveloppes budgétaires.</p></li>
+    <li><p><strong>Production → Créer les plantations :</strong> Enregistrer chaque plantation (serre × variété × surface × rendement × date).</p></li>
+    <li><p><strong>Récoltes → Saisir les premières récoltes :</strong> Créer les lots avec poids, serre, variété et marché de destination.</p></li>
+    <li><p><strong>Agronomie → Journaliser les interventions :</strong> Enregistrer au fil de l'eau les fertilisations et traitements.</p></li>
+    <li><p><strong>Commerce → Commandes &amp; Factures :</strong> Créer les commandes clients et générer les factures pour le suivi du CA.</p></li>
+  </ol>
+  <div class="ib"><span class="ic">✅</span><span>Une fois ces 13 étapes complètes, le <strong>Dashboard exécutif</strong> affiche tous les indicateurs en temps réel. Les KPIs se mettent à jour automatiquement à chaque nouvelle saisie dans l'application.</span></div>
+</div>
+
+<div class="page" id="couleurs">
+  <div class="sh"><div class="si" style="background:#fff7f0">🎨</div><div>
+    <div class="sn">Annexe B</div>
+    <div class="st">Codes couleurs &amp; Badges de statut</div>
+    <div class="sd">Référence rapide pour la lecture des indicateurs visuels de l'interface</div>
+  </div></div>
+  <h2 class="sub">Couleurs des valeurs numériques</h2>
+  <table><thead><tr><th>Couleur</th><th>Signification</th><th>Exemple</th></tr></thead><tbody>
+    <tr><td style="color:#2563eb;font-weight:700">● Bleu</td><td>Valeurs de production ou CA</td><td>13,7 t · 146 k MAD · 2,12 ha</td></tr>
+    <tr><td style="color:#d97706;font-weight:700">● Orange</td><td>Rendements, seuils, alertes légères</td><td>50 kg/m² · 10 k coûts</td></tr>
+    <tr><td style="color:#7c3aed;font-weight:700">● Violet</td><td>Objectifs théoriques</td><td>1 003 t production théorique</td></tr>
+    <tr><td style="color:#059669;font-weight:700">● Vert</td><td>Valeurs confirmées / statut OK</td><td>CLÔTURÉE · ✓ OK</td></tr>
+    <tr><td style="color:#dc2626;font-weight:700">● Rouge</td><td>Alertes critiques / valeurs négatives</td><td>-395 kg stock · ⚠ ALERTE</td></tr>
+    <tr><td style="color:#db2777;font-weight:700">● Rose</td><td>Indicateurs de recouvrement</td><td>0% encaissement</td></tr>
+  </tbody></table>
+  <h2 class="sub">Badges de statut</h2>
+  <table><thead><tr><th>Badge</th><th>Module</th><th>Signification</th></tr></thead><tbody>
+    <tr><td><span class="badge bg">PLANIFIÉ</span></td><td>Production</td><td>Plantation enregistrée, pas encore en récolte active</td></tr>
+    <tr><td><span class="badge bt">EN COURS</span></td><td>Production / Récoltes</td><td>Plantation active ou lot en cours de traitement</td></tr>
+    <tr><td><span class="badge bb">CLÔTURÉE</span></td><td>Récoltes</td><td>Lot finalisé avec prix et dispatches confirmés</td></tr>
+    <tr><td><span class="badge bo">SANS PRIX</span></td><td>Récoltes</td><td>Lot récolté mais sans tarification — à traiter</td></tr>
+    <tr><td><span class="badge br">⚠ ALERTE</span></td><td>Stocks</td><td>Stock sous le seuil minimal — réapprovisionnement requis</td></tr>
+    <tr><td><span class="badge bg">✓ OK</span></td><td>Stocks</td><td>Niveau de stock satisfaisant</td></tr>
+    <tr><td><span class="badge bpu">PLANIFICATION</span></td><td>Campagnes</td><td>Campagne en phase de planification</td></tr>
+  </tbody></table>
+  <h2 class="sub">Icônes d'action</h2>
+  <table><thead><tr><th>Icône</th><th>Action</th><th>Modules concernés</th></tr></thead><tbody>
+    <tr><td>🖊 Crayon orange</td><td>Modifier l'enregistrement</td><td>Production, Fournisseurs, Stocks, Campagnes</td></tr>
+    <tr><td>⏸ Rouge</td><td>Désactiver / archiver</td><td>Fournisseurs</td></tr>
+    <tr><td>+ IN / - OUT</td><td>Entrée / sortie de stock</td><td>Stocks</td></tr>
+    <tr><td>📊 MOUVEMENTS</td><td>Historique des mouvements</td><td>Stocks</td></tr>
+  </tbody></table>
+  <div style="margin-top:48px;padding:32px;background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:16px;text-align:center;color:white">
+    <h3 style="font-size:1.4rem;margin-bottom:8px">🌿 Domaine BENHALIMA</h3>
+    <p style="opacity:.7;font-size:.9rem">Production MES · Guide Utilisateur v1.0 · Campagne 2025-2026</p>
+    <p style="opacity:.5;font-size:.8rem;margin-top:16px">Pour toute assistance, contacter l'administrateur : Omar BENKIRANE</p>
+  </div>
+</div>
+
+</body></html>

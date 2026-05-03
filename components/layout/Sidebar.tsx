@@ -50,6 +50,16 @@ const NAV = [
     ],
   },
   {
+    section: 'RH',
+    items: [
+      { href:'/rh',          moduleCode:'rh',          label:'Tableau de bord RH', icon:'👥', color:'#0ea5e9', bg:'rgba(14,165,233,.15)' },
+      { href:'/rh/employes', moduleCode:'rh_employes', label:'Employés',           icon:'🪪', color:'#0ea5e9', bg:'rgba(14,165,233,.15)' },
+      { href:'/rh/paie',     moduleCode:'rh_paie',     label:'Paie',               icon:'💵', color:'#10b981', bg:'rgba(16,185,129,.15)' },
+      { href:'/rh/conges',   moduleCode:'rh_conges',   label:'Congés',             icon:'🏖️', color:'#f59e0b', bg:'rgba(245,158,11,.15)' },
+      { href:'/rh/cnss',     moduleCode:'rh_cnss',     label:'Déclarations CNSS',  icon:'🏛️', color:'#6366f1', bg:'rgba(99,102,241,.15)' },
+    ],
+  },
+  {
     section: 'PARAMÉTRAGE',
     items: [
       { href:'/admin/account-categories',  moduleCode:'plan_comptable',      label:'Plan comptable',        icon:'📒', color:'#0ea5e9', bg:'rgba(14,165,233,.15)' },
@@ -65,6 +75,12 @@ const NAV = [
     items: [
       { href:'/admin/users', moduleCode:'users', label:'Utilisateurs',        icon:'👥', color:'#ef4444', bg:'rgba(239,68,68,.15)' },
       { href:'/admin/roles', moduleCode:'roles', label:'Rôles & Permissions', icon:'🔐', color:'#ef4444', bg:'rgba(239,68,68,.15)' },
+    ],
+  },
+  {
+    section: 'AIDE',
+    items: [
+      { href:'/guide', moduleCode:'dashboard', label:'Guide utilisateur', icon:'📖', color:'#0ea5e9', bg:'rgba(14,165,233,.15)' },
     ],
   },
 ]

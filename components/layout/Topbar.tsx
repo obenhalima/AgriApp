@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { getTheme, setTheme } from '@/lib/theme'
 import { useAuth } from '@/lib/auth'
+import { getModuleKeyForPath } from '@/lib/modules'
+import { HelpLink } from '@/components/help/HelpLink'
 import { useState, useEffect } from 'react'
 
 const PAGES: Record<string, { title:string; icon:string; sub:string; btn?:string; href?:string }> = {
@@ -76,6 +78,13 @@ export function Topbar() {
             <button className="btn-primary" style={{ fontSize:11.5, padding:'7px 14px' }}>{page.btn}</button>
           </Link>
         )}
+
+        {/* Aide contextuelle — pointe vers la section du guide correspondant à la page courante */}
+        {(() => {
+          const moduleKey = getModuleKeyForPath(pathname) ?? 'intro'
+          if (pathname === '/guide' || pathname === '/login') return null
+          return <HelpLink module={moduleKey} variant="pill" label="Aide" />
+        })()}
 
         {/* Toggle thème */}
         <button onClick={toggleTheme} className="theme-toggle" title={theme==='dark'?'Passer en clair':'Passer en sombre'}>
