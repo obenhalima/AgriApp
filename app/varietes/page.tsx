@@ -1,32 +1,96 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { getVarietes, createVariete, deleteVariete } from '@/lib/supabase'
-import { supabase } from '@/lib/supabase'
-import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
+/**
+ * /varietes — Refonte avec design system.
+ */
+import { useEffect, useState, useMemo } from 'react'
+import { motion } from 'framer-motion'
+import { toast } from 'sonner'
+import {
+  Dna, Plus, Pencil, Trash2, Search, X, Sprout, Coins, TrendingUp,
+} from 'lucide-react'
+
+import { getVarietes, createVariete, deleteVariete, supabase } from '@/lib/supabase'
 import { genCode } from '@/lib/utils'
+import { cn } from '@/lib/cn'
+
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { Input as TInput, Select as TSelect, Textarea, Field } from '@/components/ui/Input'
+import { Modal, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
+import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
+import { NumberDisplay, MoneyDisplay } from '@/components/display'
+
+const TYPES = ['ronde', 'grappe', 'cerise', 'allongee', 'cocktail', 'beef', 'olivette', 'autre']
+const DESTINATIONS = ['mixte', 'export', 'local', 'grande_distribution', 'industrie']
+
+const DEST_VARIANT: Record<string, 'success' | 'warning' | 'info' | 'brand' | 'default'> = {
+  export: 'warning',
+  local: 'success',
+  mixte: 'info',
+  grande_distribution: 'brand',
+  industrie: 'default',
+}
+
+const blank = {
+  code: '', commercial_name: '', type: 'ronde', destination: 'mixte',
+  theoretical_yield_per_m2: '', theoretical_cost_per_m2: '',
+  avg_price_local: '', avg_price_export: '',
+  estimated_cycle_days: '', technical_notes: '',
+}
 
 export default function VarietesPage() {
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [modalNew,  setModalNew]  = useState(false)
+  const [modalNew, setModalNew] = useState(false)
   const [modalEdit, setModalEdit] = useState<any>(null)
   const [saving, setSaving] = useState(false)
-  const [done,   setDone]   = useState(false)
-  const blank = { code:'', commercial_name:'', type:'ronde', destination:'mixte', theoretical_yield_per_m2:'', theoretical_cost_per_m2:'', avg_price_local:'', avg_price_export:'', estimated_cycle_days:'', technical_notes:'' }
-  const [form,  setForm]  = useState({...blank})
-  const [formE, setFormE] = useState<Record<string,any>>({})
-  const s  = (k:string) => (e:any) => setForm((f:any)=>({...f,[k]:e.target.value}))
-  const se = (k:string) => (e:any) => setFormE(f=>({...f,[k]:e.target.value}))
+  const [done, setDone] = useState(false)
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [destFilter, setDestFilter] = useState('all')
 
-  const load = () => getVarietes().then(d=>{setItems(d);setLoading(false)}).catch(()=>setLoading(false))
-  useEffect(()=>{load()},[])
+  const [form, setForm] = useState({ ...blank })
+  const [formE, setFormE] = useState<Record<string, any>>({})
+  const upd = (k: string) => (e: any) => setForm((f: any) => ({ ...f, [k]: e.target.value }))
+  const updE = (k: string) => (e: any) => setFormE(f => ({ ...f, [k]: e.target.value }))
 
-  const openNew = () => { setForm({...blank, code:genCode('V',items.map(i=>i.code))}); setModalNew(true) }
-  const openEdit = (v:any) => {
-    setFormE({code:v.code,commercial_name:v.commercial_name,type:v.type,destination:v.destination,
-      theoretical_yield_per_m2:String(v.theoretical_yield_per_m2||''),theoretical_cost_per_m2:String(v.theoretical_cost_per_m2||''),
-      avg_price_local:String(v.avg_price_local||''),avg_price_export:String(v.avg_price_export||''),
-      estimated_cycle_days:String(v.estimated_cycle_days||''),technical_notes:v.technical_notes||''})
+  const load = () => getVarietes().then(d => { setItems(d); setLoading(false) }).catch(() => setLoading(false))
+  useEffect(() => { load() }, [])
+
+  const filtered = useMemo(() => items.filter(v => {
+    if (typeFilter !== 'all' && v.type !== typeFilter) return false
+    if (destFilter !== 'all' && v.destination !== destFilter) return false
+    if (search && !`${v.code} ${v.commercial_name}`.toLowerCase().includes(search.toLowerCase())) return false
+    return true
+  }), [items, search, typeFilter, destFilter])
+
+  const stats = useMemo(() => {
+    const cycles = items.map(v => v.estimated_cycle_days).filter(Boolean)
+    const yields_ = items.map(v => v.theoretical_yield_per_m2).filter(Boolean)
+    return {
+      count: items.length,
+      avgYield: yields_.length > 0 ? yields_.reduce((a, b) => a + Number(b), 0) / yields_.length : 0,
+      avgCycle: cycles.length > 0 ? cycles.reduce((a, b) => a + Number(b), 0) / cycles.length : 0,
+      types: new Set(items.map(v => v.type)).size,
+      exportable: items.filter(v => ['export', 'mixte'].includes(v.destination)).length,
+    }
+  }, [items])
+
+  const openNew = () => { setForm({ ...blank, code: genCode('V', items.map(i => i.code)) }); setModalNew(true) }
+  const openEdit = (v: any) => {
+    setFormE({
+      code: v.code, commercial_name: v.commercial_name, type: v.type, destination: v.destination,
+      theoretical_yield_per_m2: String(v.theoretical_yield_per_m2 || ''),
+      theoretical_cost_per_m2: String(v.theoretical_cost_per_m2 || ''),
+      avg_price_local: String(v.avg_price_local || ''),
+      avg_price_export: String(v.avg_price_export || ''),
+      estimated_cycle_days: String(v.estimated_cycle_days || ''),
+      technical_notes: v.technical_notes || '',
+    })
     setModalEdit(v)
   }
 
@@ -34,119 +98,225 @@ export default function VarietesPage() {
     if (!form.commercial_name) return
     setSaving(true)
     try {
-      const n = await createVariete({...form,theoretical_yield_per_m2:Number(form.theoretical_yield_per_m2)||0,theoretical_cost_per_m2:Number(form.theoretical_cost_per_m2)||0,avg_price_local:Number(form.avg_price_local)||0,avg_price_export:Number(form.avg_price_export)||0,estimated_cycle_days:form.estimated_cycle_days?Number(form.estimated_cycle_days):undefined})
-      setItems(p=>[n,...p]); setDone(true)
-      setTimeout(()=>{setModalNew(false);setDone(false)},1400)
-    } catch(e:any){alert('Erreur: '+e.message)}
+      const n = await createVariete({
+        ...form,
+        theoretical_yield_per_m2: Number(form.theoretical_yield_per_m2) || 0,
+        theoretical_cost_per_m2: Number(form.theoretical_cost_per_m2) || 0,
+        avg_price_local: Number(form.avg_price_local) || 0,
+        avg_price_export: Number(form.avg_price_export) || 0,
+        estimated_cycle_days: form.estimated_cycle_days ? Number(form.estimated_cycle_days) : undefined,
+      })
+      setItems(p => [n, ...p]); setDone(true)
+      toast.success(`Variété "${n.commercial_name}" créée`)
+      setTimeout(() => { setModalNew(false); setDone(false) }, 1200)
+    } catch (e: any) { toast.error('Erreur : ' + e.message) }
     setSaving(false)
   }
 
   const saveEdit = async () => {
-    if (!modalEdit||!formE.commercial_name) return
+    if (!modalEdit || !formE.commercial_name) return
     setSaving(true)
     try {
       const { error } = await supabase.from('varieties').update({
-        code:formE.code,commercial_name:formE.commercial_name,type:formE.type,destination:formE.destination,
-        theoretical_yield_per_m2:Number(formE.theoretical_yield_per_m2)||0,theoretical_cost_per_m2:Number(formE.theoretical_cost_per_m2)||0,
-        avg_price_local:Number(formE.avg_price_local)||0,avg_price_export:Number(formE.avg_price_export)||0,
-        estimated_cycle_days:formE.estimated_cycle_days?Number(formE.estimated_cycle_days):null,
-        technical_notes:formE.technical_notes||null
-      }).eq('id',modalEdit.id)
+        code: formE.code, commercial_name: formE.commercial_name, type: formE.type, destination: formE.destination,
+        theoretical_yield_per_m2: Number(formE.theoretical_yield_per_m2) || 0,
+        theoretical_cost_per_m2: Number(formE.theoretical_cost_per_m2) || 0,
+        avg_price_local: Number(formE.avg_price_local) || 0,
+        avg_price_export: Number(formE.avg_price_export) || 0,
+        estimated_cycle_days: formE.estimated_cycle_days ? Number(formE.estimated_cycle_days) : null,
+        technical_notes: formE.technical_notes || null,
+      }).eq('id', modalEdit.id)
       if (error) throw error
       setDone(true)
-      setTimeout(()=>{setModalEdit(null);setDone(false);load()},1400)
-    } catch(e:any){alert('Erreur: '+e.message)}
+      toast.success('Variété modifiée')
+      setTimeout(() => { setModalEdit(null); setDone(false); load() }, 1200)
+    } catch (e: any) { toast.error('Erreur : ' + e.message) }
     setSaving(false)
   }
 
-  const DEST_C: Record<string,string> = {export:'#f07050',local:'var(--neon)',mixte:'var(--amber)',grande_distribution:'var(--blue)',industrie:'var(--purple)'}
+  const del = async (v: any) => {
+    if (!confirm(`Archiver "${v.commercial_name}" ?`)) return
+    try {
+      await deleteVariete(v.id)
+      setItems(p => p.filter(i => i.id !== v.id))
+      toast.success(`Variété archivée`)
+    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+  }
 
-  const VForm = ({vals,onChange}: any) => (<>
-    <FormRow>
-      <FormGroup label="Code"><Input value={vals.code} onChange={onChange('code')} /></FormGroup>
-      <FormGroup label="Nom commercial *"><Input value={vals.commercial_name} onChange={onChange('commercial_name')} placeholder="ex: Vitalia" autoFocus /></FormGroup>
-    </FormRow>
-    <FormRow>
-      <FormGroup label="Type">
-        <Select value={vals.type} onChange={onChange('type')}>{['ronde','grappe','cerise','allongee','cocktail','beef','olivette','autre'].map(t=><option key={t}>{t}</option>)}</Select>
-      </FormGroup>
-      <FormGroup label="Destination">
-        <Select value={vals.destination} onChange={onChange('destination')}>{['mixte','export','local','grande_distribution','industrie'].map(d=><option key={d}>{d}</option>)}</Select>
-      </FormGroup>
-    </FormRow>
-    <FormRow>
-      <FormGroup label="Rend. th. (kg/m²)"><Input type="number" value={vals.theoretical_yield_per_m2} onChange={onChange('theoretical_yield_per_m2')} placeholder="45" /></FormGroup>
-      <FormGroup label="Coût th. (MAD/m²)"><Input type="number" value={vals.theoretical_cost_per_m2} onChange={onChange('theoretical_cost_per_m2')} placeholder="120" /></FormGroup>
-    </FormRow>
-    <FormRow>
-      <FormGroup label="Prix local (MAD/kg)"><Input type="number" value={vals.avg_price_local} onChange={onChange('avg_price_local')} placeholder="3.50" /></FormGroup>
-      <FormGroup label="Prix export (EUR/kg)"><Input type="number" value={vals.avg_price_export} onChange={onChange('avg_price_export')} placeholder="0.60" /></FormGroup>
-    </FormRow>
-    <FormRow>
-      <FormGroup label="Cycle (jours)"><Input type="number" value={vals.estimated_cycle_days} onChange={onChange('estimated_cycle_days')} placeholder="200" /></FormGroup>
-      <FormGroup label=""><div/></FormGroup>
-    </FormRow>
-    <FormGroup label="Notes techniques"><Textarea rows={2} value={vals.technical_notes} onChange={onChange('technical_notes')} /></FormGroup>
-  </>)
+  const FormBlock = ({ vals, onChange }: any) => (
+    <div className="space-y-md">
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Code"><TInput value={vals.code} onChange={onChange('code')} /></Field>
+        <Field label="Nom commercial" required><TInput value={vals.commercial_name} onChange={onChange('commercial_name')} placeholder="Vitalia" autoFocus /></Field>
+      </div>
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Type">
+          <TSelect value={vals.type} onChange={onChange('type')}>
+            {TYPES.map(t => <option key={t}>{t}</option>)}
+          </TSelect>
+        </Field>
+        <Field label="Destination">
+          <TSelect value={vals.destination} onChange={onChange('destination')}>
+            {DESTINATIONS.map(d => <option key={d}>{d}</option>)}
+          </TSelect>
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Rendement th. (kg/m²)"><TInput type="number" value={vals.theoretical_yield_per_m2} onChange={onChange('theoretical_yield_per_m2')} placeholder="45" /></Field>
+        <Field label="Coût th. (MAD/m²)"><TInput type="number" value={vals.theoretical_cost_per_m2} onChange={onChange('theoretical_cost_per_m2')} placeholder="120" /></Field>
+      </div>
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Prix local (MAD/kg)"><TInput type="number" value={vals.avg_price_local} onChange={onChange('avg_price_local')} placeholder="3.50" /></Field>
+        <Field label="Prix export (EUR/kg)"><TInput type="number" value={vals.avg_price_export} onChange={onChange('avg_price_export')} placeholder="0.60" /></Field>
+      </div>
+      <Field label="Cycle estimé (jours)" hint="Plantation → fin récolte">
+        <TInput type="number" value={vals.estimated_cycle_days} onChange={onChange('estimated_cycle_days')} placeholder="200" />
+      </Field>
+      <Field label="Notes techniques"><Textarea rows={2} value={vals.technical_notes} onChange={onChange('technical_notes')} /></Field>
+    </div>
+  )
 
   return (
-    <div style={{background:'var(--bg-deep)',minHeight:'100vh'}}>
+    <div>
       {modalNew && (
-        <Modal title="NOUVELLE VARIÉTÉ" onClose={()=>{setModalNew(false);setDone(false)}}>
-          {done ? <SuccessMessage message="Variété créée !" /> : (<>
-            <VForm vals={form} onChange={s} />
-            <ModalFooter onCancel={()=>setModalNew(false)} onSave={save} loading={saving} disabled={!form.commercial_name} saveLabel="CRÉER" />
-          </>)}
+        <Modal title="NOUVELLE VARIÉTÉ" onClose={() => { setModalNew(false); setDone(false) }}>
+          {done ? <SuccessMessage message="Variété créée !" /> : (
+            <>
+              <FormBlock vals={form} onChange={upd} />
+              <ModalFooter onCancel={() => setModalNew(false)} onSave={save} loading={saving} disabled={!form.commercial_name} saveLabel="CRÉER" />
+            </>
+          )}
         </Modal>
       )}
       {modalEdit && (
-        <Modal title={`MODIFIER — ${modalEdit.commercial_name}`} onClose={()=>{setModalEdit(null);setDone(false)}}>
-          {done ? <SuccessMessage message="Variété modifiée !" /> : (<>
-            <VForm vals={formE} onChange={se} />
-            <ModalFooter onCancel={()=>setModalEdit(null)} onSave={saveEdit} loading={saving} disabled={!formE.commercial_name} saveLabel="ENREGISTRER" />
-          </>)}
+        <Modal title={`MODIFIER — ${modalEdit.commercial_name}`} onClose={() => { setModalEdit(null); setDone(false) }}>
+          {done ? <SuccessMessage message="Variété modifiée !" /> : (
+            <>
+              <FormBlock vals={formE} onChange={updE} />
+              <ModalFooter onCancel={() => setModalEdit(null)} onSave={saveEdit} loading={saving} disabled={!formE.commercial_name} saveLabel="ENREGISTRER" />
+            </>
+          )}
         </Modal>
       )}
-      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:24}}>
-        <div><div className="page-title">VARIÉTÉS</div><div className="page-sub">{items.length} variété(s)</div></div>
-        <button className="btn-primary" onClick={openNew}>+ NEW VARIÉTÉ</button>
-      </div>
-      {loading ? <div style={{textAlign:'center',padding:60,color:'var(--tx-3)',fontFamily:'var(--font-mono)',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
-      : items.length===0 ? (
-        <div className="empty-state"><div className="empty-icon">✦</div><div className="empty-title">Aucune variété</div><button className="btn-primary" onClick={openNew}>+ NEW VARIÉTÉ</button></div>
-      ) : (
-        <div className="card" style={{padding:0,overflow:'hidden'}}>
-          <div style={{overflowX:'auto'}}>
-            <table className="tbl">
-              <thead><tr>{['Code','Nom','Type','Destination','Rend.Th.','Coût/m²','Prix Local','Prix Export','Cycle','Actions'].map(h=><th key={h}>{h}</th>)}</tr></thead>
-              <tbody>
-                {items.map((v:any)=>{
-                  const dc = DEST_C[v.destination]||'var(--tx-3)'
-                  return (
-                    <tr key={v.id}>
-                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)'}}>{v.code}</span></td>
-                      <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--tx-1)'}}>{v.commercial_name}</span></td>
-                      <td><span className="tag tag-blue" style={{fontSize:9}}>{v.type}</span></td>
-                      <td><span className="tag" style={{background:`${dc}18`,color:dc,border:`1px solid ${dc}40`,fontSize:9}}>{v.destination}</span></td>
-                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{v.theoretical_yield_per_m2||'—'}</span></td>
-                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{v.theoretical_cost_per_m2||'—'}</span></td>
-                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--neon)'}}>{v.avg_price_local||'—'}</span></td>
-                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--neon-2)'}}>{v.avg_price_export||'—'}</span></td>
-                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{v.estimated_cycle_days||'—'} j</span></td>
-                      <td>
-                        <div style={{display:'flex',gap:5}}>
-                          <button onClick={()=>openEdit(v)} className="btn-ghost" style={{padding:'4px 8px',fontSize:10}}>✏️</button>
-                          <button onClick={()=>{if(!confirm(`Archiver "${v.commercial_name}" ?`))return;deleteVariete(v.id);setItems(p=>p.filter(i=>i.id!==v.id))}} className="btn-danger" style={{padding:'4px 8px',fontSize:10}}>🗑</button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+
+      <PageHeader
+        title="Variétés"
+        subtitle="Référentiel"
+        icon={Dna}
+        iconColor="#a855f7"
+        description={`${items.length} variété${items.length > 1 ? 's' : ''} de tomates`}
+        actions={
+          <Button onClick={openNew} variant="primary">
+            <Plus size={14} strokeWidth={2.5} /> Nouvelle variété
+          </Button>
+        }
+        stats={loading ? [] : [
+          { label: 'Total',        value: String(stats.count),                                                     icon: Dna,         color: '#a855f7' },
+          { label: 'Types',        value: String(stats.types),                                                    icon: Sprout,      color: '#10b981' },
+          { label: 'Rdt moyen',    value: stats.avgYield > 0 ? `${stats.avgYield.toFixed(1)} kg/m²` : '—',         icon: TrendingUp,  color: '#3b82f6' },
+          { label: 'Cycle moyen',  value: stats.avgCycle > 0 ? `${Math.round(stats.avgCycle)}j` : '—',             icon: Coins,       color: '#f59e0b' },
+          { label: 'Exportables',  value: String(stats.exportable),                                                icon: TrendingUp,  color: '#ec4899' },
+        ]}
+      />
+
+      {!loading && items.length > 0 && (
+        <Card animate delay={0.15} className="mb-md">
+          <div className="flex items-center gap-md flex-wrap">
+            <div className="flex items-center gap-sm flex-1 min-w-[200px] max-w-md">
+              <Search size={14} className="text-fg-tertiary flex-shrink-0" />
+              <TInput
+                placeholder="Rechercher code, nom…"
+                value={search} onChange={(e) => setSearch(e.target.value)}
+                className="border-none bg-transparent focus:ring-0 px-0"
+              />
+              {search && <button onClick={() => setSearch('')} className="text-fg-tertiary hover:text-fg-primary"><X size={14} /></button>}
+            </div>
+            <TSelect value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="h-8 w-auto min-w-[130px] text-body-sm">
+              <option value="all">Tous types</option>
+              {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </TSelect>
+            <TSelect value={destFilter} onChange={(e) => setDestFilter(e.target.value)} className="h-8 w-auto min-w-[150px] text-body-sm">
+              <option value="all">Toutes destinations</option>
+              {DESTINATIONS.map(d => <option key={d} value={d}>{d.replace('_', ' ')}</option>)}
+            </TSelect>
+            <div className="ml-auto text-caption font-mono text-fg-tertiary">{filtered.length}/{items.length}</div>
           </div>
-        </div>
+        </Card>
       )}
+
+      <Card animate delay={0.25} padding="none" className="overflow-hidden">
+        {loading ? (
+          <div className="p-md space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}
+          </div>
+        ) : items.length === 0 ? (
+          <EmptyState
+            icon={Dna}
+            title="Aucune variété"
+            description="Crée tes variétés pour commencer la planification."
+            action={<Button onClick={openNew}><Plus size={14} strokeWidth={2.5} /> Nouvelle variété</Button>}
+          />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={Search}
+            title="Aucun résultat"
+            description="Aucune variété ne correspond à tes filtres."
+            action={<Button variant="ghost" onClick={() => { setSearch(''); setTypeFilter('all'); setDestFilter('all') }}>Réinitialiser</Button>}
+          />
+        ) : (
+          <DataTable minWidth={1100}>
+            <THead>
+              <TR>
+                <TH>Code</TH>
+                <TH>Nom commercial</TH>
+                <TH>Type</TH>
+                <TH>Destination</TH>
+                <TH right>Rdt th.</TH>
+                <TH right>Coût/m²</TH>
+                <TH right>Prix Local</TH>
+                <TH right>Prix Export</TH>
+                <TH right>Cycle</TH>
+                <TH right>Actions</TH>
+              </TR>
+            </THead>
+            <tbody>
+              {filtered.map((v, i) => (
+                <TR key={v.id} animate delay={0.04 + i * 0.02}>
+                  <TD mono className="text-caption font-semibold text-fg-tertiary">{v.code}</TD>
+                  <TD className="font-display font-semibold text-fg-primary">{v.commercial_name}</TD>
+                  <TD><Badge variant="info" size="sm">{v.type}</Badge></TD>
+                  <TD><Badge variant={DEST_VARIANT[v.destination] || 'default'} size="sm">{v.destination?.replace('_', ' ')}</Badge></TD>
+                  <TD right mono className="text-fg-secondary">
+                    {v.theoretical_yield_per_m2 ? <span><NumberDisplay value={Number(v.theoretical_yield_per_m2)} decimals={1} /> kg</span> : <span className="text-fg-tertiary">—</span>}
+                  </TD>
+                  <TD right mono className="text-fg-secondary">
+                    {v.theoretical_cost_per_m2 ? <NumberDisplay value={Number(v.theoretical_cost_per_m2)} decimals={0} /> : <span className="text-fg-tertiary">—</span>}
+                  </TD>
+                  <TD right mono className="text-success">
+                    {v.avg_price_local ? <NumberDisplay value={Number(v.avg_price_local)} decimals={2} /> : <span className="text-fg-tertiary">—</span>}
+                  </TD>
+                  <TD right mono className="text-warning">
+                    {v.avg_price_export ? <NumberDisplay value={Number(v.avg_price_export)} decimals={2} /> : <span className="text-fg-tertiary">—</span>}
+                  </TD>
+                  <TD right mono className="text-fg-secondary">
+                    {v.estimated_cycle_days ? `${v.estimated_cycle_days}j` : <span className="text-fg-tertiary">—</span>}
+                  </TD>
+                  <TD right>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button onClick={() => openEdit(v)} variant="ghost" size="icon-sm" title="Modifier">
+                        <Pencil size={12} strokeWidth={2.2} />
+                      </Button>
+                      <Button onClick={() => del(v)} variant="ghost" size="icon-sm" title="Archiver" className="hover:text-danger">
+                        <Trash2 size={12} strokeWidth={2.2} />
+                      </Button>
+                    </div>
+                  </TD>
+                </TR>
+              ))}
+            </tbody>
+          </DataTable>
+        )}
+      </Card>
     </div>
   )
 }

@@ -1,62 +1,66 @@
 'use client'
+/**
+ * /rh/employes — Refonte avec le design system.
+ * Conserve toute la logique métier (paie, mission tâcherons) — refait juste le rendu.
+ */
 import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '@/lib/supabase'
-import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
-import { computePayroll, fmtMAD, type PayFrequency } from '@/lib/payroll'
+import { motion } from 'framer-motion'
+import { toast } from 'sonner'
+import {
+  UserSquare, Plus, Pencil, UserCheck, UserX, Users, Search, X, Wrench,
+  Wallet, Phone, Mail, MapPin, Banknote, Calendar, BadgeInfo,
+} from 'lucide-react'
 
+import { supabase } from '@/lib/supabase'
+import { computePayroll, fmtMAD, type PayFrequency } from '@/lib/payroll'
+import { cn } from '@/lib/cn'
+
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { Input as TInput, Select as TSelect, Textarea, Field } from '@/components/ui/Input'
+import { Modal, FormGroup, FormRow, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
+import { MoneyDisplay } from '@/components/display'
+import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
+
+// ─── Types ───
 type Worker = {
   id: string
   matricule: string | null
-  first_name: string
-  last_name: string
-  cin: string | null
-  cnss_number: string | null
-  date_birth: string | null
-  date_hired?: string | null
-  start_date: string | null
-  category: string | null            // fermier | staff_admin | saisonnier | tacheron
+  first_name: string; last_name: string
+  cin: string | null; cnss_number: string | null
+  date_birth: string | null; date_hired?: string | null; start_date: string | null
+  category: string | null
   contract_type: string | null
-  pay_frequency: string | null       // mensuel | quinzaine | journalier
-  base_salary: number | null
-  daily_rate: number | null
+  pay_frequency: string | null
+  base_salary: number | null; daily_rate: number | null
   function: string | null
-  family_status: string | null
-  dependents: number | null
-  bank_iban: string | null
-  payment_method: string | null
+  family_status: string | null; dependents: number | null
+  bank_iban: string | null; payment_method: string | null
   farm_id: string | null
-  phone: string | null
-  email: string | null
-  address: string | null
+  phone: string | null; email: string | null; address: string | null
   is_active: boolean
-  // Mission (pour tâcherons)
   mission_label: string | null
-  mission_days_planned: number | null
-  mission_start_date: string | null
-  mission_end_date: string | null
-  mission_days_done: number | null
+  mission_days_planned: number | null; mission_days_done: number | null
+  mission_start_date: string | null; mission_end_date: string | null
 }
-
 type Farm = { id: string; code: string; name: string }
 
 const CATEGORIES = [
-  { code: 'fermier',     label: 'Fermier',          icon: '🌾',  color: '#10b981', defaultFreq: 'quinzaine' as PayFrequency,
-    description: 'Travailleur permanent ferme — paie quinzaine' },
-  { code: 'staff_admin', label: 'Staff admin',      icon: '🧑‍💼', color: '#8b5cf6', defaultFreq: 'mensuel' as PayFrequency,
-    description: 'Personnel administratif — paie mensuelle' },
-  { code: 'saisonnier',  label: 'Saisonnier',       icon: '🌻',  color: '#f59e0b', defaultFreq: 'journalier' as PayFrequency,
-    description: 'Travailleur saisonnier (récolte) — paie à la journée' },
-  { code: 'tacheron',    label: 'Staff à la tâche', icon: '🛠️',  color: '#ec4899', defaultFreq: 'journalier' as PayFrequency,
-    description: 'Mission ponctuelle de N jours pour dépannage — payé à la journée' },
+  { code: 'fermier',     label: 'Fermier',          icon: '🌾',  color: '#10b981', defaultFreq: 'quinzaine' as PayFrequency, description: 'Permanent — paie quinzaine' },
+  { code: 'staff_admin', label: 'Staff admin',      icon: '🧑‍💼', color: '#8b5cf6', defaultFreq: 'mensuel' as PayFrequency,    description: 'Personnel admin — paie mensuelle' },
+  { code: 'saisonnier',  label: 'Saisonnier',       icon: '🌻',  color: '#f59e0b', defaultFreq: 'journalier' as PayFrequency, description: 'Saisonnier — paie journalière' },
+  { code: 'tacheron',    label: 'Staff à la tâche', icon: '🛠️',  color: '#ec4899', defaultFreq: 'journalier' as PayFrequency, description: 'Mission ponctuelle' },
 ]
-
 const FAMILY_STATUS = [
   { code: 'celibataire', label: 'Célibataire' },
   { code: 'marie',       label: 'Marié(e)' },
   { code: 'divorce',     label: 'Divorcé(e)' },
   { code: 'veuf',        label: 'Veuf(ve)' },
 ]
-
 const PAY_METHODS = ['virement', 'cash', 'cheque']
 const CONTRACT_TYPES = ['CDI', 'CDD', 'saisonnier']
 
@@ -74,21 +78,19 @@ export default function EmployesPage() {
   const [items, setItems] = useState<Worker[]>([])
   const [farms, setFarms] = useState<Farm[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [filterCategory, setFilterCategory] = useState<string>('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('active')
   const [search, setSearch] = useState('')
 
-  // Modal
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Worker | null>(null)
   const [form, setForm] = useState<Partial<Worker>>(empty)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
-  const [modalError, setModalError] = useState('')  // erreur visible DANS la modale
+  const [modalError, setModalError] = useState('')
 
   const load = async () => {
-    setLoading(true); setError('')
+    setLoading(true)
     try {
       const [w, f] = await Promise.all([
         supabase.from('workers').select('*').order('last_name'),
@@ -97,34 +99,42 @@ export default function EmployesPage() {
       if (w.error) throw w.error
       setItems((w.data ?? []) as any)
       setFarms((f.data ?? []) as any)
-    } catch (e: any) { setError(e.message || String(e)) }
+    } catch (e: any) { toast.error('Erreur : ' + e.message) }
     setLoading(false)
   }
   useEffect(() => { load() }, [])
 
-  const filtered = useMemo(() => {
-    return items.filter(w => {
-      if (filterCategory && w.category !== filterCategory) return false
-      if (filterStatus === 'active' && !w.is_active) return false
-      if (filterStatus === 'inactive' && w.is_active) return false
-      if (search) {
-        const s = search.toLowerCase()
-        const hay = `${w.first_name} ${w.last_name} ${w.matricule ?? ''} ${w.cin ?? ''} ${w.cnss_number ?? ''} ${w.function ?? ''}`.toLowerCase()
-        if (!hay.includes(s)) return false
-      }
-      return true
-    })
-  }, [items, filterCategory, filterStatus, search])
+  const filtered = useMemo(() => items.filter(w => {
+    if (filterCategory && w.category !== filterCategory) return false
+    if (filterStatus === 'active' && !w.is_active) return false
+    if (filterStatus === 'inactive' && w.is_active) return false
+    if (search) {
+      const s = search.toLowerCase()
+      const hay = `${w.first_name} ${w.last_name} ${w.matricule ?? ''} ${w.cin ?? ''} ${w.cnss_number ?? ''} ${w.function ?? ''}`.toLowerCase()
+      if (!hay.includes(s)) return false
+    }
+    return true
+  }), [items, filterCategory, filterStatus, search])
 
-  const openCreate = () => {
-    setEditing(null); setForm(empty); setModalOpen(true); setDone(false); setModalError('')
-  }
-  const openEdit = (w: Worker) => {
-    setEditing(w); setForm({ ...w }); setModalOpen(true); setDone(false); setModalError('')
-  }
+  // Stats
+  const stats = useMemo(() => {
+    const active = items.filter(i => i.is_active)
+    const totalGross = active.reduce((s, i) => s + Number(i.base_salary || 0), 0)
+    return {
+      total: items.length,
+      active: active.length,
+      inactive: items.length - active.length,
+      totalGross,
+      byCategory: CATEGORIES.map(c => ({
+        ...c,
+        count: active.filter(i => i.category === c.code).length,
+      })),
+    }
+  }, [items])
+
+  const openCreate = () => { setEditing(null); setForm(empty); setModalOpen(true); setDone(false); setModalError('') }
+  const openEdit = (w: Worker) => { setEditing(w); setForm({ ...w }); setModalOpen(true); setDone(false); setModalError('') }
   const f = (k: keyof Worker) => (e: any) => setForm(s => ({ ...s, [k]: e.target.value }))
-
-  // Auto-set pay_frequency selon catégorie quand l'utilisateur change la catégorie
   const onChangeCategory = (e: any) => {
     const cat = e.target.value
     const def = CATEGORIES.find(c => c.code === cat)
@@ -132,7 +142,7 @@ export default function EmployesPage() {
   }
 
   const save = async () => {
-    setModalError(''); setError('')
+    setModalError('')
     if (!form.first_name || !form.last_name) {
       setModalError('Nom et prénom sont requis')
       return
@@ -144,8 +154,6 @@ export default function EmployesPage() {
         last_name: form.last_name,
         cin: form.cin || null,
         cnss_number: form.cnss_number || null,
-        // matricule : ne pas envoyer en création (le trigger SQL le génère).
-        // En modification, on garde la valeur existante.
         ...(editing ? { matricule: form.matricule || null } : {}),
         category: form.category,
         contract_type: form.contract_type,
@@ -164,269 +172,336 @@ export default function EmployesPage() {
         date_birth: form.date_birth || null,
         start_date: form.start_date || null,
         is_active: form.is_active ?? true,
-        // Mission (uniquement pertinent pour tâcherons)
         mission_label: form.mission_label || null,
         mission_days_planned: Number(form.mission_days_planned) || null,
         mission_start_date: form.mission_start_date || null,
         mission_end_date: form.mission_end_date || null,
         mission_days_done: Number(form.mission_days_done) || 0,
       }
-      console.log('[employes] save payload:', payload)
       if (editing) {
         const { error } = await supabase.from('workers').update(payload).eq('id', editing.id)
         if (error) throw error
       } else {
-        const { error, data } = await supabase.from('workers').insert(payload).select()
+        const { error } = await supabase.from('workers').insert(payload).select()
         if (error) throw error
-        console.log('[employes] inserted:', data)
       }
       setDone(true)
+      toast.success(editing ? 'Employé modifié' : 'Employé créé')
       setTimeout(() => { setModalOpen(false); setDone(false); load() }, 1000)
     } catch (e: any) {
-      console.error('[employes] save error:', e)
-      setModalError(`Erreur : ${e?.message || e?.toString() || 'inconnue (voir console F12)'}${e?.details ? ' — ' + e.details : ''}${e?.hint ? ' — ' + e.hint : ''}`)
+      setModalError(`Erreur : ${e?.message || 'inconnue'}${e?.details ? ' — ' + e.details : ''}`)
     }
     setSaving(false)
   }
 
   const toggleActive = async (w: Worker) => {
     if (!confirm(`${w.is_active ? 'Désactiver' : 'Réactiver'} ${w.first_name} ${w.last_name} ?`)) return
-    const { error } = await supabase.from('workers').update({ is_active: !w.is_active }).eq('id', w.id)
-    if (error) alert('Erreur : ' + error.message)
-    else load()
+    try {
+      const { error } = await supabase.from('workers').update({ is_active: !w.is_active }).eq('id', w.id)
+      if (error) throw error
+      toast.success(w.is_active ? `${w.first_name} désactivé` : `${w.first_name} réactivé`)
+      load()
+    } catch (e: any) { toast.error('Erreur : ' + e.message) }
   }
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: 1500 }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-        <div>
-          <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--text-main)' }}>
-            🪪 Employés
-          </h1>
-          <div style={{ color: 'var(--text-sub)', fontSize: 12.5, marginTop: 4 }}>
-            {filtered.length} / {items.length} affichés
+    <div>
+      <PageHeader
+        title="Employés"
+        subtitle="Ressources humaines"
+        icon={UserSquare}
+        iconColor="#0ea5e9"
+        description={`${filtered.length} / ${items.length} employé${items.length > 1 ? 's' : ''} affichés`}
+        actions={
+          <Button onClick={openCreate} variant="primary">
+            <Plus size={14} strokeWidth={2.5} /> Nouvel employé
+          </Button>
+        }
+        stats={loading ? [] : [
+          { label: 'Total',     value: String(stats.total),                                                         icon: Users,     color: '#0ea5e9' },
+          { label: 'Actifs',    value: String(stats.active),                                                        icon: UserCheck, color: '#10b981' },
+          { label: 'Inactifs',  value: String(stats.inactive),                                                      icon: UserX,     color: '#64748b' },
+          { label: 'Masse brute', value: <MoneyDisplay value={stats.totalGross} compact="auto" showCurrency={false} className="!text-current" />, icon: Wallet,    color: '#f59e0b' },
+        ]}
+      />
+
+      {/* Filtres + catégories en pills */}
+      <Card animate delay={0.15} className="mb-md">
+        <div className="flex items-center gap-md flex-wrap">
+          <div className="flex items-center gap-sm flex-1 min-w-[220px] max-w-md">
+            <Search size={14} className="text-fg-tertiary flex-shrink-0" />
+            <TInput
+              placeholder="Recherche (nom, matricule, CIN, fonction…)"
+              value={search} onChange={(e) => setSearch(e.target.value)}
+              className="border-none bg-transparent focus:ring-0 px-0"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="text-fg-tertiary hover:text-fg-primary">
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-sm">
+            <TSelect value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as any)} className="h-8 w-auto min-w-[120px] text-body-sm">
+              <option value="active">Actifs</option>
+              <option value="inactive">Inactifs</option>
+              <option value="all">Tous</option>
+            </TSelect>
           </div>
         </div>
-        <button onClick={openCreate} className="btn-primary" style={{ marginLeft: 'auto', fontSize: 12, padding: '7px 14px' }}>
-          + Nouvel employé
-        </button>
-      </header>
 
-      {error && (
-        <div style={{ padding: 12, marginBottom: 14, background: 'var(--red-dim)', border: '1px solid var(--red)', borderRadius: 6, color: 'var(--text-main)', fontSize: 12.5 }}>
-          ⚠ {error}
+        {/* Pills par catégorie */}
+        <div className="flex flex-wrap gap-1.5 mt-md pt-md border-t border-border">
+          <button
+            onClick={() => setFilterCategory('')}
+            className={cn(
+              'h-7 px-md rounded-full text-caption font-mono uppercase tracking-wider font-semibold transition-all',
+              filterCategory === ''
+                ? 'bg-fg-primary text-surface-base'
+                : 'bg-surface-sunk text-fg-secondary border border-border hover:border-border-strong'
+            )}
+          >
+            Toutes ({stats.active})
+          </button>
+          {stats.byCategory.map(c => (
+            <button
+              key={c.code}
+              onClick={() => setFilterCategory(c.code === filterCategory ? '' : c.code)}
+              className={cn(
+                'h-7 px-md rounded-full text-caption font-mono uppercase tracking-wider font-semibold transition-all',
+                'flex items-center gap-1.5',
+                filterCategory === c.code
+                  ? 'text-white'
+                  : 'bg-surface-sunk text-fg-secondary border border-border hover:border-border-strong'
+              )}
+              style={filterCategory === c.code ? {
+                background: c.color,
+                boxShadow: `0 2px 8px color-mix(in srgb, ${c.color} 30%, transparent)`,
+              } : undefined}
+            >
+              <span className="text-[12px]">{c.icon}</span>
+              {c.label}
+              <span className="opacity-70">({c.count})</span>
+            </button>
+          ))}
         </div>
-      )}
+      </Card>
 
-      {/* Filtres */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        <input type="text" placeholder="🔍 Recherche (nom, matricule, CIN, fonction…)"
-          value={search} onChange={e => setSearch(e.target.value)}
-          style={{ flex: 1, minWidth: 240, padding: '7px 12px', background: 'var(--bg-2)', color: 'var(--text-main)', border: '1px solid var(--bd-1)', borderRadius: 6, fontSize: 12 }} />
-        <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
-          style={{ padding: '7px 12px', background: 'var(--bg-2)', color: 'var(--text-main)', border: '1px solid var(--bd-1)', borderRadius: 6, fontSize: 12 }}>
-          <option value="">Toutes catégories</option>
-          {CATEGORIES.map(c => <option key={c.code} value={c.code}>{c.icon} {c.label}</option>)}
-        </select>
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}
-          style={{ padding: '7px 12px', background: 'var(--bg-2)', color: 'var(--text-main)', border: '1px solid var(--bd-1)', borderRadius: 6, fontSize: 12 }}>
-          <option value="active">Actifs</option>
-          <option value="inactive">Inactifs</option>
-          <option value="all">Tous</option>
-        </select>
-      </div>
+      {/* Table */}
+      <Card animate delay={0.25} padding="none" className="overflow-hidden">
+        {loading ? (
+          <div className="p-md space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}
+          </div>
+        ) : filtered.length === 0 ? (
+          items.length === 0 ? (
+            <EmptyState
+              icon={UserSquare}
+              title="Aucun employé"
+              description="Crée ton premier employé pour commencer la gestion RH."
+              action={<Button onClick={openCreate}><Plus size={14} strokeWidth={2.5} /> Nouvel employé</Button>}
+            />
+          ) : (
+            <EmptyState
+              icon={Search}
+              title="Aucun résultat"
+              description="Aucun employé ne correspond à tes filtres."
+              action={<Button variant="ghost" onClick={() => { setSearch(''); setFilterCategory(''); setFilterStatus('active') }}>Réinitialiser</Button>}
+            />
+          )
+        ) : (
+          <DataTable minWidth={1200}>
+            <THead>
+              <TR>
+                <TH>Matricule</TH>
+                <TH>Nom complet</TH>
+                <TH>Catégorie</TH>
+                <TH>Fonction</TH>
+                <TH>Contrat</TH>
+                <TH>Fréq.</TH>
+                <TH right>Brut mensuel</TH>
+                <TH>CNSS</TH>
+                <TH right>Net estimé</TH>
+                <TH>Statut</TH>
+                <TH right>Actions</TH>
+              </TR>
+            </THead>
+            <tbody>
+              {filtered.map((w, i) => {
+                const cat = CATEGORIES.find(c => c.code === w.category)
+                const calc = (w.base_salary && Number(w.base_salary) > 0) ? computePayroll({
+                  baseSalaryMonthly: Number(w.base_salary),
+                  payFrequency: (w.pay_frequency as PayFrequency) ?? 'mensuel',
+                  dependents: Number(w.dependents) || 0,
+                  familyStatus: (w.family_status as any) ?? 'celibataire',
+                }) : null
+                return (
+                  <TR key={w.id} animate delay={0.05 + i * 0.02} className={cn(!w.is_active && 'opacity-50')}>
+                    <TD mono className="text-caption font-semibold">{w.matricule ?? '—'}</TD>
+                    <TD className="font-semibold text-fg-primary">{w.last_name} {w.first_name}</TD>
+                    <TD>
+                      {cat ? (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-caption font-semibold"
+                          style={{ background: `color-mix(in srgb, ${cat.color} 14%, transparent)`, color: cat.color }}
+                        >
+                          <span>{cat.icon}</span> {cat.label}
+                        </span>
+                      ) : '—'}
+                    </TD>
+                    <TD className="text-fg-secondary text-caption">{w.function ?? '—'}</TD>
+                    <TD className="text-caption">{w.contract_type ?? '—'}</TD>
+                    <TD className="text-caption">{w.pay_frequency ?? '—'}</TD>
+                    <TD right mono><MoneyDisplay value={Number(w.base_salary)} showCurrency={false} className="text-fg-primary" /></TD>
+                    <TD mono className="text-caption text-fg-tertiary">{w.cnss_number ?? '—'}</TD>
+                    <TD right mono>
+                      {calc ? <MoneyDisplay value={calc.net_salary} showCurrency={false} className="text-success font-semibold" /> : <span className="text-fg-tertiary">—</span>}
+                    </TD>
+                    <TD>
+                      {w.is_active
+                        ? <Badge variant="success" size="sm" dot>Actif</Badge>
+                        : <Badge variant="default" size="sm">Inactif</Badge>}
+                    </TD>
+                    <TD right>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button onClick={() => openEdit(w)} variant="ghost" size="icon-sm" title="Éditer">
+                          <Pencil size={12} strokeWidth={2.2} />
+                        </Button>
+                        <Button onClick={() => toggleActive(w)} variant="ghost" size="icon-sm" title={w.is_active ? 'Désactiver' : 'Réactiver'}>
+                          {w.is_active ? <UserX size={12} strokeWidth={2.2} /> : <UserCheck size={12} strokeWidth={2.2} />}
+                        </Button>
+                      </div>
+                    </TD>
+                  </TR>
+                )
+              })}
+            </tbody>
+          </DataTable>
+        )}
+      </Card>
 
-      {/* Tableau */}
-      <div style={{ border: '1px solid var(--bd-1)', borderRadius: 8, overflow: 'auto', background: 'var(--bg-1)' }}>
-        <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-          <thead style={{ background: 'var(--bg-2)' }}>
-            <tr>
-              {['Matricule', 'Nom complet', 'Catégorie', 'Fonction', 'Contrat', 'Fréq.', 'Brut mensuel', 'CNSS', 'Net estimé', 'Statut', 'Actions'].map(h =>
-                <th key={h} style={th}>{h}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {loading && <tr><td colSpan={11} style={{ padding: 16, textAlign: 'center', color: 'var(--text-sub)' }}>Chargement…</td></tr>}
-            {!loading && filtered.length === 0 && <tr><td colSpan={11} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>Aucun employé.</td></tr>}
-            {filtered.map(w => {
-              const cat = CATEGORIES.find(c => c.code === w.category)
-              // Calcul net estimé pour aperçu rapide
-              const calc = (w.base_salary && Number(w.base_salary) > 0) ? computePayroll({
-                baseSalaryMonthly: Number(w.base_salary),
-                payFrequency: (w.pay_frequency as PayFrequency) ?? 'mensuel',
-                dependents: Number(w.dependents) || 0,
-                familyStatus: (w.family_status as any) ?? 'celibataire',
-              }) : null
-              return (
-                <tr key={w.id} style={{ borderBottom: '1px solid var(--bd-1)', opacity: w.is_active ? 1 : 0.5 }}>
-                  <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{w.matricule ?? '—'}</td>
-                  <td style={{ ...td, fontWeight: 600 }}>{w.last_name} {w.first_name}</td>
-                  <td style={td}>
-                    {cat ? (
-                      <span style={{ padding: '2px 8px', borderRadius: 4, background: cat.color + '20', color: cat.color, fontSize: 10.5, fontWeight: 600 }}>
-                        {cat.icon} {cat.label}
-                      </span>
-                    ) : '—'}
-                  </td>
-                  <td style={{ ...td, color: 'var(--text-sub)' }}>{w.function ?? '—'}</td>
-                  <td style={{ ...td, fontSize: 11 }}>{w.contract_type ?? '—'}</td>
-                  <td style={{ ...td, fontSize: 11 }}>{w.pay_frequency ?? '—'}</td>
-                  <td style={tdNum}>{w.base_salary ? Number(w.base_salary).toLocaleString('fr-FR') : '—'}</td>
-                  <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--text-sub)' }}>{w.cnss_number ?? '—'}</td>
-                  <td style={{ ...tdNum, color: 'var(--neon)', fontWeight: 600 }}>
-                    {calc ? Math.round(calc.net_salary).toLocaleString('fr-FR') : '—'}
-                  </td>
-                  <td style={td}>
-                    {w.is_active
-                      ? <span style={{ color: 'var(--neon)', fontSize: 11 }}>● Actif</span>
-                      : <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>○ Inactif</span>}
-                  </td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                    <button onClick={() => openEdit(w)} className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px', marginRight: 4 }}>Éditer</button>
-                    <button onClick={() => toggleActive(w)} className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px' }}>
-                      {w.is_active ? 'Désactiver' : 'Activer'}
-                    </button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Modale create/edit */}
+      {/* Modal */}
       {modalOpen && (
-        <Modal title={editing ? `Éditer — ${editing.first_name} ${editing.last_name}` : 'Nouvel employé'}
-          onClose={() => setModalOpen(false)} size="lg">
+        <Modal
+          title={editing ? `Éditer — ${editing.first_name} ${editing.last_name}` : 'Nouvel employé'}
+          onClose={() => setModalOpen(false)} size="lg"
+        >
           {done ? (
             <SuccessMessage message={editing ? 'Employé modifié' : 'Employé créé'} />
           ) : (
-            <>
+            <div className="space-y-md">
               <FormRow>
                 <FormGroup label={editing ? 'Matricule' : 'Matricule (auto-généré)'}>
-                  <input
+                  <TInput
                     type="text"
                     value={editing ? (form.matricule ?? '') : '— auto à la création —'}
                     readOnly
-                    style={{
-                      width: '100%', padding: 8,
-                      background: 'var(--bg-2)',
-                      color: editing ? 'var(--text-main)' : 'var(--text-muted)',
-                      border: '1px solid var(--bd-1)',
-                      borderRadius: 6, fontSize: 13,
-                      fontStyle: editing ? 'normal' : 'italic',
-                      cursor: 'not-allowed',
-                    }}
+                    className={cn(
+                      editing ? '' : 'italic text-fg-tertiary',
+                      'cursor-not-allowed bg-surface-sunk'
+                    )}
                   />
                 </FormGroup>
-                <FormGroup label="CIN"><Input value={form.cin ?? ''} onChange={f('cin')} placeholder="XX123456" /></FormGroup>
-                <FormGroup label="N° CNSS"><Input value={form.cnss_number ?? ''} onChange={f('cnss_number')} placeholder="123456789" /></FormGroup>
+                <FormGroup label="CIN"><TInput value={form.cin ?? ''} onChange={f('cin')} placeholder="XX123456" /></FormGroup>
+                <FormGroup label="N° CNSS"><TInput value={form.cnss_number ?? ''} onChange={f('cnss_number')} placeholder="123456789" /></FormGroup>
               </FormRow>
               <FormRow>
-                <FormGroup label="Prénom *"><Input value={form.first_name ?? ''} onChange={f('first_name')} /></FormGroup>
-                <FormGroup label="Nom *"><Input value={form.last_name ?? ''} onChange={f('last_name')} /></FormGroup>
-                <FormGroup label="Date naissance"><Input type="date" value={form.date_birth ?? ''} onChange={f('date_birth')} /></FormGroup>
+                <FormGroup label="Prénom *"><TInput value={form.first_name ?? ''} onChange={f('first_name')} autoFocus /></FormGroup>
+                <FormGroup label="Nom *"><TInput value={form.last_name ?? ''} onChange={f('last_name')} /></FormGroup>
+                <FormGroup label="Date naissance"><TInput type="date" value={form.date_birth ?? ''} onChange={f('date_birth')} /></FormGroup>
               </FormRow>
 
               <FormRow>
                 <FormGroup label="Catégorie *">
-                  <Select value={form.category ?? 'fermier'} onChange={onChangeCategory}>
+                  <TSelect value={form.category ?? 'fermier'} onChange={onChangeCategory}>
                     {CATEGORIES.map(c => <option key={c.code} value={c.code}>{c.icon} {c.label}</option>)}
-                  </Select>
+                  </TSelect>
                 </FormGroup>
-                <FormGroup label="Fonction"><Input value={form.function ?? ''} onChange={f('function')} placeholder="Ouvrier, Responsable serres…" /></FormGroup>
+                <FormGroup label="Fonction"><TInput value={form.function ?? ''} onChange={f('function')} placeholder="Ouvrier, Responsable serres…" /></FormGroup>
                 <FormGroup label="Ferme">
-                  <Select value={form.farm_id ?? ''} onChange={f('farm_id')}>
+                  <TSelect value={form.farm_id ?? ''} onChange={f('farm_id')}>
                     <option value="">— aucune —</option>
                     {farms.map(fm => <option key={fm.id} value={fm.id}>{fm.code} — {fm.name}</option>)}
-                  </Select>
+                  </TSelect>
                 </FormGroup>
               </FormRow>
 
               <FormRow>
                 <FormGroup label="Type de contrat">
-                  <Select value={form.contract_type ?? 'CDI'} onChange={f('contract_type')}>
+                  <TSelect value={form.contract_type ?? 'CDI'} onChange={f('contract_type')}>
                     {CONTRACT_TYPES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </Select>
+                  </TSelect>
                 </FormGroup>
-                <FormGroup label="Date d'embauche"><Input type="date" value={form.start_date ?? ''} onChange={f('start_date')} /></FormGroup>
+                <FormGroup label="Date d'embauche"><TInput type="date" value={form.start_date ?? ''} onChange={f('start_date')} /></FormGroup>
                 <FormGroup label="Fréquence paie *">
-                  <Select value={form.pay_frequency ?? 'mensuel'} onChange={f('pay_frequency')}>
+                  <TSelect value={form.pay_frequency ?? 'mensuel'} onChange={f('pay_frequency')}>
                     <option value="mensuel">Mensuel (fin de mois)</option>
                     <option value="quinzaine">Quinzaine (15 et fin de mois)</option>
                     <option value="journalier">Journalier (saisonniers)</option>
-                  </Select>
+                  </TSelect>
                 </FormGroup>
               </FormRow>
 
-              <div style={{ padding: 8, marginTop: 4, marginBottom: 4, background: 'var(--bg-2)', border: '1px dashed var(--bd-1)', borderRadius: 6, fontSize: 11, color: 'var(--text-sub)' }}>
-                💵 <strong style={{ color: 'var(--text-main)' }}>Rémunération</strong>
+              {/* Bloc rémunération */}
+              <div className="rounded-md border border-border bg-surface-sunk px-md py-sm flex items-center gap-2 text-body-sm text-fg-secondary">
+                <Banknote size={14} className="text-success" /> <strong className="text-fg-primary">Rémunération</strong>
               </div>
               <FormRow>
-                <FormGroup label="Salaire brut mensuel (MAD)">
-                  <Input type="number" value={String(form.base_salary ?? 0)} onChange={f('base_salary')} />
-                </FormGroup>
-                <FormGroup label="Tarif journalier (MAD)">
-                  <Input type="number" value={String(form.daily_rate ?? 0)} onChange={f('daily_rate')} />
-                </FormGroup>
+                <FormGroup label="Salaire brut mensuel (MAD)"><TInput type="number" value={String(form.base_salary ?? 0)} onChange={f('base_salary')} /></FormGroup>
+                <FormGroup label="Tarif journalier (MAD)"><TInput type="number" value={String(form.daily_rate ?? 0)} onChange={f('daily_rate')} /></FormGroup>
                 <FormGroup label="Méthode paiement">
-                  <Select value={form.payment_method ?? 'virement'} onChange={f('payment_method')}>
+                  <TSelect value={form.payment_method ?? 'virement'} onChange={f('payment_method')}>
                     {PAY_METHODS.map(p => <option key={p} value={p}>{p}</option>)}
-                  </Select>
+                  </TSelect>
                 </FormGroup>
               </FormRow>
               <FormRow>
                 <FormGroup label="Statut familial">
-                  <Select value={form.family_status ?? 'celibataire'} onChange={f('family_status')}>
+                  <TSelect value={form.family_status ?? 'celibataire'} onChange={f('family_status')}>
                     {FAMILY_STATUS.map(s => <option key={s.code} value={s.code}>{s.label}</option>)}
-                  </Select>
+                  </TSelect>
                 </FormGroup>
                 <FormGroup label="Personnes à charge (max 6)">
-                  <Input type="number" value={String(form.dependents ?? 0)} onChange={f('dependents')} />
+                  <TInput type="number" value={String(form.dependents ?? 0)} onChange={f('dependents')} />
                 </FormGroup>
                 <FormGroup label="IBAN">
-                  <Input value={form.bank_iban ?? ''} onChange={f('bank_iban')} placeholder="MA64 011 …" />
+                  <TInput value={form.bank_iban ?? ''} onChange={f('bank_iban')} placeholder="MA64 011 …" />
                 </FormGroup>
               </FormRow>
 
               <FormRow>
-                <FormGroup label="Téléphone"><Input value={form.phone ?? ''} onChange={f('phone')} placeholder="+212 6 XX XX XX XX" /></FormGroup>
-                <FormGroup label="Email"><Input type="email" value={form.email ?? ''} onChange={f('email')} /></FormGroup>
+                <FormGroup label="Téléphone"><TInput value={form.phone ?? ''} onChange={f('phone')} placeholder="+212 6 XX XX XX XX" /></FormGroup>
+                <FormGroup label="Email"><TInput type="email" value={form.email ?? ''} onChange={f('email')} /></FormGroup>
               </FormRow>
-              <FormGroup label="Adresse">
-                <Textarea value={form.address ?? ''} onChange={f('address')} />
-              </FormGroup>
+              <FormGroup label="Adresse"><Textarea value={form.address ?? ''} onChange={f('address')} rows={2} /></FormGroup>
 
-              {/* Bloc MISSION — visible uniquement pour tâcherons */}
+              {/* Bloc mission tâcherons */}
               {form.category === 'tacheron' && (
-                <>
-                  <div style={{ padding: 8, marginTop: 8, marginBottom: 4, background: 'rgba(236,72,153,.10)', border: '1px dashed #ec4899', borderRadius: 6, fontSize: 11, color: '#ec4899', fontWeight: 600 }}>
-                    🛠️ Mission de dépannage — détails de l'intervention
+                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-md">
+                  <div className="rounded-md border border-pink-500/30 bg-pink-500/5 px-md py-sm flex items-center gap-2 text-body-sm font-semibold" style={{ color: '#ec4899' }}>
+                    <Wrench size={14} /> Mission de dépannage — détails
                   </div>
                   <FormGroup label="Libellé mission *">
-                    <Input value={form.mission_label ?? ''} onChange={f('mission_label')} placeholder="Ex: Dépannage récolte serre 3, renfort plantation, etc." />
+                    <TInput value={form.mission_label ?? ''} onChange={f('mission_label')} placeholder="Ex: Dépannage récolte serre 3, renfort plantation, etc." />
                   </FormGroup>
                   <FormRow>
-                    <FormGroup label="Jours planifiés *">
-                      <Input type="number" value={String(form.mission_days_planned ?? 0)} onChange={f('mission_days_planned')} placeholder="Ex: 7" />
-                    </FormGroup>
-                    <FormGroup label="Jours réalisés">
-                      <Input type="number" value={String(form.mission_days_done ?? 0)} onChange={f('mission_days_done')} />
-                    </FormGroup>
-                    <FormGroup label="Date début">
-                      <Input type="date" value={form.mission_start_date ?? ''} onChange={f('mission_start_date')} />
-                    </FormGroup>
-                    <FormGroup label="Date fin prévue">
-                      <Input type="date" value={form.mission_end_date ?? ''} onChange={f('mission_end_date')} />
-                    </FormGroup>
+                    <FormGroup label="Jours planifiés *"><TInput type="number" value={String(form.mission_days_planned ?? 0)} onChange={f('mission_days_planned')} placeholder="7" /></FormGroup>
+                    <FormGroup label="Jours réalisés"><TInput type="number" value={String(form.mission_days_done ?? 0)} onChange={f('mission_days_done')} /></FormGroup>
+                    <FormGroup label="Date début"><TInput type="date" value={form.mission_start_date ?? ''} onChange={f('mission_start_date')} /></FormGroup>
+                    <FormGroup label="Date fin prévue"><TInput type="date" value={form.mission_end_date ?? ''} onChange={f('mission_end_date')} /></FormGroup>
                   </FormRow>
                   {Number(form.daily_rate) > 0 && Number(form.mission_days_planned) > 0 && (
-                    <div style={{ marginTop: 4, marginBottom: 8, padding: 8, background: 'var(--bg-2)', borderRadius: 6, fontSize: 11.5, color: 'var(--text-sub)' }}>
-                      💰 Coût total prévu mission : <strong style={{ color: 'var(--text-main)' }}>{(Number(form.daily_rate) * Number(form.mission_days_planned)).toLocaleString('fr-FR')} MAD</strong>
-                      ({Number(form.daily_rate)} MAD × {Number(form.mission_days_planned)} jours)
+                    <div className="rounded-md bg-surface-sunk border border-border px-md py-sm text-body-sm text-fg-secondary flex items-center gap-2">
+                      <Wallet size={14} className="text-warning" />
+                      Coût total prévu :{' '}
+                      <strong className="text-fg-primary">
+                        <MoneyDisplay value={Number(form.daily_rate) * Number(form.mission_days_planned)} />
+                      </strong>{' '}
+                      <span className="text-caption text-fg-tertiary">({Number(form.daily_rate)} × {Number(form.mission_days_planned)} jours)</span>
                     </div>
                   )}
-                </>
+                </motion.div>
               )}
 
               {/* Aperçu calcul paie */}
@@ -438,32 +513,31 @@ export default function EmployesPage() {
                   familyStatus: form.family_status as any,
                 })
                 return (
-                  <div style={{ marginTop: 12, padding: 12, background: 'var(--neon-dim)', border: '1px solid var(--neon)', borderRadius: 8 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--neon)', marginBottom: 8 }}>
-                      📊 Simulation bulletin (1 période)
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-lg border border-brand/30 bg-brand/5 p-md"
+                  >
+                    <div className="flex items-center gap-2 mb-sm">
+                      <BadgeInfo size={14} className="text-brand" />
+                      <span className="font-display text-body font-bold text-brand">Simulation bulletin (1 période)</span>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, fontSize: 11.5 }}>
-                      <Stat label="Brut période" value={fmtMAD(r.gross_salary)} />
-                      <Stat label="CNSS + AMO + IR" value={fmtMAD(r.cnss_employee + r.amo_employee + r.ir_amount)} />
-                      <Stat label="Net à payer" value={fmtMAD(r.net_salary)} highlight />
-                      <Stat label="Coût employeur" value={fmtMAD(r.total_employer_cost)} />
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-sm">
+                      <SimStat label="Brut période"      value={fmtMAD(r.gross_salary)} />
+                      <SimStat label="CNSS + AMO + IR"   value={fmtMAD(r.cnss_employee + r.amo_employee + r.ir_amount)} />
+                      <SimStat label="Net à payer"       value={fmtMAD(r.net_salary)} highlight />
+                      <SimStat label="Coût employeur"    value={fmtMAD(r.total_employer_cost)} />
                     </div>
-                  </div>
+                  </motion.div>
                 )
               })()}
 
               {modalError && (
-                <div style={{
-                  marginTop: 12, padding: 10,
-                  background: 'rgba(239,68,68,.1)',
-                  border: '1px solid #ef4444',
-                  borderRadius: 6, color: '#fca5a5',
-                  fontSize: 12, lineHeight: 1.5,
-                }}>
+                <div className="rounded-md border border-danger/30 bg-danger/5 p-md text-body-sm text-danger">
                   ⚠ {modalError}
                   {modalError.includes('column') && (
-                    <div style={{ marginTop: 6, fontSize: 11, color: '#fbbf24' }}>
-                      💡 Si l'erreur mentionne une colonne manquante, exécute les migrations <strong>018_hr_module.sql</strong> et <strong>019_hr_task_workers.sql</strong> dans Supabase SQL Editor.
+                    <div className="mt-2 text-caption text-warning">
+                      💡 Si l'erreur mentionne une colonne manquante, exécute les migrations <strong>018_hr_module.sql</strong> et <strong>019_hr_task_workers.sql</strong>.
                     </div>
                   )}
                 </div>
@@ -474,7 +548,7 @@ export default function EmployesPage() {
                 loading={saving}
                 saveLabel={editing ? 'ENREGISTRER' : 'CRÉER'}
               />
-            </>
+            </div>
           )}
         </Modal>
       )}
@@ -482,15 +556,11 @@ export default function EmployesPage() {
   )
 }
 
-function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function SimStat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div>
-      <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)', letterSpacing: .5 }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: highlight ? 700 : 500, color: highlight ? 'var(--neon)' : 'var(--text-main)', marginTop: 2 }}>{value}</div>
+      <div className="font-mono text-[9px] uppercase tracking-wider text-fg-tertiary">{label}</div>
+      <div className={cn('font-mono text-body font-semibold mt-1', highlight ? 'text-brand font-bold' : 'text-fg-primary')}>{value}</div>
     </div>
   )
 }
-
-const th: React.CSSProperties = { padding: '8px 10px', textAlign: 'left', fontSize: 10, color: 'var(--text-sub)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: .5, borderBottom: '1px solid var(--bd-1)' }
-const td: React.CSSProperties = { padding: '8px 10px', color: 'var(--text-main)' }
-const tdNum: React.CSSProperties = { padding: '8px 10px', color: 'var(--text-main)', fontFamily: 'var(--font-mono)', textAlign: 'right' }

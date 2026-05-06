@@ -134,7 +134,8 @@ export function GenerateSalesBudgetModal(props: {
           <div style={{ padding: 10, marginBottom: 12, background: 'var(--bg-deep)', border: '1px solid var(--bd-1)', borderRadius: 8, fontSize: 12, color: 'var(--tx-2)' }}>
             <strong>Sources :</strong><br/>
             • <strong>Produits (CA Export + Local)</strong> — calculés depuis les plantations (volume × prix, réparti sur la fenêtre de récolte).<br/>
-            • <strong>Charges</strong> — agrégées depuis les <strong>coûts prévisionnels</strong> saisis dans l'onglet "Budget" de /couts, groupés par (ferme, serre, catégorie, mois).
+            • <strong>Charges</strong> — agrégées depuis les <strong>coûts prévisionnels</strong> saisis dans l'onglet "Budget" de /couts, groupés par (ferme, serre, catégorie, mois).<br/>
+            • <strong>Amortissements</strong> — calculés depuis les <strong>actifs immobilisés</strong> de /admin/amortissements, dotation mensuelle linéaire répartie sur la fenêtre de la campagne.
           </div>
 
           {/* Section selector */}

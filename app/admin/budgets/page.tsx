@@ -16,6 +16,11 @@ import {
 } from '@/lib/budgets'
 import { BudgetImportModal } from '@/components/budget/BudgetImportModal'
 import { GenerateSalesBudgetModal } from '@/components/budget/GenerateSalesBudgetModal'
+import {
+  createWorkbook, applyTitleRow, styleHeaderRow, styleSubHeaderRow,
+  setColumnWidths, freezePanes, downloadWorkbook, NUM_FMT, thinBorder,
+  styleCategoryRow, styleSynthesisRow, XLS_COLORS,
+} from '@/lib/exportExcel'
 
 type Campaign = { id: string; name: string; code: string; preparation_start: string | null; planting_start: string | null; farm_id: string }
 type Farm = { id: string; name: string; code: string }
@@ -53,6 +58,10 @@ export default function BudgetsAdminPage() {
   const [importModal, setImportModal] = useState(false)
   // Modal génération CA depuis plantations
   const [generateModal, setGenerateModal] = useState(false)
+  // Modal export Excel multi-onglets
+  const [exportModal, setExportModal] = useState(false)
+  const [exportLevel, setExportLevel] = useState<'domain' | 'domain_farms' | 'all'>('all')
+  const [exporting, setExporting] = useState(false)
 
   // Unité d'affichage : MAD ou kMAD (milliers)
   const [unit, setUnit] = useState<'MAD' | 'kMAD'>('MAD')
@@ -249,6 +258,247 @@ export default function BudgetsAdminPage() {
     } catch (e: any) { alert('Erreur : ' + e.message) }
   }
 
+  // ── EXPORT EXCEL MULTI-ONGLETS (Index + Domaine + Fermes + Serres) ──
+  const exportBudgetToExcel = async (levelChoice: 'domain' | 'domain_farms' | 'all' = 'all') => {
+    if (!versionId || !version) { alert('Sélectionnez une version d\'abord'); return }
+    if (categories.length === 0 || months.length === 0) { alert('Données insuffisantes'); return }
+    setExporting(true)
+
+    const campName = campaign?.name ?? 'Campagne'
+    const totalCols = 1 + months.length + 1   // Catégorie + N mois + TOTAL
+    const tree = buildTree(categories.filter(c => c.is_active))
+
+    const wb = createWorkbook()
+
+    // Helper : remplit une feuille avec la grille budget pour un set de lignes
+    const fillBudgetSheet = (ws: import('exceljs').Worksheet, lines: BudgetLine[], scopeLbl: string) => {
+      const grid = computeGrid(lines, months)
+      const unitDiv = unit === 'kMAD' ? 1000 : 1
+
+      applyTitleRow(ws, `BUDGET — ${campName}  (${version.name} · ${version.status})`, totalCols, {
+        subtitle: `${scopeLbl}  ·  Unité : ${unit}  ·  Profondeur : ${displayDepth === 1 ? 'Type' : displayDepth === 2 ? 'Catégorie' : 'Détail'}  ·  Généré le ${new Date().toLocaleDateString('fr')}`,
+      })
+      ws.getRow(3).height = 6
+
+      const headerRowIdx = 4
+      const r1 = ws.getRow(headerRowIdx)
+      r1.getCell(1).value = 'Catégorie'
+      months.forEach((m, idx) => {
+        r1.getCell(2 + idx).value = `${MONTH_LABELS_FR[m.month - 1]} ${String(m.year).slice(-2)}`
+      })
+      r1.getCell(2 + months.length).value = 'TOTAL'
+      styleHeaderRow(r1)
+
+      let currentRow = headerRowIdx + 1
+
+      // Walk arbre des catégories en respectant displayDepth (comme dans le rendu)
+      const writeNode = (node: AccountCategoryNode, depth: number) => {
+        const hasChildren = node.children.length > 0
+        const willRenderChildren = hasChildren && (depth + 1) < displayDepth
+
+        // Total ligne (somme des descendants si parent, sinon valeur directe)
+        const collectIds = (n: AccountCategoryNode): string[] => {
+          if (n.children.length === 0) return [n.id]
+          return n.children.flatMap(collectIds)
+        }
+        const ids = hasChildren ? collectIds(node) : [node.id]
+        const rowTotal = ids.reduce((s, id) => s + (grid.totalByCategory[id] ?? 0), 0)
+
+        const xl = ws.getRow(currentRow)
+        xl.getCell(1).value = node.label
+        months.forEach((m, idx) => {
+          const monthSum = ids.reduce((s, id) => s + (grid.amounts[gridKey(id, m.year, m.month)] ?? 0), 0)
+          xl.getCell(2 + idx).value = monthSum / unitDiv
+        })
+        xl.getCell(2 + months.length).value = rowTotal / unitDiv
+        styleCategoryRow(xl, { depth, type: node.type, isLeaf: !hasChildren })
+        currentRow++
+
+        if (willRenderChildren) node.children.forEach(c => writeNode(c, depth + 1))
+      }
+      tree.forEach(n => writeNode(n, 0))
+
+      // Espacement + ligne TOTAL global
+      ws.getRow(currentRow).height = 6
+      currentRow++
+
+      // Synthèse par type (4 lignes)
+      const writeSynthRow = (label: string, variant: 'total_prod' | 'total_chvar' | 'total_chfix' | 'total_amort', total: number, byMonth: Record<string, number>) => {
+        const xl = ws.getRow(currentRow)
+        xl.getCell(1).value = label
+        months.forEach((m, idx) => {
+          xl.getCell(2 + idx).value = (byMonth[`${m.year}-${m.month}`] ?? 0) / unitDiv
+        })
+        xl.getCell(2 + months.length).value = total / unitDiv
+        styleSynthesisRow(xl, { variant })
+        currentRow++
+      }
+
+      const sumByType = (typeCode: string) => {
+        const ids = collectIdsByType(tree, typeCode)
+        const total = ids.reduce((s, id) => s + (grid.totalByCategory[id] ?? 0), 0)
+        const byMonth: Record<string, number> = {}
+        months.forEach(m => {
+          byMonth[`${m.year}-${m.month}`] = ids.reduce((s, id) => s + (grid.amounts[gridKey(id, m.year, m.month)] ?? 0), 0)
+        })
+        return { total, byMonth }
+      }
+      const prod = sumByType('produit')
+      const chvar = sumByType('charge_variable')
+      const chfix = sumByType('charge_fixe')
+      const amort = sumByType('amortissement')
+
+      writeSynthRow('TOTAL PRODUITS', 'total_prod', prod.total, prod.byMonth)
+      writeSynthRow('TOTAL CHARGES VARIABLES', 'total_chvar', chvar.total, chvar.byMonth)
+      writeSynthRow('TOTAL CHARGES FIXES', 'total_chfix', chfix.total, chfix.byMonth)
+      writeSynthRow('TOTAL AMORTISSEMENTS', 'total_amort', amort.total, amort.byMonth)
+
+      const colWidths: number[] = [38]
+      months.forEach(() => colWidths.push(13))
+      colWidths.push(15)
+      setColumnWidths(ws, colWidths)
+      freezePanes(ws, { rows: headerRowIdx, cols: 1 })
+    }
+
+    // Helper : récupère récursivement les ids des catégories d'un type
+    const collectIdsByType = (nodes: AccountCategoryNode[], typeCode: string): string[] => {
+      const ids: string[] = []
+      const walk = (n: AccountCategoryNode) => {
+        if (n.type === typeCode) {
+          if (n.children.length === 0) ids.push(n.id)
+          else n.children.forEach(walk)
+        } else {
+          n.children.forEach(walk)
+        }
+      }
+      nodes.forEach(walk)
+      return ids
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Charge tous les budget_lines d'un coup pour la version
+    // ──────────────────────────────────────────────────────────────────────
+    const allLines = await listBudgetLines({ versionId })
+
+    // Liste des feuilles à créer (filtrée selon levelChoice)
+    type SheetSpec = { name: string; title: string; kind: 'domain' | 'farm' | 'greenhouse'; lines: BudgetLine[] }
+    const sheets: SheetSpec[] = []
+    const INDEX_SHEET = '📑 Index'
+
+    // 1. Domaine (toujours)
+    sheets.push({ name: sanitizeSheetName('Domaine'), title: 'Domaine consolidé', kind: 'domain', lines: allLines })
+
+    // 2. Fermes (si demandé)
+    if (levelChoice === 'domain_farms' || levelChoice === 'all') {
+      for (const f of farms) {
+        const farmLines = allLines.filter(l => l.farm_id === f.id)
+        if (farmLines.length === 0) continue
+        sheets.push({
+          name: sanitizeSheetName(`Ferme - ${f.name}`),
+          title: `Ferme : ${f.name}`,
+          kind: 'farm',
+          lines: farmLines,
+        })
+      }
+    }
+
+    // 3. Serres (mode 'all' uniquement)
+    if (levelChoice === 'all') {
+      for (const gh of greenhouses) {
+        const ghLines = allLines.filter(l => l.greenhouse_id === gh.id)
+        if (ghLines.length === 0) continue
+        const f = farms.find(x => x.id === gh.farm_id)
+        sheets.push({
+          name: sanitizeSheetName(`Serre - ${gh.code}`),
+          title: `Serre : ${gh.code} · ${gh.name}${f ? ` (${f.name})` : ''}`,
+          kind: 'greenhouse',
+          lines: ghLines,
+        })
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Index avec hyperliens (HYPERLINK formula pour fiabilité Excel/LibreOffice)
+    // ──────────────────────────────────────────────────────────────────────
+    const indexWs = wb.addWorksheet(INDEX_SHEET, { properties: { defaultRowHeight: 18 } })
+    const levelLabel = levelChoice === 'domain' ? 'Domaine seul'
+                      : levelChoice === 'domain_farms' ? 'Domaine + Fermes'
+                      : 'Tout (Domaine + Fermes + Serres)'
+    applyTitleRow(indexWs, `INDEX — ${campName} (${version.name})`, 4, {
+      subtitle: `Niveau : ${levelLabel}  ·  ${sheets.length} onglets  ·  Généré le ${new Date().toLocaleDateString('fr')}`,
+    })
+    indexWs.getRow(3).height = 6
+
+    const idxHeader = indexWs.getRow(4)
+    idxHeader.getCell(1).value = '#'
+    idxHeader.getCell(2).value = 'Type'
+    idxHeader.getCell(3).value = 'Périmètre'
+    idxHeader.getCell(4).value = 'Accès'
+    styleHeaderRow(idxHeader)
+
+    let idxRow = 5
+    sheets.forEach((sp, i) => {
+      const row = indexWs.getRow(idxRow++)
+      row.getCell(1).value = i + 1
+      row.getCell(2).value = sp.kind === 'domain' ? '🏭 Domaine' : sp.kind === 'farm' ? '🏠 Ferme' : '🏗️ Serre'
+      row.getCell(3).value = sp.title
+      // Lien interne via formule HYPERLINK (compatibilité Excel & LibreOffice)
+      const target = `'${sp.name}'!A1`
+      row.getCell(4).value = {
+        formula: `HYPERLINK("#${target.replace(/"/g, '""')}", "→ Ouvrir l'onglet")`,
+      } as any
+      row.getCell(4).font = { color: { argb: 'FF1E40AF' }, underline: true, name: 'Calibri', size: 11, bold: true }
+
+      row.eachCell({ includeEmpty: true }, (cell, col) => {
+        if (col !== 4) cell.font = cell.font || { name: 'Calibri', size: 11 }
+        cell.alignment = col === 1 ? { horizontal: 'center', vertical: 'middle' } : { horizontal: 'left', indent: 1, vertical: 'middle' }
+        cell.border = thinBorder
+        if (sp.kind === 'domain') {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XLS_COLORS.typeProduitFill } }
+          if (col === 1 || col === 2) cell.font = { ...(cell.font as any), bold: true, color: { argb: 'FF065F46' } }
+        } else if (sp.kind === 'farm') {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDE9FE' } }
+        }
+      })
+      row.height = sp.kind === 'domain' ? 26 : 22
+    })
+
+    setColumnWidths(indexWs, [6, 16, 50, 26])
+    freezePanes(indexWs, { rows: 4, cols: 0 })
+
+    idxRow++
+    const noteRow = indexWs.getRow(idxRow)
+    noteRow.getCell(1).value = "💡 Astuce : cliquez sur '→ Ouvrir l'onglet' pour aller directement à la feuille. Chaque feuille a un lien retour vers cet index."
+    indexWs.mergeCells(noteRow.number, 1, noteRow.number, 4)
+    noteRow.getCell(1).font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF6B7280' } }
+    noteRow.getCell(1).alignment = { horizontal: 'left', indent: 1 }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Crée chaque feuille avec un lien retour vers l'index
+    // ──────────────────────────────────────────────────────────────────────
+    for (const sp of sheets) {
+      const ws = wb.addWorksheet(sp.name, { properties: { defaultRowHeight: 16 } })
+      fillBudgetSheet(ws, sp.lines, sp.title)
+      // Lien "← Retour à l'index" en bas de la feuille
+      const lastRow = ws.lastRow ? ws.lastRow.number : 1
+      const backRow = ws.getRow(lastRow + 2)
+      backRow.getCell(1).value = {
+        formula: `HYPERLINK("#'${INDEX_SHEET.replace(/"/g, '""')}'!A1", "← Retour à l'index")`,
+      } as any
+      backRow.getCell(1).font = { color: { argb: 'FF1E40AF' }, underline: true, name: 'Calibri', size: 11, bold: true }
+      backRow.getCell(1).alignment = { horizontal: 'left', indent: 1 }
+      backRow.height = 22
+    }
+
+    const fname = `Budget_${campName.replace(/\s+/g, '_')}_${version.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx`
+    await downloadWorkbook(wb, fname)
+    setExporting(false)
+  }
+
+  function sanitizeSheetName(name: string): string {
+    return name.replace(/[\\/?*[\]:]/g, '_').slice(0, 31)
+  }
+
   // ── Rendu d'une ligne de catégorie dans la grille ──
   // depth 0 = niveau 1 (Type), depth 1 = L2, depth 2 = L3
   // On agrège toujours les enfants pour l'affichage total, mais on ne rend
@@ -411,6 +661,26 @@ export default function BudgetsAdminPage() {
               opacity: versionId ? 1 : 0.5,
             }}>
             📤 IMPORT EXCEL
+          </button>
+          <button
+            onClick={() => setExportModal(true)}
+            disabled={!versionId}
+            title={versionId
+              ? 'Exporter en Excel avec choix du niveau de détail (Index + Domaine + Fermes + Serres)'
+              : 'Sélectionnez une version d\'abord'}
+            style={{
+              padding: '9px 14px',
+              background: 'transparent',
+              color: 'var(--tx-2)',
+              border: '1px solid var(--bd-1)',
+              borderRadius: 7,
+              cursor: versionId ? 'pointer' : 'not-allowed',
+              fontSize: 12,
+              fontFamily: 'var(--font-mono)',
+              letterSpacing: 1,
+              opacity: versionId ? 1 : 0.5,
+            }}>
+            📥 EXPORT XLSX
           </button>
         </div>
       </div>
@@ -742,6 +1012,87 @@ export default function BudgetsAdminPage() {
             setLines(fetched)
           }}
         />
+      )}
+
+      {/* Modal de choix du niveau de détail à l'export */}
+      {exportModal && (
+        <div onClick={(e) => { if (e.target === e.currentTarget) setExportModal(false) }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(15,23,42,.55)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          }}>
+          <div style={{
+            background: 'var(--bg-card)', border: '1px solid var(--bd-1)',
+            borderRadius: 14, width: '100%', maxWidth: 520,
+            boxShadow: '0 24px 60px rgba(0,0,0,.18)',
+          }}>
+            <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid var(--bd-1)' }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--tx-1)', letterSpacing: -.2, textTransform: 'uppercase' }}>
+                📥 Export Excel — Choisir le niveau de détail
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--tx-3)', marginTop: 4 }}>
+                Le fichier généré aura un onglet d'index avec liens cliquables vers chaque feuille.
+              </div>
+            </div>
+            <div style={{ padding: 18 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {([
+                  { v: 'domain' as const, title: '🏭 Domaine seul', desc: '1 onglet : vue consolidée tous périmètres confondus', count: '2 onglets (Index + Domaine)' },
+                  { v: 'domain_farms' as const, title: '🏠 Domaine + Fermes', desc: 'Vue consolidée + 1 onglet par ferme avec données', count: `${1 + farms.length} onglets max (Index + Domaine + ${farms.length} fermes)` },
+                  { v: 'all' as const, title: '🏗️ Tout — Domaine + Fermes + Serres', desc: 'Détail complet : 1 onglet par périmètre', count: `Jusqu'à ${1 + farms.length + greenhouses.length} onglets` },
+                ]).map(opt => {
+                  const selected = exportLevel === opt.v
+                  return (
+                    <button key={opt.v} onClick={() => setExportLevel(opt.v)}
+                      style={{
+                        textAlign: 'left',
+                        padding: '12px 14px',
+                        background: selected ? 'color-mix(in srgb, var(--neon) 8%, var(--bg-deep))' : 'var(--bg-deep)',
+                        border: `1px solid ${selected ? 'var(--neon)' : 'var(--bd-1)'}`,
+                        borderRadius: 10, cursor: 'pointer',
+                        transition: 'all .15s',
+                        boxShadow: selected ? '0 0 0 3px color-mix(in srgb, var(--neon) 14%, transparent)' : undefined,
+                      }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: selected ? 'var(--neon)' : 'var(--tx-1)' }}>
+                          {opt.title}
+                        </div>
+                        {selected && <span style={{ color: 'var(--neon)', fontSize: 16 }}>✓</span>}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: 'var(--tx-2)', marginTop: 4, lineHeight: 1.4 }}>{opt.desc}</div>
+                      <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginTop: 6, letterSpacing: .3 }}>
+                        {opt.count}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
+                <button onClick={() => setExportModal(false)} disabled={exporting}
+                  style={{
+                    padding: '8px 14px', background: 'transparent', border: '1px solid var(--bd-1)',
+                    color: 'var(--tx-2)', borderRadius: 7, cursor: exporting ? 'wait' : 'pointer',
+                    fontSize: 12, fontFamily: 'var(--font-mono)',
+                  }}>
+                  Annuler
+                </button>
+                <button onClick={async () => {
+                    setExportModal(false)
+                    await exportBudgetToExcel(exportLevel)
+                  }} disabled={exporting}
+                  style={{
+                    padding: '8px 16px', background: 'var(--neon)', color: '#fff',
+                    border: '1px solid var(--neon)', borderRadius: 7, cursor: exporting ? 'wait' : 'pointer',
+                    fontSize: 12, fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: 1,
+                    opacity: exporting ? .6 : 1,
+                  }}>
+                  {exporting ? 'GÉNÉRATION…' : 'GÉNÉRER LE FICHIER'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

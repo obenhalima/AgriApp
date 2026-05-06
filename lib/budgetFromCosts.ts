@@ -43,10 +43,11 @@ export type ChargeGenerationReport = {
 }
 
 export async function generateChargeLinesFromCosts(campaignId: string): Promise<ChargeGenerationReport> {
-  // 1. Charger la campagne pour récupérer la ferme par défaut
+  // 1. Charger la campagne pour récupérer la ferme + dates
+  // Note : on prend preparation_start (début des coûts) plutôt que planting_start
   const { data: campaign } = await supabase
     .from('campaigns')
-    .select('id, farm_id')
+    .select('id, farm_id, preparation_start, planting_start, campaign_end')
     .eq('id', campaignId)
     .maybeSingle()
   if (!campaign) throw new Error('Campagne introuvable')
@@ -163,6 +164,93 @@ export async function generateChargeLinesFromCosts(campaignId: string): Promise<
       })
     }
     processed++
+  }
+
+  // ─── 4bis. AMORTISSEMENTS : ajoute les dotations des actifs actifs ───
+  // Pour chaque actif dont la durée d'amortissement chevauche la campagne :
+  //   • dotation mensuelle = (cost - residual) / (life * 12)
+  //   • 1 ligne par mois × (farm, greenhouse, AMT_*)
+  // Les actifs sans farm_id sont rattachés à la ferme de la campagne.
+  // Les actifs d'une autre ferme sont ignorés.
+  const { data: assets } = await supabase.from('assets')
+    .select('id, code, label, account_category_id, acquisition_date, acquisition_cost, useful_life_years, residual_value, farm_id, greenhouse_id, disposal_date, is_active, account_categories(code, label, type), greenhouses(code)')
+    .eq('is_active', true)
+
+  // Si dates de campagne manquantes : on ne peut pas calculer le périmètre amort
+  // Priorité : preparation_start (début réel des coûts) > planting_start
+  const campStartStr = ((campaign as any).preparation_start ?? campaign.planting_start) as string | null
+  const campEndStr = campaign.campaign_end as string | null
+  if (assets && assets.length > 0 && (!campStartStr || !campEndStr)) {
+    issues.push({ costEntryId: 'amort', severity: 'warning',
+      message: `${assets.length} actif(s) ignoré(s) : campagne sans planting_start ou campaign_end` })
+  } else if (assets && assets.length > 0 && campStartStr! > campEndStr!) {
+    issues.push({ costEntryId: 'amort', severity: 'error',
+      message: `Dates de campagne incohérentes : planting_start (${campStartStr}) > campaign_end (${campEndStr}). ` +
+               `Corrige sur /campagnes — ${assets.length} actif(s) ignoré(s).` })
+  } else if (assets && assets.length > 0) {
+    const campStart = new Date(campStartStr!)
+    const campEnd = new Date(campEndStr!)
+
+    for (const a of assets as any[]) {
+      // Filtre : actifs liés à une autre ferme → skip
+      if (a.farm_id && a.farm_id !== campaign.farm_id) continue
+      const cat = a.account_categories
+      if (!cat || cat.type !== 'amortissement') continue
+
+      const acqDate = new Date(a.acquisition_date)
+      let endLife = new Date(acqDate)
+      endLife.setFullYear(endLife.getFullYear() + Number(a.useful_life_years))
+      endLife.setDate(endLife.getDate() - 1)
+      if (a.disposal_date) {
+        const disp = new Date(a.disposal_date)
+        if (disp < endLife) endLife = disp
+      }
+
+      // Intersection avec la campagne
+      const start = acqDate > campStart ? acqDate : campStart
+      const end = endLife < campEnd ? endLife : campEnd
+      if (start > end) continue
+
+      // Montant mensuel
+      const cost = Number(a.acquisition_cost) || 0
+      const residual = Number(a.residual_value) || 0
+      const life = Number(a.useful_life_years) || 0
+      if (life <= 0 || cost <= residual) continue
+      const monthly = (cost - residual) / (life * 12)
+      if (monthly <= 0) continue
+
+      // Itère sur les mois entre start et end
+      const cur = new Date(start.getFullYear(), start.getMonth(), 1)
+      const last = new Date(end.getFullYear(), end.getMonth(), 1)
+      while (cur <= last) {
+        const year = cur.getFullYear()
+        const month = cur.getMonth() + 1
+        const farm_id = a.farm_id ?? campaign.farm_id
+        const farm_code = farmById.get(farm_id)?.code ?? '?'
+        const gh_id = a.greenhouse_id ?? null
+        const gh_code = a.greenhouses?.code ?? null
+        const key = `${farm_id}|${gh_id ?? '∅'}|${a.account_category_id}|${year}|${month}`
+
+        const existing = groups.get(key)
+        if (existing) {
+          existing.amount += monthly
+          existing.source_entries += 1
+        } else {
+          groups.set(key, {
+            farm_id, greenhouse_id: gh_id,
+            account_category_id: a.account_category_id,
+            period_year: year, period_month: month,
+            amount: monthly,
+            farm_code, greenhouse_code: gh_code,
+            category_code: cat.code, category_label: cat.label,
+            category_type: 'amortissement',
+            source_entries: 1,
+          })
+        }
+        processed++
+        cur.setMonth(cur.getMonth() + 1)
+      }
+    }
   }
 
   const lines: GeneratedChargeLine[] = Array.from(groups.values())

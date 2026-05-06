@@ -19,11 +19,13 @@ export function getModuleKeyForPath(pathname: string): string | null {
     '/analytique': 'analytique',
     '/alertes': 'alertes',
     '/admin/imports': 'imports',
+    '/admin/amortissements': 'amortissements',
     '/rh': 'rh',
     '/rh/employes': 'rh_employes',
     '/rh/paie': 'rh_paie',
     '/rh/conges': 'rh_conges',
     '/rh/cnss': 'rh_cnss',
+    '/rh/chatbot': 'rh_chatbot',
   }
   return map[pathname] ?? null
 }

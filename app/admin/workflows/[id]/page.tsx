@@ -2,36 +2,20 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
+import { toast } from 'sonner'
+import { ArrowLeft, Workflow, Plus, Trash2, ArrowRight, Info } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { Input as TInput, Select as TSelect, Field } from '@/components/ui/Input'
+import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 
-type Def = {
-  id: string
-  entity_type: string
-  code: string
-  name: string
-  description: string | null
-  is_active: boolean
-  is_default: boolean
-}
-type State = {
-  id: string
-  code: string
-  label: string
-  color: string | null
-  is_initial: boolean
-  is_final: boolean
-  order_idx: number
-}
-type Transition = {
-  id: string
-  from_state_id: string
-  to_state_id: string
-  code: string
-  label: string
-  is_active: boolean
-  order_idx: number
-  requires_approval: boolean
-}
+type Def = { id: string; entity_type: string; code: string; name: string; description: string | null; is_active: boolean; is_default: boolean }
+type State = { id: string; code: string; label: string; color: string | null; is_initial: boolean; is_final: boolean; order_idx: number }
+type Transition = { id: string; from_state_id: string; to_state_id: string; code: string; label: string; is_active: boolean; order_idx: number; requires_approval: boolean }
 
 export default function WorkflowDefinitionEditor() {
   const params = useParams<{ id: string }>()
@@ -42,8 +26,6 @@ export default function WorkflowDefinitionEditor() {
   const [trans, setTrans] = useState<Transition[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-
-  // Nouvelle transition
   const [newT, setNewT] = useState({ from_state_id: '', to_state_id: '', code: '', label: '' })
   const [savingT, setSavingT] = useState(false)
 
@@ -56,11 +38,7 @@ export default function WorkflowDefinitionEditor() {
         supabase.from('workflow_transitions').select('*').eq('definition_id', defId).order('order_idx'),
       ])
       if (d.error) throw d.error
-      if (s.error) throw s.error
-      if (t.error) throw t.error
-      setDef(d.data as Def | null)
-      setStates(s.data ?? [])
-      setTrans(t.data ?? [])
+      setDef(d.data as Def | null); setStates(s.data ?? []); setTrans(t.data ?? [])
     } catch (e: any) { setError(e.message) }
     finally { setLoading(false) }
   }
@@ -69,151 +47,146 @@ export default function WorkflowDefinitionEditor() {
   const stateById = (id: string) => states.find(s => s.id === id)
 
   const toggleTransition = async (t: Transition) => {
-    await supabase.from('workflow_transitions').update({ is_active: !t.is_active }).eq('id', t.id)
-    setTrans(p => p.map(x => x.id === t.id ? { ...x, is_active: !t.is_active } : x))
+    try {
+      await supabase.from('workflow_transitions').update({ is_active: !t.is_active }).eq('id', t.id)
+      setTrans(p => p.map(x => x.id === t.id ? { ...x, is_active: !t.is_active } : x))
+      toast.success(t.is_active ? 'Transition désactivée' : 'Transition activée')
+    } catch (e: any) { toast.error(e.message) }
   }
 
   const deleteTransition = async (t: Transition) => {
     if (!confirm(`Supprimer la transition "${t.label}" ?`)) return
-    await supabase.from('workflow_transitions').delete().eq('id', t.id)
-    setTrans(p => p.filter(x => x.id !== t.id))
+    try {
+      await supabase.from('workflow_transitions').delete().eq('id', t.id)
+      setTrans(p => p.filter(x => x.id !== t.id))
+      toast.success('Transition supprimée')
+    } catch (e: any) { toast.error(e.message) }
   }
 
   const addTransition = async () => {
     if (!newT.from_state_id || !newT.to_state_id || !newT.code || !newT.label) return
-    if (newT.from_state_id === newT.to_state_id) { alert('L\'état de départ et d\'arrivée doivent être différents'); return }
+    if (newT.from_state_id === newT.to_state_id) { toast.error("Les états doivent être différents"); return }
     setSavingT(true)
     try {
       const { data, error } = await supabase.from('workflow_transitions').insert({
-        definition_id: defId,
-        from_state_id: newT.from_state_id,
-        to_state_id: newT.to_state_id,
-        code: newT.code,
-        label: newT.label,
-        order_idx: (trans.length + 1) * 10,
+        definition_id: defId, from_state_id: newT.from_state_id, to_state_id: newT.to_state_id,
+        code: newT.code, label: newT.label, order_idx: (trans.length + 1) * 10,
       }).select().single()
       if (error) throw error
       setTrans(p => [...p, data])
       setNewT({ from_state_id: '', to_state_id: '', code: '', label: '' })
-    } catch (e: any) { alert('Erreur: ' + e.message) }
+      toast.success('Transition ajoutée')
+    } catch (e: any) { toast.error(e.message) }
     finally { setSavingT(false) }
   }
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--tx-3)' }}>CHARGEMENT...</div>
-  if (error) return <div style={{ padding: 12, background: 'var(--red-dim)', color: 'var(--red)' }}>⚠ {error}</div>
-  if (!def) return <div style={{ padding: 40 }}>Workflow introuvable.</div>
+  if (loading) return <div className="space-y-md"><Skeleton className="h-24" /><Skeleton className="h-64" /></div>
+  if (error) return <div className="rounded-md border border-danger/30 bg-danger/10 p-md text-danger">⚠ {error}</div>
+  if (!def) return <div className="p-xl text-center text-fg-tertiary">Workflow introuvable.</div>
 
   return (
-    <div style={{ background: 'var(--bg-base)', minHeight: '100vh' }}>
-      <div style={{ marginBottom: 16 }}>
-        <Link href="/admin/workflows" style={{ fontSize: 11, color: 'var(--tx-3)', textDecoration: 'none' }}>← Retour</Link>
-        <div className="page-title" style={{ marginTop: 6 }}>{def.name}</div>
-        <div className="page-sub">
-          <span style={{ fontFamily: 'var(--font-mono)' }}>{def.entity_type}</span> · code <code>{def.code}</code>
-          {def.is_default && <span className="tag tag-green" style={{ marginLeft: 8 }}>défaut</span>}
-          {!def.is_active && <span className="tag" style={{ marginLeft: 8 }}>inactif</span>}
-        </div>
-      </div>
+    <div>
+      <Link href="/admin/workflows" className="inline-flex items-center gap-1 text-caption text-fg-tertiary hover:text-fg-primary mb-2 transition-colors">
+        <ArrowLeft size={12} /> Retour
+      </Link>
 
-      {/* ÉTATS */}
-      <div style={{ marginBottom: 28 }}>
-        <div className="section-label" style={{ marginBottom: 10 }}>ÉTATS ({states.length})</div>
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <table className="tbl">
-            <thead><tr>{['Ordre', 'Code', 'Libellé', 'Couleur', 'Initial', 'Final'].map(h => <th key={h}>{h}</th>)}</tr></thead>
+      <PageHeader
+        title={def.name} subtitle="Workflow" icon={Workflow} iconColor="#64748b"
+        description={
+          <span className="flex items-center gap-2">
+            <span className="font-mono">{def.entity_type}</span>
+            <span className="opacity-50">·</span>
+            <code className="font-mono">{def.code}</code>
+            {def.is_default && <Badge variant="success" size="xs">défaut</Badge>}
+            {!def.is_active && <Badge variant="default" size="xs">inactif</Badge>}
+          </span>
+        }
+      />
+
+      {/* États */}
+      <div className="mb-xl">
+        <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-sm">États ({states.length})</div>
+        <Card animate padding="none" className="overflow-hidden">
+          <DataTable>
+            <THead><TR><TH>Ordre</TH><TH>Code</TH><TH>Libellé</TH><TH>Couleur</TH><TH>Initial</TH><TH>Final</TH></TR></THead>
             <tbody>
-              {states.map(s => (
-                <tr key={s.id}>
-                  <td><span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{s.order_idx}</span></td>
-                  <td><code>{s.code}</code></td>
-                  <td>
-                    <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: s.color ?? 'var(--tx-3)', marginRight: 8 }} />
-                    {s.label}
-                  </td>
-                  <td><span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--tx-3)' }}>{s.color}</span></td>
-                  <td>{s.is_initial ? '✓' : ''}</td>
-                  <td>{s.is_final ? '✓' : ''}</td>
-                </tr>
+              {states.map((s, i) => (
+                <TR key={s.id} animate delay={0.04 + i * 0.02}>
+                  <TD mono className="text-caption">{s.order_idx}</TD>
+                  <TD><code className="text-caption">{s.code}</code></TD>
+                  <TD>
+                    <span className="inline-flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: s.color ?? 'var(--tx-3)' }} />
+                      {s.label}
+                    </span>
+                  </TD>
+                  <TD mono className="text-caption text-fg-tertiary">{s.color}</TD>
+                  <TD>{s.is_initial && '✓'}</TD>
+                  <TD>{s.is_final && '✓'}</TD>
+                </TR>
               ))}
             </tbody>
-          </table>
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--tx-3)', marginTop: 6 }}>
-          L'édition des états se fera en phase ultérieure — ils sont définis par migration.
+          </DataTable>
+        </Card>
+        <div className="mt-2 text-caption text-fg-tertiary flex items-center gap-1.5">
+          <Info size={11} /> L'édition des états se fera en phase ultérieure — ils sont définis par migration.
         </div>
       </div>
 
-      {/* TRANSITIONS */}
+      {/* Transitions */}
       <div>
-        <div className="section-label" style={{ marginBottom: 10 }}>TRANSITIONS ({trans.length})</div>
+        <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-sm">Transitions ({trans.length})</div>
 
-        {/* Formulaire d'ajout */}
-        <div className="card" style={{ padding: 14, marginBottom: 12 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr 1.5fr auto', gap: 8, alignItems: 'end' }}>
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--tx-3)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>DE</div>
-              <select value={newT.from_state_id} onChange={e => setNewT({ ...newT, from_state_id: e.target.value })}
-                style={{ width: '100%', padding: 8, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 6 }}>
+        <Card animate className="mb-md">
+          <div className="grid grid-cols-[1.2fr_1.2fr_1fr_1.5fr_auto] gap-sm items-end">
+            <Field label="De">
+              <TSelect value={newT.from_state_id} onChange={(e) => setNewT({ ...newT, from_state_id: e.target.value })}>
                 <option value="">— état —</option>
                 {states.filter(s => !s.is_final).map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--tx-3)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>VERS</div>
-              <select value={newT.to_state_id} onChange={e => setNewT({ ...newT, to_state_id: e.target.value })}
-                style={{ width: '100%', padding: 8, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 6 }}>
+              </TSelect>
+            </Field>
+            <Field label="Vers">
+              <TSelect value={newT.to_state_id} onChange={(e) => setNewT({ ...newT, to_state_id: e.target.value })}>
                 <option value="">— état —</option>
                 {states.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--tx-3)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>CODE</div>
-              <input value={newT.code} onChange={e => setNewT({ ...newT, code: e.target.value })} placeholder="ex: confirm"
-                style={{ width: '100%', padding: 8, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 6 }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: 'var(--tx-3)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>LIBELLÉ DU BOUTON</div>
-              <input value={newT.label} onChange={e => setNewT({ ...newT, label: e.target.value })} placeholder="ex: Confirmer la commande"
-                style={{ width: '100%', padding: 8, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 6 }} />
-            </div>
-            <button onClick={addTransition} disabled={savingT} className="btn-primary" style={{ whiteSpace: 'nowrap' }}>
-              {savingT ? '...' : '+ AJOUTER'}
-            </button>
+              </TSelect>
+            </Field>
+            <Field label="Code"><TInput value={newT.code} onChange={(e) => setNewT({ ...newT, code: e.target.value })} placeholder="confirm" /></Field>
+            <Field label="Libellé du bouton"><TInput value={newT.label} onChange={(e) => setNewT({ ...newT, label: e.target.value })} placeholder="Confirmer la commande" /></Field>
+            <Button onClick={addTransition} loading={savingT} variant="primary"><Plus size={14} strokeWidth={2.5} /> Ajouter</Button>
           </div>
-        </div>
+        </Card>
 
-        {/* Liste */}
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <table className="tbl">
-            <thead><tr>{['De', 'Vers', 'Code', 'Libellé', 'Actif', ''].map(h => <th key={h}>{h}</th>)}</tr></thead>
+        <Card animate delay={0.1} padding="none" className="overflow-hidden">
+          <DataTable>
+            <THead><TR><TH>De</TH><TH>Vers</TH><TH>Code</TH><TH>Libellé</TH><TH>Actif</TH><TH right>Actions</TH></TR></THead>
             <tbody>
-              {trans.map(t => {
+              {trans.map((t, i) => {
                 const from = stateById(t.from_state_id)
                 const to = stateById(t.to_state_id)
                 return (
-                  <tr key={t.id} style={{ opacity: t.is_active ? 1 : 0.5 }}>
-                    <td>{from?.label ?? '?'}</td>
-                    <td>→ {to?.label ?? '?'}</td>
-                    <td><code>{t.code}</code></td>
-                    <td>{t.label}</td>
-                    <td>
+                  <TR key={t.id} animate delay={0.05 + i * 0.02} className={!t.is_active ? 'opacity-50' : ''}>
+                    <TD>{from?.label ?? '?'}</TD>
+                    <TD className="flex items-center gap-1"><ArrowRight size={11} className="text-fg-tertiary" />{to?.label ?? '?'}</TD>
+                    <TD><code className="text-caption">{t.code}</code></TD>
+                    <TD>{t.label}</TD>
+                    <TD>
                       <button onClick={() => toggleTransition(t)}
-                        style={{ padding: '3px 10px', border: '1px solid var(--bd-1)', borderRadius: 6, background: t.is_active ? 'var(--neon-dim)' : 'transparent', color: t.is_active ? 'var(--neon)' : 'var(--tx-3)', fontSize: 11, cursor: 'pointer' }}>
+                        className={`px-2.5 py-0.5 rounded text-caption font-mono uppercase font-semibold border transition-colors ${t.is_active ? 'border-success/40 bg-success/15 text-success' : 'border-border bg-transparent text-fg-tertiary'}`}>
                         {t.is_active ? 'actif' : 'inactif'}
                       </button>
-                    </td>
-                    <td>
-                      <button onClick={() => deleteTransition(t)}
-                        title="Supprimer" style={{ background: 'transparent', border: '1px solid var(--bd-1)', borderRadius: 6, padding: '3px 8px', fontSize: 12, cursor: 'pointer', color: 'var(--red)' }}>
-                        🗑
-                      </button>
-                    </td>
-                  </tr>
+                    </TD>
+                    <TD right>
+                      <Button onClick={() => deleteTransition(t)} variant="ghost" size="icon-sm" title="Supprimer" className="hover:text-danger">
+                        <Trash2 size={12} strokeWidth={2.2} />
+                      </Button>
+                    </TD>
+                  </TR>
                 )
               })}
             </tbody>
-          </table>
-        </div>
+          </DataTable>
+        </Card>
       </div>
     </div>
   )

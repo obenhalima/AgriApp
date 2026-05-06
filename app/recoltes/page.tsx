@@ -1,1474 +1,1137 @@
 'use client'
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 
-type Tab = 'liste' | 'sans_prix' | 'confirmes' | 'alertes'
+// ============================================================
+// Page Récoltes — workflow unifié (CRUD + Cycle station)
+// Onglets : Récoltes | À envoyer | À trier | À tarifer | Confirmés | Alertes
+// ============================================================
 
-/* ── Helpers ── */
-const parseMeta = (notes: string | null) => {
-  try { return JSON.parse(notes || '{}') } catch { return {} }
+type Tab = 'liste' | 'a_envoyer' | 'a_trier' | 'a_tarifer' | 'confirmes' | 'alertes'
+
+const fmt = (n: number) => Math.round(n).toLocaleString('fr-FR')
+const fmt2 = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+// Calcule la qty restante d'une récolte (non encore engagée dans des envois)
+function computeUsed(harvestId: string, sources: any[], legacyDirect: any[]): number {
+  const fromSources = sources.filter(s => s.harvest_id === harvestId).reduce((s, x) => s + Number(x.qty_contributed_kg || 0), 0)
+  // Évite le double-comptage : si la dispatch est dans sources, on ne la compte pas via legacy
+  const dispatchesWithSources = new Set(sources.map(s => s.harvest_lot_id))
+  const fromLegacy = legacyDirect
+    .filter(d => d.harvest_id === harvestId && !dispatchesWithSources.has(d.id))
+    .reduce((s, x) => s + Number(x.quantity_kg || 0), 0)
+  return fromSources + fromLegacy
 }
 
-const calcQty = (brute: number, freinte: number, ecart: number, manuelle?: number): number => {
-  if (manuelle !== undefined && manuelle >= 0) return manuelle
-  const nette = brute * (1 - freinte / 100)
-  return Math.round(nette * (1 - ecart / 100) * 100) / 100
-}
-
-const calcCA = (qtyAcceptee: number, prix: number) =>
-  Math.round(qtyAcceptee * prix * 100) / 100
-
-const getCA   = (d: any) => parseMeta(d.notes).ca_amount   ?? 0
-const getQtyA = (d: any) => parseMeta(d.notes).qty_acceptee ?? Number(d.certificate_number ?? 0)
-
-const harvestStatut = (h: any, disps: any[]) => {
-  const hd = disps.filter(d => d.harvest_id === h.id)
-  if (hd.length === 0) return 'RÉCOLTÉE'
-  const confirmed = hd.filter(d => d.certificate_number)
-  if (confirmed.length === 0) return 'DISPATCHÉE'
-  if (confirmed.length < hd.length) return 'PARTIELLEMENT CONFIRMÉE'
-  return 'CLÔTURÉE'
-}
-
-const statutStyle = (s: string) => {
-  const map: Record<string,[string,string]> = {
-    'RÉCOLTÉE':                ['var(--tx-3)','var(--border)'],
-    'DISPATCHÉE':              ['var(--blue)','var(--blue-dim)'],
-    'PARTIELLEMENT CONFIRMÉE': ['var(--amber)','var(--amber-dim)'],
-    'CLÔTURÉE':                ['var(--neon)','var(--neon-dim)'],
-  }
-  const [color,bg] = map[s] || ['var(--tx-3)','var(--border)']
-  return { color, background: bg, border: `1px solid ${color}40` }
-}
-
-/* ══════════════════════════════════════════════════════════════ */
 export default function RecoltesPage() {
-  const [tab, setTab]           = useState<Tab>('liste')
+  const [tab, setTab] = useState<Tab>('liste')
   const [harvests, setHarvests] = useState<any[]>([])
   const [dispatches, setDispatches] = useState<any[]>([])
-  const [plantings, setPlantings]   = useState<any[]>([])
-  const [markets, setMarkets]       = useState<any[]>([])
-  const [alertes, setAlertes]       = useState<any[]>([])
-  const [loading, setLoading]       = useState(true)
+  const [sources, setSources] = useState<any[]>([])
+  const [plantings, setPlantings] = useState<any[]>([])
+  const [markets, setMarkets] = useState<any[]>([])
+  const [alertes, setAlertes] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  /* Modales */
-  const [modalNew,      setModalNew]      = useState(false)
-  const [modalEdit,     setModalEdit]     = useState<any>(null)
-  const [modalDispatch, setModalDispatch] = useState<any>(null)
-  const [modalConfirm,  setModalConfirm]  = useState<any>(null)
-  const [modalPeriode,  setModalPeriode]  = useState(false)
-  const [modalAlerte,   setModalAlerte]   = useState(false)
+  // ─── Modals ───
+  const [modalNew, setModalNew] = useState(false)
+  const [modalEdit, setModalEdit] = useState<any>(null)
+  const [modalCompose, setModalCompose] = useState(false)
+  const [modalTri, setModalTri] = useState<any>(null)
+  const [modalPrice, setModalPrice] = useState<any>(null)
+  const [modalPeriodPrice, setModalPeriodPrice] = useState(false)
+  const [modalAlerte, setModalAlerte] = useState(false)
 
+  // ─── Form: nouvelle récolte ───
+  const [formNew, setFormNew] = useState({ campaign_planting_id: '', harvest_date: '', total_qty: '', notes: '' })
+  const [formEdit, setFormEdit] = useState<Record<string, any>>({})
+  const [formAlerte, setFormAlerte] = useState({ date: '', reason: 'panne_irrigation', notes: '' })
   const [saving, setSaving] = useState(false)
-  const [done,   setDone]   = useState(false)
+  const [done, setDone] = useState(false)
 
-  /* Form récolte */
-  const [formNew,  setFormNew]  = useState({ campaign_planting_id:'', harvest_date:'', total_qty:'', notes:'' })
-  const [dateError, setDateError] = useState('')
-  const [formEdit, setFormEdit] = useState<Record<string,any>>({})
-
-  /* Form dispatch */
-  const [dispLines, setDispLines] = useState<{market_id:string; qty:string}[]>([{market_id:'',qty:''}])
-
-  /* Form confirmation individuelle */
-  const [formC, setFormC] = useState({ freinte_pct:'0', ecart_pct:'0', qty_acceptee:'', price_per_kg:'', periode_debut:'', periode_fin:'', station_ref:'', receipt_date:'' })
-  const [qtyAccepteeManuelle, setQtyAccepteeManuelle] = useState(false)
-
-  /* Form période */
-  const [periodeDebut,   setPeriodeDebut]   = useState('')
-  const [periodeFin,     setPeriodeFin]     = useState('')
-  const [periodeRef,     setPeriodeRef]     = useState('')
-  const [periodeDate,    setPeriodeDate]    = useState('')
-  const [prixFilterDebut, setPrixFilterDebut] = useState('')
-  const [prixFilterFin, setPrixFilterFin] = useState('')
-  const [prixFilterMarche, setPrixFilterMarche] = useState('')
-  // Prix par marché pour la période
-  const [marchePrix,     setMarchePrix]     = useState<Record<string,string>>({})
-  // Rows du tableau période : dispatchId → {freinte, ecart, qty_acceptee_manuelle, qty_acceptee_calc}
-  const [periodeRows,    setPeriodeRows]    = useState<Record<string,{freinte:string; ecart:string; qty_man:string; qty_calc:number}>>({})
-  const [periodeSelIds,  setPeriodeSelIds]  = useState<Set<string>>(new Set())
-
-  /* Form alerte */
-  const [formAlerte, setFormAlerte] = useState({ date:'', reason:'panne', notes:'' })
-
-  /* ─── CHARGEMENT ─── */
+  // ─── Chargement ───
   const load = useCallback(async () => {
-    setLoading(true)
+    setLoading(true); setError('')
     try {
-      const [h, d, p, m, al] = await Promise.all([
+      const since14 = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10)
+      const since30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
+      const [hRes, dRes, sRes, pRes, mRes, alRes] = await Promise.all([
         supabase.from('harvests')
-          .select('id,lot_number,harvest_date,total_qty,notes,campaign_planting_id,campaign_plantings(*, greenhouses(code,name), varieties(commercial_name), campaigns(name))')
-          .order('harvest_date', { ascending: false }).limit(300),
+          .select('id, lot_number, harvest_date, total_qty, notes, campaign_planting_id, campaign_plantings(*, greenhouses(code, name), varieties(commercial_name, code), campaigns(name))')
+          .order('harvest_date', { ascending: false })
+          .limit(300),
         supabase.from('harvest_lots')
-          .select('id,lot_number,harvest_id,harvest_date,quantity_kg,certificate_number,storage_temp,notes,market_id,markets(name,currency)')
-          .eq('category','station_dispatch')
-          .order('created_at', { ascending: false }),
-        supabase.from('campaign_plantings')
-          .select('id,variety_id,greenhouse_id,greenhouses(code,name),varieties(commercial_name),campaigns(name,harvest_start,harvest_end)'),
-        supabase.from('markets').select('id,name,currency,type').eq('is_active',true).order('name'),
-        supabase.from('alerts').select('*').eq('type','no_harvest').order('created_at',{ascending:false}).limit(100),
+          .select('id, lot_number, harvest_id, harvest_date, quantity_kg, market_id, markets(name, currency), variety_id, varieties(code, commercial_name), tri_status, freinte_pct, ecart_pct, qty_nette_kg, qty_acceptee_kg, price_per_kg, ca_amount, station_ref, certificate_number, notes')
+          .eq('category', 'station_dispatch')
+          .gte('harvest_date', since30)
+          .order('harvest_date', { ascending: false }),
+        supabase.from('harvest_lot_sources')
+          .select('harvest_lot_id, harvest_id, qty_contributed_kg, harvests(lot_number, harvest_date)'),
+        supabase.from('campaign_plantings').select('id, variety_id, greenhouse_id, greenhouses(code, name), varieties(commercial_name, code), campaigns(name)'),
+        supabase.from('markets').select('id, code, name, currency, type').eq('is_active', true).order('name'),
+        supabase.from('alerts').select('*').eq('type', 'no_harvest').order('created_at', { ascending: false }).limit(100),
       ])
-      setHarvests(h.data||[])
-      setDispatches((d.data||[]) as any)
-      setPlantings(p.data||[])
-      setMarkets(m.data||[])
-      setAlertes(al.data||[])
-    } catch(e){ console.error(e) }
+      if (hRes.error) throw hRes.error
+      setHarvests(hRes.data ?? [])
+      setDispatches(dRes.data ?? [])
+      setSources(sRes.data ?? [])
+      setPlantings(pRes.data ?? [])
+      setMarkets(mRes.data ?? [])
+      setAlertes(alRes.data ?? [])
+    } catch (e: any) { setError(e.message || String(e)) }
     setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
 
-  /* ─── CRÉER RÉCOLTE ─── */
+  // ─── Realtime : abonnement aux changements harvests / harvest_lots / sources / alerts ───
+  const [realtimeOk, setRealtimeOk] = useState(false)
+  const [realtimeNudge, setRealtimeNudge] = useState(0)
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+  useEffect(() => {
+    let reloadTimer: any = null
+    const triggerReload = (table: string, payload: any) => {
+      console.log(`[realtime] ✓ ${table} ${payload.eventType} (${payload.new?.id ?? payload.old?.id ?? '?'}) → reload`)
+      setRealtimeNudge(x => x + 1)
+      if (reloadTimer) clearTimeout(reloadTimer)
+      reloadTimer = setTimeout(() => { load(); setLastRefresh(new Date()) }, 800)
+    }
+    console.log('[realtime] subscribing to recoltes-changes…')
+    const channel = supabase.channel('recoltes-changes')
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'harvests' }, (p: any) => triggerReload('harvests', p))
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'harvest_lots' }, (p: any) => triggerReload('harvest_lots', p))
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'harvest_lot_sources' }, (p: any) => triggerReload('harvest_lot_sources', p))
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'alerts' }, (p: any) => triggerReload('alerts', p))
+      .subscribe((status, err) => {
+        console.log('[realtime] status:', status, err ? `error: ${JSON.stringify(err)}` : '')
+        setRealtimeOk(status === 'SUBSCRIBED')
+      })
+    return () => {
+      if (reloadTimer) clearTimeout(reloadTimer)
+      supabase.removeChannel(channel)
+    }
+  }, [load])
+
+  const manualRefresh = async () => {
+    console.log('[recoltes] manual refresh')
+    await load()
+    setLastRefresh(new Date())
+  }
+
+  // ─── Données dérivées ───
+  const harvestsEnriched = useMemo(() => harvests.map(h => {
+    const used = computeUsed(h.id, sources, dispatches)
+    return { ...h, used_kg: used, remaining_kg: Math.max(0, Number(h.total_qty || 0) - used) }
+  }), [harvests, sources, dispatches])
+
+  const dispatchesEnriched = useMemo(() => {
+    const sourcesByLot = new Map<string, any[]>()
+    sources.forEach((s: any) => {
+      const arr = sourcesByLot.get(s.harvest_lot_id) ?? []
+      arr.push(s); sourcesByLot.set(s.harvest_lot_id, arr)
+    })
+    return dispatches.map((d: any) => ({ ...d, sources: sourcesByLot.get(d.id) ?? [] }))
+  }, [dispatches, sources])
+
+  // Filtres par tab
+  const aEnvoyer = useMemo(() => harvestsEnriched.filter(h => h.remaining_kg > 0.01), [harvestsEnriched])
+  const aTrier = useMemo(() => dispatchesEnriched.filter(d => (d.tri_status ?? 'pending') === 'pending'), [dispatchesEnriched])
+  const aTarifer = useMemo(() => dispatchesEnriched.filter(d => d.tri_status === 'tried'), [dispatchesEnriched])
+  const confirmes = useMemo(() => dispatchesEnriched.filter(d => d.tri_status === 'priced'), [dispatchesEnriched])
+  const alertesActives = useMemo(() => alertes.filter(a => !a.is_resolved), [alertes])
+
+  // KPIs globaux
+  const kpis = useMemo(() => {
+    const totalKg = harvests.reduce((s, h) => s + Number(h.total_qty || 0), 0)
+    const ca = confirmes.reduce((s, d) => s + Number(d.ca_amount || 0), 0)
+    return {
+      lots: harvests.length,
+      kg: totalKg,
+      a_envoyer_kg: aEnvoyer.reduce((s, h) => s + h.remaining_kg, 0),
+      a_trier_n: aTrier.length,
+      a_tarifer_n: aTarifer.length,
+      confirmes_n: confirmes.length,
+      ca,
+    }
+  }, [harvests, confirmes, aEnvoyer, aTrier, aTarifer])
+
+  // ─── CRUD récolte ───
   const saveNew = async () => {
-    if (!formNew.campaign_planting_id||!formNew.harvest_date||!formNew.total_qty) return
-    setSaving(true)
+    if (!formNew.campaign_planting_id || !formNew.harvest_date || !formNew.total_qty) return
+    setSaving(true); setError('')
     try {
-      const lot = `LOT-${formNew.harvest_date.replace(/-/g,'')}-${String(Date.now()).slice(-4)}`
-      // total_qty est une colonne GÉNÉRÉE = sum des catégories → ne pas l'insérer
-      // On met toute la quantité dans qty_category_1, total_qty sera calculé auto
-      const { data, error } = await supabase.from('harvests').insert({
+      const lot = `LOT-${formNew.harvest_date.replace(/-/g, '')}-${String(Date.now()).slice(-4)}`
+      const { error } = await supabase.from('harvests').insert({
         campaign_planting_id: formNew.campaign_planting_id,
-        harvest_date:    formNew.harvest_date,
-        qty_category_1:  Number(formNew.total_qty)||0,
-        qty_category_2:  0,
-        qty_category_3:  0,
-        qty_waste:       0,
-        lot_number:      lot,
-        notes:           formNew.notes||null,
-      }).select('id,lot_number,harvest_date,total_qty,notes,campaign_planting_id,campaign_plantings(*,greenhouses(code,name),varieties(commercial_name),campaigns(name))').single()
+        harvest_date: formNew.harvest_date,
+        qty_category_1: Number(formNew.total_qty) || 0,
+        qty_category_2: 0, qty_category_3: 0, qty_waste: 0,
+        lot_number: lot,
+        notes: formNew.notes || null,
+      })
       if (error) throw error
-      setHarvests(p => [data as any, ...p])
       setDone(true)
-      setTimeout(() => { setModalNew(false); setDone(false); setFormNew({campaign_planting_id:'',harvest_date:'',total_qty:'',notes:''}) }, 1400)
-    } catch(e:any){ alert('Erreur: '+e.message) }
+      setTimeout(() => { setModalNew(false); setDone(false); setFormNew({ campaign_planting_id: '', harvest_date: '', total_qty: '', notes: '' }); load() }, 1000)
+    } catch (e: any) { setError(e.message || String(e)) }
     setSaving(false)
   }
 
-  /* ─── MODIFIER RÉCOLTE ─── */
   const openEdit = (h: any) => {
-    setFormEdit({ campaign_planting_id:h.campaign_planting_id, harvest_date:h.harvest_date, total_qty:String(h.total_qty||''), notes:h.notes||'' })
-    setModalEdit(h)
+    setFormEdit({ campaign_planting_id: h.campaign_planting_id, harvest_date: h.harvest_date, total_qty: String(h.total_qty || ''), notes: h.notes || '' })
+    setModalEdit(h); setDone(false); setError('')
   }
   const saveEdit = async () => {
     if (!modalEdit) return
-    setSaving(true)
+    setSaving(true); setError('')
     try {
-      // total_qty est générée → mettre la quantité dans qty_category_1
       const { error } = await supabase.from('harvests').update({
         campaign_planting_id: formEdit.campaign_planting_id,
-        harvest_date:   formEdit.harvest_date,
-        qty_category_1: Number(formEdit.total_qty)||0,
-        qty_category_2: 0,
-        qty_category_3: 0,
-        qty_waste:      0,
-        notes:          formEdit.notes||null,
+        harvest_date: formEdit.harvest_date,
+        qty_category_1: Number(formEdit.total_qty) || 0,
+        qty_category_2: 0, qty_category_3: 0, qty_waste: 0,
+        notes: formEdit.notes || null,
       }).eq('id', modalEdit.id)
       if (error) throw error
-      setHarvests(p => p.map(h => h.id===modalEdit.id ? {...h,...formEdit,total_qty:Number(formEdit.total_qty)} : h))
       setDone(true)
-      setTimeout(() => { setModalEdit(null); setDone(false) }, 1400)
-    } catch(e:any){ alert('Erreur: '+e.message) }
+      setTimeout(() => { setModalEdit(null); setDone(false); load() }, 1000)
+    } catch (e: any) { setError(e.message || String(e)) }
     setSaving(false)
   }
 
-  const deleteRecolte = async (id:string, lot:string) => {
-    if (!confirm(`Supprimer la récolte ${lot} ?`)) return
-    await supabase.from('harvest_lots').delete().eq('harvest_id',id)
-    await supabase.from('harvests').delete().eq('id',id)
-    setHarvests(p => p.filter(h=>h.id!==id))
-    setDispatches(p => p.filter(d=>d.harvest_id!==id))
-  }
-
-  /* ─── DISPATCHER (ÉTAPE 2) ─── */
-  const openDispatch = (h: any) => { setDispLines([{market_id:'',qty:''}]); setModalDispatch(h); setDone(false) }
-  const addDispLine  = () => setDispLines(p=>[...p,{market_id:'',qty:''}])
-  const rmDispLine   = (i:number) => setDispLines(p=>p.filter((_,j)=>j!==i))
-  const upDispLine   = (i:number, k:string, v:string) => setDispLines(p=>p.map((l,j)=>j===i?{...l,[k]:v}:l))
-
-  const saveDispatch = async () => {
-    if (!modalDispatch) return
-    const validLines = dispLines.filter(l=>l.market_id&&l.qty&&Number(l.qty)>0)
-    if (validLines.length===0) return
-    const dejaDispatch = dispatches
-      .filter(d=>d.harvest_id===modalDispatch.id)
-      .reduce((s,d)=>s+(d.quantity_kg||0),0)
-    const qtyDemandee = validLines.reduce((s,l)=>s+Number(l.qty||0),0)
-    const qtyDisponible = Math.max(0, (modalDispatch.total_qty||0) - dejaDispatch)
-    if (qtyDemandee > qtyDisponible) {
-      alert(`Quantite depassee: ${qtyDemandee.toLocaleString('fr')} kg demandes pour ${qtyDisponible.toLocaleString('fr')} kg disponibles.`)
-      return
-    }
-    setSaving(true)
+  const deleteRecolte = async (h: any) => {
+    if (!confirm(`Supprimer la récolte ${h.lot_number} ? Tous les envois associés seront aussi supprimés.`)) return
     try {
-      const cp = plantings.find(p=>p.id===modalDispatch.campaign_planting_id)
-      const newDisps: any[] = []
-      const ts = String(Date.now())
-      for (let idx=0; idx<validLines.length; idx++) {
-        const line = validLines[idx]
-        const dispLot = `D${idx}-${ts.slice(-8)}`.slice(0,50)
-        const { data, error } = await supabase.from('harvest_lots').insert({
-          lot_number:           dispLot,
-          harvest_id:           modalDispatch.id,
-          campaign_planting_id: modalDispatch.campaign_planting_id,
-          harvest_date:         modalDispatch.harvest_date,
-          quantity_kg:          Number(line.qty),
-          category:             'station_dispatch',
-          variety_id:           cp?.variety_id||null,
-          greenhouse_id:        cp?.greenhouse_id||null,
-          market_id:            line.market_id,
-          certificate_number:   null,
-          storage_temp:         null,
-          notes:                null,
-        }).select('id,lot_number,harvest_id,harvest_date,quantity_kg,certificate_number,storage_temp,notes,market_id,markets(name,currency)').single()
-        if (error) throw new Error(`Marché ${idx+1}: ${error.message}`)
-        newDisps.push(data)
-      }
-      setDispatches((p:any) => [...newDisps,...p])
-      setDone(true)
-      setTimeout(() => { setModalDispatch(null); setDone(false); setDispLines([{market_id:'',qty:''}]) }, 1400)
-    } catch(e:any){ alert('Erreur dispatch: '+e.message) }
-    setSaving(false)
+      await supabase.from('harvest_lot_sources').delete().eq('harvest_id', h.id)
+      await supabase.from('harvest_lots').delete().eq('harvest_id', h.id)
+      await supabase.from('harvests').delete().eq('id', h.id)
+      load()
+    } catch (e: any) { alert('Erreur : ' + e.message) }
   }
 
-  /* ─── CONFIRMATION INDIVIDUELLE (ÉTAPE 3) ─── */
-  const openConfirm = (d: any) => {
-    const meta = parseMeta(d.notes)
-    const fc = {
-      freinte_pct:   String(meta.freinte_pct ?? 0),
-      ecart_pct:     String(meta.ecart_pct   ?? 0),
-      qty_acceptee:  meta.qty_acceptee ? String(meta.qty_acceptee) : '',
-      price_per_kg:  meta.price_per_kg ? String(meta.price_per_kg) : '',
-      periode_debut: meta.periode_debut || '',
-      periode_fin:   meta.periode_fin   || '',
-      station_ref:   meta.station_ref   || '',
-      receipt_date:  meta.receipt_date  || '',
-    }
-    setFormC(fc)
-    setQtyAccepteeManuelle(!!meta.qty_acceptee)
-    setModalConfirm(d)
-    setDone(false)
-  }
-
-  // Quantité acceptée calculée (confirmation individuelle)
-  const qtyAccCalc = useMemo(() => {
-    if (!modalConfirm) return 0
-    const brute   = modalConfirm.quantity_kg || 0
-    const freinte = Number(formC.freinte_pct)||0
-    const ecart   = Number(formC.ecart_pct)||0
-    return calcQty(brute, freinte, ecart)
-  }, [modalConfirm, formC.freinte_pct, formC.ecart_pct])
-
-  const qtyAccEffective = qtyAccepteeManuelle && formC.qty_acceptee !== ''
-    ? Number(formC.qty_acceptee)
-    : qtyAccCalc
-
-  const caConfirm = formC.price_per_kg ? calcCA(qtyAccEffective, Number(formC.price_per_kg)) : 0
-
-  const saveConfirm = async () => {
-    if (!modalConfirm||!formC.price_per_kg) return
-    setSaving(true)
-    try {
-      const prix   = Number(formC.price_per_kg)
-      const freinte = Number(formC.freinte_pct)||0
-      const ecart   = Number(formC.ecart_pct)||0
-      const qtyB    = modalConfirm.quantity_kg
-      const qtyN    = Math.round(qtyB*(1-freinte/100)*100)/100
-      const qtyA    = qtyAccEffective
-      const ca      = calcCA(qtyA, prix)
-      const meta    = JSON.stringify({
-        price_per_kg:  prix,
-        freinte_pct:   freinte,
-        ecart_pct:     ecart,
-        qty_brute:     qtyB,
-        qty_nette:     qtyN,
-        qty_acceptee:  qtyA,
-        ca_amount:     ca,
-        periode_debut: formC.periode_debut||null,
-        periode_fin:   formC.periode_fin||null,
-        station_ref:   formC.station_ref||null,
-        receipt_date:  formC.receipt_date||null,
-        price_set_at:  new Date().toISOString(),
-      })
-      const { error } = await supabase.from('harvest_lots').update({
-        certificate_number: String(qtyA),
-        notes: meta,
-      }).eq('id', modalConfirm.id)
-      if (error) throw error
-      setDispatches(p => p.map(d => d.id===modalConfirm.id ? {...d,certificate_number:String(qtyA),notes:meta} : d))
-      setDone(true)
-      setTimeout(() => { setModalConfirm(null); setDone(false) }, 1400)
-    } catch(e:any){ alert('Erreur: '+e.message) }
-    setSaving(false)
-  }
-
-  /* ─── SAISIE PAR PÉRIODE ─── */
-  const openPeriode = () => {
-    setPeriodeDebut(''); setPeriodeFin(''); setPeriodeRef(''); setPeriodeDate('')
-    setMarchePrix({}); setPeriodeRows({}); setPeriodeSelIds(new Set())
-    setModalPeriode(true); setDone(false)
-  }
-
-  // Variables stables avec useMemo pour éviter les boucles infinies
-  const sansPrix  = useMemo(() => dispatches.filter((d:any) => !d.certificate_number), [dispatches])
-  const avecPrix  = useMemo(() => dispatches.filter((d:any) =>  d.certificate_number), [dispatches])
-
-  const dispatchesPeriode = useMemo(() => {
-    const sp = dispatches.filter((d:any) => !d.certificate_number)
-    if (!periodeDebut||!periodeFin) return sp
-    return sp.filter((d:any) => {
-      const dt = d.harvest_date
-      return dt >= periodeDebut && dt <= periodeFin
-    })
-  }, [periodeDebut, periodeFin, dispatches])
-
-  // Marchés distincts dans la période
-  const marchesInPeriode = useMemo(() => {
-    const seen = new Set<string>()
-    const result: Array<{ id: string; name: string; currency: string }> = []
-    ;(dispatchesPeriode || []).forEach((d: any) => {
-      if (!d.market_id || seen.has(d.market_id)) return
-      seen.add(d.market_id)
-      result.push({
-        id: d.market_id,
-        name: d.markets?.name || '—',
-        currency: d.markets?.currency || 'MAD',
-      })
-    })
-    return result
-  }, [dispatchesPeriode])
-
-  // Init periodeRows quand les dispatches changent
-  useEffect(() => {
-    if (!modalPeriode || !dispatchesPeriode) return
-    const rows: Record<string,any> = {}
-    ;(dispatchesPeriode||[]).forEach((d:any) => {
-      if (!rows[d.id]) {
-        const meta = parseMeta(d.notes)
-        const freinte = String(meta.freinte_pct ?? 0)
-        const ecart   = String(meta.ecart_pct   ?? 0)
-        const qtyC    = calcQty(d.quantity_kg, Number(freinte), Number(ecart))
-        rows[d.id] = { freinte, ecart, qty_man:'', qty_calc: qtyC }
-      }
-    })
-    setPeriodeRows(rows)
-    setPeriodeSelIds(new Set(dispatchesPeriode.map((d:any)=>d.id)))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalPeriode, periodeDebut, periodeFin])
-
-  // Recalculer qty_calc quand freinte/ecart changent
-  const updatePeriodeRow = (id:string, key:'freinte'|'ecart'|'qty_man', val:string) => {
-    setPeriodeRows(prev => {
-      const row = { ...prev[id] }
-      row[key] = val
-      const d   = dispatchesPeriode.find((x:any)=>x.id===id)
-      if (!d) return prev
-      // Si on modifie qty_man, on ne recalcule pas
-      if (key !== 'qty_man') {
-        row.qty_calc = calcQty(d.quantity_kg, Number(row.freinte)||0, Number(row.ecart)||0)
-      }
-      return { ...prev, [id]: row }
-    })
-  }
-
-  const qtyEffForRow = (id:string, d:any) => {
-    const row = periodeRows[id]
-    if (!row) return 0
-    return row.qty_man !== '' ? Number(row.qty_man) : row.qty_calc
-  }
-
-  // CA estimé total période par marché
-  const caParMarchePeriode = useMemo(() => {
-    const res: Record<string,{nom:string;ca:number;currency:string}> = {}
-    ;(dispatchesPeriode||[]).filter((d:any)=>periodeSelIds.has(d.id)).forEach((d:any) => {
-      const prix = Number(marchePrix[d.market_id]||0)
-      const qtyA = qtyEffForRow(d.id, d)
-      const ca   = calcCA(qtyA, prix)
-      const mid  = d.market_id
-      if (!res[mid]) res[mid] = { nom: d.markets?.name||'—', ca:0, currency: d.markets?.currency||'MAD' }
-      res[mid].ca += ca
-    })
-    return res
-  }, [dispatchesPeriode, periodeSelIds, marchePrix, periodeRows])
-
-  const savePeriode = async () => {
-    const selDisps = dispatchesPeriode.filter((d:any) => periodeSelIds.has(d.id))
-    if (selDisps.length===0 || !periodeDebut || !periodeFin) return
-    // Vérifier qu'au moins un prix est saisi
-    const hasPrix = selDisps.some((d:any) => marchePrix[d.market_id] && Number(marchePrix[d.market_id])>0)
-    if (!hasPrix) { alert('Saisissez au moins un prix marché'); return }
-    setSaving(true)
-    try {
-      const updated: any[] = []
-      for (const d of selDisps) {
-        const prix = Number(marchePrix[d.market_id]||0)
-        if (!prix) continue // Pas de prix pour ce marché → on skippe
-        const row    = periodeRows[d.id] || { freinte:'0', ecart:'0', qty_man:'' }
-        const freinte = Number(row.freinte)||0
-        const ecart   = Number(row.ecart)||0
-        const qtyB    = d.quantity_kg
-        const qtyN    = Math.round(qtyB*(1-freinte/100)*100)/100
-        const qtyA    = qtyEffForRow(d.id, d)
-        const ca      = calcCA(qtyA, prix)
-        const meta    = JSON.stringify({
-          price_per_kg:  prix,
-          freinte_pct:   freinte,
-          ecart_pct:     ecart,
-          qty_brute:     qtyB,
-          qty_nette:     qtyN,
-          qty_acceptee:  qtyA,
-          ca_amount:     ca,
-          periode_debut: periodeDebut,
-          periode_fin:   periodeFin,
-          station_ref:   periodeRef||null,
-          receipt_date:  periodeDate||null,
-          price_set_at:  new Date().toISOString(),
-        })
-        const { error } = await supabase.from('harvest_lots').update({
-          certificate_number: String(qtyA),
-          notes: meta,
-        }).eq('id', d.id)
-        if (!error) updated.push({...d, certificate_number:String(qtyA), notes:meta})
-      }
-      setDispatches(p => p.map(d => { const u=updated.find(x=>x.id===d.id); return u||d }))
-      setDone(true)
-      setTimeout(() => { setModalPeriode(false); setDone(false) }, 1800)
-    } catch(e:any){ alert('Erreur: '+e.message) }
-    setSaving(false)
-  }
-
-  /* ─── ALERTE ─── */
+  // ─── Alerte journée sans récolte ───
   const saveAlerte = async () => {
     if (!formAlerte.date) return
-    setSaving(true)
+    setSaving(true); setError('')
     try {
-      const { data, error } = await supabase.from('alerts').insert({
-        type:'no_harvest', severity:'warning',
-        title:`Journée sans récolte — ${formAlerte.date}`,
-        message:`Motif: ${formAlerte.reason}${formAlerte.notes?' — '+formAlerte.notes:''}`,
-        entity_type:'harvest', is_read:false, is_resolved:false,
-      }).select().single()
+      const { error } = await supabase.from('alerts').insert({
+        type: 'no_harvest', severity: 'warning',
+        title: `Journée sans récolte — ${formAlerte.date}`,
+        message: `Motif: ${formAlerte.reason}${formAlerte.notes ? ' — ' + formAlerte.notes : ''}`,
+        entity_type: 'harvest', is_read: false, is_resolved: false,
+      })
       if (error) throw error
-      setAlertes(p=>[data,...p])
       setDone(true)
-      setTimeout(() => { setModalAlerte(false); setDone(false); setFormAlerte({date:'',reason:'panne',notes:''}) }, 1400)
-    } catch(e:any){ alert('Erreur: '+e.message) }
+      setTimeout(() => { setModalAlerte(false); setDone(false); setFormAlerte({ date: '', reason: 'panne_irrigation', notes: '' }); load() }, 1000)
+    } catch (e: any) { setError(e.message || String(e)) }
     setSaving(false)
   }
-  const resolveAlerte = async (id:string) => {
-    await supabase.from('alerts').update({is_resolved:true,resolved_at:new Date().toISOString()}).eq('id',id)
-    setAlertes(p=>p.map(a=>a.id===id?{...a,is_resolved:true}:a))
+  const resolveAlerte = async (id: string) => {
+    await supabase.from('alerts').update({ is_resolved: true, resolved_at: new Date().toISOString() }).eq('id', id)
+    load()
   }
 
-  /* ─── COMPUTED ─── */
-  // sansPrix et avecPrix définis plus haut avant les useMemo
-  const totalCA      = useMemo(() => avecPrix.reduce((s,d) => s+getCA(d), 0), [avecPrix])
-  const totalKg      = useMemo(() => harvests.reduce((s,h) => s+(h.total_qty||0), 0), [harvests])
-  const activAlertes = useMemo(() => alertes.filter(a=>!a.is_resolved), [alertes])
-  const analyseEcarts = useMemo(() => {
-    const base = {
-      avgFreinte: 0,
-      avgEcart: 0,
-      totalBrut: 0,
-      totalAccepte: 0,
-      totalPerte: 0,
-      tauxPerte: 0,
-      byMarket: [] as Array<{
-        marketId: string
-        nom: string
-        currency: string
-        dispatches: number
-        qtyBrute: number
-        qtyAcceptee: number
-        perteKg: number
-        avgFreinte: number
-        avgEcart: number
-      }>,
-    }
-
-    if (avecPrix.length === 0) return base
-
-    let sumFreinte = 0
-    let sumEcart = 0
-    let count = 0
-    let totalBrut = 0
-    let totalAccepte = 0
-    const byMarket = new Map<string, {
-      marketId: string
-      nom: string
-      currency: string
-      dispatches: number
-      qtyBrute: number
-      qtyAcceptee: number
-      perteKg: number
-      sumFreinte: number
-      sumEcart: number
-    }>()
-
-    for (const d of avecPrix) {
-      const meta = parseMeta(d.notes)
-      const freinte = Number(meta.freinte_pct || 0)
-      const ecart = Number(meta.ecart_pct || 0)
-      const qtyBrute = Number(meta.qty_brute ?? d.quantity_kg ?? 0)
-      const qtyAcceptee = Number(meta.qty_acceptee ?? getQtyA(d) ?? 0)
-      const perteKg = Math.max(0, qtyBrute - qtyAcceptee)
-      const marketId = d.market_id || 'unknown'
-
-      sumFreinte += freinte
-      sumEcart += ecart
-      count += 1
-      totalBrut += qtyBrute
-      totalAccepte += qtyAcceptee
-
-      const current = byMarket.get(marketId) ?? {
-        marketId,
-        nom: d.markets?.name || '—',
-        currency: d.markets?.currency || 'MAD',
-        dispatches: 0,
-        qtyBrute: 0,
-        qtyAcceptee: 0,
-        perteKg: 0,
-        sumFreinte: 0,
-        sumEcart: 0,
-      }
-
-      current.dispatches += 1
-      current.qtyBrute += qtyBrute
-      current.qtyAcceptee += qtyAcceptee
-      current.perteKg += perteKg
-      current.sumFreinte += freinte
-      current.sumEcart += ecart
-      byMarket.set(marketId, current)
-    }
-
-    return {
-      avgFreinte: count ? sumFreinte / count : 0,
-      avgEcart: count ? sumEcart / count : 0,
-      totalBrut,
-      totalAccepte,
-      totalPerte: Math.max(0, totalBrut - totalAccepte),
-      tauxPerte: totalBrut ? ((totalBrut - totalAccepte) / totalBrut) * 100 : 0,
-      byMarket: Array.from(byMarket.values())
-        .map(item => ({
-          marketId: item.marketId,
-          nom: item.nom,
-          currency: item.currency,
-          dispatches: item.dispatches,
-          qtyBrute: item.qtyBrute,
-          qtyAcceptee: item.qtyAcceptee,
-          perteKg: item.perteKg,
-          avgFreinte: item.dispatches ? item.sumFreinte / item.dispatches : 0,
-          avgEcart: item.dispatches ? item.sumEcart / item.dispatches : 0,
-        }))
-        .sort((a, b) => b.perteKg - a.perteKg),
-    }
-  }, [avecPrix])
-
-  const caParMarche = useMemo(() => {
-    const res: Record<string,{nom:string;qtyEnv:number;qtyAcc:number;ca:number;currency:string;sansPrix:number}> = {}
-    for (const d of dispatches) {
-      const mid = d.market_id||'unknown'
-      if (!res[mid]) res[mid]={nom:d.markets?.name||'—',qtyEnv:0,qtyAcc:0,ca:0,currency:d.markets?.currency||'MAD',sansPrix:0}
-      res[mid].qtyEnv += d.quantity_kg||0
-      res[mid].qtyAcc += getQtyA(d)
-      res[mid].ca     += getCA(d)
-      if (!d.certificate_number) res[mid].sansPrix++
-    }
-    return res
-  }, [dispatches])
-
-  const synthesePrix = useMemo(() => {
-    const normalizeDate = (value: any) => typeof value === 'string' && value.length >= 10 ? value.slice(0, 10) : ''
-    const filtered = avecPrix.filter((d:any) => {
-      const meta = parseMeta(d.notes)
-      const refDate =
-        normalizeDate(meta.receipt_date) ||
-        normalizeDate(meta.periode_fin) ||
-        normalizeDate(meta.periode_debut) ||
-        normalizeDate(d.harvest_date)
-      if (prixFilterDebut && (!refDate || refDate < prixFilterDebut)) return false
-      if (prixFilterFin && (!refDate || refDate > prixFilterFin)) return false
-      if (prixFilterMarche && d.market_id !== prixFilterMarche) return false
-      return true
-    })
-
-    const byPeriod = new Map<string, {
-      label: string
-      dispatches: number
-      qtyAcceptee: number
-      totalCA: number
-      weightedPriceAmount: number
-    }>()
-
-    for (const d of filtered) {
-      const meta = parseMeta(d.notes)
-      const periodStart = normalizeDate(meta.periode_debut)
-      const periodEnd = normalizeDate(meta.periode_fin)
-      const label = periodStart && periodEnd
-        ? `${periodStart} -> ${periodEnd}`
-        : normalizeDate(meta.receipt_date) || normalizeDate(d.harvest_date) || 'Sans periode'
-      const qtyAcceptee = getQtyA(d)
-      const totalCA = getCA(d)
-      const price = Number(meta.price_per_kg || 0)
-      const current = byPeriod.get(label) ?? {
-        label,
-        dispatches: 0,
-        qtyAcceptee: 0,
-        totalCA: 0,
-        weightedPriceAmount: 0,
-      }
-
-      current.dispatches += 1
-      current.qtyAcceptee += qtyAcceptee
-      current.totalCA += totalCA
-      current.weightedPriceAmount += qtyAcceptee * price
-      byPeriod.set(label, current)
-    }
-
-    const periods = Array.from(byPeriod.values())
-      .map(item => ({
-        ...item,
-        avgPrice: item.qtyAcceptee ? item.weightedPriceAmount / item.qtyAcceptee : 0,
-      }))
-      .sort((a, b) => b.label.localeCompare(a.label))
-
-    const totalQty = filtered.reduce((sum, d:any) => sum + getQtyA(d), 0)
-    const totalCAFiltered = filtered.reduce((sum, d:any) => sum + getCA(d), 0)
-
-    return {
-      items: filtered,
-      periods,
-      totalQty,
-      totalCA: totalCAFiltered,
-      avgPrice: totalQty ? totalCAFiltered / totalQty : 0,
-    }
-  }, [avecPrix, prixFilterDebut, prixFilterFin, prixFilterMarche])
-
-  const invendus = (h:any) => {
-    const disp = dispatches.filter(d=>d.harvest_id===h.id).reduce((s,d)=>s+(d.quantity_kg||0),0)
-    return Math.max(0,(h.total_qty||0)-disp)
-  }
-
-  const togglePer = (id:string) => setPeriodeSelIds(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n})
-
-  const REASONS = [
-    {value:'panne',label:'Panne équipement'},{value:'meteo',label:'Conditions météo'},
-    {value:'main_oeuvre',label:"Manque main d'œuvre"},{value:'stade_culture',label:'Stade cultural'},
-    {value:'jour_repos',label:'Jour de repos'},{value:'autre',label:'Autre'},
-  ]
-
-  const TH = (s:string) => (
-    <th key={s} style={{padding:'9px 12px',fontFamily:'var(--font-mono)',fontSize:9.5,fontWeight:500,color:'var(--tx-3)',textTransform:'uppercase',letterSpacing:1,borderBottom:'1px solid var(--border)',textAlign:'left',background:'var(--bg-deep)',whiteSpace:'nowrap'}}>{s}</th>
-  )
-
-  /* ═══════════════════════════════ RENDU ═══════════════════════════════ */
+  // ─── Render ───
   return (
-    <div style={{background:'var(--bg-deep)',minHeight:'100vh'}}>
-
-      {/* ══ MODALE NOUVELLE RÉCOLTE ══ */}
-      {modalNew && (
-        <Modal title="SAISIR UNE RÉCOLTE" onClose={()=>{setModalNew(false);setDone(false);setDateError('')}}>
-          {done ? <SuccessMessage message="Récolte enregistrée !" /> : (<>
-            <FormGroup label="Plantation *">
-              {plantings.length===0
-                ? <div style={{padding:'10px',background:'var(--red-dim)',border:'1px solid color-mix(in srgb,var(--red) 25%,transparent)',borderRadius:7,color:'var(--red)',fontFamily:'var(--font-mono)',fontSize:11}}>⚠ Aucune plantation disponible</div>
-                : <Select value={formNew.campaign_planting_id} onChange={e=>setFormNew(f=>({...f,campaign_planting_id:e.target.value}))}>
-                    <option value="">-- Sélectionner --</option>
-                    {plantings.map((p:any)=><option key={p.id} value={p.id}>{p.greenhouses?.name} · {p.varieties?.commercial_name} [{p.campaigns?.name}]</option>)}
-                  </Select>
-              }
-            </FormGroup>
-            <FormRow>
-              <FormGroup label="Date de récolte *">
-                {(() => {
-                  const cp = plantings.find(p=>p.id===formNew.campaign_planting_id)
-                  const hStart = cp?.campaigns?.harvest_start
-                  const hEnd   = cp?.campaigns?.harvest_end
-                  return (
-                    <>
-                      <Input
-                        type="date"
-                        value={formNew.harvest_date}
-                        onChange={e=>{
-                          const d = e.target.value
-                          setFormNew(f=>({...f,harvest_date:d}))
-                          if (hStart && hEnd) {
-                            if (d < hStart || d > hEnd) {
-                              setDateError(`Hors période : récoltes ${hStart} → ${hEnd}`)
-                            } else { setDateError('') }
-                          } else { setDateError('') }
-                        }}
-                        min={hStart||undefined}
-                        max={hEnd||undefined}
-                      />
-                      {hStart && hEnd && (
-                        <div style={{marginTop:5,fontFamily:'var(--font-mono)',fontSize:9.5,color:'var(--tx-3)'}}>
-                          📅 Période de récolte : <strong style={{color:'var(--neon)'}}>{hStart}</strong> → <strong style={{color:'var(--neon)'}}>{hEnd}</strong>
-                        </div>
-                      )}
-                      {dateError && (
-                        <div style={{marginTop:5,padding:'6px 10px',background:'var(--red-dim)',border:'1px solid color-mix(in srgb,var(--red) 30%,transparent)',borderRadius:6,fontFamily:'var(--font-mono)',fontSize:10,color:'var(--red)'}}>
-                          ⚠ {dateError}
-                        </div>
-                      )}
-                    </>
-                  )
-                })()}
-              </FormGroup>
-              <FormGroup label="Quantité récoltée (kg) *">
-                <Input type="number" value={formNew.total_qty} onChange={e=>setFormNew(f=>({...f,total_qty:e.target.value}))} placeholder="ex: 500" autoFocus />
-              </FormGroup>
-            </FormRow>
-            <FormGroup label="Notes qualité">
-              <Textarea rows={2} value={formNew.notes} onChange={e=>setFormNew(f=>({...f,notes:e.target.value}))} placeholder="Observations..." />
-            </FormGroup>
-            <div style={{padding:'9px 12px',background:'var(--blue-dim)',border:'1px solid var(--blue)40',borderRadius:7,fontFamily:'var(--font-mono)',fontSize:10,color:'var(--blue)',marginTop:6}}>
-              ℹ Le dispatch par marché se fait à l'étape suivante
-            </div>
-            <ModalFooter onCancel={()=>setModalNew(false)} onSave={saveNew} loading={saving}
-              disabled={!formNew.campaign_planting_id||!formNew.harvest_date||!formNew.total_qty||!!dateError} saveLabel="ENREGISTRER" />
-          </>)}
-        </Modal>
-      )}
-
-      {/* ══ MODALE MODIFIER RÉCOLTE ══ */}
-      {modalEdit && (
-        <Modal title={`MODIFIER — ${modalEdit.lot_number}`} onClose={()=>{setModalEdit(null);setDone(false)}}>
-          {done ? <SuccessMessage message="Récolte modifiée !" /> : (<>
-            <FormGroup label="Plantation">
-              <Select value={formEdit.campaign_planting_id} onChange={e=>setFormEdit(f=>({...f,campaign_planting_id:e.target.value}))}>
-                {plantings.map((p:any)=><option key={p.id} value={p.id}>{p.greenhouses?.name} · {p.varieties?.commercial_name} [{p.campaigns?.name}]</option>)}
-              </Select>
-            </FormGroup>
-            <FormRow>
-              <FormGroup label="Date de récolte">
-                <Input type="date" value={formEdit.harvest_date} onChange={e=>setFormEdit(f=>({...f,harvest_date:e.target.value}))} />
-              </FormGroup>
-              <FormGroup label="Quantité récoltée (kg)">
-                <Input type="number" value={formEdit.total_qty} onChange={e=>setFormEdit(f=>({...f,total_qty:e.target.value}))} />
-              </FormGroup>
-            </FormRow>
-            <FormGroup label="Notes">
-              <Textarea rows={2} value={formEdit.notes} onChange={e=>setFormEdit(f=>({...f,notes:e.target.value}))} />
-            </FormGroup>
-            <ModalFooter onCancel={()=>setModalEdit(null)} onSave={saveEdit} loading={saving} saveLabel="ENREGISTRER" />
-          </>)}
-        </Modal>
-      )}
-
-      {/* ══ MODALE DISPATCH (ÉTAPE 2) ══ */}
-      {modalDispatch && (
-        <Modal title={`DISPATCHER — ${modalDispatch.lot_number}`} onClose={()=>{setModalDispatch(null);setDone(false)}}>
-          {done ? <SuccessMessage message="Dispatches créés !" /> : (<>
-            <div style={{padding:'12px 14px',background:'var(--bg-card2)',border:'1px solid var(--border)',borderRadius:8,marginBottom:16}}>
-              <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,marginBottom:4}}>RÉCOLTE</div>
-              <div style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:700,color:'var(--tx-1)'}}>
-                {modalDispatch.campaign_plantings?.greenhouses?.name} · {modalDispatch.campaign_plantings?.varieties?.commercial_name}
-              </div>
-              <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)',marginTop:3}}>
-                {modalDispatch.harvest_date} · <strong style={{color:'var(--neon)'}}>{modalDispatch.total_qty} kg disponibles</strong>
-                {dispatches.filter(d=>d.harvest_id===modalDispatch.id).length>0 && (
-                  <span style={{color:'var(--amber)',marginLeft:10}}>
-                    · Déjà dispatché : {dispatches.filter(d=>d.harvest_id===modalDispatch.id).reduce((s,d)=>s+d.quantity_kg,0)} kg
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="section-label">ENVOI PAR MARCHÉ</div>
-            {dispLines.map((line,i)=>(
-              <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 120px 32px',gap:8,marginBottom:8,alignItems:'end'}}>
-                <div>
-                  {i===0&&<label className="form-label">Marché</label>}
-                  <Select value={line.market_id} onChange={e=>upDispLine(i,'market_id',e.target.value)}>
-                    <option value="">-- Sélectionner --</option>
-                    {markets.map(m=><option key={m.id} value={m.id}>{m.name} ({m.currency})</option>)}
-                  </Select>
-                </div>
-                <div>
-                  {i===0&&<label className="form-label">Qté (kg)</label>}
-                  <Input type="number" value={line.qty} onChange={e=>upDispLine(i,'qty',e.target.value)} placeholder="0" />
-                </div>
-                <div style={{paddingBottom:1}}>
-                  {dispLines.length>1
-                    ? <button onClick={()=>rmDispLine(i)} className="btn-danger" style={{padding:'9px 8px',fontSize:11}}>✕</button>
-                    : <div style={{height:36}}/>}
-                </div>
-              </div>
-            ))}
-            <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16}}>
-              <button onClick={addDispLine} className="btn-ghost" style={{fontSize:10,padding:'5px 10px'}}>+ Ajouter marché</button>
-              {dispLines.reduce((s,l)=>s+Number(l.qty||0),0)>0 && (
-                <span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--neon)'}}>
-                  Total : {dispLines.reduce((s,l)=>s+Number(l.qty||0),0).toLocaleString('fr')} kg
-                </span>
-              )}
-            </div>
-            <ModalFooter onCancel={()=>setModalDispatch(null)} onSave={saveDispatch} loading={saving}
-              disabled={dispLines.every(l=>!l.market_id||!l.qty)} saveLabel="CRÉER LES DISPATCHES" />
-          </>)}
-        </Modal>
-      )}
-
-      {/* ══ MODALE CONFIRMATION INDIVIDUELLE (ÉTAPE 3) ══ */}
-      {modalConfirm && (
-        <Modal title={modalConfirm.certificate_number ? "MODIFIER LA CONFIRMATION" : "CONFIRMER PRIX & QUANTITÉ"} onClose={()=>{setModalConfirm(null);setDone(false)}}>
-          {done ? <SuccessMessage message="Dispatch confirmé !" /> : (<>
-            {/* Résumé */}
-            <div style={{padding:'12px 14px',background:'var(--bg-card2)',border:'1px solid var(--border)',borderRadius:8,marginBottom:16}}>
-              <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,marginBottom:4}}>DISPATCH</div>
-              <div style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:700,color:'var(--tx-1)'}}>
-                {modalConfirm.markets?.name} — {modalConfirm.harvest_date}
-              </div>
-              <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)',marginTop:3}}>
-                Qté brute envoyée : <strong style={{color:'var(--amber)'}}>{modalConfirm.quantity_kg} kg</strong>
-              </div>
-            </div>
-
-            {/* Freinte + Écart */}
-            <div className="section-label">AJUSTEMENTS QUALITÉ</div>
-            <FormRow>
-              <FormGroup label="Freinte (% sur qté brute)">
-                <Input type="number" step="0.1" value={formC.freinte_pct}
-                  onChange={e=>{ setFormC(f=>({...f,freinte_pct:e.target.value})); setQtyAccepteeManuelle(false) }}
-                  placeholder="0" />
-              </FormGroup>
-              <FormGroup label="Écart de pesée (%)">
-                <Input type="number" step="0.1" value={formC.ecart_pct}
-                  onChange={e=>{ setFormC(f=>({...f,ecart_pct:e.target.value})); setQtyAccepteeManuelle(false) }}
-                  placeholder="0" />
-              </FormGroup>
-            </FormRow>
-
-            {/* Calcul intermédiaire */}
-            {(Number(formC.freinte_pct)>0 || Number(formC.ecart_pct)>0) && (
-              <div style={{padding:'10px 14px',background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:7,fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)',marginBottom:14,display:'flex',gap:20}}>
-                <span>Brute : <strong style={{color:'var(--amber)'}}>{modalConfirm.quantity_kg} kg</strong></span>
-                <span>→ Freinte {formC.freinte_pct}% : <strong style={{color:'var(--amber)'}}>{(modalConfirm.quantity_kg*(1-Number(formC.freinte_pct)/100)).toFixed(1)} kg</strong></span>
-                <span>→ Écart {formC.ecart_pct}% : <strong style={{color:'var(--neon)'}}>{qtyAccCalc} kg</strong></span>
-              </div>
-            )}
-
-            {/* Quantité acceptée (calculée + modifiable) */}
-            <FormGroup label="Quantité acceptée par l'acheteur (kg)">
-              <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                <input className="form-input" type="number" style={{flex:1}}
-                  value={qtyAccepteeManuelle && formC.qty_acceptee!=='' ? formC.qty_acceptee : String(qtyAccCalc)}
-                  onChange={e=>{ setFormC(f=>({...f,qty_acceptee:e.target.value})); setQtyAccepteeManuelle(true) }}
-                  placeholder={String(qtyAccCalc)} />
-                {qtyAccepteeManuelle && (
-                  <button onClick={()=>{ setQtyAccepteeManuelle(false); setFormC(f=>({...f,qty_acceptee:''})) }}
-                    className="btn-ghost" style={{padding:'7px 10px',fontSize:10,whiteSpace:'nowrap'}}>
-                    ↺ Auto
-                  </button>
-                )}
-              </div>
-              {qtyAccEffective !== modalConfirm.quantity_kg && (
-                <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--amber)',marginTop:4}}>
-                  ⚠ Rejet total : {(modalConfirm.quantity_kg - qtyAccEffective).toFixed(1)} kg
-                </div>
-              )}
-            </FormGroup>
-
-            {/* Prix */}
-            <div className="section-label" style={{marginTop:8}}>PRIX STATION</div>
-            <FormRow>
-              <FormGroup label="Prix / kg *">
-                <Input type="number" step="0.001" value={formC.price_per_kg}
-                  onChange={e=>setFormC(f=>({...f,price_per_kg:e.target.value}))} placeholder="ex: 1.850" autoFocus />
-              </FormGroup>
-              <FormGroup label="">
-                {formC.price_per_kg && Number(formC.price_per_kg)>0 && (
-                  <div style={{padding:'9px 12px',background:'var(--neon-dim)',border:'1px solid color-mix(in srgb,var(--neon) 25%,transparent)',borderRadius:7,fontFamily:'var(--font-display)',fontSize:16,fontWeight:700,color:'var(--neon)',height:36,display:'flex',alignItems:'center'}}>
-                    CA : {caConfirm.toLocaleString('fr',{maximumFractionDigits:2})} {modalConfirm.markets?.currency||'MAD'}
-                  </div>
-                )}
-              </FormGroup>
-            </FormRow>
-
-            {/* Période */}
-            <div className="section-label" style={{marginTop:4}}>PÉRIODE</div>
-            <FormRow>
-              <FormGroup label="Début période"><Input type="date" value={formC.periode_debut} onChange={e=>setFormC(f=>({...f,periode_debut:e.target.value}))} /></FormGroup>
-              <FormGroup label="Fin période"><Input type="date" value={formC.periode_fin} onChange={e=>setFormC(f=>({...f,periode_fin:e.target.value}))} /></FormGroup>
-            </FormRow>
-            <FormRow>
-              <FormGroup label="Réf. station"><Input value={formC.station_ref} onChange={e=>setFormC(f=>({...f,station_ref:e.target.value}))} placeholder="ex: STAT-2026-W12" /></FormGroup>
-              <FormGroup label="Date réception"><Input type="date" value={formC.receipt_date} onChange={e=>setFormC(f=>({...f,receipt_date:e.target.value}))} /></FormGroup>
-            </FormRow>
-            <ModalFooter onCancel={()=>setModalConfirm(null)} onSave={saveConfirm} loading={saving}
-              disabled={!formC.price_per_kg||Number(formC.price_per_kg)<=0} saveLabel="CONFIRMER LE DISPATCH" />
-          </>)}
-        </Modal>
-      )}
-
-      {/* ══ MODALE SAISIE PAR PÉRIODE ══ */}
-      {modalPeriode && (
-        <Modal title="SAISIE PAR PÉRIODE — PRIX STATION" onClose={()=>{setModalPeriode(false);setDone(false)}} size="lg">
-          {done ? <SuccessMessage message={`Dispatches de la période confirmés !`} /> : (<>
-
-            {/* Période + Réf */}
-            <div className="section-label">DÉFINIR LA PÉRIODE</div>
-            <FormRow>
-              <FormGroup label="Début période *"><Input type="date" value={periodeDebut} onChange={e=>setPeriodeDebut(e.target.value)} /></FormGroup>
-              <FormGroup label="Fin période *"><Input type="date" value={periodeFin} onChange={e=>setPeriodeFin(e.target.value)} /></FormGroup>
-            </FormRow>
-            <FormRow>
-              <FormGroup label="Réf. station"><Input value={periodeRef} onChange={e=>setPeriodeRef(e.target.value)} placeholder="ex: STAT-2026-W12" /></FormGroup>
-              <FormGroup label="Date réception"><Input type="date" value={periodeDate} onChange={e=>setPeriodeDate(e.target.value)} /></FormGroup>
-            </FormRow>
-
-            {/* Dispatches groupés par marché */}
-            {periodeDebut && periodeFin && (
-              <>
-                {dispatchesPeriode.length === 0 ? (
-                  <div style={{padding:'16px',textAlign:'center',fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)',border:'1px dashed var(--border)',borderRadius:8,marginTop:12}}>
-                    Aucun dispatch sans prix dans cette période
-                  </div>
-                ) : (
-                  <>
-                    {/* Résumé sélection */}
-                    <div style={{display:'flex',alignItems:'center',gap:8,marginTop:12,marginBottom:10}}>
-                      <div className="section-label" style={{marginBottom:0,flex:1}}>
-                        DISPATCHES ({dispatchesPeriode.length}) — GROUPÉS PAR MARCHÉ
-                      </div>
-                      <button onClick={()=>setPeriodeSelIds(new Set(dispatchesPeriode.map((d:any)=>d.id)))} className="btn-secondary" style={{fontSize:9,padding:'4px 8px'}}>TOUT</button>
-                      <button onClick={()=>setPeriodeSelIds(new Set())} className="btn-ghost" style={{fontSize:9,padding:'4px 8px'}}>AUCUN</button>
-                      <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)'}}>{periodeSelIds.size}/{dispatchesPeriode.length}</span>
-                    </div>
-
-                    {/* Un bloc par marché */}
-                    {marchesInPeriode.map((marche:any) => {
-                      const mid = marche?.id || ''
-                      const dispsDuMarche = dispatchesPeriode.filter((d:any) => d.market_id === mid)
-                      const prixMarche = marchePrix[mid] || ''
-                      const caMarche = dispsDuMarche
-                        .filter((d:any) => periodeSelIds.has(d.id))
-                        .reduce((s:number, d:any) => {
-                          const row  = periodeRows[d.id] || { freinte:'0', ecart:'0', qty_man:'', qty_calc:d.quantity_kg }
-                          const qtyA = row.qty_man !== '' ? Number(row.qty_man) : row.qty_calc
-                          return s + (prixMarche ? calcCA(qtyA, Number(prixMarche)) : 0)
-                        }, 0)
-
-                      return (
-                        <div key={mid} style={{border:'1px solid var(--border-md)',borderRadius:10,overflow:'hidden',marginBottom:14}}>
-                          {/* Header marché — prix saisi ici */}
-                          <div style={{padding:'12px 16px',background:'var(--bg-card2)',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:14,flexWrap:'wrap'}}>
-                            <div style={{flex:1,minWidth:0}}>
-                              <div style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:700,color:'var(--tx-1)',textTransform:'uppercase',letterSpacing:.5}}>
-                                {marche?.name || '—'}
-                              </div>
-                              <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,marginTop:2}}>
-                                {dispsDuMarche.length} dispatch(s) · {marche?.currency}
-                              </div>
-                            </div>
-                            {/* Prix unique pour ce marché */}
-                            <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
-                              <label style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,whiteSpace:'nowrap'}}>PRIX / KG</label>
-                              <input
-                                className="form-input"
-                                type="number"
-                                step="0.001"
-                                value={prixMarche}
-                                onChange={e => {
-                                  const val = e.target.value
-                                  setMarchePrix(p => ({...p,[mid]:val}))
-                                }}
-                                placeholder={`${marche?.currency}/kg`}
-                                style={{width:110,padding:'6px 10px',fontSize:13,fontWeight:600,color:'var(--neon)'}}
-                              />
-                              {caMarche > 0 && (
-                                <div style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--neon)',whiteSpace:'nowrap'}}>
-                                  = {caMarche.toLocaleString('fr',{maximumFractionDigits:2})} {marche?.currency}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Tableau des dispatches de ce marché */}
-                          <div style={{overflowX:'auto'}}>
-                            <table style={{width:'100%',borderCollapse:'collapse'}}>
-                              <thead>
-                                <tr style={{background:'var(--bg-deep)'}}>
-                                  {['','Date','Brut (kg)','Freinte %','Écart %','Accepté (kg)','CA estimé'].map((h,i)=>(
-                                    <th key={i} style={{padding:'7px 10px',fontFamily:'var(--font-mono)',fontSize:8.5,color:'var(--tx-3)',letterSpacing:.8,borderBottom:'1px solid var(--border)',textAlign:'left',whiteSpace:'nowrap'}}>{h}</th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {dispsDuMarche.map((d:any) => {
-                                  const sel  = periodeSelIds.has(d.id)
-                                  const row  = periodeRows[d.id] || { freinte:'0', ecart:'0', qty_man:'', qty_calc:d.quantity_kg }
-                                  const qtyA = row.qty_man !== '' ? Number(row.qty_man) : row.qty_calc
-                                  const ca   = prixMarche ? calcCA(qtyA, Number(prixMarche)) : null
-                                  return (
-                                    <tr key={d.id} style={{borderBottom:'1px solid var(--border)',background:sel?'var(--neon)08':'transparent'}}>
-                                      {/* Checkbox */}
-                                      <td style={{padding:'8px 10px',width:28}}>
-                                        <div onClick={()=>togglePer(d.id)}
-                                          style={{width:15,height:15,borderRadius:3,border:`1px solid ${sel?'var(--neon)':'var(--border-md)'}`,background:sel?'var(--neon)':'transparent',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'var(--bg-deep)',fontWeight:700,cursor:'pointer',flexShrink:0}}>
-                                          {sel?'✓':''}
-                                        </div>
-                                      </td>
-                                      {/* Date */}
-                                      <td style={{padding:'8px 10px'}}><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{d.harvest_date}</span></td>
-                                      {/* Brut */}
-                                      <td style={{padding:'8px 10px'}}><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--amber)'}}>{d.quantity_kg}</span></td>
-                                      {/* Freinte% */}
-                                      <td style={{padding:'8px 6px'}}>
-                                        <input className="form-input" type="number" step="0.1"
-                                          value={row.freinte} placeholder="0"
-                                          onChange={e=>updatePeriodeRow(d.id,'freinte',e.target.value)}
-                                          style={{padding:'4px 7px',fontSize:11,width:70}} />
-                                      </td>
-                                      {/* Écart% */}
-                                      <td style={{padding:'8px 6px'}}>
-                                        <input className="form-input" type="number" step="0.1"
-                                          value={row.ecart} placeholder="0"
-                                          onChange={e=>updatePeriodeRow(d.id,'ecart',e.target.value)}
-                                          style={{padding:'4px 7px',fontSize:11,width:70}} />
-                                      </td>
-                                      {/* Accepté */}
-                                      <td style={{padding:'8px 6px'}}>
-                                        <input className="form-input" type="number" step="0.01"
-                                          value={row.qty_man !== '' ? row.qty_man : String(row.qty_calc)}
-                                          onChange={e=>updatePeriodeRow(d.id,'qty_man',e.target.value)}
-                                          style={{padding:'4px 7px',fontSize:11,width:80,color:row.qty_man!==''?'var(--amber)':'var(--tx-2)'}} />
-                                      </td>
-                                      {/* CA estimé */}
-                                      <td style={{padding:'8px 10px'}}>
-                                        <span style={{fontFamily:'var(--font-display)',fontSize:12,fontWeight:600,color:ca?'var(--neon)':'var(--border-md)'}}>
-                                          {ca ? ca.toLocaleString('fr',{maximumFractionDigits:2})+' '+marche?.currency : '—'}
-                                        </span>
-                                      </td>
-                                    </tr>
-                                  )
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )
-                    })}
-
-                    {/* CA total global */}
-                    {periodeSelIds.size > 0 && Object.values(caParMarchePeriode).some((m:any)=>m.ca>0) && (
-                      <div style={{padding:'10px 16px',background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:8,display:'flex',gap:20,flexWrap:'wrap'}}>
-                        <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,alignSelf:'center'}}>CA TOTAL PÉRIODE :</span>
-                        {Object.values(caParMarchePeriode).filter((m:any)=>m.ca>0).map((m:any,i:number)=>(
-                          <div key={i} style={{fontFamily:'var(--font-mono)',fontSize:10}}>
-                            <span style={{color:'var(--tx-3)'}}>{m.nom} : </span>
-                            <strong style={{color:'var(--neon)'}}>{m.ca.toLocaleString('fr',{maximumFractionDigits:2})} {m.currency}</strong>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-
-            <ModalFooter onCancel={()=>setModalPeriode(false)} onSave={savePeriode} loading={saving}
-              disabled={!periodeDebut||!periodeFin||periodeSelIds.size===0}
-              saveLabel={`CONFIRMER ${periodeSelIds.size} DISPATCH(S)`} />
-          </>)}
-        </Modal>
-      )}
-
-            {/* ══ MODALE ALERTE ══ */}
-      {modalAlerte && (
-        <Modal title="JOURNÉE SANS RÉCOLTE" onClose={()=>{setModalAlerte(false);setDone(false)}}>
-          {done ? <SuccessMessage message="Alerte enregistrée !" /> : (<>
-            <div style={{padding:'10px 14px',background:'var(--red-dim)',border:'1px solid color-mix(in srgb,var(--red) 25%,transparent)',borderRadius:7,fontFamily:'var(--font-mono)',fontSize:11,color:'var(--red)',marginBottom:16}}>⚠ Cette journée sera marquée sans récolte.</div>
-            <FormGroup label="Date *"><Input type="date" value={formAlerte.date} onChange={e=>setFormAlerte(f=>({...f,date:e.target.value}))} autoFocus /></FormGroup>
-            <FormGroup label="Motif">
-              <Select value={formAlerte.reason} onChange={e=>setFormAlerte(f=>({...f,reason:e.target.value}))}>
-                {REASONS.map(r=><option key={r.value} value={r.value}>{r.label}</option>)}
-              </Select>
-            </FormGroup>
-            <FormGroup label="Notes"><Textarea rows={2} value={formAlerte.notes} onChange={e=>setFormAlerte(f=>({...f,notes:e.target.value}))} /></FormGroup>
-            <ModalFooter onCancel={()=>setModalAlerte(false)} onSave={saveAlerte} loading={saving} disabled={!formAlerte.date} saveLabel="ENREGISTRER" />
-          </>)}
-        </Modal>
-      )}
-
-      {/* ══ HEADER ══ */}
-      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:20}}>
+    <div style={{ padding: '20px 24px', maxWidth: 1500 }}>
+      {/* Header */}
+      <header style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
         <div>
-          <div className="page-title">RÉCOLTES</div>
-          <div className="page-sub">
-            {harvests.length} lot(s) · {(totalKg/1000).toFixed(2)} t récoltées
-            {totalCA>0 && <> · CA confirmé : <strong style={{color:'var(--neon)'}}>{totalCA.toLocaleString('fr',{maximumFractionDigits:0})} MAD</strong></>}
-          </div>
-        </div>
-        <div style={{display:'flex',gap:8}}>
-          <button className="btn-ghost" onClick={()=>setModalAlerte(true)} style={{fontSize:11,color:'var(--red)',borderColor:'color-mix(in srgb,var(--red) 25%,transparent)'}}>⚠ SANS RÉCOLTE</button>
-          <button className="btn-primary" onClick={()=>setModalNew(true)}>+ SAISIR RÉCOLTE</button>
-        </div>
-      </div>
-
-      {/* ══ KPIs ══ */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:10,marginBottom:16}}>
-        {[
-          {l:'Lots',       v:String(harvests.length),              c:'var(--neon)'},
-          {l:'Récoltés',   v:(totalKg/1000).toFixed(1)+' t',      c:'var(--neon-2)'},
-          {l:'Dispatches', v:String(dispatches.length),            c:'var(--blue)'},
-          {l:'Sans prix',  v:String(sansPrix.length),              c:'var(--amber)'},
-          {l:'CA confirmé',v:(totalCA/1000).toFixed(1)+' k MAD',  c:'var(--purple)'},
-          {l:'Alertes',    v:String(activAlertes.length),          c:'var(--red)'},
-        ].map((k,i)=>(
-          <div key={i} className="kpi" style={{'--accent':k.c} as any}>
-            <div className="kpi-label">{k.l}</div>
-            <div className="kpi-value" style={{color:k.c,fontSize:20,textShadow:`0 0 12px ${k.c}50`}}>{k.v}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* CA par marché */}
-      {Object.keys(caParMarche).length>0 && (
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10,marginBottom:16}}>
-          {Object.values(caParMarche).map((m,i)=>(
-            <div key={i} style={{background:'var(--bg-card)',border:`1px solid ${m.sansPrix>0?'color-mix(in srgb,var(--amber) 25%,transparent)':'var(--border)'}`,borderRadius:8,padding:'12px 14px'}}>
-              <div style={{fontFamily:'var(--font-mono)',fontSize:8.5,color:'var(--tx-3)',letterSpacing:1,marginBottom:5}}>{m.nom.toUpperCase()}</div>
-              <div style={{fontFamily:'var(--font-display)',fontSize:20,fontWeight:700,color:m.ca>0?'var(--neon)':'var(--tx-3)',marginBottom:2}}>
-                {m.ca>0 ? m.ca.toLocaleString('fr',{maximumFractionDigits:0})+' '+m.currency : '—'}
-              </div>
-              <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-2)'}}>
-                {m.qtyEnv.toLocaleString('fr')} kg env · {m.qtyAcc.toLocaleString('fr',{maximumFractionDigits:0})} kg acc
-              </div>
-              {m.sansPrix>0&&<div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--amber)',marginTop:2}}>⚠ {m.sansPrix} sans prix</div>}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {avecPrix.length > 0 && (
-        <div style={{display:'grid',gridTemplateColumns:'1.05fr 1.35fr',gap:12,marginBottom:16}}>
-          <div className="card">
-            <div className="section-label">ANALYSE FREINTES & ECARTS</div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:10}}>
-              {[
-                { l:'Freinte moyenne', v:`${analyseEcarts.avgFreinte.toFixed(1)}%`, c:'var(--amber)' },
-                { l:'Ecart moyen', v:`${analyseEcarts.avgEcart.toFixed(1)}%`, c:'var(--blue)' },
-                { l:'Perte estimee', v:`${analyseEcarts.totalPerte.toLocaleString('fr',{maximumFractionDigits:1})} kg`, c:'var(--red)' },
-                { l:'Taux de perte', v:`${analyseEcarts.tauxPerte.toFixed(1)}%`, c:'var(--purple)' },
-              ].map((item)=>(
-                <div key={item.l} style={{padding:'12px 14px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg-card2)'}}>
-                  <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,marginBottom:4}}>{item.l}</div>
-                  <div style={{fontFamily:'var(--font-display)',fontSize:18,fontWeight:700,color:item.c}}>{item.v}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{marginTop:12,padding:'10px 12px',borderRadius:8,background:'var(--bg-card)',border:'1px solid var(--border)',fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>
-              Brut confirme : <strong style={{color:'var(--amber)'}}>{analyseEcarts.totalBrut.toLocaleString('fr',{maximumFractionDigits:1})} kg</strong>
-              {' · '}
-              Accepte : <strong style={{color:'var(--neon)'}}>{analyseEcarts.totalAccepte.toLocaleString('fr',{maximumFractionDigits:1})} kg</strong>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="section-label">DETAIL PAR MARCHE</div>
-            {analyseEcarts.byMarket.length === 0 ? (
-              <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)'}}>Aucune confirmation analysee.</div>
-            ) : (
-              <div style={{overflowX:'auto'}}>
-                <table className="tbl">
-                  <thead>
-                    <tr>
-                      {['Marche','Dispatches','Freinte moy.','Ecart moy.','Perte kg','Accepte'].map(h => <th key={h}>{h}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {analyseEcarts.byMarket.map((m) => (
-                      <tr key={m.marketId}>
-                        <td>
-                          <span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--tx-1)'}}>{m.nom}</span>
-                        </td>
-                        <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{m.dispatches}</span></td>
-                        <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--amber)'}}>{m.avgFreinte.toFixed(1)}%</span></td>
-                        <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--blue)'}}>{m.avgEcart.toFixed(1)}%</span></td>
-                        <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--red)'}}>{m.perteKg.toLocaleString('fr',{maximumFractionDigits:1})} kg</span></td>
-                        <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--neon)'}}>{m.qtyAcceptee.toLocaleString('fr',{maximumFractionDigits:1})} kg</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--text-main)' }}>🌿 Récoltes</h1>
+            {realtimeOk && (
+              <span title="Mises à jour temps réel actives" key={realtimeNudge}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '2px 8px', borderRadius: 12,
+                  background: 'var(--neon-dim)', color: 'var(--neon)',
+                  fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                  letterSpacing: 1, animation: realtimeNudge ? 'pulse 0.6s ease-out' : undefined,
+                }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e' }} />
+                LIVE
+              </span>
             )}
           </div>
+          <style>{`@keyframes pulse{0%{opacity:.4;transform:scale(.95)}50%{opacity:1;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}`}</style>
+          <div style={{ color: 'var(--text-sub)', fontSize: 12.5, marginTop: 4 }}>
+            <strong>{kpis.lots}</strong> lot(s) · <strong>{(kpis.kg / 1000).toFixed(1)} t</strong> récoltées
+            {kpis.ca > 0 && <> · CA confirmé <strong style={{ color: 'var(--neon)' }}>{fmt(kpis.ca)} MAD</strong></>}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={manualRefresh} title={`Dernier refresh : ${lastRefresh.toLocaleTimeString('fr-FR')}`} className="btn-ghost" style={{ fontSize: 11, padding: '6px 10px' }}>
+            ↻ Rafraîchir
+          </button>
+          <button onClick={() => setModalAlerte(true)} className="btn-ghost" style={{ fontSize: 11, color: 'var(--red)', borderColor: 'color-mix(in srgb,var(--red) 25%,transparent)' }}>
+            ⚠ SANS RÉCOLTE
+          </button>
+          {tab === 'a_envoyer' ? (
+            <button onClick={() => setModalCompose(true)} disabled={aEnvoyer.length === 0} className="btn-primary" style={{ fontSize: 11.5 }}>
+              📦 COMPOSER UN ENVOI
+            </button>
+          ) : (
+            <button onClick={() => setModalNew(true)} className="btn-primary" style={{ fontSize: 11.5 }}>
+              + SAISIR RÉCOLTE
+            </button>
+          )}
+        </div>
+      </header>
+
+      {error && (
+        <div style={{ padding: 12, marginBottom: 14, background: 'var(--red-dim)', border: '1px solid var(--red)', borderRadius: 6, color: 'var(--text-main)', fontSize: 12.5 }}>
+          ⚠ {error}
         </div>
       )}
 
-      {/* ══ TABS ══ */}
-      <div style={{display:'flex',gap:4,marginBottom:14,alignItems:'center',flexWrap:'wrap'}}>
-        {([['liste','RÉCOLTES',harvests.length],['sans_prix','SANS PRIX',sansPrix.length],['confirmes','CONFIRMÉS',avecPrix.length],['alertes','ALERTES',activAlertes.length]] as any[]).map(([t,l,c])=>(
-          <button key={t} onClick={()=>setTab(t)}
-            style={{padding:'7px 14px',borderRadius:6,border:'1px solid',fontFamily:'var(--font-mono)',fontSize:10,letterSpacing:.8,cursor:'pointer',transition:'all .15s',
-              borderColor:tab===t?'var(--neon)':'var(--border)',background:tab===t?'var(--neon-dim)':'transparent',color:tab===t?'var(--neon)':'var(--tx-3)'}}>
-            {l}
-            {c>0&&<span style={{marginLeft:6,background:t==='alertes'?'var(--red)':t==='sans_prix'?'var(--amber)':'var(--neon)',color:'var(--bg-deep)',borderRadius:10,padding:'1px 6px',fontSize:8,fontWeight:700}}>{c}</span>}
+      {/* KPIs */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10, marginBottom: 14 }}>
+        <KPI icon="🌿" label="Récoltes" value={kpis.lots} sub={`${(kpis.kg / 1000).toFixed(1)} t total`} color="#10b981" />
+        <KPI icon="🚚" label="À envoyer" value={fmt(kpis.a_envoyer_kg) + ' kg'} sub={`${aEnvoyer.length} récolte(s)`} color="#22c55e" />
+        <KPI icon="📦" label="À trier" value={kpis.a_trier_n} sub="envois pending" color="#f59e0b" />
+        <KPI icon="🔬" label="À tarifer" value={kpis.a_tarifer_n} sub="envois triés" color="#3b82f6" />
+        <KPI icon="✓" label="Confirmés" value={kpis.confirmes_n} sub="prix saisi" color="#0ea5e9" />
+        <KPI icon="💰" label="CA" value={fmt(kpis.ca) + ' MAD'} sub="encaissé" color="#a855f7" />
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid var(--bd-1)', marginBottom: 14, overflowX: 'auto' }}>
+        {([
+          ['liste', '📋 Récoltes', kpis.lots],
+          ['a_envoyer', '🚚 À envoyer', aEnvoyer.length],
+          ['a_trier', '📦 À trier', aTrier.length],
+          ['a_tarifer', '🔬 À tarifer', aTarifer.length],
+          ['confirmes', '✅ Confirmés', confirmes.length],
+          ['alertes', '⚠ Alertes', alertesActives.length],
+        ] as [Tab, string, number][]).map(([k, l, c]) => (
+          <button key={k} onClick={() => setTab(k)}
+            style={{
+              padding: '8px 14px', border: 'none',
+              background: tab === k ? 'var(--bg-2)' : 'transparent',
+              color: tab === k ? 'var(--text-main)' : 'var(--text-sub)',
+              borderBottom: tab === k ? '2px solid var(--neon)' : '2px solid transparent',
+              cursor: 'pointer', fontSize: 12.5, fontWeight: 500, whiteSpace: 'nowrap',
+            }}>
+            {l} <span style={{ marginLeft: 4, padding: '1px 6px', borderRadius: 9, background: 'var(--bg-2)', color: 'var(--text-sub)', fontSize: 10.5 }}>{c}</span>
           </button>
         ))}
-        {tab==='sans_prix' && sansPrix.length>0 && (
-          <div style={{marginLeft:'auto',display:'flex',gap:8}}>
-            <button className="btn-ghost" style={{fontSize:10,padding:'7px 12px',color:'var(--neon-2)',borderColor:'var(--neon-2)40'}} onClick={openPeriode}>
-              📅 SAISIE PAR PÉRIODE
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* ══ CONTENU ══ */}
-      {loading ? (
-        <div style={{textAlign:'center',padding:60,color:'var(--tx-3)',fontFamily:'var(--font-mono)',fontSize:11,letterSpacing:2}}>CHARGEMENT...</div>
+      {/* Tab contents */}
+      {tab === 'liste' && <ListeTab harvests={harvestsEnriched} onEdit={openEdit} onDelete={deleteRecolte} loading={loading} />}
+      {tab === 'a_envoyer' && <AEnvoyerTab harvests={aEnvoyer} loading={loading} />}
+      {tab === 'a_trier' && <ATrierTab dispatches={aTrier} onPick={d => setModalTri(d)} loading={loading} />}
+      {tab === 'a_tarifer' && <ATariferTab dispatches={aTarifer} onPick={d => setModalPrice(d)} onOpenPeriod={() => setModalPeriodPrice(true)} loading={loading} />}
+      {tab === 'confirmes' && <ConfirmesTab dispatches={confirmes} loading={loading} />}
+      {tab === 'alertes' && <AlertesTab alertes={alertesActives} onResolve={resolveAlerte} loading={loading} />}
 
-      ) : tab==='liste' ? (
-        harvests.length===0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">◉</div>
-            <div className="empty-title">Aucune récolte saisie</div>
-            <button className="btn-primary" onClick={()=>setModalNew(true)}>+ SAISIR RÉCOLTE</button>
-          </div>
-        ) : (
-          <div className="card" style={{padding:0,overflow:'hidden'}}>
-            <div style={{overflowX:'auto'}}>
-              <table className="tbl">
-                <thead><tr>
-                  {['N° Lot','Date','Serre','Variété','Quantité','Invendus','Marchés','Freinte/Écart','CA confirmé','Statut','Actions'].map(h=><th key={h}>{h}</th>)}
-                </tr></thead>
-                <tbody>
-                  {harvests.map(h=>{
-                    const hDisps   = dispatches.filter(d=>d.harvest_id===h.id)
-                    const hCA      = hDisps.reduce((s,d)=>s+getCA(d),0)
-                    const hMarchés = [...new Set(hDisps.map(d=>d.markets?.name).filter(Boolean))]
-                    const hSansP   = hDisps.filter(d=>!d.certificate_number).length
-                    const statut   = harvestStatut(h, dispatches)
-                    const st       = statutStyle(statut)
-                    const inv      = invendus(h)
-                    // Freinte/écart moyens affichés
-                    const confDisps = hDisps.filter(d=>d.certificate_number)
-                    const avgFreinte = confDisps.length ? confDisps.reduce((s,d)=>s+(parseMeta(d.notes).freinte_pct||0),0)/confDisps.length : null
-                    const avgEcart   = confDisps.length ? confDisps.reduce((s,d)=>s+(parseMeta(d.notes).ecart_pct||0),0)/confDisps.length : null
-                    return (
-                      <tr key={h.id}>
-                        <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--neon)'}}>{h.lot_number}</span></td>
-                        <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{h.harvest_date}</span></td>
-                        <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--tx-1)'}}>{h.campaign_plantings?.greenhouses?.name||'—'}</span></td>
-                        <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)'}}>{h.campaign_plantings?.varieties?.commercial_name||'—'}</span></td>
-                        <td><span style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:700,color:'var(--neon)'}}>{(h.total_qty||0).toLocaleString('fr')} kg</span></td>
-                        <td>{inv>0 ? <span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--amber)'}}>{inv.toLocaleString('fr')} kg</span> : <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--neon)'}}>—</span>}</td>
-                        <td style={{minWidth:90}}>
-                          {hMarchés.length>0
-                            ? <div style={{display:'flex',flexWrap:'wrap',gap:3}}>{hMarchés.map(m=><span key={m} className="tag tag-blue" style={{fontSize:8}}>{m}</span>)}</div>
-                            : <span style={{color:'var(--border-md)',fontFamily:'var(--font-mono)',fontSize:9}}>—</span>}
-                        </td>
-                        <td>
-                          {avgFreinte!==null
-                            ? <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-2)'}}>
-                                F:{avgFreinte.toFixed(1)}% E:{(avgEcart||0).toFixed(1)}%
-                              </span>
-                            : <span style={{color:'var(--border-md)',fontFamily:'var(--font-mono)',fontSize:9}}>—</span>}
-                        </td>
-                        <td>
-                          {hCA>0
-                            ? <span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--purple)'}}>{hCA.toLocaleString('fr',{maximumFractionDigits:0})} MAD</span>
-                            : hSansP>0
-                              ? <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--amber)'}}>⏳ {hSansP} att.</span>
-                              : <span style={{color:'var(--border-md)',fontFamily:'var(--font-mono)',fontSize:9}}>—</span>}
-                        </td>
-                        <td><span className="tag" style={{...st,fontSize:8}}>{statut}</span></td>
-                        <td>
-                          <div style={{display:'flex',gap:4}}>
-                            <button onClick={()=>openDispatch(h)} className="btn-secondary" style={{padding:'4px 7px',fontSize:9}} title="Dispatcher">📦</button>
-                            <button onClick={()=>openEdit(h)} className="btn-ghost" style={{padding:'4px 7px',fontSize:10}} title="Modifier">✏️</button>
-                            <button onClick={()=>deleteRecolte(h.id,h.lot_number)} className="btn-danger" style={{padding:'4px 7px',fontSize:10}} title="Supprimer">🗑</button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )
-
-      ) : tab==='sans_prix' ? (
-        sansPrix.length===0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">✅</div>
-            <div className="empty-title">Tous les dispatches sont confirmés !</div>
-          </div>
-        ) : (
-          <div className="card" style={{padding:0,overflow:'hidden'}}>
-            <div style={{padding:'10px 16px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:12,background:'var(--amber)08'}}>
-              <span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--amber)'}}>⚠ {sansPrix.length} DISPATCH(S) EN ATTENTE</span>
-              <div style={{marginLeft:'auto',display:'flex',gap:8}}>
-                <button className="btn-ghost" style={{fontSize:10,padding:'6px 12px',color:'var(--neon-2)',borderColor:'var(--neon-2)40'}} onClick={openPeriode}>📅 PAR PÉRIODE</button>
-              </div>
-            </div>
-            <div style={{overflowX:'auto'}}>
-              <table className="tbl">
-                <thead><tr>
-                  {['Dispatch','Marché','Date récolte','Qté envoyée','Action'].map(h=><th key={h}>{h}</th>)}
-                </tr></thead>
-                <tbody>
-                  {sansPrix.map(d=>(
-                    <tr key={d.id}>
-                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--neon)'}}>{d.lot_number}</span></td>
-                      <td>
-                        <span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--tx-1)'}}>{d.markets?.name||'—'}</span>
-                        <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',marginLeft:5}}>{d.markets?.currency}</span>
-                      </td>
-                      <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{d.harvest_date}</span></td>
-                      <td><span style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:700,color:'var(--amber)'}}>{d.quantity_kg?.toLocaleString('fr')} kg</span></td>
-                      <td>
-                        <div style={{display:'flex',gap:6}}>
-                          <button onClick={()=>openConfirm(d)} className="btn-primary" style={{fontSize:10,padding:'5px 10px'}}>⚡ CONFIRMER</button>
-                          <button onClick={async()=>{if(!confirm('Supprimer ?'))return;await supabase.from('harvest_lots').delete().eq('id',d.id);setDispatches(p=>p.filter(x=>x.id!==d.id))}} className="btn-danger" style={{padding:'5px 8px',fontSize:10}}>🗑</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )
-
-      ) : tab==='confirmes' ? (
-        avecPrix.length===0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">OK</div>
-            <div className="empty-title">Aucun dispatch confirme</div>
-            <div className="empty-sub">Les dispatches confirmes avec prix apparaitront ici.</div>
-          </div>
-        ) : (
-          <div style={{display:'grid',gap:12}}>
-            <div className="card">
-              <div className="section-label">SYNTHESE PRIX PAR PERIODE</div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:12}}>
-                <FormGroup label="Debut">
-                  <Input type="date" value={prixFilterDebut} onChange={e=>setPrixFilterDebut(e.target.value)} />
-                </FormGroup>
-                <FormGroup label="Fin">
-                  <Input type="date" value={prixFilterFin} onChange={e=>setPrixFilterFin(e.target.value)} />
-                </FormGroup>
-                <FormGroup label="Marche">
-                  <Select value={prixFilterMarche} onChange={e=>setPrixFilterMarche(e.target.value)}>
-                    <option value="">-- Tous les marches --</option>
-                    {markets.map((m:any)=><option key={m.id} value={m.id}>{m.name}</option>)}
-                  </Select>
-                </FormGroup>
-              </div>
-
-              <div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:10,marginBottom:12}}>
-                {[
-                  { l:'Dispatches filtres', v:String(synthesePrix.items.length), c:'var(--blue)' },
-                  { l:'Prix moyen pondere', v:synthesePrix.avgPrice ? `${synthesePrix.avgPrice.toLocaleString('fr',{maximumFractionDigits:3})} MAD/kg` : '—', c:'var(--amber)' },
-                  { l:'CA filtre', v:synthesePrix.totalCA ? `${synthesePrix.totalCA.toLocaleString('fr',{maximumFractionDigits:0})} MAD` : '—', c:'var(--purple)' },
-                ].map((item)=>(
-                  <div key={item.l} style={{padding:'12px 14px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg-card2)'}}>
-                    <div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',letterSpacing:1,marginBottom:4}}>{item.l}</div>
-                    <div style={{fontFamily:'var(--font-display)',fontSize:18,fontWeight:700,color:item.c}}>{item.v}</div>
-                  </div>
-                ))}
-              </div>
-
-              {synthesePrix.periods.length===0 ? (
-                <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-3)'}}>Aucune confirmation ne correspond aux filtres.</div>
-              ) : (
-                <div style={{overflowX:'auto'}}>
-                  <table className="tbl">
-                    <thead><tr>
-                      {['Periode','Dispatches','Qté acceptee','Prix moyen','CA'].map(h=><th key={h}>{h}</th>)}
-                    </tr></thead>
-                    <tbody>
-                      {synthesePrix.periods.map(p=>(
-                        <tr key={p.label}>
-                          <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{p.label}</span></td>
-                          <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{p.dispatches}</span></td>
-                          <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--neon)'}}>{p.qtyAcceptee.toLocaleString('fr',{maximumFractionDigits:1})} kg</span></td>
-                          <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--amber)'}}>{p.avgPrice ? `${p.avgPrice.toLocaleString('fr',{maximumFractionDigits:3})} MAD/kg` : '—'}</span></td>
-                          <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--purple)'}}>{p.totalCA.toLocaleString('fr',{maximumFractionDigits:2})} MAD</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            <div className="card" style={{padding:0,overflow:'hidden'}}>
-              <div style={{overflowX:'auto'}}>
-                <table className="tbl">
-                  <thead><tr>
-                    {['Dispatch','Marche','Date recolte','Qté envoyee','Qté acceptee','Prix/kg','CA confirme'].map(h=><th key={h}>{h}</th>)}
-                  </tr></thead>
-                  <tbody>
-                    {synthesePrix.items.map(d=>{
-                      const meta = parseMeta(d.notes)
-                      const prix = Number(meta.price_per_kg || 0)
-                      const qtyA = getQtyA(d)
-                      const ca = getCA(d)
-                      return (
-                        <tr key={d.id}>
-                          <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--neon)'}}>{d.lot_number}</span></td>
-                          <td>
-                            <span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:600,color:'var(--tx-1)'}}>{d.markets?.name||'—'}</span>
-                            <span style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)',marginLeft:5}}>{d.markets?.currency}</span>
-                          </td>
-                          <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{d.harvest_date}</span></td>
-                          <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--amber)'}}>{d.quantity_kg?.toLocaleString('fr')} kg</span></td>
-                          <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--neon)'}}>{qtyA.toLocaleString('fr',{maximumFractionDigits:2})} kg</span></td>
-                          <td><span style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)'}}>{prix ? `${prix.toLocaleString('fr',{maximumFractionDigits:3})} ${d.markets?.currency||'MAD'}` : '—'}</span></td>
-                          <td><span style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--purple)'}}>{ca.toLocaleString('fr',{maximumFractionDigits:2})} {d.markets?.currency||'MAD'}</span></td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )
-
-      ) : (
-        <div>
-          {activAlertes.length>0 && (
-            <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:16}}>
-              {activAlertes.map(a=>(
-                <div key={a.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'var(--red)12',border:'1px solid var(--red)30',borderRadius:8}}>
-                  <span style={{fontSize:18,flexShrink:0}}>⚠</span>
-                  <div style={{flex:1}}>
-                    <div style={{fontFamily:'var(--font-display)',fontSize:13,fontWeight:700,color:'var(--red)'}}>{a.title}</div>
-                    <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'var(--tx-2)',marginTop:2}}>{a.message}</div>
-                  </div>
-                  <button onClick={()=>resolveAlerte(a.id)} className="btn-ghost" style={{fontSize:10,padding:'5px 10px',color:'var(--neon)',borderColor:'color-mix(in srgb,var(--neon) 25%,transparent)',flexShrink:0}}>✓ RÉSOUDRE</button>
-                </div>
-              ))}
-            </div>
-          )}
-          {alertes.filter(a=>a.is_resolved).length>0 && (
-            <div style={{display:'flex',flexDirection:'column',gap:5}}>
-              {alertes.filter(a=>a.is_resolved).map(a=>(
-                <div key={a.id} style={{display:'flex',alignItems:'center',gap:12,padding:'9px 16px',background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:8,opacity:.6}}>
-                  <span style={{fontSize:12,color:'var(--neon)'}}>✓</span>
-                  <div style={{flex:1}}><div style={{fontFamily:'var(--font-display)',fontSize:12,color:'var(--tx-2)'}}>{a.title}</div><div style={{fontFamily:'var(--font-mono)',fontSize:9,color:'var(--tx-3)'}}>{a.message}</div></div>
-                  <span className="tag tag-green" style={{fontSize:8}}>RÉSOLU</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {alertes.length===0 && (
-            <div className="empty-state">
-              <div className="empty-icon">✅</div>
-              <div className="empty-title">Aucune alerte</div>
-              <button className="btn-ghost" onClick={()=>setModalAlerte(true)} style={{color:'var(--red)',borderColor:'color-mix(in srgb,var(--red) 25%,transparent)',fontSize:11}}>⚠ SIGNALER UNE JOURNÉE SANS RÉCOLTE</button>
-            </div>
-          )}
-        </div>
+      {/* Modals */}
+      {modalNew && (
+        <NewHarvestModal
+          form={formNew} setForm={setFormNew} plantings={plantings} saving={saving} done={done} error={error}
+          onClose={() => { setModalNew(false); setDone(false); setError('') }} onSave={saveNew}
+        />
+      )}
+      {modalEdit && (
+        <EditHarvestModal
+          harvest={modalEdit} form={formEdit} setForm={setFormEdit} plantings={plantings}
+          saving={saving} done={done} error={error}
+          onClose={() => { setModalEdit(null); setDone(false); setError('') }} onSave={saveEdit}
+        />
+      )}
+      {modalCompose && (
+        <ComposeModal
+          harvests={aEnvoyer} markets={markets}
+          onClose={() => setModalCompose(false)}
+          onDone={() => { setModalCompose(false); load() }}
+        />
+      )}
+      {modalTri && (
+        <TriModal dispatch={modalTri} onClose={() => setModalTri(null)} onDone={() => { setModalTri(null); load() }} />
+      )}
+      {modalPrice && (
+        <PriceModal dispatch={modalPrice} onClose={() => setModalPrice(null)} onDone={() => { setModalPrice(null); load() }} />
+      )}
+      {modalPeriodPrice && (
+        <PeriodPriceModal
+          dispatches={aTarifer}
+          onClose={() => setModalPeriodPrice(false)}
+          onDone={() => { setModalPeriodPrice(false); load() }}
+        />
+      )}
+      {modalAlerte && (
+        <AlerteModal
+          form={formAlerte} setForm={setFormAlerte} saving={saving} done={done} error={error}
+          onClose={() => { setModalAlerte(false); setDone(false); setError('') }} onSave={saveAlerte}
+        />
       )}
     </div>
   )
 }
+
+// ============================================================
+// TABS
+// ============================================================
+
+function ListeTab({ harvests, onEdit, onDelete, loading }: { harvests: any[]; onEdit: (h: any) => void; onDelete: (h: any) => void; loading: boolean }) {
+  return (
+    <Table headers={['Lot', 'Date', 'Serre / Variété', 'Total', 'Engagé', 'Restant', 'Actions']} loading={loading} empty="Aucune récolte. Cliquer + Saisir récolte." rows={harvests}>
+      {(h: any) => (
+        <tr key={h.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
+          <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{h.lot_number}</td>
+          <td style={td}>{h.harvest_date}</td>
+          <td style={td}>{h.campaign_plantings?.greenhouses?.code} / {h.campaign_plantings?.varieties?.code}</td>
+          <td style={tdNum}>{fmt(h.total_qty)}</td>
+          <td style={{ ...tdNum, color: 'var(--text-sub)' }}>{fmt(h.used_kg)}</td>
+          <td style={{ ...tdNum, color: h.remaining_kg > 0 ? 'var(--neon)' : 'var(--text-muted)', fontWeight: h.remaining_kg > 0 ? 700 : 400 }}>
+            {fmt(h.remaining_kg)}
+          </td>
+          <td style={{ ...td, whiteSpace: 'nowrap' }}>
+            <button onClick={() => onEdit(h)} className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px', marginRight: 4 }}>Éditer</button>
+            <button onClick={() => onDelete(h)} className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px', color: 'var(--red)' }}>Supprimer</button>
+          </td>
+        </tr>
+      )}
+    </Table>
+  )
+}
+
+function AEnvoyerTab({ harvests, loading }: { harvests: any[]; loading: boolean }) {
+  return (
+    <div>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--text-sub)' }}>
+        Récoltes ayant encore une quantité <strong>disponible</strong> à inclure dans un envoi station.
+        Cliquer sur <strong>📦 COMPOSER UN ENVOI</strong> en haut pour créer un envoi multi-récoltes.
+      </div>
+      <Table headers={['Lot récolte', 'Date', 'Serre / Variété', 'Total', 'Engagé', 'Disponible']} loading={loading} empty="Toutes les récoltes sont engagées dans un envoi ✓" rows={harvests}>
+        {(h: any) => (
+          <tr key={h.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
+            <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{h.lot_number}</td>
+            <td style={td}>{h.harvest_date}</td>
+            <td style={td}>{h.campaign_plantings?.greenhouses?.code} / {h.campaign_plantings?.varieties?.code}</td>
+            <td style={tdNum}>{fmt(h.total_qty)}</td>
+            <td style={{ ...tdNum, color: 'var(--text-sub)' }}>{fmt(h.used_kg)}</td>
+            <td style={{ ...tdNum, color: 'var(--neon)', fontWeight: 700 }}>{fmt(h.remaining_kg)}</td>
+          </tr>
+        )}
+      </Table>
+    </div>
+  )
+}
+
+function ATrierTab({ dispatches, onPick, loading }: { dispatches: any[]; onPick: (d: any) => void; loading: boolean }) {
+  return (
+    <div>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--text-sub)' }}>
+        Envois envoyés à la station, en attente de saisie du <strong>tri (freinte + écart)</strong>.
+      </div>
+      <Table headers={['Lot dispatch', 'Date', 'Marché', 'Variété', 'Récoltes incluses', 'Brute (kg)', 'Action']} loading={loading} empty="Aucun envoi en attente de tri ✓" rows={dispatches}>
+        {(d: any) => (
+          <tr key={d.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
+            <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{d.lot_number}</td>
+            <td style={td}>{d.harvest_date}</td>
+            <td style={td}>{d.markets?.name ?? '—'}</td>
+            <td style={{ ...td, fontSize: 11.5 }}>
+              {d.varieties?.code
+                ? <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,.15)', color: '#a855f7', fontWeight: 600 }}>{d.varieties.code}</span>
+                : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+            </td>
+            <td style={{ ...td, fontSize: 11, color: 'var(--text-sub)' }}>
+              {(d.sources?.length ?? 0) > 0
+                ? d.sources.map((s: any) => `${s.harvests?.lot_number ?? '?'} (${fmt(s.qty_contributed_kg)})`).join(', ')
+                : <em>simple</em>}
+            </td>
+            <td style={tdNum}>{fmt(d.quantity_kg)}</td>
+            <td style={td}>
+              <button onClick={() => onPick(d)} className="btn-primary" style={{ fontSize: 11, padding: '4px 10px' }}>🔬 Saisir tri</button>
+            </td>
+          </tr>
+        )}
+      </Table>
+    </div>
+  )
+}
+
+function ATariferTab({ dispatches, onPick, onOpenPeriod, loading }: { dispatches: any[]; onPick: (d: any) => void; onOpenPeriod: () => void; loading: boolean }) {
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ fontSize: 12.5, color: 'var(--text-sub)' }}>
+          Envois <strong>triés</strong>, en attente du <strong>prix /kg</strong> pour confirmer le CA.
+        </div>
+        <button onClick={onOpenPeriod} disabled={dispatches.length === 0} className="btn-ghost" style={{ fontSize: 11.5, padding: '6px 12px', color: '#a855f7', borderColor: 'color-mix(in srgb,#a855f7 30%,transparent)' }}>
+          📅 TARIF PAR PÉRIODE
+        </button>
+      </div>
+      <Table headers={['Lot', 'Date', 'Marché', 'Variété', 'Brute', 'Freinte', 'Écart', 'Acceptée', 'Action']} loading={loading} empty="Aucun envoi en attente de prix." rows={dispatches}>
+        {(d: any) => (
+          <tr key={d.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
+            <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{d.lot_number}</td>
+            <td style={td}>{d.harvest_date}</td>
+            <td style={td}>{d.markets?.name ?? '—'}</td>
+            <td style={td}>
+              {d.varieties?.code
+                ? <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,.15)', color: '#a855f7', fontWeight: 600, fontSize: 11.5 }}>{d.varieties.code}</span>
+                : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+            </td>
+            <td style={tdNum}>{fmt(d.quantity_kg)}</td>
+            <td style={tdNum}>{(d.freinte_pct ?? 0).toFixed(1)}%</td>
+            <td style={tdNum}>{(d.ecart_pct ?? 0).toFixed(1)}%</td>
+            <td style={{ ...tdNum, color: 'var(--neon)', fontWeight: 700 }}>{fmt(d.qty_acceptee_kg ?? 0)}</td>
+            <td style={td}>
+              <button onClick={() => onPick(d)} className="btn-primary" style={{ fontSize: 11, padding: '4px 10px' }}>💰 Tarifer</button>
+            </td>
+          </tr>
+        )}
+      </Table>
+    </div>
+  )
+}
+
+function ConfirmesTab({ dispatches, loading }: { dispatches: any[]; loading: boolean }) {
+  return (
+    <div>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--text-sub)' }}>
+        Envois avec prix confirmé et CA calculé.
+      </div>
+      <Table headers={['Lot', 'Date', 'Marché', 'Variété', 'Acceptée', 'Prix /kg', 'CA', 'Réf station']} loading={loading} empty="Aucun envoi confirmé." rows={dispatches}>
+        {(d: any) => (
+          <tr key={d.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
+            <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{d.lot_number}</td>
+            <td style={td}>{d.harvest_date}</td>
+            <td style={td}>{d.markets?.name ?? '—'}</td>
+            <td style={td}>
+              {d.varieties?.code
+                ? <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,.15)', color: '#a855f7', fontWeight: 600, fontSize: 11.5 }}>{d.varieties.code}</span>
+                : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+            </td>
+            <td style={tdNum}>{fmt(d.qty_acceptee_kg ?? 0)}</td>
+            <td style={tdNum}>{(d.price_per_kg ?? 0).toFixed(2)}</td>
+            <td style={{ ...tdNum, color: 'var(--neon)', fontWeight: 700 }}>{fmt(d.ca_amount ?? 0)} MAD</td>
+            <td style={{ ...td, fontSize: 11, color: 'var(--text-sub)' }}>{d.station_ref ?? '—'}</td>
+          </tr>
+        )}
+      </Table>
+    </div>
+  )
+}
+
+function AlertesTab({ alertes, onResolve, loading }: { alertes: any[]; onResolve: (id: string) => void; loading: boolean }) {
+  return (
+    <Table headers={['Date', 'Titre', 'Message', 'Actions']} loading={loading} empty="Aucune alerte active ✓" rows={alertes}>
+      {(a: any) => (
+        <tr key={a.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
+          <td style={{ ...td, fontSize: 11 }}>{a.created_at?.slice(0, 10)}</td>
+          <td style={{ ...td, fontWeight: 600 }}>{a.title}</td>
+          <td style={{ ...td, fontSize: 11, color: 'var(--text-sub)' }}>{a.message}</td>
+          <td style={td}>
+            <button onClick={() => onResolve(a.id)} className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px' }}>✓ Résoudre</button>
+          </td>
+        </tr>
+      )}
+    </Table>
+  )
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+
+function NewHarvestModal({ form, setForm, plantings, saving, done, error, onClose, onSave }: any) {
+  const f = (k: string) => (e: any) => setForm((s: any) => ({ ...s, [k]: e.target.value }))
+  return (
+    <Modal title="🌿 Saisir une récolte" onClose={onClose}>
+      {done ? <SuccessMessage message="Récolte créée" /> : (
+        <>
+          <FormGroup label="Plantation *">
+            <Select value={form.campaign_planting_id} onChange={f('campaign_planting_id')}>
+              <option value="">— sélectionner —</option>
+              {plantings.map((p: any) => (
+                <option key={p.id} value={p.id}>
+                  {p.greenhouses?.code} · {p.varieties?.commercial_name} ({p.campaigns?.name ?? '?'})
+                </option>
+              ))}
+            </Select>
+          </FormGroup>
+          <FormRow>
+            <FormGroup label="Date récolte *"><Input type="date" value={form.harvest_date} onChange={f('harvest_date')} /></FormGroup>
+            <FormGroup label="Quantité (kg) *"><Input type="number" value={form.total_qty} onChange={f('total_qty')} placeholder="150" /></FormGroup>
+          </FormRow>
+          <FormGroup label="Notes"><Textarea value={form.notes} onChange={f('notes')} placeholder="Optionnel" /></FormGroup>
+          {error && <ErrorBox msg={error} />}
+          <ModalFooter onCancel={onClose} onSave={onSave} loading={saving} saveLabel="CRÉER" disabled={!form.campaign_planting_id || !form.harvest_date || !form.total_qty} />
+        </>
+      )}
+    </Modal>
+  )
+}
+
+function EditHarvestModal({ harvest, form, setForm, plantings, saving, done, error, onClose, onSave }: any) {
+  const f = (k: string) => (e: any) => setForm((s: any) => ({ ...s, [k]: e.target.value }))
+  return (
+    <Modal title={`Éditer — ${harvest.lot_number}`} onClose={onClose}>
+      {done ? <SuccessMessage message="Récolte modifiée" /> : (
+        <>
+          <FormGroup label="Plantation">
+            <Select value={form.campaign_planting_id} onChange={f('campaign_planting_id')}>
+              {plantings.map((p: any) => (
+                <option key={p.id} value={p.id}>{p.greenhouses?.code} · {p.varieties?.commercial_name}</option>
+              ))}
+            </Select>
+          </FormGroup>
+          <FormRow>
+            <FormGroup label="Date récolte"><Input type="date" value={form.harvest_date} onChange={f('harvest_date')} /></FormGroup>
+            <FormGroup label="Quantité (kg)"><Input type="number" value={form.total_qty} onChange={f('total_qty')} /></FormGroup>
+          </FormRow>
+          <FormGroup label="Notes"><Textarea value={form.notes} onChange={f('notes')} /></FormGroup>
+          {error && <ErrorBox msg={error} />}
+          <ModalFooter onCancel={onClose} onSave={onSave} loading={saving} saveLabel="ENREGISTRER" />
+        </>
+      )}
+    </Modal>
+  )
+}
+
+function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[]; markets: any[]; onClose: () => void; onDone: () => void }) {
+  const [picks, setPicks] = useState<Record<string, number>>({})
+  const [marketId, setMarketId] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+  const total = Object.values(picks).reduce((s, v) => s + v, 0)
+
+  const updateQty = (h: any, qtyStr: string) => {
+    setErr('')
+    const q = Number(qtyStr.replace(',', '.'))
+    if (!Number.isFinite(q) || q <= 0) {
+      setPicks(s => { const n = { ...s }; delete n[h.id]; return n })
+      return
+    }
+    if (q > h.remaining_kg + 0.01) { setErr(`${h.lot_number} : max ${fmt(h.remaining_kg)} kg`); return }
+    setPicks(s => ({ ...s, [h.id]: q }))
+  }
+  const fillAll = (h: any) => updateQty(h, String(h.remaining_kg))
+
+  const save = async () => {
+    setErr('')
+    const entries = Object.entries(picks).filter(([, q]) => q > 0)
+    if (entries.length === 0) { setErr('Sélectionne au moins une récolte.'); return }
+    if (!marketId) { setErr('Choisis un marché.'); return }
+    setSaving(true)
+    try {
+      // Groupe les récoltes sélectionnées PAR VARIÉTÉ
+      // (harvest_lots.variety_id est NOT NULL donc 1 lot = 1 variété)
+      type Entry = { harvest_id: string; qty: number; harvest: any; variety_id: string | null }
+      const enriched: Entry[] = entries.map(([hId, qty]) => {
+        const h = harvests.find(x => x.id === hId)
+        return {
+          harvest_id: hId, qty,
+          harvest: h,
+          variety_id: h?.campaign_plantings?.variety_id ?? null,
+        }
+      })
+      const groups = new Map<string, Entry[]>()
+      for (const e of enriched) {
+        if (!e.variety_id) { setErr(`Récolte ${e.harvest?.lot_number} sans variété — impossible de l'inclure.`); setSaving(false); return }
+        const g = groups.get(e.variety_id) ?? []
+        g.push(e); groups.set(e.variety_id, g)
+      }
+
+      const ts = String(Date.now())
+      const today = new Date().toISOString().slice(0, 10)
+      const totalQty = entries.reduce((s, [, q]) => s + q, 0)
+      const createdLots: { lot_number: string; variety_code?: string; total: number }[] = []
+
+      let groupIdx = 0
+      for (const [varietyId, groupEntries] of groups.entries()) {
+        groupIdx++
+        const sub = groupEntries[0].harvest
+        const subTotal = groupEntries.reduce((s, e) => s + e.qty, 0)
+        const dispLot = `D${ts.slice(-8)}-${String(groupIdx).padStart(2, '0')}`.slice(0, 50)
+
+        const { data: lot, error } = await supabase.from('harvest_lots').insert({
+          lot_number: dispLot,
+          harvest_id: groupEntries.length === 1 ? groupEntries[0].harvest_id : null,
+          campaign_planting_id: sub?.campaign_planting_id ?? null,
+          harvest_date: today,
+          quantity_kg: subTotal,
+          category: 'station_dispatch',
+          variety_id: varietyId,
+          greenhouse_id: sub?.campaign_plantings?.greenhouse_id ?? null,
+          market_id: marketId,
+          tri_status: 'pending',
+          notes: `Envoi composite — ${groupEntries.length} récolte(s) variété ${sub?.campaign_plantings?.varieties?.code ?? '?'}`,
+        }).select('id, lot_number').single()
+        if (error) throw error
+
+        const sourceRows = groupEntries.map(e => ({
+          harvest_lot_id: lot!.id, harvest_id: e.harvest_id, qty_contributed_kg: e.qty,
+        }))
+        const { error: srcErr } = await supabase.from('harvest_lot_sources').insert(sourceRows)
+        if (srcErr) throw srcErr
+
+        createdLots.push({
+          lot_number: lot!.lot_number,
+          variety_code: sub?.campaign_plantings?.varieties?.code,
+          total: subTotal,
+        })
+      }
+
+      if (createdLots.length > 1) {
+        // Affichage informatif (non bloquant) : on a splitté en N lots
+        console.info('[compose] split into', createdLots)
+      }
+      onDone()
+    } catch (e: any) { setErr(e.message || String(e)) }
+    setSaving(false)
+  }
+
+  return (
+    <Modal title="📦 Composer un envoi station" onClose={onClose} size="lg">
+      <div style={{ marginBottom: 12, fontSize: 12.5, color: 'var(--text-sub)' }}>
+        Sélectionne 1 ou plusieurs récoltes et la quantité contribuée par chacune. Choisis le marché de destination.
+      </div>
+      <FormGroup label="Marché *">
+        <Select value={marketId} onChange={e => setMarketId(e.target.value)}>
+          <option value="">— sélectionner —</option>
+          {markets.map((m: any) => <option key={m.id} value={m.id}>🌍 {m.name}{m.code ? ` (${m.code})` : ''}</option>)}
+        </Select>
+      </FormGroup>
+      <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginTop: 12, marginBottom: 4 }}>
+        Récoltes disponibles
+      </div>
+      <div style={{ border: '1px solid var(--bd-1)', borderRadius: 6, maxHeight: 360, overflow: 'auto' }}>
+        <table style={{ width: '100%', fontSize: 12 }}>
+          <thead style={{ background: 'var(--bg-2)', position: 'sticky', top: 0 }}>
+            <tr>{['Lot', 'Date', 'Serre/Var', 'Dispo', 'Qté à inclure', ''].map(h => <th key={h} style={th}>{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {harvests.map(h => (
+              <tr key={h.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
+                <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{h.lot_number}</td>
+                <td style={td}>{h.harvest_date}</td>
+                <td style={{ ...td, fontSize: 11 }}>{h.campaign_plantings?.greenhouses?.code} / {h.campaign_plantings?.varieties?.code}</td>
+                <td style={tdNum}>{fmt(h.remaining_kg)}</td>
+                <td style={td}>
+                  <input type="number" placeholder="0" min={0} max={h.remaining_kg}
+                    value={picks[h.id] ?? ''}
+                    onChange={e => updateQty(h, e.target.value)}
+                    style={{ width: 90, padding: '4px 6px', background: 'var(--bg-2)', color: 'var(--text-main)', border: '1px solid var(--bd-1)', borderRadius: 4, fontSize: 12 }} />
+                </td>
+                <td style={td}>
+                  <button onClick={() => fillAll(h)} className="btn-ghost" style={{ fontSize: 10.5, padding: '2px 6px' }}>↪ Tout</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {(() => {
+        const selectedHarvests = Object.keys(picks).filter(id => Number(picks[id]) > 0).map(id => harvests.find(h => h.id === id)).filter(Boolean)
+        const varieties = new Set(selectedHarvests.map((h: any) => h?.campaign_plantings?.variety_id).filter(Boolean))
+        const varietyCodes = Array.from(new Set(selectedHarvests.map((h: any) => h?.campaign_plantings?.varieties?.code).filter(Boolean)))
+        const multiVar = varieties.size > 1
+        return (
+          <>
+            <div style={{ marginTop: 10, padding: 10, background: 'var(--neon-dim)', borderRadius: 6, fontSize: 12, color: 'var(--text-main)' }}>
+              Total envoi : <strong style={{ color: 'var(--neon)', fontSize: 14 }}>{fmt(total)} kg</strong> sur {Object.keys(picks).length} récolte(s)
+            </div>
+            {multiVar && (
+              <div style={{ marginTop: 8, padding: 8, background: 'var(--amber-dim)', border: '1px solid var(--amber)', borderRadius: 6, fontSize: 11.5, color: 'var(--text-main)' }}>
+                ℹ {varieties.size} variétés sélectionnées ({varietyCodes.join(', ')}) → <strong>{varieties.size} envois distincts</strong> seront créés (1 par variété), tous dirigés vers le même marché.
+              </div>
+            )}
+          </>
+        )
+      })()}
+      {err && <ErrorBox msg={err} />}
+      <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel="CRÉER L'ENVOI" disabled={total <= 0 || !marketId} />
+    </Modal>
+  )
+}
+
+function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () => void; onDone: () => void }) {
+  const [freinte, setFreinte] = useState(String(dispatch.freinte_pct ?? '0'))
+  const [ecart, setEcart] = useState(String(dispatch.ecart_pct ?? '0'))
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+  const fr = Number(freinte) || 0
+  const ec = Number(ecart) || 0
+  const qtyB = Number(dispatch.quantity_kg)
+  const qtyN = Math.round(qtyB * (1 - fr / 100) * 100) / 100
+  const qtyA = Math.round(qtyN * (1 - ec / 100) * 100) / 100
+
+  const save = async () => {
+    setErr('')
+    if (fr < 0 || fr > 100 || ec < 0 || ec > 100) { setErr('Freinte et écart entre 0 et 100.'); return }
+    if (fr + ec >= 100) { setErr('Freinte + écart ≥ 100% (rien d\'accepté).'); return }
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('harvest_lots').update({
+        freinte_pct: fr, ecart_pct: ec, qty_nette_kg: qtyN, qty_acceptee_kg: qtyA, tri_status: 'tried',
+      }).eq('id', dispatch.id)
+      if (error) throw error
+      onDone()
+    } catch (e: any) { setErr(e.message) }
+    setSaving(false)
+  }
+
+  return (
+    <Modal title={`🔬 Tri — ${dispatch.lot_number}`} onClose={onClose}>
+      <div style={{ marginBottom: 12, padding: 10, background: 'var(--bg-2)', borderRadius: 6, fontSize: 12 }}>
+        Marché : <strong>{dispatch.markets?.name ?? '—'}</strong> · Variété : <strong style={{ color: '#a855f7' }}>{dispatch.varieties?.code ?? '—'}</strong> · Brute : <strong>{fmt(qtyB)} kg</strong>
+      </div>
+      <FormRow>
+        <FormGroup label="Freinte (%) *"><Input type="number" value={freinte} onChange={e => setFreinte((e.target as any).value)} /></FormGroup>
+        <FormGroup label="Écart (%) *"><Input type="number" value={ecart} onChange={e => setEcart((e.target as any).value)} /></FormGroup>
+      </FormRow>
+      <div style={{ marginTop: 10, padding: 12, background: 'var(--neon-dim)', border: '1px solid var(--neon)', borderRadius: 8 }}>
+        <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 6 }}>Calcul automatique</div>
+        <div style={{ fontSize: 12.5, color: 'var(--text-main)', lineHeight: 1.7 }}>
+          Brute × (1 − {fr}%) = <strong>Nette {fmt(qtyN)} kg</strong><br/>
+          Nette × (1 − {ec}%) = <strong style={{ color: 'var(--neon)' }}>Acceptée {fmt(qtyA)} kg</strong>
+        </div>
+      </div>
+      {err && <ErrorBox msg={err} />}
+      <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel="ENREGISTRER LE TRI" />
+    </Modal>
+  )
+}
+
+function PriceModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () => void; onDone: () => void }) {
+  const [price, setPrice] = useState(String(dispatch.price_per_kg ?? ''))
+  const [stationRef, setStationRef] = useState(dispatch.station_ref ?? '')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+  const p = Number(price) || 0
+  const qtyA = Number(dispatch.qty_acceptee_kg) || 0
+  const ca = Math.round(qtyA * p * 100) / 100
+
+  const save = async () => {
+    setErr('')
+    if (p <= 0) { setErr('Prix doit être > 0.'); return }
+    setSaving(true)
+    try {
+      const today = new Date().toISOString().slice(0, 10)
+      const { error } = await supabase.from('harvest_lots').update({
+        price_per_kg: p, ca_amount: ca, station_ref: stationRef.trim() || null,
+        receipt_date: today, periode_debut: today, periode_fin: today,
+        certificate_number: String(qtyA), tri_status: 'priced',
+      }).eq('id', dispatch.id)
+      if (error) throw error
+      onDone()
+    } catch (e: any) { setErr(e.message) }
+    setSaving(false)
+  }
+
+  return (
+    <Modal title={`💰 Tarifer — ${dispatch.lot_number}`} onClose={onClose}>
+      <div style={{ marginBottom: 12, padding: 10, background: 'var(--bg-2)', borderRadius: 6, fontSize: 12, color: 'var(--text-main)' }}>
+        Marché : <strong>{dispatch.markets?.name ?? '—'}</strong> · Variété : <strong style={{ color: '#a855f7' }}>{dispatch.varieties?.code ?? '—'}</strong><br/>
+        Brute {fmt(dispatch.quantity_kg)} kg → Nette {fmt(dispatch.qty_nette_kg ?? 0)} kg → <strong style={{ color: 'var(--neon)' }}>Acceptée {fmt(qtyA)} kg</strong><br/>
+        <span style={{ fontSize: 11, color: 'var(--text-sub)' }}>(freinte {dispatch.freinte_pct}% · écart {dispatch.ecart_pct}%)</span>
+      </div>
+      <FormGroup label={`Prix /kg (${dispatch.markets?.currency ?? 'MAD'}) *`}>
+        <Input type="number" value={price} onChange={e => setPrice((e.target as any).value)} placeholder="8.50" autoFocus />
+      </FormGroup>
+      <FormGroup label="Référence station / bordereau"><Input value={stationRef} onChange={e => setStationRef((e.target as any).value)} placeholder="STN-…" /></FormGroup>
+      {p > 0 && (
+        <div style={{ marginTop: 10, padding: 12, background: 'var(--neon-dim)', border: '1px solid var(--neon)', borderRadius: 8, fontSize: 13 }}>
+          CA = {fmt(qtyA)} kg × {p.toFixed(2)} = <strong style={{ color: 'var(--neon)', fontSize: 16 }}>{fmt(ca)} MAD</strong>
+        </div>
+      )}
+      {err && <ErrorBox msg={err} />}
+      <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel="CONFIRMER LE PRIX" />
+    </Modal>
+  )
+}
+
+function PeriodPriceModal({ dispatches, onClose, onDone }: { dispatches: any[]; onClose: () => void; onDone: () => void }) {
+  const today = new Date().toISOString().slice(0, 10)
+  const sevenAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
+  const [debut, setDebut] = useState(sevenAgo)
+  const [fin, setFin] = useState(today)
+  const [stationRef, setStationRef] = useState('')
+  // Map marché_id → prix /kg
+  const [pricesByMarket, setPricesByMarket] = useState<Record<string, string>>({})
+  const [excluded, setExcluded] = useState<Set<string>>(new Set())
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+
+  // Filtre les dispatches sur la période
+  const filtered = useMemo(() => dispatches.filter(d => {
+    const dt = d.harvest_date
+    return dt && dt >= debut && dt <= fin
+  }), [dispatches, debut, fin])
+
+  // Regroupement par (marché × variété) : le prix dépend des deux
+  type MarketVarietyGroup = {
+    key: string
+    market_id: string; market_name: string; currency: string
+    variety_id: string; variety_code: string; variety_name: string
+    rows: any[]; total_acceptee: number
+  }
+  const byKey = useMemo(() => {
+    const map = new Map<string, MarketVarietyGroup>()
+    filtered.forEach(d => {
+      const mid = d.market_id ?? '__none'
+      const vid = d.variety_id ?? '__none'
+      const key = `${mid}|${vid}`
+      const cur: MarketVarietyGroup = map.get(key) ?? {
+        key,
+        market_id: mid,
+        market_name: d.markets?.name ?? '— sans marché —',
+        currency: d.markets?.currency ?? 'MAD',
+        variety_id: vid,
+        variety_code: d.varieties?.code ?? '—',
+        variety_name: d.varieties?.commercial_name ?? '',
+        rows: [],
+        total_acceptee: 0,
+      }
+      cur.rows.push(d)
+      cur.total_acceptee += Number(d.qty_acceptee_kg ?? 0)
+      map.set(key, cur)
+    })
+    return Array.from(map.values()).sort((a, b) =>
+      a.market_name.localeCompare(b.market_name) || a.variety_code.localeCompare(b.variety_code)
+    )
+  }, [filtered])
+
+  const toggleExcluded = (id: string) => {
+    setExcluded(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  }
+
+  const selectedDispatches = useMemo(() => filtered.filter(d => !excluded.has(d.id)), [filtered, excluded])
+
+  // Helper : clé combinée market×variety pour un dispatch
+  const keyOf = (d: any) => `${d.market_id ?? '__none'}|${d.variety_id ?? '__none'}`
+
+  // CA simulé
+  const simulation = useMemo(() => {
+    let totalCA = 0
+    let totalKg = 0
+    let count = 0
+    selectedDispatches.forEach(d => {
+      const prix = Number(pricesByMarket[keyOf(d)]) || 0
+      if (prix <= 0) return
+      const qtyA = Number(d.qty_acceptee_kg ?? 0)
+      totalCA += Math.round(qtyA * prix * 100) / 100
+      totalKg += qtyA
+      count++
+    })
+    return { totalCA, totalKg, count }
+  }, [selectedDispatches, pricesByMarket])
+
+  const save = async () => {
+    setErr('')
+    const toUpdate = selectedDispatches.filter(d => Number(pricesByMarket[keyOf(d)]) > 0)
+    if (toUpdate.length === 0) { setErr('Aucun envoi sélectionné avec un prix > 0.'); return }
+    setSaving(true)
+    try {
+      let ok = 0
+      for (const d of toUpdate) {
+        const prix = Number(pricesByMarket[keyOf(d)])
+        const qtyA = Number(d.qty_acceptee_kg ?? 0)
+        const ca = Math.round(qtyA * prix * 100) / 100
+        const { error } = await supabase.from('harvest_lots').update({
+          price_per_kg: prix,
+          ca_amount: ca,
+          station_ref: stationRef.trim() || null,
+          receipt_date: fin,
+          periode_debut: debut,
+          periode_fin: fin,
+          certificate_number: String(qtyA),
+          tri_status: 'priced',
+        }).eq('id', d.id)
+        if (!error) ok++
+      }
+      if (ok < toUpdate.length) setErr(`${ok}/${toUpdate.length} confirmés (autres en erreur).`)
+      onDone()
+    } catch (e: any) { setErr(e.message) }
+    setSaving(false)
+  }
+
+  return (
+    <Modal title="📅 Tarifer par période" onClose={onClose} size="lg">
+      <div style={{ marginBottom: 12, fontSize: 12.5, color: 'var(--text-sub)' }}>
+        Saisis un prix par marché pour appliquer en masse à tous les envois <strong>triés</strong> sur la période choisie.
+      </div>
+
+      <FormRow>
+        <FormGroup label="Période début *"><Input type="date" value={debut} onChange={e => setDebut((e.target as any).value)} /></FormGroup>
+        <FormGroup label="Période fin *"><Input type="date" value={fin} onChange={e => setFin((e.target as any).value)} /></FormGroup>
+        <FormGroup label="Référence station / bordereau (optionnel)"><Input value={stationRef} onChange={e => setStationRef((e.target as any).value)} placeholder="STN-…" /></FormGroup>
+      </FormRow>
+
+      {filtered.length === 0 ? (
+        <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-2)', borderRadius: 8 }}>
+          Aucun envoi trié sur cette période.
+        </div>
+      ) : (
+        <>
+          {/* Tableau prix par (marché × variété) */}
+          <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginTop: 8, marginBottom: 4 }}>
+            Prix par marché × variété — {filtered.length} envoi(s) sur {byKey.length} combinaison(s)
+          </div>
+          <div style={{ border: '1px solid var(--bd-1)', borderRadius: 6, overflow: 'auto' }}>
+            <table style={{ width: '100%', fontSize: 12 }}>
+              <thead style={{ background: 'var(--bg-2)' }}>
+                <tr>{['Marché', 'Variété', 'Envois', 'Total acceptée', 'Prix /kg', 'CA simulé'].map(h => <th key={h} style={th}>{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {byKey.map(g => {
+                  const prix = Number(pricesByMarket[g.key]) || 0
+                  const ca = g.total_acceptee * prix
+                  return (
+                    <tr key={g.key} style={{ borderBottom: '1px solid var(--bd-1)' }}>
+                      <td style={{ ...td, fontWeight: 600 }}>🌍 {g.market_name}</td>
+                      <td style={td}>
+                        <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,.15)', color: '#a855f7', fontWeight: 600 }}>
+                          {g.variety_code}
+                        </span>
+                        {g.variety_name && <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--text-sub)' }}>{g.variety_name}</span>}
+                      </td>
+                      <td style={tdNum}>{g.rows.length}</td>
+                      <td style={tdNum}>{fmt(g.total_acceptee)} kg</td>
+                      <td style={td}>
+                        <input type="number" step="0.01" placeholder="0.00"
+                          value={pricesByMarket[g.key] ?? ''}
+                          onChange={e => setPricesByMarket(s => ({ ...s, [g.key]: e.target.value }))}
+                          style={{ width: 100, padding: '4px 6px', background: 'var(--bg-2)', color: 'var(--text-main)', border: '1px solid var(--bd-1)', borderRadius: 4, fontSize: 12 }} />
+                        <span style={{ marginLeft: 4, fontSize: 10.5, color: 'var(--text-muted)' }}>{g.currency}</span>
+                      </td>
+                      <td style={{ ...tdNum, color: prix > 0 ? 'var(--neon)' : 'var(--text-muted)', fontWeight: prix > 0 ? 700 : 400 }}>
+                        {prix > 0 ? fmt(ca) + ' MAD' : '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Détail dispatches (excludable) */}
+          <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginTop: 14, marginBottom: 4 }}>
+            Détail des envois (décoche pour exclure)
+          </div>
+          <div style={{ border: '1px solid var(--bd-1)', borderRadius: 6, overflow: 'auto', maxHeight: 240 }}>
+            <table style={{ width: '100%', fontSize: 11.5 }}>
+              <thead style={{ background: 'var(--bg-2)', position: 'sticky', top: 0 }}>
+                <tr>{['', 'Lot', 'Date', 'Marché', 'Variété', 'Brute', 'Acceptée', 'CA'].map(h => <th key={h} style={th}>{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {filtered.map(d => {
+                  const sel = !excluded.has(d.id)
+                  const prix = Number(pricesByMarket[keyOf(d)]) || 0
+                  const qtyA = Number(d.qty_acceptee_kg ?? 0)
+                  const ca = qtyA * prix
+                  return (
+                    <tr key={d.id} style={{ borderBottom: '1px solid var(--bd-1)', opacity: sel ? 1 : 0.4 }}>
+                      <td style={td}>
+                        <input type="checkbox" checked={sel} onChange={() => toggleExcluded(d.id)} />
+                      </td>
+                      <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 10.5 }}>{d.lot_number}</td>
+                      <td style={td}>{d.harvest_date}</td>
+                      <td style={td}>{d.markets?.name ?? '—'}</td>
+                      <td style={td}>
+                        {d.varieties?.code
+                          ? <span style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(168,85,247,.15)', color: '#a855f7', fontWeight: 600, fontSize: 10.5 }}>{d.varieties.code}</span>
+                          : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                      </td>
+                      <td style={tdNum}>{fmt(d.quantity_kg)}</td>
+                      <td style={tdNum}>{fmt(qtyA)}</td>
+                      <td style={{ ...tdNum, color: prix > 0 && sel ? 'var(--neon)' : 'var(--text-muted)' }}>
+                        {prix > 0 && sel ? fmt(ca) + ' MAD' : '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Récap */}
+          <div style={{ marginTop: 12, padding: 12, background: 'var(--neon-dim)', border: '1px solid var(--neon)', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 11.5, color: 'var(--text-main)' }}>
+              <strong>{simulation.count}</strong> envoi(s) seront tarifés · <strong>{fmt(simulation.totalKg)} kg</strong> au total
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--neon)' }}>
+              CA simulé : {fmt(simulation.totalCA)} MAD
+            </div>
+          </div>
+        </>
+      )}
+
+      {err && <ErrorBox msg={err} />}
+      <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel="APPLIQUER LES PRIX" disabled={simulation.count === 0} />
+    </Modal>
+  )
+}
+
+function AlerteModal({ form, setForm, saving, done, error, onClose, onSave }: any) {
+  const f = (k: string) => (e: any) => setForm((s: any) => ({ ...s, [k]: e.target.value }))
+  return (
+    <Modal title="⚠ Journée sans récolte" onClose={onClose}>
+      {done ? <SuccessMessage message="Alerte créée" /> : (
+        <>
+          <FormGroup label="Date *"><Input type="date" value={form.date} onChange={f('date')} /></FormGroup>
+          <FormGroup label="Motif">
+            <Select value={form.reason} onChange={f('reason')}>
+              <option value="panne_irrigation">Panne d'irrigation</option>
+              <option value="meteo">Météo défavorable</option>
+              <option value="main_oeuvre">Manque de main d'œuvre</option>
+              <option value="maladie">Maladie / phytopathologie</option>
+              <option value="maintenance">Maintenance</option>
+              <option value="autre">Autre</option>
+            </Select>
+          </FormGroup>
+          <FormGroup label="Notes"><Textarea value={form.notes} onChange={f('notes')} /></FormGroup>
+          {error && <ErrorBox msg={error} />}
+          <ModalFooter onCancel={onClose} onSave={onSave} loading={saving} saveLabel="SIGNALER" disabled={!form.date} />
+        </>
+      )}
+    </Modal>
+  )
+}
+
+// ============================================================
+// HELPERS UI
+// ============================================================
+
+function Table({ headers, rows, children, loading, empty }: { headers: string[]; rows: any[]; children: (r: any) => any; loading: boolean; empty: string }) {
+  return (
+    <div style={{ border: '1px solid var(--bd-1)', borderRadius: 8, overflow: 'auto', background: 'var(--bg-1)' }}>
+      <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+        <thead style={{ background: 'var(--bg-2)' }}>
+          <tr>{headers.map(h => <th key={h} style={th}>{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {loading && <tr><td colSpan={headers.length} style={{ padding: 14, textAlign: 'center', color: 'var(--text-sub)' }}>Chargement…</td></tr>}
+          {!loading && rows.length === 0 && <tr><td colSpan={headers.length} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>{empty}</td></tr>}
+          {!loading && rows.map(children)}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function KPI({ icon, label, value, sub, color }: { icon: string; label: string; value: any; sub: string; color: string }) {
+  return (
+    <div style={{ padding: 12, background: 'var(--bg-1)', border: '1px solid var(--bd-1)', borderRadius: 10, borderTop: `2px solid ${color}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 16 }}>{icon}</span>
+        <span style={{ fontSize: 9.5, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: 1, textTransform: 'uppercase' }}>{label}</span>
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 800, color, fontFamily: 'var(--font-display)', marginTop: 4 }}>{value}</div>
+      <div style={{ fontSize: 10.5, color: 'var(--text-sub)', marginTop: 2 }}>{sub}</div>
+    </div>
+  )
+}
+
+function ErrorBox({ msg }: { msg: string }) {
+  return <div style={{ marginTop: 8, padding: 8, background: 'var(--red-dim)', border: '1px solid var(--red)', borderRadius: 6, color: 'var(--text-main)', fontSize: 12 }}>⚠ {msg}</div>
+}
+
+const th: React.CSSProperties = { padding: '7px 10px', textAlign: 'left', fontSize: 10, color: 'var(--text-sub)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: .5, borderBottom: '1px solid var(--bd-1)' }
+const td: React.CSSProperties = { padding: '7px 10px', color: 'var(--text-main)' }
+const tdNum: React.CSSProperties = { padding: '7px 10px', color: 'var(--text-main)', fontFamily: 'var(--font-mono)', textAlign: 'right' }

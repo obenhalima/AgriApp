@@ -1,26 +1,24 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
+import { Banknote, Plus, Settings2, CheckCircle2, FileText, Coins, Calculator } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { Modal, FormGroup, FormRow, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { computePayroll, fmtMAD, periodCode, periodBounds, type PayFrequency } from '@/lib/payroll'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { Input as TInput, Select as TSelect, Field } from '@/components/ui/Input'
+import { Modal, FormGroup, FormRow, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
+import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 
-type Period = {
-  id: string; code: string; period_year: number; period_month: number; period_half: string
-  start_date: string; end_date: string; pay_date: string; status: string
-}
-type Worker = {
-  id: string; first_name: string; last_name: string; matricule: string | null
-  category: string; pay_frequency: string | null; base_salary: number | null
-  dependents: number | null; family_status: string | null; is_active: boolean
-}
-type Payslip = {
-  id: string; period_id: string; worker_id: string
-  gross_salary: number; net_salary: number; total_employer_cost: number
-  cnss_employee: number; amo_employee: number; ir_amount: number
-  status: string
-}
+type Period = { id: string; code: string; period_year: number; period_month: number; period_half: string; start_date: string; end_date: string; pay_date: string; status: string }
+type Worker = { id: string; first_name: string; last_name: string; matricule: string | null; category: string; pay_frequency: string | null; base_salary: number | null; dependents: number | null; family_status: string | null; is_active: boolean }
+type Payslip = { id: string; period_id: string; worker_id: string; gross_salary: number; net_salary: number; total_employer_cost: number; cnss_employee: number; amo_employee: number; ir_amount: number; status: string }
 
-const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
+const MONTHS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
 export default function PaiePage() {
   const [periods, setPeriods] = useState<Period[]>([])
@@ -28,16 +26,14 @@ export default function PaiePage() {
   const [payslips, setPayslips] = useState<Payslip[]>([])
   const [selectedPeriod, setSelectedPeriod] = useState<string>('')
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
 
-  // Modal create period
   const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1, half: 'full' as 'full'|'first'|'second' })
+  const [form, setForm] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1, half: 'full' as 'full' | 'first' | 'second' })
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
 
   const load = async () => {
-    setLoading(true); setError('')
+    setLoading(true)
     try {
       const [p, w, ps] = await Promise.all([
         supabase.from('payroll_periods').select('*').order('period_year', { ascending: false }).order('period_month', { ascending: false }),
@@ -45,19 +41,15 @@ export default function PaiePage() {
         supabase.from('payslips').select('*'),
       ])
       if (p.error) throw p.error
-      setPeriods((p.data ?? []) as any)
-      setWorkers((w.data ?? []) as any)
-      setPayslips((ps.data ?? []) as any)
+      setPeriods((p.data ?? []) as any); setWorkers((w.data ?? []) as any); setPayslips((ps.data ?? []) as any)
       if (!selectedPeriod && p.data && p.data.length > 0) setSelectedPeriod(p.data[0].id)
-    } catch (e: any) { setError(e.message || String(e)) }
+    } catch (e: any) { toast.error(e.message) }
     setLoading(false)
   }
   useEffect(() => { load() }, [])
 
   const period = periods.find(p => p.id === selectedPeriod)
   const periodPayslips = payslips.filter(ps => ps.period_id === selectedPeriod)
-
-  // Eligibles : workers dont la fréquence correspond à la nature de la période
   const eligible = useMemo(() => {
     if (!period) return []
     return workers.filter(w => {
@@ -67,34 +59,27 @@ export default function PaiePage() {
     })
   }, [workers, period])
 
-  // KPIs période
-  const kpis = useMemo(() => {
-    const totalGross = periodPayslips.reduce((s, x) => s + Number(x.gross_salary || 0), 0)
-    const totalNet = periodPayslips.reduce((s, x) => s + Number(x.net_salary || 0), 0)
-    const totalEmployer = periodPayslips.reduce((s, x) => s + Number(x.total_employer_cost || 0), 0)
-    const totalCotis = periodPayslips.reduce((s, x) => s + Number(x.cnss_employee || 0) + Number(x.amo_employee || 0) + Number(x.ir_amount || 0), 0)
-    return { totalGross, totalNet, totalEmployer, totalCotis }
-  }, [periodPayslips])
+  const kpis = useMemo(() => ({
+    totalGross: periodPayslips.reduce((s, x) => s + Number(x.gross_salary || 0), 0),
+    totalNet: periodPayslips.reduce((s, x) => s + Number(x.net_salary || 0), 0),
+    totalEmployer: periodPayslips.reduce((s, x) => s + Number(x.total_employer_cost || 0), 0),
+    totalCotis: periodPayslips.reduce((s, x) => s + Number(x.cnss_employee || 0) + Number(x.amo_employee || 0) + Number(x.ir_amount || 0), 0),
+  }), [periodPayslips])
 
   const createPeriod = async () => {
-    setSaving(true); setError('')
+    setSaving(true)
     try {
       const code = periodCode(form.year, form.month, form.half)
       const bounds = periodBounds(form.year, form.month, form.half)
       const { error } = await supabase.from('payroll_periods').insert({
-        code,
-        period_year: form.year,
-        period_month: form.month,
-        period_half: form.half,
-        start_date: bounds.start,
-        end_date: bounds.end,
-        pay_date: bounds.payDate,
-        status: 'brouillon',
+        code, period_year: form.year, period_month: form.month, period_half: form.half,
+        start_date: bounds.start, end_date: bounds.end, pay_date: bounds.payDate, status: 'brouillon',
       })
       if (error) throw error
       setDone(true)
+      toast.success(`Période ${code} créée`)
       setTimeout(() => { setModalOpen(false); setDone(false); load() }, 800)
-    } catch (e: any) { setError(e.message || String(e)) }
+    } catch (e: any) { toast.error(e.message) }
     setSaving(false)
   }
 
@@ -111,184 +96,145 @@ export default function PaiePage() {
           daysWorked: w.pay_frequency === 'journalier' ? 26 : undefined,
         })
         return {
-          period_id: period.id,
-          worker_id: w.id,
-          base_amount: r.base_amount,
-          overtime_amount: r.overtime_amount,
-          bonuses: r.bonuses,
-          gross_salary: r.gross_salary,
-          cnss_employee: r.cnss_employee,
-          amo_employee: r.amo_employee,
-          ir_amount: r.ir_amount,
-          other_deductions: r.other_deductions,
-          net_salary: r.net_salary,
-          cnss_employer: r.cnss_employer,
-          amo_employer: r.amo_employer,
-          family_allowance_employer: r.family_allowance_employer,
-          prof_training_employer: r.prof_training_employer,
-          total_employer_cost: r.total_employer_cost,
-          status: 'brouillon',
+          period_id: period.id, worker_id: w.id,
+          base_amount: r.base_amount, overtime_amount: r.overtime_amount, bonuses: r.bonuses,
+          gross_salary: r.gross_salary, cnss_employee: r.cnss_employee, amo_employee: r.amo_employee,
+          ir_amount: r.ir_amount, other_deductions: r.other_deductions, net_salary: r.net_salary,
+          cnss_employer: r.cnss_employer, amo_employer: r.amo_employer,
+          family_allowance_employer: r.family_allowance_employer, prof_training_employer: r.prof_training_employer,
+          total_employer_cost: r.total_employer_cost, status: 'brouillon',
         }
       })
-      // Upsert pour éviter les doublons sur (period_id, worker_id)
       const { error } = await supabase.from('payslips').upsert(rows, { onConflict: 'period_id,worker_id' })
       if (error) throw error
+      toast.success(`${rows.length} bulletin(s) généré(s)`)
       load()
-    } catch (e: any) { setError(e.message || String(e)) }
+    } catch (e: any) { toast.error(e.message) }
   }
 
   const validatePeriod = async () => {
     if (!period) return
-    if (!confirm('Valider la période ? Les bulletins seront figés et une écriture comptable sera générée.')) return
-    const { error } = await supabase.from('payroll_periods').update({ status: 'valide', validated_at: new Date().toISOString() }).eq('id', period.id)
-    if (error) alert('Erreur : ' + error.message); else load()
+    if (!confirm('Valider la période ? Les bulletins seront figés et une écriture comptable générée.')) return
+    try {
+      const { error } = await supabase.from('payroll_periods').update({ status: 'valide', validated_at: new Date().toISOString() }).eq('id', period.id)
+      if (error) throw error
+      toast.success('Période validée')
+      load()
+    } catch (e: any) { toast.error('Erreur : ' + e.message) }
   }
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: 1500 }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-        <div>
-          <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--text-main)' }}>
-            💵 Paie
-          </h1>
-          <div style={{ color: 'var(--text-sub)', fontSize: 12.5, marginTop: 4 }}>
-            Périodes mensuelles (staff) ou bimensuelles (fermiers : 1-15 et 16-fin)
-          </div>
-        </div>
-        <button onClick={() => { setModalOpen(true); setDone(false); setError('') }} className="btn-primary" style={{ marginLeft: 'auto', fontSize: 12, padding: '7px 14px' }}>
-          + Nouvelle période
-        </button>
-      </header>
+    <div>
+      <PageHeader
+        title="Paie" subtitle="Ressources humaines" icon={Banknote} iconColor="#10b981"
+        description="Périodes mensuelles (staff) ou bimensuelles (fermiers : 1-15 et 16-fin)"
+        actions={<Button onClick={() => { setModalOpen(true); setDone(false) }} variant="primary"><Plus size={14} strokeWidth={2.5} /> Nouvelle période</Button>}
+      />
 
-      {error && (
-        <div style={{ padding: 12, marginBottom: 14, background: 'var(--red-dim)', border: '1px solid var(--red)', borderRadius: 6, color: 'var(--text-main)', fontSize: 12.5 }}>
-          ⚠ {error}
+      {/* Sélecteur période + actions */}
+      <Card animate delay={0.1} className="mb-md">
+        <div className="flex flex-wrap gap-md items-center">
+          <span className="text-body-sm text-fg-secondary font-semibold">Période :</span>
+          <TSelect value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)} className="h-9 w-auto min-w-[320px] flex-1 max-w-md">
+            {periods.length === 0 && <option value="">Aucune période</option>}
+            {periods.map(p => (
+              <option key={p.id} value={p.id}>
+                {p.code} — {MONTHS[p.period_month - 1]} {p.period_year} {p.period_half === 'first' ? '(1-15)' : p.period_half === 'second' ? '(16-fin)' : '(mois)'} · {p.status}
+              </option>
+            ))}
+          </TSelect>
+          {period && (
+            <>
+              <Button onClick={generatePayslips} disabled={period.status !== 'brouillon'} variant="secondary" size="sm">
+                <Settings2 size={12} /> Générer ({eligible.length})
+              </Button>
+              <Button onClick={validatePeriod} disabled={period.status !== 'brouillon' || periodPayslips.length === 0} variant="primary" size="sm">
+                <CheckCircle2 size={12} /> Valider
+              </Button>
+            </>
+          )}
         </div>
-      )}
-
-      {/* Sélecteur période */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12, color: 'var(--text-sub)' }}>Période :</span>
-        <select value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}
-          style={{ padding: '7px 12px', background: 'var(--bg-2)', color: 'var(--text-main)', border: '1px solid var(--bd-1)', borderRadius: 6, fontSize: 12, minWidth: 320 }}>
-          {periods.length === 0 && <option value="">Aucune période</option>}
-          {periods.map(p => (
-            <option key={p.id} value={p.id}>
-              {p.code} — {MONTHS[p.period_month - 1]} {p.period_year} {p.period_half === 'first' ? '(1-15)' : p.period_half === 'second' ? '(16-fin)' : '(mois)'} · {p.status}
-            </option>
-          ))}
-        </select>
-        {period && (
-          <>
-            <button onClick={generatePayslips} disabled={period.status !== 'brouillon'} className="btn-ghost" style={{ fontSize: 11, padding: '6px 12px' }}>
-              ⚙ Générer bulletins ({eligible.length} éligibles)
-            </button>
-            <button onClick={validatePeriod} disabled={period.status !== 'brouillon' || periodPayslips.length === 0} className="btn-primary" style={{ fontSize: 11, padding: '6px 12px' }}>
-              ✓ Valider la période
-            </button>
-          </>
-        )}
-      </div>
+      </Card>
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 14 }}>
-        <KPI label="Bulletins" value={periodPayslips.length} sub="générés sur la période" color="#0ea5e9" />
-        <KPI label="Total brut" value={fmtMAD(kpis.totalGross)} sub="rémunérations brutes" color="#3b82f6" />
-        <KPI label="Cotisations + IR" value={fmtMAD(kpis.totalCotis)} sub="déductions salariales" color="#f59e0b" />
-        <KPI label="Coût employeur" value={fmtMAD(kpis.totalEmployer)} sub="charge réelle" color="#10b981" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-md mb-md">
+        {[
+          { label: 'Bulletins', value: String(periodPayslips.length), color: '#0ea5e9', icon: FileText },
+          { label: 'Total brut', value: fmtMAD(kpis.totalGross), color: '#3b82f6', icon: Banknote },
+          { label: 'Cotisations + IR', value: fmtMAD(kpis.totalCotis), color: '#f59e0b', icon: Coins },
+          { label: 'Coût employeur', value: fmtMAD(kpis.totalEmployer), color: '#10b981', icon: Calculator },
+        ].map((k, i) => {
+          const Icon = k.icon
+          return (
+            <Card key={i} animate delay={0.15 + i * 0.04} padding="md" className="border-l-[3px]" style={{ borderLeftColor: k.color } as any}>
+              <div className="flex items-center gap-sm mb-1">
+                <Icon size={14} strokeWidth={2.2} style={{ color: k.color }} />
+                <span className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-semibold">{k.label}</span>
+              </div>
+              <div className="font-display text-display-sm font-extrabold" style={{ color: k.color }}>{k.value}</div>
+            </Card>
+          )
+        })}
       </div>
 
       {/* Tableau bulletins */}
-      <div style={{ border: '1px solid var(--bd-1)', borderRadius: 8, overflow: 'auto', background: 'var(--bg-1)' }}>
-        <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-          <thead style={{ background: 'var(--bg-2)' }}>
-            <tr>
-              {['Matricule', 'Employé', 'Brut', 'CNSS sal.', 'AMO sal.', 'IR', 'Net à payer', 'CNSS pat.', 'Coût total', 'Statut'].map(h => <th key={h} style={th}>{h}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {loading && <tr><td colSpan={10} style={{ padding: 16, textAlign: 'center', color: 'var(--text-sub)' }}>Chargement…</td></tr>}
-            {!loading && periodPayslips.length === 0 && (
-              <tr><td colSpan={10} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>
-                {period ? 'Aucun bulletin sur cette période. Cliquer "⚙ Générer bulletins".' : 'Sélectionnez une période.'}
-              </td></tr>
-            )}
-            {periodPayslips.map(ps => {
-              const w = workers.find(x => x.id === ps.worker_id)
-              return (
-                <tr key={ps.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
-                  <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{w?.matricule ?? '—'}</td>
-                  <td style={{ ...td, fontWeight: 600 }}>{w ? `${w.last_name} ${w.first_name}` : '—'}</td>
-                  <td style={tdNum}>{Math.round(ps.gross_salary).toLocaleString('fr-FR')}</td>
-                  <td style={tdNum}>{Math.round(ps.cnss_employee).toLocaleString('fr-FR')}</td>
-                  <td style={tdNum}>{Math.round(ps.amo_employee).toLocaleString('fr-FR')}</td>
-                  <td style={tdNum}>{Math.round(ps.ir_amount).toLocaleString('fr-FR')}</td>
-                  <td style={{ ...tdNum, color: 'var(--neon)', fontWeight: 700 }}>{Math.round(ps.net_salary).toLocaleString('fr-FR')}</td>
-                  <td style={{ ...tdNum, color: 'var(--text-sub)' }}>{Math.round(Number((ps as any).cnss_employer || 0) + Number((ps as any).amo_employer || 0) + Number((ps as any).family_allowance_employer || 0) + Number((ps as any).prof_training_employer || 0)).toLocaleString('fr-FR')}</td>
-                  <td style={{ ...tdNum, color: 'var(--amber)', fontWeight: 600 }}>{Math.round(ps.total_employer_cost).toLocaleString('fr-FR')}</td>
-                  <td style={td}>
-                    <span style={{ padding: '2px 8px', borderRadius: 4, background: ps.status === 'paye' ? 'var(--neon-dim)' : 'var(--bg-2)', color: ps.status === 'paye' ? 'var(--neon)' : 'var(--text-sub)', fontSize: 10.5 }}>
-                      {ps.status}
-                    </span>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+      <Card animate delay={0.3} padding="none" className="overflow-hidden">
+        {loading ? (
+          <div className="p-md space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
+        ) : periodPayslips.length === 0 ? (
+          <EmptyState icon={Banknote} title={period ? 'Aucun bulletin' : 'Sélectionnez une période'} description={period ? 'Cliquer "Générer" pour créer les bulletins.' : ''} />
+        ) : (
+          <DataTable minWidth={1200}>
+            <THead>
+              <TR><TH>Matricule</TH><TH>Employé</TH><TH right>Brut</TH><TH right>CNSS sal.</TH><TH right>AMO sal.</TH><TH right>IR</TH><TH right>Net à payer</TH><TH right>CNSS pat.</TH><TH right>Coût total</TH><TH>Statut</TH></TR>
+            </THead>
+            <tbody>
+              {periodPayslips.map((ps, i) => {
+                const w = workers.find(x => x.id === ps.worker_id)
+                return (
+                  <TR key={ps.id} animate delay={0.04 + i * 0.02}>
+                    <TD mono className="text-caption">{w?.matricule ?? '—'}</TD>
+                    <TD className="font-display font-semibold text-fg-primary">{w ? `${w.last_name} ${w.first_name}` : '—'}</TD>
+                    <TD right mono>{Math.round(ps.gross_salary).toLocaleString('fr-FR')}</TD>
+                    <TD right mono>{Math.round(ps.cnss_employee).toLocaleString('fr-FR')}</TD>
+                    <TD right mono>{Math.round(ps.amo_employee).toLocaleString('fr-FR')}</TD>
+                    <TD right mono>{Math.round(ps.ir_amount).toLocaleString('fr-FR')}</TD>
+                    <TD right mono className="text-success font-bold">{Math.round(ps.net_salary).toLocaleString('fr-FR')}</TD>
+                    <TD right mono className="text-fg-tertiary">{Math.round(Number((ps as any).cnss_employer || 0) + Number((ps as any).amo_employer || 0) + Number((ps as any).family_allowance_employer || 0) + Number((ps as any).prof_training_employer || 0)).toLocaleString('fr-FR')}</TD>
+                    <TD right mono className="text-warning font-semibold">{Math.round(ps.total_employer_cost).toLocaleString('fr-FR')}</TD>
+                    <TD><Badge variant={ps.status === 'paye' ? 'success' : 'default'} size="sm">{ps.status}</Badge></TD>
+                  </TR>
+                )
+              })}
+            </tbody>
+          </DataTable>
+        )}
+      </Card>
 
-      {/* Modal création période */}
       {modalOpen && (
         <Modal title="Créer une période de paie" onClose={() => setModalOpen(false)}>
           {done ? <SuccessMessage message="Période créée" /> : (
-            <>
+            <div className="space-y-md">
               <FormRow>
-                <FormGroup label="Année">
-                  <input type="number" value={form.year} onChange={e => setForm(s => ({ ...s, year: Number(e.target.value) }))}
-                    style={{ width: '100%', padding: 8, background: 'var(--bg-2)', color: 'var(--text-main)', border: '1px solid var(--bd-1)', borderRadius: 6 }} />
-                </FormGroup>
+                <FormGroup label="Année"><TInput type="number" value={String(form.year)} onChange={(e) => setForm(s => ({ ...s, year: Number(e.target.value) }))} /></FormGroup>
                 <FormGroup label="Mois">
-                  <select value={form.month} onChange={e => setForm(s => ({ ...s, month: Number(e.target.value) }))}
-                    style={{ width: '100%', padding: 8, background: 'var(--bg-2)', color: 'var(--text-main)', border: '1px solid var(--bd-1)', borderRadius: 6 }}>
+                  <TSelect value={form.month} onChange={(e) => setForm(s => ({ ...s, month: Number(e.target.value) }))}>
                     {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-                  </select>
+                  </TSelect>
                 </FormGroup>
               </FormRow>
-              <FormGroup label="Type de période">
-                <select value={form.half} onChange={e => setForm(s => ({ ...s, half: e.target.value as any }))}
-                  style={{ width: '100%', padding: 8, background: 'var(--bg-2)', color: 'var(--text-main)', border: '1px solid var(--bd-1)', borderRadius: 6 }}>
+              <Field label="Type de période">
+                <TSelect value={form.half} onChange={(e) => setForm(s => ({ ...s, half: e.target.value as any }))}>
                   <option value="full">Mensuel (staff admin) — paie en fin de mois</option>
                   <option value="first">Quinzaine 1 (1-15) — paie le 15 (fermiers)</option>
                   <option value="second">Quinzaine 2 (16-fin) — paie en fin de mois (fermiers)</option>
-                </select>
-              </FormGroup>
-              <ModalFooter
-                onCancel={() => setModalOpen(false)}
-                onSave={createPeriod}
-                loading={saving}
-                saveLabel="CRÉER"
-              />
-            </>
+                </TSelect>
+              </Field>
+              <ModalFooter onCancel={() => setModalOpen(false)} onSave={createPeriod} loading={saving} saveLabel="CRÉER" />
+            </div>
           )}
         </Modal>
       )}
     </div>
   )
 }
-
-function KPI({ label, value, sub, color }: { label: string; value: any; sub: string; color: string }) {
-  return (
-    <div style={{ padding: 14, background: 'var(--bg-1)', border: '1px solid var(--bd-1)', borderRadius: 10, borderTop: `2px solid ${color}` }}>
-      <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: 1, textTransform: 'uppercase' }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, color, fontFamily: 'var(--font-display)', marginTop: 4 }}>
-        {typeof value === 'number' ? value.toLocaleString('fr-FR') : value}
-      </div>
-      <div style={{ fontSize: 11, color: 'var(--text-sub)', marginTop: 2 }}>{sub}</div>
-    </div>
-  )
-}
-
-const th: React.CSSProperties = { padding: '8px 10px', textAlign: 'left', fontSize: 10, color: 'var(--text-sub)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: .5, borderBottom: '1px solid var(--bd-1)' }
-const td: React.CSSProperties = { padding: '8px 10px', color: 'var(--text-main)' }
-const tdNum: React.CSSProperties = { padding: '8px 10px', color: 'var(--text-main)', fontFamily: 'var(--font-mono)', textAlign: 'right' }

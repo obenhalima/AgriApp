@@ -1,3 +1,8 @@
+'use client'
+import { Construction } from 'lucide-react'
+import { Card } from '@/components/ui/Card'
+import { PageHeader } from '@/components/ui/PageHeader'
+
 type ModulePlaceholderProps = {
   title: string
   description: string
@@ -5,32 +10,29 @@ type ModulePlaceholderProps = {
 
 export function ModulePlaceholder({ title, description }: ModulePlaceholderProps) {
   return (
-    <div style={{ padding: '22px 26px', background: '#f4f9f4', minHeight: '100vh' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
-        <div>
-          <h2 style={{ fontFamily: 'Syne,sans-serif', fontSize: 20, fontWeight: 700, color: '#1b3a2d', marginBottom: 6 }}>
-            {title}
-          </h2>
-          <p style={{ fontSize: 13, color: '#5a7a66' }}>
-            Ce module n&apos;utilise plus de donnees de demonstration.
+    <div>
+      <PageHeader
+        title={title}
+        subtitle="Module en attente"
+        icon={Construction}
+        iconColor="#f59e0b"
+        description="Ce module n'utilise plus de données de démonstration."
+      />
+      <Card animate variant="ghost" className="border-dashed">
+        <div className="flex flex-col items-center text-center py-2xl gap-md">
+          <div className="rounded-2xl flex items-center justify-center bg-warning/10 text-warning"
+               style={{ width: 64, height: 64 }}>
+            <Construction size={28} strokeWidth={1.8} />
+          </div>
+          <div>
+            <h3 className="font-display text-heading-lg text-fg-primary mb-2">Module en attente de branchement</h3>
+            <p className="text-body-sm text-fg-tertiary max-w-md">{description}</p>
+          </div>
+          <p className="text-caption font-mono text-fg-tertiary uppercase tracking-wider">
+            Les boutons d'action ont été neutralisés tant que le flux n'est pas implémenté.
           </p>
         </div>
-        <button className="btn-primary" disabled>
-          Action indisponible
-        </button>
-      </div>
-
-      <div className="card" style={{ padding: 32 }}>
-        <div style={{ fontFamily: 'Syne,sans-serif', fontSize: 18, fontWeight: 700, color: '#1b3a2d', marginBottom: 8 }}>
-          Module en attente de branchement
-        </div>
-        <p style={{ fontSize: 13, color: '#5a7a66', lineHeight: 1.6, maxWidth: 720 }}>
-          {description}
-        </p>
-        <div style={{ marginTop: 16, fontSize: 12, color: '#5a7a66' }}>
-          Les boutons ajouter, modifier et supprimer ont ete neutralises tant que le flux reel n&apos;est pas implemente.
-        </div>
-      </div>
+      </Card>
     </div>
   )
 }

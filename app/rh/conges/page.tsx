@@ -1,7 +1,18 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
+import { Palmtree, Plus, Check, X, Clock, CheckCircle2, XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { Input as TInput, Select as TSelect, Textarea, Field } from '@/components/ui/Input'
+import { Modal, FormGroup, FormRow, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
+import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
+import { cn } from '@/lib/cn'
 
 type LeaveRequest = {
   id: string; worker_id: string; type: string
@@ -13,56 +24,50 @@ type LeaveRequest = {
 type Worker = { id: string; first_name: string; last_name: string; matricule: string | null; category: string | null }
 
 const TYPES = [
-  { code: 'annuel',     label: 'Congé annuel',     icon: '🏖️', color: '#10b981' },
-  { code: 'maladie',    label: 'Arrêt maladie',    icon: '🤒', color: '#f59e0b' },
-  { code: 'maternite',  label: 'Maternité',        icon: '🤰', color: '#ec4899' },
-  { code: 'paternite',  label: 'Paternité',        icon: '👨‍🍼', color: '#3b82f6' },
-  { code: 'sans_solde', label: 'Sans solde',       icon: '⏸️', color: '#6b7280' },
-  { code: 'special',    label: 'Congé spécial',    icon: '⭐', color: '#a855f7' },
+  { code: 'annuel', label: 'Congé annuel', icon: '🏖️', color: '#10b981' },
+  { code: 'maladie', label: 'Arrêt maladie', icon: '🤒', color: '#f59e0b' },
+  { code: 'maternite', label: 'Maternité', icon: '🤰', color: '#ec4899' },
+  { code: 'paternite', label: 'Paternité', icon: '👨‍🍼', color: '#3b82f6' },
+  { code: 'sans_solde', label: 'Sans solde', icon: '⏸️', color: '#6b7280' },
+  { code: 'special', label: 'Congé spécial', icon: '⭐', color: '#a855f7' },
 ]
-
-const STATUS = {
-  demande:   { label: 'En attente',  color: '#f59e0b' },
-  approuve:  { label: 'Approuvé',    color: '#10b981' },
-  refuse:    { label: 'Refusé',      color: '#ef4444' },
-  annule:    { label: 'Annulé',      color: '#6b7280' },
-} as Record<string, { label: string; color: string }>
+const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
+  demande: 'warning', approuve: 'success', refuse: 'danger', annule: 'default',
+}
+const STATUS_LABEL: Record<string, string> = {
+  demande: 'En attente', approuve: 'Approuvé', refuse: 'Refusé', annule: 'Annulé',
+}
 
 const computeDays = (start: string, end: string): number => {
   if (!start || !end) return 0
-  const a = new Date(start), b = new Date(end)
-  return Math.max(1, Math.round((b.getTime() - a.getTime()) / 86400000) + 1)
+  return Math.max(1, Math.round((new Date(end).getTime() - new Date(start).getTime()) / 86400000) + 1)
 }
 
 export default function CongesPage() {
   const [items, setItems] = useState<LeaveRequest[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
-
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState<Partial<LeaveRequest>>({ type: 'annuel', status: 'demande' })
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
 
   const load = async () => {
-    setLoading(true); setError('')
+    setLoading(true)
     try {
       const [lr, w] = await Promise.all([
         supabase.from('leave_requests').select('*').order('created_at', { ascending: false }),
         supabase.from('workers').select('id, first_name, last_name, matricule, category').eq('is_active', true).order('last_name'),
       ])
       if (lr.error) throw lr.error
-      setItems((lr.data ?? []) as any)
-      setWorkers((w.data ?? []) as any)
-    } catch (e: any) { setError(e.message || String(e)) }
+      setItems((lr.data ?? []) as any); setWorkers((w.data ?? []) as any)
+    } catch (e: any) { toast.error(e.message) }
     setLoading(false)
   }
   useEffect(() => { load() }, [])
 
   const filtered = useMemo(() => filterStatus === 'all' ? items : items.filter(i => i.status === filterStatus), [items, filterStatus])
-
   const counts = useMemo(() => ({
     demande: items.filter(i => i.status === 'demande').length,
     approuve: items.filter(i => i.status === 'approuve').length,
@@ -73,164 +78,140 @@ export default function CongesPage() {
   const f = (k: keyof LeaveRequest) => (e: any) => setForm(s => ({ ...s, [k]: e.target.value }))
 
   const save = async () => {
-    if (!form.worker_id || !form.start_date || !form.end_date || !form.type) {
-      setError('Employé, dates et type sont requis'); return
-    }
-    setSaving(true); setError('')
+    if (!form.worker_id || !form.start_date || !form.end_date || !form.type) { toast.error('Tous les champs requis'); return }
+    setSaving(true)
     try {
       const days = computeDays(form.start_date, form.end_date)
       const { error } = await supabase.from('leave_requests').insert({
-        worker_id: form.worker_id, type: form.type,
-        start_date: form.start_date, end_date: form.end_date, days,
+        worker_id: form.worker_id, type: form.type, start_date: form.start_date, end_date: form.end_date, days,
         reason: form.reason || null, status: 'demande',
       })
       if (error) throw error
       setDone(true)
+      toast.success('Demande créée')
       setTimeout(() => { setModalOpen(false); setDone(false); setForm({ type: 'annuel', status: 'demande' }); load() }, 800)
-    } catch (e: any) { setError(e.message || String(e)) }
+    } catch (e: any) { toast.error(e.message) }
     setSaving(false)
   }
 
   const updateStatus = async (id: string, status: 'approuve' | 'refuse', refused_reason?: string) => {
     const patch: any = { status, approved_at: new Date().toISOString() }
     if (status === 'refuse') patch.refused_reason = refused_reason ?? null
-    const { error } = await supabase.from('leave_requests').update(patch).eq('id', id)
-    if (error) alert('Erreur : ' + error.message); else load()
+    try {
+      const { error } = await supabase.from('leave_requests').update(patch).eq('id', id)
+      if (error) throw error
+      toast.success(status === 'approuve' ? 'Demande approuvée' : 'Demande refusée')
+      load()
+    } catch (e: any) { toast.error('Erreur : ' + e.message) }
   }
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: 1500 }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-        <div>
-          <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--text-main)' }}>
-            🏖️ Congés
-          </h1>
-          <div style={{ color: 'var(--text-sub)', fontSize: 12.5, marginTop: 4 }}>
-            Acquisition standard Maroc : 1,5 jour / mois travaillé soit 18 j/an
-          </div>
+    <div>
+      <PageHeader
+        title="Congés" subtitle="Ressources humaines" icon={Palmtree} iconColor="#f59e0b"
+        description="Acquisition standard Maroc : 1,5 jour / mois travaillé soit 18 j/an"
+        actions={<Button onClick={() => { setModalOpen(true); setDone(false) }} variant="primary"><Plus size={14} strokeWidth={2.5} /> Nouvelle demande</Button>}
+        stats={loading ? [] : [
+          { label: 'En attente', value: String(counts.demande), icon: Clock, color: '#f59e0b' },
+          { label: 'Approuvés', value: String(counts.approuve), icon: CheckCircle2, color: '#10b981' },
+          { label: 'Refusés', value: String(counts.refuse), icon: XCircle, color: '#ef4444' },
+          { label: 'Jours pris', value: `${counts.total_days_taken}j`, icon: Palmtree, color: '#0ea5e9' },
+        ]}
+      />
+
+      <Card animate delay={0.15} className="mb-md">
+        <div className="flex flex-wrap gap-1">
+          {(['all', 'demande', 'approuve', 'refuse'] as const).map(s => (
+            <button key={s} onClick={() => setFilterStatus(s)}
+              className={cn(
+                'h-8 px-md rounded-md font-mono text-[11px] uppercase tracking-wider font-semibold transition-all',
+                filterStatus === s ? 'bg-brand text-white shadow-[0_2px_8px_var(--neon-dim)]' : 'bg-surface-raised text-fg-secondary border border-border hover:border-border-strong'
+              )}>
+              {s === 'all' ? 'Tous' : STATUS_LABEL[s]}
+            </button>
+          ))}
         </div>
-        <button onClick={() => { setModalOpen(true); setDone(false); setError('') }} className="btn-primary" style={{ marginLeft: 'auto', fontSize: 12, padding: '7px 14px' }}>
-          + Nouvelle demande
-        </button>
-      </header>
+      </Card>
 
-      {error && (
-        <div style={{ padding: 12, marginBottom: 14, background: 'var(--red-dim)', border: '1px solid var(--red)', borderRadius: 6, color: 'var(--text-main)', fontSize: 12.5 }}>
-          ⚠ {error}
-        </div>
-      )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 14 }}>
-        <KPI label="En attente"  value={counts.demande}        color="#f59e0b" />
-        <KPI label="Approuvés"   value={counts.approuve}       color="#10b981" />
-        <KPI label="Refusés"     value={counts.refuse}         color="#ef4444" />
-        <KPI label="Jours pris"  value={`${counts.total_days_taken}j`} sub="congés annuels approuvés" color="#0ea5e9" />
-      </div>
-
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-        {['all', 'demande', 'approuve', 'refuse'].map(s => (
-          <button key={s} onClick={() => setFilterStatus(s)}
-            style={{
-              padding: '5px 12px', fontSize: 11.5, borderRadius: 5,
-              border: '1px solid var(--bd-1)',
-              background: filterStatus === s ? 'var(--neon-dim)' : 'var(--bg-2)',
-              color: filterStatus === s ? 'var(--neon)' : 'var(--text-sub)',
-              cursor: 'pointer',
-            }}>
-            {s === 'all' ? 'Tous' : STATUS[s].label}
-          </button>
-        ))}
-      </div>
-
-      <div style={{ border: '1px solid var(--bd-1)', borderRadius: 8, overflow: 'auto', background: 'var(--bg-1)' }}>
-        <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-          <thead style={{ background: 'var(--bg-2)' }}>
-            <tr>
-              {['Employé', 'Type', 'Du', 'Au', 'Jours', 'Motif', 'Statut', 'Actions'].map(h => <th key={h} style={th}>{h}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {loading && <tr><td colSpan={8} style={{ padding: 16, textAlign: 'center', color: 'var(--text-sub)' }}>Chargement…</td></tr>}
-            {!loading && filtered.length === 0 && <tr><td colSpan={8} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>Aucune demande.</td></tr>}
-            {filtered.map(lr => {
-              const w = workers.find(x => x.id === lr.worker_id)
-              const t = TYPES.find(x => x.code === lr.type)
-              const st = STATUS[lr.status] ?? { label: lr.status, color: 'var(--text-sub)' }
-              return (
-                <tr key={lr.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
-                  <td style={{ ...td, fontWeight: 600 }}>{w ? `${w.last_name} ${w.first_name}` : '—'}<div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{w?.matricule}</div></td>
-                  <td style={td}>{t ? <span style={{ padding: '2px 8px', borderRadius: 4, background: t.color + '20', color: t.color, fontSize: 11 }}>{t.icon} {t.label}</span> : lr.type}</td>
-                  <td style={td}>{lr.start_date}</td>
-                  <td style={td}>{lr.end_date}</td>
-                  <td style={tdNum}>{lr.days}j</td>
-                  <td style={{ ...td, color: 'var(--text-sub)', fontSize: 11 }}>{lr.reason ?? '—'}</td>
-                  <td style={td}><span style={{ padding: '2px 8px', borderRadius: 4, background: st.color + '20', color: st.color, fontSize: 11, fontWeight: 600 }}>{st.label}</span></td>
-                  <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                    {lr.status === 'demande' && (
-                      <>
-                        <button onClick={() => updateStatus(lr.id, 'approuve')} className="btn-primary" style={{ fontSize: 10, padding: '3px 8px', marginRight: 4 }}>✓</button>
-                        <button onClick={() => updateStatus(lr.id, 'refuse', prompt('Motif du refus ?') ?? undefined)} className="btn-ghost" style={{ fontSize: 10, padding: '3px 8px' }}>✗</button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+      <Card animate delay={0.25} padding="none" className="overflow-hidden">
+        {loading ? (
+          <div className="p-md space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
+        ) : filtered.length === 0 ? (
+          <EmptyState icon={Palmtree} title="Aucune demande" action={<Button onClick={() => setModalOpen(true)}><Plus size={14} /> Nouvelle</Button>} />
+        ) : (
+          <DataTable minWidth={1100}>
+            <THead>
+              <TR><TH>Employé</TH><TH>Type</TH><TH>Du</TH><TH>Au</TH><TH right>Jours</TH><TH>Motif</TH><TH>Statut</TH><TH right>Actions</TH></TR>
+            </THead>
+            <tbody>
+              {filtered.map((lr, i) => {
+                const w = workers.find(x => x.id === lr.worker_id)
+                const t = TYPES.find(x => x.code === lr.type)
+                return (
+                  <TR key={lr.id} animate delay={0.04 + i * 0.02}>
+                    <TD>
+                      <div className="font-display font-semibold text-fg-primary">{w ? `${w.last_name} ${w.first_name}` : '—'}</div>
+                      {w?.matricule && <div className="font-mono text-[10px] text-fg-tertiary">{w.matricule}</div>}
+                    </TD>
+                    <TD>
+                      {t ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-caption font-semibold"
+                          style={{ background: `color-mix(in srgb, ${t.color} 14%, transparent)`, color: t.color }}>
+                          <span>{t.icon}</span> {t.label}
+                        </span>
+                      ) : lr.type}
+                    </TD>
+                    <TD mono className="text-caption">{lr.start_date}</TD>
+                    <TD mono className="text-caption">{lr.end_date}</TD>
+                    <TD right mono className="font-bold">{lr.days}j</TD>
+                    <TD className="text-caption text-fg-secondary truncate max-w-[200px]">{lr.reason ?? '—'}</TD>
+                    <TD><Badge variant={STATUS_VARIANT[lr.status] || 'default'} size="sm">{STATUS_LABEL[lr.status] ?? lr.status}</Badge></TD>
+                    <TD right>
+                      {lr.status === 'demande' && (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button onClick={() => updateStatus(lr.id, 'approuve')} variant="primary" size="xs" title="Approuver"><Check size={11} /></Button>
+                          <Button onClick={() => updateStatus(lr.id, 'refuse', prompt('Motif du refus ?') ?? undefined)} variant="ghost" size="xs" title="Refuser" className="hover:text-danger"><X size={11} /></Button>
+                        </div>
+                      )}
+                    </TD>
+                  </TR>
+                )
+              })}
+            </tbody>
+          </DataTable>
+        )}
+      </Card>
 
       {modalOpen && (
         <Modal title="Nouvelle demande de congé" onClose={() => setModalOpen(false)}>
           {done ? <SuccessMessage message="Demande créée" /> : (
-            <>
-              <FormGroup label="Employé *">
-                <Select value={form.worker_id ?? ''} onChange={f('worker_id')}>
-                  <option value="">— sélectionner —</option>
+            <div className="space-y-md">
+              <Field label="Employé" required>
+                <TSelect value={form.worker_id ?? ''} onChange={f('worker_id')}>
+                  <option value="">— Sélectionner —</option>
                   {workers.map(w => <option key={w.id} value={w.id}>{w.last_name} {w.first_name} {w.matricule ? `(${w.matricule})` : ''}</option>)}
-                </Select>
-              </FormGroup>
-              <FormGroup label="Type *">
-                <Select value={form.type ?? 'annuel'} onChange={f('type')}>
+                </TSelect>
+              </Field>
+              <Field label="Type" required>
+                <TSelect value={form.type ?? 'annuel'} onChange={f('type')}>
                   {TYPES.map(t => <option key={t.code} value={t.code}>{t.icon} {t.label}</option>)}
-                </Select>
-              </FormGroup>
+                </TSelect>
+              </Field>
               <FormRow>
-                <FormGroup label="Date début *"><Input type="date" value={form.start_date ?? ''} onChange={f('start_date')} /></FormGroup>
-                <FormGroup label="Date fin *"><Input type="date" value={form.end_date ?? ''} onChange={f('end_date')} /></FormGroup>
+                <FormGroup label="Date début *"><TInput type="date" value={form.start_date ?? ''} onChange={f('start_date')} /></FormGroup>
+                <FormGroup label="Date fin *"><TInput type="date" value={form.end_date ?? ''} onChange={f('end_date')} /></FormGroup>
               </FormRow>
               {form.start_date && form.end_date && (
-                <div style={{ marginBottom: 10, padding: 8, background: 'var(--bg-2)', borderRadius: 6, fontSize: 11.5, color: 'var(--text-sub)' }}>
-                  Durée calculée : <strong style={{ color: 'var(--text-main)' }}>{computeDays(form.start_date, form.end_date)} jour(s)</strong>
+                <div className="rounded-md border border-border bg-surface-sunk p-md text-body-sm text-fg-secondary">
+                  Durée calculée : <strong className="text-fg-primary">{computeDays(form.start_date, form.end_date)} jour(s)</strong>
                 </div>
               )}
-              <FormGroup label="Motif">
-                <Textarea value={form.reason ?? ''} onChange={f('reason')} placeholder="Optionnel" />
-              </FormGroup>
-              <ModalFooter
-                onCancel={() => setModalOpen(false)}
-                onSave={save}
-                loading={saving}
-                saveLabel="SOUMETTRE"
-              />
-            </>
+              <Field label="Motif"><Textarea value={form.reason ?? ''} onChange={f('reason')} placeholder="Optionnel" /></Field>
+              <ModalFooter onCancel={() => setModalOpen(false)} onSave={save} loading={saving} saveLabel="SOUMETTRE" />
+            </div>
           )}
         </Modal>
       )}
     </div>
   )
 }
-
-function KPI({ label, value, sub, color }: { label: string; value: any; sub?: string; color: string }) {
-  return (
-    <div style={{ padding: 14, background: 'var(--bg-1)', border: '1px solid var(--bd-1)', borderRadius: 10, borderTop: `2px solid ${color}` }}>
-      <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: 1, textTransform: 'uppercase' }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, color, fontFamily: 'var(--font-display)', marginTop: 4 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: 'var(--text-sub)', marginTop: 2 }}>{sub}</div>}
-    </div>
-  )
-}
-
-const th: React.CSSProperties = { padding: '8px 10px', textAlign: 'left', fontSize: 10, color: 'var(--text-sub)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: .5, borderBottom: '1px solid var(--bd-1)' }
-const td: React.CSSProperties = { padding: '8px 10px', color: 'var(--text-main)' }
-const tdNum: React.CSSProperties = { padding: '8px 10px', color: 'var(--text-main)', fontFamily: 'var(--font-mono)', textAlign: 'right' }

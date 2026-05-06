@@ -1,117 +1,320 @@
 'use client'
+/**
+ * Topbar refondu : breadcrumbs dynamiques + Cmd+K trigger + theme toggle
+ * smooth + user avatar dropdown.
+ */
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useState, useEffect, useMemo } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  Search, Sun, Moon, LogOut, ChevronRight, HelpCircle, Plus, Activity,
+  ChevronDown,
+} from 'lucide-react'
+
 import { getTheme, setTheme } from '@/lib/theme'
 import { useAuth } from '@/lib/auth'
+import { cn } from '@/lib/cn'
+import { findNavItem, buildBreadcrumbs } from '@/lib/navigation'
 import { getModuleKeyForPath } from '@/lib/modules'
 import { HelpLink } from '@/components/help/HelpLink'
-import { useState, useEffect } from 'react'
-
-const PAGES: Record<string, { title:string; icon:string; sub:string; btn?:string; href?:string }> = {
-  '/':             { title:'Dashboard',       icon:'📊', sub:'vue générale · campagne active' },
-  '/fermes':       { title:'Fermes & Sites',  icon:'🏭', sub:'exploitation',    btn:'+ Ferme',       href:'/fermes' },
-  '/serres':       { title:'Serres',          icon:'🏗️', sub:'infrastructure',  btn:'+ Serre',       href:'/serres' },
-  '/varietes':     { title:'Variétés',        icon:'🧬', sub:'référentiel',     btn:'+ Variété',     href:'/varietes' },
-  '/campagnes':    { title:'Campagnes',       icon:'📅', sub:'planification',   btn:'+ Campagne',    href:'/campagnes' },
-  '/production':   { title:'Production',      icon:'⚙️', sub:'rendements & plantations' },
-  '/recoltes':     { title:'Récoltes',        icon:'🌿', sub:'lots & qualité',  btn:'+ Récolte',     href:'/recoltes' },
-  '/agronomie':    { title:'Agronomie',       icon:'🔬', sub:'journal cultural',btn:'+ Intervention',href:'/agronomie' },
-  '/marches':      { title:'Marchés',         icon:'🌍', sub:'débouchés',       btn:'+ Marché',      href:'/marches' },
-  '/clients':      { title:'Clients',         icon:'🤝', sub:'commercial',      btn:'+ Client',      href:'/clients' },
-  '/commandes':    { title:'Commandes',       icon:'📋', sub:'ventes',          btn:'+ Commande',    href:'/commandes' },
-  '/factures':     { title:'Factures',        icon:'🧾', sub:'facturation',     btn:'+ Facture',     href:'/factures' },
-  '/fournisseurs': { title:'Fournisseurs',    icon:'🏢', sub:'achats',          btn:'+ Fournisseur', href:'/fournisseurs' },
-  '/achats':       { title:'Bons de commande',icon:'🛒', sub:'approvisionnement',btn:'+ Bon',        href:'/achats' },
-  '/stocks':       { title:'Stocks',          icon:'📦', sub:'inventaire',      btn:'+ Article',     href:'/stocks' },
-  '/couts':        { title:'Coûts & Budget',  icon:'💰', sub:'charges',         btn:'+ Coût',        href:'/couts' },
-  '/marges':       { title:'Marges',          icon:'📈', sub:'rentabilité' },
-  '/analytique':   { title:'IA & Prévisions', icon:'🤖', sub:'analytics & simulation' },
-  '/alertes':      { title:'Alertes',         icon:'🔔', sub:'monitoring' },
-}
+import { Badge } from '@/components/ui/Badge'
 
 export function Topbar() {
   const pathname = usePathname()
-  const router   = useRouter()
+  const router = useRouter()
   const { profile, role, signOut } = useAuth()
-  const page     = PAGES[pathname] || { title:'Domaine BENHALIMA', icon:'🍅', sub:'' }
-  const [out,   setOut]        = useState(false)
-  const [theme, setThemeState] = useState<'dark'|'light'>('dark')
 
-  useEffect(() => { setThemeState(getTheme()) }, [])
+  const [out, setOut] = useState(false)
+  const [theme, setThemeState] = useState<'dark' | 'light'>('light')
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [isMac, setIsMac] = useState(false)
+
+  useEffect(() => {
+    setThemeState(getTheme())
+    setIsMac(typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0)
+  }, [])
+
+  // Fermer user menu sur clic en dehors
+  useEffect(() => {
+    if (!userMenuOpen) return
+    const onClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('[data-user-menu]')) setUserMenuOpen(false)
+    }
+    window.addEventListener('mousedown', onClickOutside)
+    return () => window.removeEventListener('mousedown', onClickOutside)
+  }, [userMenuOpen])
+
+  const breadcrumbs = useMemo(() => buildBreadcrumbs(pathname), [pathname])
+  const currentNav = useMemo(() => findNavItem(pathname), [pathname])
 
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark'
-    setTheme(next); setThemeState(next)
+    setTheme(next)
+    setThemeState(next)
   }
+
   const logout = async () => { setOut(true); await signOut(); router.replace('/login') }
 
+  const triggerCmdK = () => {
+    // Synthétise un Cmd+K pour ouvrir la palette
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true, bubbles: true }))
+  }
+
   return (
-    <header style={{
-      height: 'var(--topbar-h)', position: 'sticky', top: 0, zIndex: 40,
-      background: 'var(--bg-card)',
-      borderBottom: '1px solid var(--border)',
-      boxShadow: '0 1px 0 var(--border), 0 2px 8px rgba(0,0,0,.04)',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 20px', transition: 'background .3s',
-    }}>
-      {/* Left */}
-      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-        <span style={{ fontSize:18, lineHeight:1 }}>{page.icon}</span>
-        <div>
-          <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:800, color:'var(--tx-1)', letterSpacing:-.3, lineHeight:1 }}>{page.title}</div>
-          <div style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--tx-3)', letterSpacing:.8, marginTop:2 }}>{page.sub}</div>
-        </div>
+    <header
+      className={cn(
+        'sticky top-0 z-40 h-[52px]',
+        'bg-surface-raised/80 backdrop-blur-xl',
+        'border-b border-border',
+        'flex items-center justify-between',
+        'px-md sm:px-lg',
+        'transition-colors duration-300',
+      )}
+    >
+      {/* ─── Left : Breadcrumbs ─── */}
+      <div className="flex items-center gap-sm min-w-0 flex-1">
+        {breadcrumbs.map((crumb, i) => {
+          const Icon = crumb.icon
+          const isLast = i === breadcrumbs.length - 1
+          return (
+            <div key={i} className="flex items-center gap-sm min-w-0">
+              {i > 0 && <ChevronRight size={12} className="text-fg-tertiary flex-shrink-0" strokeWidth={2.2} />}
+              {crumb.href && !isLast ? (
+                <Link
+                  href={crumb.href}
+                  className="flex items-center gap-1.5 text-body-sm text-fg-tertiary hover:text-fg-primary transition-colors min-w-0"
+                >
+                  {Icon && <Icon size={13} strokeWidth={2.2} />}
+                  <span className="truncate">{crumb.label}</span>
+                </Link>
+              ) : (
+                <span className={cn(
+                  'flex items-center gap-1.5 min-w-0',
+                  isLast ? 'text-fg-primary font-semibold' : 'text-fg-tertiary',
+                  'text-body-sm',
+                )}>
+                  {Icon && (
+                    <span className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
+                          style={{ background: `color-mix(in srgb, ${currentNav?.item.color ?? 'var(--neon)'} 14%, transparent)`,
+                                   color: currentNav?.item.color ?? 'var(--neon)' }}>
+                      <Icon size={14} strokeWidth={2.2} />
+                    </span>
+                  )}
+                  <span className="truncate">{crumb.label}</span>
+                </span>
+              )}
+            </div>
+          )
+        })}
       </div>
 
-      {/* Right */}
-      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-        {/* Live badge */}
-        <div style={{ display:'flex', alignItems:'center', gap:5, padding:'4px 10px', borderRadius:6, background:'rgba(16,185,129,.08)', border:'1px solid rgba(16,185,129,.2)', fontFamily:'var(--font-mono)', fontSize:9.5, color:'#059669', fontWeight:600 }}>
-          <span style={{ width:5, height:5, borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'pulse 2s infinite' }} />
-          LIVE · 2025-2026
-        </div>
-        <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
+      {/* ─── Right : Actions ─── */}
+      <div className="flex items-center gap-xs sm:gap-sm flex-shrink-0">
 
-        {/* Action page */}
-        {page.btn && page.href && (
-          <Link href={page.href} style={{ textDecoration:'none' }}>
-            <button className="btn-primary" style={{ fontSize:11.5, padding:'7px 14px' }}>{page.btn}</button>
+        {/* Search / Cmd+K trigger */}
+        <button
+          onClick={triggerCmdK}
+          className={cn(
+            'group hidden md:flex items-center gap-sm px-md py-1.5 h-8',
+            'rounded-md border border-border bg-surface-sunk/50',
+            'text-fg-tertiary hover:text-fg-secondary hover:border-border-strong hover:bg-surface-hover',
+            'transition-all duration-150 cursor-pointer',
+          )}
+          title="Recherche rapide"
+        >
+          <Search size={13} strokeWidth={2.2} />
+          <span className="text-caption">Recherche…</span>
+          <span className="flex items-center gap-0.5 ml-md">
+            <kbd className="px-1.5 py-0.5 rounded border border-border text-[9px] font-mono bg-surface-raised">
+              {isMac ? '⌘' : 'Ctrl'}
+            </kbd>
+            <kbd className="px-1.5 py-0.5 rounded border border-border text-[9px] font-mono bg-surface-raised">K</kbd>
+          </span>
+        </button>
+
+        {/* Cmd+K mobile */}
+        <button
+          onClick={triggerCmdK}
+          className={cn(
+            'md:hidden w-8 h-8 rounded-md',
+            'border border-border bg-surface-sunk/50 text-fg-tertiary',
+            'flex items-center justify-center',
+            'hover:bg-surface-hover hover:text-fg-secondary',
+            'transition-all duration-150',
+          )}
+          title="Recherche"
+        >
+          <Search size={14} strokeWidth={2.2} />
+        </button>
+
+        {/* Live badge */}
+        <Badge variant="success" size="md" dot pulse className="hidden sm:inline-flex">
+          Live · 2025-2026
+        </Badge>
+
+        {/* Bouton action contextuel à la page */}
+        {currentNav?.item.href && currentNav.item.href !== '/' && (
+          <Link
+            href={currentNav.item.href}
+            className={cn(
+              'hidden sm:inline-flex items-center gap-1.5 px-md h-8 rounded-md',
+              'text-white text-caption font-bold uppercase tracking-wider',
+              'shadow-[0_2px_10px_var(--neon-dim)] transition-all duration-150',
+              'hover:brightness-110 hover:-translate-y-0.5 hover:shadow-glow',
+            )}
+            style={{ background: 'var(--neon)' }}
+          >
+            <Plus size={13} strokeWidth={2.5} />
+            {currentNav.item.label.split(' ')[0]}
           </Link>
         )}
 
-        {/* Aide contextuelle — pointe vers la section du guide correspondant à la page courante */}
+        {/* Aide contextuelle */}
         {(() => {
           const moduleKey = getModuleKeyForPath(pathname) ?? 'intro'
           if (pathname === '/guide' || pathname === '/login') return null
-          return <HelpLink module={moduleKey} variant="pill" label="Aide" />
+          return (
+            <div className="hidden lg:flex">
+              <HelpLink module={moduleKey} variant="pill" label="Aide" />
+            </div>
+          )
         })()}
 
-        {/* Toggle thème */}
-        <button onClick={toggleTheme} className="theme-toggle" title={theme==='dark'?'Passer en clair':'Passer en sombre'}>
-          <span style={{ fontSize:13 }}>{theme==='dark'?'🌙':'☀️'}</span>
-          <div className="theme-toggle-track"><div className="theme-toggle-thumb"/></div>
-          <span className="theme-toggle-label">{theme==='dark'?'DARK':'LIGHT'}</span>
+        {/* Toggle thème animé */}
+        <button
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Passer en clair' : 'Passer en sombre'}
+          className={cn(
+            'relative w-8 h-8 rounded-md flex items-center justify-center',
+            'border border-border bg-surface-sunk/50',
+            'hover:bg-surface-hover hover:border-border-strong',
+            'transition-all duration-200',
+          )}
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            {theme === 'dark' ? (
+              <motion.div
+                key="moon"
+                initial={{ rotate: -90, opacity: 0 }}
+                animate={{ rotate: 0, opacity: 1 }}
+                exit={{ rotate: 90, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Moon size={14} strokeWidth={2.2} className="text-info" />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="sun"
+                initial={{ rotate: 90, opacity: 0 }}
+                animate={{ rotate: 0, opacity: 1 }}
+                exit={{ rotate: -90, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Sun size={14} strokeWidth={2.2} className="text-warning" />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </button>
 
-        {/* User badge */}
+        {/* User menu */}
         {profile && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', borderRadius: 6, background: 'var(--bg-deep)', border: '1px solid var(--bd-1)' }}>
-            <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'color-mix(in srgb, var(--neon) 25%, transparent)', color: 'var(--neon)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>
-              {(profile.full_name ?? profile.email).slice(0, 1).toUpperCase()}
-            </div>
-            <div style={{ lineHeight: 1 }}>
-              <div style={{ fontSize: 11, color: 'var(--tx-1)', fontWeight: 600 }}>{profile.full_name ?? profile.email}</div>
-              <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
-                {role?.name ?? 'Sans rôle'}
+          <div className="relative" data-user-menu>
+            <button
+              onClick={() => setUserMenuOpen(o => !o)}
+              className={cn(
+                'flex items-center gap-sm h-8 px-2 sm:px-md rounded-md',
+                'border border-border bg-surface-sunk/50',
+                'hover:bg-surface-hover hover:border-border-strong',
+                'transition-all duration-150',
+              )}
+            >
+              <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                   style={{ background: 'color-mix(in srgb, var(--neon) 25%, transparent)', color: 'var(--neon)' }}>
+                {(profile.full_name ?? profile.email).slice(0, 1).toUpperCase()}
               </div>
-            </div>
+              <div className="hidden sm:block text-left leading-tight min-w-0 max-w-[140px]">
+                <div className="text-caption font-semibold text-fg-primary truncate">{profile.full_name ?? profile.email}</div>
+                <div className="text-[9px] font-mono text-fg-tertiary truncate">{role?.name ?? 'Sans rôle'}</div>
+              </div>
+              <ChevronDown size={12} strokeWidth={2.2} className={cn(
+                'text-fg-tertiary transition-transform hidden sm:block',
+                userMenuOpen && 'rotate-180'
+              )} />
+            </button>
+
+            <AnimatePresence>
+              {userMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                  transition={{ duration: 0.15 }}
+                  className={cn(
+                    'absolute right-0 top-full mt-1 z-50',
+                    'min-w-[220px] rounded-md',
+                    'bg-surface-raised border border-border-strong',
+                    'shadow-overlay overflow-hidden',
+                  )}
+                >
+                  {/* Header */}
+                  <div className="px-md py-sm border-b border-border bg-surface-sunk">
+                    <div className="text-body-sm font-semibold text-fg-primary truncate">
+                      {profile.full_name ?? 'Utilisateur'}
+                    </div>
+                    <div className="text-caption font-mono text-fg-tertiary truncate">
+                      {profile.email}
+                    </div>
+                    {role && (
+                      <Badge variant="brand" size="xs" className="mt-xs">{role.name}</Badge>
+                    )}
+                  </div>
+
+                  {/* Items */}
+                  <div className="p-1">
+                    <button
+                      onClick={triggerCmdK}
+                      className="w-full flex items-center gap-sm px-md py-2 rounded-md text-body-sm text-fg-secondary hover:bg-surface-hover hover:text-fg-primary transition-colors"
+                    >
+                      <Search size={14} strokeWidth={2.2} />
+                      <span className="flex-1 text-left">Recherche rapide</span>
+                      <span className="flex items-center gap-0.5">
+                        <kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono">{isMac ? '⌘' : 'Ctrl'}</kbd>
+                        <kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono">K</kbd>
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => { setUserMenuOpen(false); router.push('/guide') }}
+                      className="w-full flex items-center gap-sm px-md py-2 rounded-md text-body-sm text-fg-secondary hover:bg-surface-hover hover:text-fg-primary transition-colors"
+                    >
+                      <HelpCircle size={14} strokeWidth={2.2} />
+                      <span className="flex-1 text-left">Guide utilisateur</span>
+                    </button>
+                    <button
+                      onClick={toggleTheme}
+                      className="w-full flex items-center gap-sm px-md py-2 rounded-md text-body-sm text-fg-secondary hover:bg-surface-hover hover:text-fg-primary transition-colors"
+                    >
+                      {theme === 'dark' ? <Sun size={14} strokeWidth={2.2} /> : <Moon size={14} strokeWidth={2.2} />}
+                      <span className="flex-1 text-left">Thème {theme === 'dark' ? 'clair' : 'sombre'}</span>
+                    </button>
+                  </div>
+
+                  <div className="border-t border-border p-1">
+                    <button
+                      onClick={logout}
+                      disabled={out}
+                      className="w-full flex items-center gap-sm px-md py-2 rounded-md text-body-sm text-danger hover:bg-danger/10 transition-colors disabled:opacity-50"
+                    >
+                      <LogOut size={14} strokeWidth={2.2} />
+                      <span className="flex-1 text-left">{out ? 'Déconnexion…' : 'Se déconnecter'}</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
-
-        {/* Logout */}
-        <button onClick={logout} disabled={out} className="btn-ghost" style={{ fontSize:10.5, padding:'6px 11px' }}>
-          {out?'…':'⏻ Logout'}
-        </button>
       </div>
     </header>
   )

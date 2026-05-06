@@ -1,119 +1,51 @@
 'use client'
+/**
+ * Sidebar refondue (V2) :
+ * - Icône colorée par section (cohérent avec la palette navigation)
+ * - Tagline sous chaque section (description courte)
+ * - Item actif avec barre latérale gauche colorée + glow subtil
+ * - Animations smooth (Framer Motion)
+ * - Hover plus élégant (slide + élévation)
+ * - Mode collapsed icon-only avec tooltip natif au hover
+ */
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect, useMemo } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  ChevronRight, Pin, PinOff, PanelLeftClose, PanelLeftOpen,
+  ChevronsUpDown, ChevronsDownUp, Sprout,
+} from 'lucide-react'
 import { useAuth } from '@/lib/auth'
-
-/* ── Config navigation avec icônes colorées + code module (pour permissions) ── */
-const NAV = [
-  {
-    section: 'PILOTAGE',
-    items: [
-      { href:'/',            moduleCode:'dashboard',  label:'Dashboard',    icon:'📊', color:'#6366f1', bg:'rgba(99,102,241,.15)' },
-      { href:'/recoltes',   moduleCode:'recoltes',   label:'Récoltes',     icon:'🌿', color:'#10b981', bg:'rgba(16,185,129,.15)' },
-      { href:'/production', moduleCode:'production', label:'Production',   icon:'⚙️', color:'#f59e0b', bg:'rgba(245,158,11,.15)' },
-      { href:'/agronomie',  moduleCode:'agronomie',  label:'Agronomie',    icon:'🔬', color:'#06b6d4', bg:'rgba(6,182,212,.15)'  },
-    ],
-  },
-  {
-    section: 'COMMERCE',
-    items: [
-      { href:'/marches',    moduleCode:'marches',   label:'Marchés',      icon:'🌍', color:'#3b82f6', bg:'rgba(59,130,246,.15)' },
-      { href:'/clients',    moduleCode:'clients',   label:'Clients',      icon:'🤝', color:'#8b5cf6', bg:'rgba(139,92,246,.15)' },
-      { href:'/commandes',  moduleCode:'commandes', label:'Commandes',    icon:'📋', color:'#ec4899', bg:'rgba(236,72,153,.15)' },
-      { href:'/factures',   moduleCode:'factures',  label:'Factures',     icon:'🧾', color:'#f43f5e', bg:'rgba(244,63,94,.15)'  },
-    ],
-  },
-  {
-    section: 'EXPLOITATION',
-    items: [
-      { href:'/fermes',      moduleCode:'fermes',    label:'Fermes',      icon:'🏭', color:'#64748b', bg:'rgba(100,116,139,.15)'},
-      { href:'/serres',      moduleCode:'serres',    label:'Serres',      icon:'🏗️', color:'#0ea5e9', bg:'rgba(14,165,233,.15)' },
-      { href:'/varietes',    moduleCode:'varietes',  label:'Variétés',    icon:'🧬', color:'#a855f7', bg:'rgba(168,85,247,.15)' },
-      { href:'/campagnes',   moduleCode:'campagnes', label:'Campagnes',   icon:'📅', color:'#22c55e', bg:'rgba(34,197,94,.15)'  },
-    ],
-  },
-  {
-    section: 'RESSOURCES',
-    items: [
-      { href:'/fournisseurs', moduleCode:'fournisseurs', label:'Fournisseurs',icon:'🏢', color:'#f97316', bg:'rgba(249,115,22,.15)' },
-      { href:'/achats',       moduleCode:'achats',       label:'Achats',      icon:'🛒', color:'#eab308', bg:'rgba(234,179,8,.15)'  },
-      { href:'/stocks',       moduleCode:'stocks',       label:'Stocks',      icon:'📦', color:'#14b8a6', bg:'rgba(20,184,166,.15)' },
-    ],
-  },
-  {
-    section: 'FINANCES',
-    items: [
-      { href:'/couts',      moduleCode:'couts',      label:'Coûts',        icon:'💰', color:'#f59e0b', bg:'rgba(245,158,11,.15)' },
-      { href:'/marges',     moduleCode:'marges',     label:'Marges',       icon:'📈', color:'#10b981', bg:'rgba(16,185,129,.15)' },
-      { href:'/analytique', moduleCode:'analytique', label:'IA & Prévisions',icon:'🤖',color:'#6366f1',bg:'rgba(99,102,241,.15)'},
-    ],
-  },
-  {
-    section: 'RH',
-    items: [
-      { href:'/rh',          moduleCode:'rh',          label:'Tableau de bord RH', icon:'👥', color:'#0ea5e9', bg:'rgba(14,165,233,.15)' },
-      { href:'/rh/employes', moduleCode:'rh_employes', label:'Employés',           icon:'🪪', color:'#0ea5e9', bg:'rgba(14,165,233,.15)' },
-      { href:'/rh/paie',     moduleCode:'rh_paie',     label:'Paie',               icon:'💵', color:'#10b981', bg:'rgba(16,185,129,.15)' },
-      { href:'/rh/conges',   moduleCode:'rh_conges',   label:'Congés',             icon:'🏖️', color:'#f59e0b', bg:'rgba(245,158,11,.15)' },
-      { href:'/rh/cnss',     moduleCode:'rh_cnss',     label:'Déclarations CNSS',  icon:'🏛️', color:'#6366f1', bg:'rgba(99,102,241,.15)' },
-    ],
-  },
-  {
-    section: 'PARAMÉTRAGE',
-    items: [
-      { href:'/admin/account-categories',  moduleCode:'plan_comptable',      label:'Plan comptable',        icon:'📒', color:'#0ea5e9', bg:'rgba(14,165,233,.15)' },
-      { href:'/admin/budgets',             moduleCode:'budgets',             label:'Budgets',               icon:'💼', color:'#8b5cf6', bg:'rgba(139,92,246,.15)' },
-      // Imports masqué pour la présentation — à réactiver après finalisation
-      // { href:'/admin/imports',             moduleCode:'imports',             label:'Imports',               icon:'📥', color:'#06b6d4', bg:'rgba(6,182,212,.15)'  },
-      { href:'/admin/compte-exploitation', moduleCode:'compte_exploitation', label:'Compte d\'exploitation', icon:'📈', color:'#10b981', bg:'rgba(16,185,129,.15)' },
-      { href:'/admin/workflows',           moduleCode:'workflows',           label:'Workflows',             icon:'🔀', color:'#64748b', bg:'rgba(100,116,139,.15)' },
-    ],
-  },
-  {
-    section: 'ADMINISTRATION',
-    items: [
-      { href:'/admin/users', moduleCode:'users', label:'Utilisateurs',        icon:'👥', color:'#ef4444', bg:'rgba(239,68,68,.15)' },
-      { href:'/admin/roles', moduleCode:'roles', label:'Rôles & Permissions', icon:'🔐', color:'#ef4444', bg:'rgba(239,68,68,.15)' },
-    ],
-  },
-  {
-    section: 'AIDE',
-    items: [
-      { href:'/guide', moduleCode:'dashboard', label:'Guide utilisateur', icon:'📖', color:'#0ea5e9', bg:'rgba(14,165,233,.15)' },
-    ],
-  },
-]
+import { cn } from '@/lib/cn'
+import { NAV } from '@/lib/navigation'
 
 export function Sidebar() {
   const pathname = usePathname()
   const { canAccessModule, loading: authLoading } = useAuth()
+
   const [collapsed, setCollapsed] = useState(false)
-  const [pinned,    setPinned]    = useState(true)
-  const [isDark,    setIsDark]    = useState(false)
+  const [pinned, setPinned] = useState(true)
+  const [isDark, setIsDark] = useState(false)
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const [sectionsInitialized, setSectionsInitialized] = useState(false)
 
-  // Filtre les items selon les permissions (tant que l'auth charge, on affiche vide)
+  // Filtrage permissions
   const filteredNav = useMemo(() => {
     if (authLoading) return []
     return NAV
-      .map(group => ({
-        ...group,
-        items: group.items.filter(item => canAccessModule(item.moduleCode)),
-      }))
+      .map(group => ({ ...group, items: group.items.filter(item => canAccessModule(item.moduleCode)) }))
       .filter(group => group.items.length > 0)
   }, [authLoading, canAccessModule])
 
-  // Section courante (celle qui contient l'item actif)
   const activeSection = useMemo(() => {
     return filteredNav.find(g => g.items.some(i => i.href === pathname))?.section
   }, [filteredNav, pathname])
 
+  // Init préférences depuis localStorage
   useEffect(() => {
-    // Charger préférences au mount uniquement (pas de boucle possible)
     const savedCollapsed = localStorage.getItem('tp_sidebar_collapsed') === 'true'
-    const savedPinned    = localStorage.getItem('tp_sidebar_pinned') !== 'false'
+    const savedPinned = localStorage.getItem('tp_sidebar_pinned') !== 'false'
     setCollapsed(savedCollapsed)
     setPinned(savedPinned)
 
@@ -132,7 +64,7 @@ export function Sidebar() {
     return () => obs.disconnect()
   }, [])
 
-  // Auto-déplie la section active quand on navigue
+  // Auto-déplie la section active
   useEffect(() => {
     if (!sectionsInitialized || !activeSection) return
     setExpandedSections(prev => {
@@ -146,7 +78,6 @@ export function Sidebar() {
   const persistSections = (next: Set<string>) => {
     try { localStorage.setItem('tp_sidebar_sections', JSON.stringify(Array.from(next))) } catch {}
   }
-
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
       const next = new Set(prev)
@@ -155,23 +86,20 @@ export function Sidebar() {
       return next
     })
   }
-  const expandAllSections = () => {
+  const expandAll = () => {
     const next = new Set(filteredNav.map(g => g.section))
     setExpandedSections(next); persistSections(next)
   }
-  const collapseAllSections = () => {
+  const collapseAll = () => {
     const next = activeSection ? new Set([activeSection]) : new Set<string>()
     setExpandedSections(next); persistSections(next)
   }
-
   const toggleCollapse = () => {
     const next = !collapsed
     setCollapsed(next)
     localStorage.setItem('tp_sidebar_collapsed', String(next))
-    // Notifier le layout
     window.dispatchEvent(new CustomEvent('sidebar-change', { detail: { collapsed: next, pinned } }))
   }
-
   const togglePin = () => {
     const next = !pinned
     setPinned(next)
@@ -179,170 +107,437 @@ export function Sidebar() {
     window.dispatchEvent(new CustomEvent('sidebar-change', { detail: { collapsed, pinned: next } }))
   }
 
-  const W = collapsed ? 60 : 220
+  const W = collapsed ? 64 : 240   // un peu plus large pour respirer
 
-  // Couleurs selon thème
-  const sidebarBg     = isDark ? '#0a1810' : 'linear-gradient(160deg,#1e1b4b 0%,#312e81 55%,#4338ca 100%)'
+  // ─── Palette adaptative ───
+  const sidebarBg = isDark
+    ? 'linear-gradient(180deg, #050d09 0%, #081410 100%)'
+    : 'linear-gradient(170deg, #1e1b4b 0%, #312e81 50%, #3730a3 100%)'
   const sidebarBorder = isDark ? '1px solid #1a3526' : 'none'
-  const logoBg        = isDark ? 'rgba(0,232,122,.15)' : 'rgba(255,255,255,.15)'
-  const logoText      = isDark ? '#e8f5ee' : '#fff'
-  const logoSub       = isDark ? '#3d6b52' : 'rgba(255,255,255,.4)'
-  const sectionColor  = isDark ? '#3d6b52' : 'rgba(255,255,255,.35)'
-  const pinBg         = isDark ? '#0d1f14' : 'rgba(255,255,255,.08)'
-  const pinBorder     = isDark ? '#1a3526' : 'rgba(255,255,255,.15)'
-  const pinColor      = isDark ? '#3d6b52' : 'rgba(255,255,255,.5)'
-  const pinActiveColor= isDark ? '#00e87a' : '#fff'
-  const pinActiveBg   = isDark ? '#0f2518'  : 'rgba(255,255,255,.18)'
-  const dividerColor  = isDark ? '#1a3526'  : 'rgba(255,255,255,.12)'
+  const dividerColor = isDark ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.08)'
+  const logoBg = isDark ? 'rgba(0,232,122,.12)' : 'rgba(255,255,255,.12)'
+  const logoBorderColor = isDark ? 'rgba(0,232,122,.22)' : 'rgba(255,255,255,.18)'
+  const logoText = isDark ? '#e8f5ee' : '#fff'
+  const logoSub = isDark ? '#5a9376' : 'rgba(255,255,255,.55)'
+  // Couleurs contrastées : labels de section bien lisibles (≥ 70% en light, ≥ #9be3b6 en dark)
+  const sectionLabel = isDark ? '#9be3b6' : 'rgba(255,255,255,.78)'
+  const sectionLabelHover = isDark ? '#c4f5d6' : 'rgba(255,255,255,.95)'
+  const sectionLabelActive = isDark ? 'var(--neon)' : '#fff'
+  const sectionTagline = isDark ? 'rgba(155,227,182,.55)' : 'rgba(255,255,255,.55)'
+  const itemColor = isDark ? '#bcd9c6' : 'rgba(255,255,255,.85)'
+  const itemHoverColor = isDark ? '#e8f5ee' : '#fff'
+  const itemActiveColor = isDark ? 'var(--neon)' : '#fff'
 
   return (
     <>
       <style>{`
-        @keyframes scanline{0%{top:0}100%{top:100%}}
-        .sidebar-scan{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--neon),transparent);opacity:.12;animation:scanline 14s linear infinite;pointer-events:none;z-index:0}
-        [data-theme="light"] .sidebar-scan{display:none}
-        .sidebar-navitem{transition:background .12s,color .12s}
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+        @keyframes sidebarScan { 0%{top:-1px} 100%{top:100%} }
+        .sb-scan {
+          position:absolute; left:0; right:0; height:1px;
+          background: linear-gradient(90deg, transparent, var(--neon), transparent);
+          opacity:.16; animation: sidebarScan 16s linear infinite; pointer-events:none; z-index:0;
+        }
+        [data-theme="light"] .sb-scan {
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,.4), transparent);
+          opacity: .22;
+        }
       `}</style>
 
-      <aside style={{
-        position: pinned ? 'fixed' : 'fixed',
-        top: 0, left: 0, bottom: 0,
-        width: W,
-        zIndex: 50,
-        display: 'flex', flexDirection: 'column',
-        background: sidebarBg,
-        border: sidebarBorder,
-        transition: 'width .25s cubic-bezier(.4,0,.2,1)',
-        overflow: 'hidden',
-        boxShadow: isDark ? 'none' : '4px 0 24px rgba(0,0,0,.15)',
-      }}>
-        <div className="sidebar-scan" />
+      <motion.aside
+        initial={false}
+        animate={{ width: W }}
+        transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+        className="fixed left-0 top-0 bottom-0 z-50 flex flex-col overflow-hidden"
+        style={{
+          background: sidebarBg,
+          border: sidebarBorder,
+          boxShadow: isDark ? '4px 0 24px rgba(0,0,0,.4)' : '4px 0 28px rgba(15,23,42,.18)',
+        }}
+      >
+        <div className="sb-scan" />
 
-        {/* ── Logo ── */}
-        <div style={{ padding: collapsed ? '14px 12px' : '14px 14px 10px', borderBottom: `1px solid ${dividerColor}`, flexShrink: 0, position: 'relative', zIndex: 1 }}>
+        {/* ═══════════ LOGO ═══════════ */}
+        <div
+          className="flex-shrink-0 relative z-[1]"
+          style={{
+            padding: collapsed ? '16px 14px' : '16px 16px 14px',
+            borderBottom: `1px solid ${dividerColor}`,
+          }}
+        >
           {collapsed ? (
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: logoBg, border: `1px solid ${pinBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, cursor: 'pointer' }} onClick={toggleCollapse}>
-              🍅
+            <div
+              onClick={toggleCollapse}
+              title="Étendre le menu"
+              className="cursor-pointer w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-105"
+              style={{
+                background: logoBg,
+                border: `1px solid ${logoBorderColor}`,
+                boxShadow: isDark ? '0 0 16px rgba(0,232,122,.2)' : 'none',
+              }}
+            >
+              <Sprout size={18} className="text-brand" strokeWidth={2.5} />
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 9, background: logoBg, border: `1px solid ${pinBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🍅</div>
-              <div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 13.5, fontWeight: 800, color: logoText, letterSpacing: -.2, lineHeight: 1.1 }}>Domaine BENHALIMA</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: logoSub, letterSpacing: 1.5, marginTop: 2, textTransform: 'uppercase' }}>MES Production</div>
+            <div className="flex items-center gap-sm">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.3, ease: [0.34, 1.56, 0.64, 1] }}
+                className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{
+                  background: logoBg,
+                  border: `1px solid ${logoBorderColor}`,
+                  boxShadow: isDark ? '0 0 14px rgba(0,232,122,.18)' : '0 2px 8px rgba(0,0,0,.12)',
+                }}
+              >
+                <Sprout size={17} className="text-brand" strokeWidth={2.5} />
+              </motion.div>
+              <div className="min-w-0 flex-1">
+                <div
+                  className="font-display text-[14px] font-extrabold leading-tight truncate"
+                  style={{ color: logoText, letterSpacing: '-0.2px' }}
+                >
+                  Domaine BENHALIMA
+                </div>
+                <div
+                  className="font-mono text-[8px] tracking-[1.6px] uppercase mt-0.5"
+                  style={{ color: logoSub }}
+                >
+                  MES Production
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* ── Navigation ── */}
-        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingTop: 6, position: 'relative', zIndex: 1 }}>
-          {/* Boutons rapides en mode étendu */}
+        {/* ═══════════ NAVIGATION ═══════════ */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden pt-2 relative z-[1]">
+
+          {/* Boutons rapides */}
           {!collapsed && filteredNav.length > 0 && (
-            <div style={{ display: 'flex', gap: 4, padding: '6px 10px 10px' }}>
-              <button onClick={expandAllSections}
-                style={{ flex: 1, padding: '4px 6px', border: `1px solid ${pinBorder}`, background: 'transparent', color: pinColor, borderRadius: 5, fontSize: 9, fontFamily: 'var(--font-mono)', letterSpacing: .5, cursor: 'pointer' }}>
-                ⇓ Tout
+            <div className="flex gap-1 px-md pb-sm">
+              <button
+                onClick={expandAll}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[9px] font-mono uppercase tracking-wider transition-colors"
+                style={{
+                  border: `1px solid ${dividerColor}`,
+                  color: sectionLabel,
+                  background: 'rgba(255,255,255,.02)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = isDark ? 'rgba(0,232,122,.06)' : 'rgba(255,255,255,.08)'
+                  e.currentTarget.style.color = sectionLabelHover
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,.02)'
+                  e.currentTarget.style.color = sectionLabel
+                }}
+              >
+                <ChevronsUpDown size={10} /> Tout
               </button>
-              <button onClick={collapseAllSections}
-                style={{ flex: 1, padding: '4px 6px', border: `1px solid ${pinBorder}`, background: 'transparent', color: pinColor, borderRadius: 5, fontSize: 9, fontFamily: 'var(--font-mono)', letterSpacing: .5, cursor: 'pointer' }}>
-                ⇑ Replier
+              <button
+                onClick={collapseAll}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded-md text-[9px] font-mono uppercase tracking-wider transition-colors"
+                style={{
+                  border: `1px solid ${dividerColor}`,
+                  color: sectionLabel,
+                  background: 'rgba(255,255,255,.02)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = isDark ? 'rgba(0,232,122,.06)' : 'rgba(255,255,255,.08)'
+                  e.currentTarget.style.color = sectionLabelHover
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,.02)'
+                  e.currentTarget.style.color = sectionLabel
+                }}
+              >
+                <ChevronsDownUp size={10} /> Replier
               </button>
             </div>
           )}
 
           {filteredNav.map((group, gi) => {
             const isExpanded = collapsed ? true : expandedSections.has(group.section)
-            const hasActiveItem = group.items.some(i => i.href === pathname)
-            return (
-            <div key={gi} style={{ marginBottom: 2 }}>
-              {/* Section header */}
-              {!collapsed && (
-                <button
-                  onClick={() => toggleSection(group.section)}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '9px 14px 7px', marginTop: gi > 0 ? 4 : 0,
-                    background: hasActiveItem && !isExpanded ? (isDark ? 'rgba(0,232,122,.04)' : 'rgba(255,255,255,.06)') : 'transparent',
-                    border: 'none', cursor: 'pointer',
-                    fontFamily: 'var(--font-mono)', fontSize: 8.5, fontWeight: 600,
-                    color: hasActiveItem ? (isDark ? 'var(--neon)' : '#fff') : sectionColor,
-                    textTransform: 'uppercase', letterSpacing: '1.8px',
-                    transition: 'background .12s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = isDark ? 'rgba(255,255,255,.03)' : 'rgba(255,255,255,.08)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = hasActiveItem && !isExpanded ? (isDark ? 'rgba(0,232,122,.04)' : 'rgba(255,255,255,.06)') : 'transparent')}
-                >
-                  <span style={{ fontSize: 9, opacity: .7, transition: 'transform .15s', display: 'inline-block', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▸</span>
-                  <span style={{ flex: 1, textAlign: 'left' }}>{group.section}</span>
-                  <span style={{ fontSize: 8, opacity: .5, fontFamily: 'var(--font-mono)', letterSpacing: 0 }}>
-                    {group.items.length}
-                  </span>
-                  {hasActiveItem && !isExpanded && (
-                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: isDark ? '#00e87a' : '#fff' }} />
-                  )}
-                </button>
-              )}
-              {collapsed && gi > 0 && <div style={{ height: 1, background: dividerColor, margin: '4px 10px' }} />}
+            const hasActive = group.items.some(i => i.href === pathname)
+            const SectionIcon = group.icon
+            const sectionColor = group.color ?? '#64748b'
 
-              {isExpanded && group.items.map(item => {
-                const active = pathname === item.href
-                return collapsed ? (
-                  /* Mode rétracté — icône seule avec tooltip */
-                  <div key={item.href} title={item.label} style={{ padding: '3px 10px' }}>
-                    <Link href={item.href} style={{ textDecoration: 'none', display: 'block' }}>
-                      <div style={{
-                        width: 36, height: 36, borderRadius: 9,
-                        background: active ? (isDark ? 'rgba(0,232,122,.15)' : 'rgba(255,255,255,.2)') : 'transparent',
-                        border: active ? `1px solid ${isDark ? 'rgba(0,232,122,.3)' : 'rgba(255,255,255,.3)'}` : '1px solid transparent',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 17, cursor: 'pointer', transition: 'all .12s',
-                      }}>
-                        {item.icon}
+            return (
+              <div key={gi} className="mb-1">
+                {/* ═══ Section header ═══ */}
+                {!collapsed && (
+                  <button
+                    onClick={() => toggleSection(group.section)}
+                    className="group/section w-full flex items-center gap-sm px-md py-2 mt-2 transition-all"
+                    style={{
+                      background: hasActive && !isExpanded
+                        ? (isDark ? `color-mix(in srgb, ${sectionColor} 8%, transparent)` : 'rgba(255,255,255,.06)')
+                        : 'transparent',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!(hasActive && !isExpanded)) {
+                        e.currentTarget.style.background = isDark ? 'rgba(255,255,255,.025)' : 'rgba(255,255,255,.04)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!(hasActive && !isExpanded)) {
+                        e.currentTarget.style.background = 'transparent'
+                      }
+                    }}
+                  >
+                    <motion.span
+                      animate={{ rotate: isExpanded ? 90 : 0 }}
+                      transition={{ duration: 0.18 }}
+                      style={{ color: sectionLabel, opacity: 0.6 }}
+                      className="flex-shrink-0"
+                    >
+                      <ChevronRight size={10} strokeWidth={2.5} />
+                    </motion.span>
+                    {SectionIcon && (
+                      <span
+                        className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-all"
+                        style={{
+                          background: hasActive
+                            ? `color-mix(in srgb, ${sectionColor} 22%, transparent)`
+                            : `color-mix(in srgb, ${sectionColor} 10%, transparent)`,
+                          color: hasActive
+                            ? sectionLabelActive
+                            : sectionLabel,
+                        }}
+                      >
+                        <SectionIcon size={11} strokeWidth={2.4} />
+                      </span>
+                    )}
+                    <div className="flex-1 text-left min-w-0">
+                      <div
+                        className="font-mono text-[9.5px] font-bold uppercase tracking-[1.4px] leading-tight transition-colors truncate"
+                        style={{ color: hasActive ? sectionLabelActive : sectionLabel }}
+                      >
+                        {group.section}
                       </div>
-                    </Link>
-                  </div>
-                ) : (
-                  /* Mode étendu — icône + label */
-                  <Link key={item.href} href={item.href}
-                    className={`nav-item sidebar-navitem${active ? ' active' : ''}`}
-                    style={{ textDecoration: 'none', margin: '1px 6px', borderRadius: 8, borderLeft: 'none' }}>
-                    <div style={{
-                      width: 26, height: 26, borderRadius: 7,
-                      background: active ? item.bg : 'transparent',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 14, flexShrink: 0, transition: 'background .12s',
-                    }}>
-                      {item.icon}
+                      {group.tagline && (
+                        <div
+                          className="text-[8.5px] mt-0.5 truncate transition-colors"
+                          style={{
+                            color: sectionTagline,
+                            fontFamily: 'var(--font-body)',
+                          }}
+                        >
+                          {group.tagline}
+                        </div>
+                      )}
                     </div>
-                    <span style={{ fontSize: 12.5, fontWeight: active ? 600 : 500 }}>{item.label}</span>
-                    {active && <span style={{ marginLeft: 'auto', width: 4, height: 4, borderRadius: '50%', background: isDark ? '#00e87a' : '#fff', flexShrink: 0 }} />}
-                  </Link>
-                )
-              })}
-            </div>
-          )})}
+                    <span
+                      className="text-[8px] font-mono opacity-50 flex-shrink-0"
+                      style={{ color: sectionLabel }}
+                    >
+                      {group.items.length}
+                    </span>
+                    {hasActive && !isExpanded && (
+                      <span
+                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                        style={{
+                          background: sectionColor,
+                          boxShadow: `0 0 8px ${sectionColor}`,
+                        }}
+                      />
+                    )}
+                  </button>
+                )}
+
+                {collapsed && gi > 0 && (
+                  <div className="h-px mx-3 my-1.5" style={{ background: dividerColor }} />
+                )}
+
+                {/* ═══ Items ═══ */}
+                <AnimatePresence initial={false}>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+                      className="overflow-hidden"
+                    >
+                      {group.items.map((item) => {
+                        const Icon = item.icon
+                        const active = pathname === item.href
+                        if (collapsed) {
+                          return (
+                            <Link key={item.href} href={item.href} title={item.label} className="block px-2.5 py-1">
+                              <div
+                                className="w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200"
+                                style={{
+                                  background: active
+                                    ? `color-mix(in srgb, ${item.color} 18%, transparent)`
+                                    : 'transparent',
+                                  border: active
+                                    ? `1px solid color-mix(in srgb, ${item.color} 45%, transparent)`
+                                    : '1px solid transparent',
+                                  color: active ? item.color : itemColor,
+                                  boxShadow: active
+                                    ? `0 0 12px color-mix(in srgb, ${item.color} 30%, transparent)`
+                                    : 'none',
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!active) {
+                                    e.currentTarget.style.background = isDark ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.08)'
+                                    e.currentTarget.style.color = itemHoverColor
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!active) {
+                                    e.currentTarget.style.background = 'transparent'
+                                    e.currentTarget.style.color = itemColor
+                                  }
+                                }}
+                              >
+                                <Icon size={16} strokeWidth={2.2} />
+                              </div>
+                            </Link>
+                          )
+                        }
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className="group/item relative flex items-center gap-sm mx-2 my-0.5 px-2.5 py-1.5 rounded-md transition-all duration-150"
+                            style={{
+                              background: active
+                                ? (isDark
+                                    ? `linear-gradient(90deg, color-mix(in srgb, ${item.color} 14%, transparent), transparent 80%)`
+                                    : 'rgba(255,255,255,.18)')
+                                : 'transparent',
+                              color: active ? itemActiveColor : itemColor,
+                              boxShadow: active && isDark
+                                ? `inset 3px 0 0 ${item.color}`
+                                : active && !isDark
+                                ? 'inset 3px 0 0 #fff'
+                                : 'none',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!active) {
+                                e.currentTarget.style.background = isDark ? 'rgba(255,255,255,.035)' : 'rgba(255,255,255,.08)'
+                                e.currentTarget.style.color = itemHoverColor
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!active) {
+                                e.currentTarget.style.background = 'transparent'
+                                e.currentTarget.style.color = itemColor
+                              }
+                            }}
+                          >
+                            {/* Pastille colorée à gauche pour item actif (en plus du shadow inset) */}
+                            <div
+                              className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 transition-all"
+                              style={{
+                                background: active
+                                  ? `color-mix(in srgb, ${item.color} 22%, transparent)`
+                                  : 'transparent',
+                                color: active ? item.color : 'currentColor',
+                              }}
+                            >
+                              <Icon size={14} strokeWidth={2.2} />
+                            </div>
+                            <span
+                              className={cn(
+                                'text-[12.5px] flex-1 truncate transition-all',
+                                active ? 'font-semibold tracking-tight' : 'font-medium'
+                              )}
+                            >
+                              {item.label}
+                            </span>
+                            {active && (
+                              <motion.span
+                                layoutId="active-dot"
+                                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                style={{
+                                  background: item.color,
+                                  boxShadow: `0 0 8px ${item.color}`,
+                                }}
+                              />
+                            )}
+                          </Link>
+                        )
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )
+          })}
         </div>
 
-        {/* ── Boutons Fixe / Réduire ── */}
-        <div style={{ padding: collapsed ? '8px 10px' : '8px 10px', borderTop: `1px solid ${dividerColor}`, flexShrink: 0, position: 'relative', zIndex: 1, display: 'flex', gap: 4 }}>
+        {/* ═══════════ FOOTER (Pin / Collapse) ═══════════ */}
+        <div
+          className="flex-shrink-0 relative z-[1] flex gap-1"
+          style={{ padding: '10px 12px', borderTop: `1px solid ${dividerColor}` }}
+        >
           {collapsed ? (
-            <button onClick={toggleCollapse} title="Étendre" style={{ flex: 1, padding: '7px', border: `1px solid ${pinBorder}`, borderRadius: 8, background: pinBg, color: pinColor, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              ›
+            <button
+              onClick={toggleCollapse}
+              title="Étendre"
+              className="flex-1 h-9 rounded-md flex items-center justify-center transition-all"
+              style={{
+                background: 'rgba(255,255,255,.04)',
+                border: `1px solid ${dividerColor}`,
+                color: sectionLabel,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = isDark ? 'rgba(0,232,122,.08)' : 'rgba(255,255,255,.12)'
+                e.currentTarget.style.color = isDark ? 'var(--neon)' : '#fff'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,.04)'
+                e.currentTarget.style.color = sectionLabel
+              }}
+            >
+              <PanelLeftOpen size={14} strokeWidth={2.2} />
             </button>
           ) : (
             <>
-              <button onClick={togglePin} title={pinned ? 'Déséépingler' : 'Épingler'} style={{ flex: 1, padding: '7px 6px', border: `1px solid ${pinned ? pinBorder : pinBorder}`, borderRadius: 8, background: pinned ? pinActiveBg : pinBg, color: pinned ? pinActiveColor : pinColor, fontSize: 10, fontFamily: 'var(--font-mono)', cursor: 'pointer', letterSpacing: .5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                {pinned ? '📌' : '📌'} {pinned ? 'FIXE' : 'FIXE'}
+              <button
+                onClick={togglePin}
+                title={pinned ? 'Désépingler' : 'Épingler'}
+                className="flex-1 h-7 rounded-md flex items-center justify-center gap-1.5 text-[9px] font-mono uppercase tracking-wider transition-all"
+                style={{
+                  background: pinned
+                    ? (isDark ? 'rgba(0,232,122,.14)' : 'rgba(255,255,255,.18)')
+                    : 'rgba(255,255,255,.04)',
+                  border: `1px solid ${pinned ? (isDark ? 'rgba(0,232,122,.3)' : 'rgba(255,255,255,.25)') : dividerColor}`,
+                  color: pinned ? (isDark ? 'var(--neon)' : '#fff') : sectionLabel,
+                }}
+              >
+                {pinned ? <Pin size={10} strokeWidth={2.4} /> : <PinOff size={10} strokeWidth={2.4} />}
+                Fixé
               </button>
-              <button onClick={toggleCollapse} title="Réduire" style={{ flex: 1, padding: '7px 6px', border: `1px solid ${pinBorder}`, borderRadius: 8, background: pinBg, color: pinColor, fontSize: 10, fontFamily: 'var(--font-mono)', cursor: 'pointer', letterSpacing: .5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                ‹ RÉD.
+              <button
+                onClick={toggleCollapse}
+                title="Réduire"
+                className="flex-1 h-7 rounded-md flex items-center justify-center gap-1.5 text-[9px] font-mono uppercase tracking-wider transition-all"
+                style={{
+                  background: 'rgba(255,255,255,.04)',
+                  border: `1px solid ${dividerColor}`,
+                  color: sectionLabel,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = isDark ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.12)'
+                  e.currentTarget.style.color = isDark ? '#e8f5ee' : '#fff'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,.04)'
+                  e.currentTarget.style.color = sectionLabel
+                }}
+              >
+                <PanelLeftClose size={10} strokeWidth={2.4} />
+                Réduire
               </button>
             </>
           )}
         </div>
-      </aside>
+      </motion.aside>
     </>
   )
 }
