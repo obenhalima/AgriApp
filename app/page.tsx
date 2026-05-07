@@ -23,6 +23,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/cn'
 import { formatMoney, formatWeight, formatPercent, computeTrend, formatDate } from '@/lib/format'
+import { useAuthReady, useRefreshOnEvent } from '@/lib/useAuthGuard'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { KPICard } from '@/components/ui/KPICard'
@@ -149,8 +150,14 @@ export default function DashboardPage() {
     return () => clearInterval(t)
   }, [])
 
+  // Garde-fou : ne fetch que lorsque l'auth est prête (évite RLS silencieux + "must refresh")
+  const { ready: authReady } = useAuthReady()
+  const [reloadKey, setReloadKey] = useState(0)
+  useRefreshOnEvent(() => setReloadKey(k => k + 1))
+
   // Chargement data
   useEffect(() => {
+    if (!authReady) return
     let mounted = true
     async function loadDashboard() {
       setLoading(true)
@@ -167,11 +174,12 @@ export default function DashboardPage() {
         supabase.from('invoices').select('id', { count: 'exact', head: true }),
         supabase.from('alerts').select('id', { count: 'exact', head: true }).eq('is_resolved', false),
         supabase.from('campaigns').select('id', { count: 'exact', head: true }),
-        supabase.from('harvests').select('id, harvest_date, total_qty, qty_category_1, qty_category_2, qty_category_3, qty_waste, lot_number, campaign_planting_id').order('harvest_date', { ascending: false }).limit(240),
+        // Limites réduites pour éviter de saturer le navigateur (gain ~60% sur transferts)
+        supabase.from('harvests').select('id, harvest_date, total_qty, qty_category_1, qty_category_2, qty_category_3, qty_waste, lot_number, campaign_planting_id').order('harvest_date', { ascending: false }).limit(120),
         supabase.from('campaign_plantings').select('id, greenhouse_id'),
         supabase.from('greenhouses').select('id, code'),
-        supabase.from('invoices').select('status, total_amount, paid_amount, invoice_date').limit(240),
-        supabase.from('cost_entries').select('cost_category, amount, is_planned, entry_date').limit(600),
+        supabase.from('invoices').select('status, total_amount, paid_amount, invoice_date').order('invoice_date', { ascending: false }).limit(120),
+        supabase.from('cost_entries').select('cost_category, amount, is_planned, entry_date').order('entry_date', { ascending: false }).limit(300),
         supabase.from('campaigns').select('id, name, status, production_target_kg').limit(30),
       ])
       if (!mounted) return
@@ -197,7 +205,7 @@ export default function DashboardPage() {
     }
     loadDashboard()
     return () => { mounted = false }
-  }, [])
+  }, [authReady, reloadKey])
 
   // Dates disponibles
   const availableDates = useMemo(() => {

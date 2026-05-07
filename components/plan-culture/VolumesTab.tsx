@@ -51,7 +51,7 @@ export function VolumesTab(props: { rows: PlantingRow[]; campaign: Campaign; loa
 
   // ─── Export Excel formaté ───
   const exportExcel = async () => {
-    const wb = createWorkbook()
+    const wb = await createWorkbook()
     const ws = wb.addWorksheet('Volumes')
 
     const axisLabel = AXIS_LABELS[axis]

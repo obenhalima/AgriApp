@@ -1,22 +1,17 @@
 /**
  * Helpers d'export Excel formaté (couleurs, bordures, polices) avec ExcelJS.
  *
- * Convention de couleur en cellule :
- *   - Header           : fond violet foncé, texte blanc, gras
- *   - Sous-header      : fond gris clair, texte gris foncé, gras
- *   - Catégorie root   : fond légèrement teinté selon le type (produit/charge…)
- *   - Synthèse         : fond plus marqué + bordure top épaisse
- *   - Mois passés      : fond neutre · Mois futurs : fond ambré léger
- *   - Négatifs         : couleur rouge + format comptable (parenthèses)
+ * ExcelJS (~500KB) est lazy-loadé pour ne pas plomber le bundle initial.
+ * Le module n'est chargé que lorsque createWorkbook() est appelé.
  *
  * Usage :
- *   const wb = createWorkbook()
+ *   const wb = await createWorkbook()                  // ⚠ async maintenant
  *   const ws = wb.addWorksheet('CPC')
  *   applyTitleRow(ws, 'COMPTE D'EXPLOITATION', totalCols)
  *   ...
  *   await downloadWorkbook(wb, 'CPC_2025-2026.xlsx')
  */
-import ExcelJS from 'exceljs'
+import type ExcelJS from 'exceljs'
 
 // ─── Palette (ARGB hex sans #, format ExcelJS) ───────────────────────────────
 export const XLS_COLORS = {
@@ -77,9 +72,22 @@ export const PCT_FMT = '+0.0%;-0.0%;"—"'
 /** Format entier avec milliers */
 export const INT_FMT = '#,##0;[Red](#,##0);"—"'
 
-// ─── Création workbook ───────────────────────────────────────────────────────
-export function createWorkbook(): ExcelJS.Workbook {
-  const wb = new ExcelJS.Workbook()
+// ─── Création workbook (lazy-load ExcelJS) ──────────────────────────────────
+// Maintenant async pour permettre le code-splitting d'ExcelJS (~500KB).
+let _ExcelJSModule: any = null
+async function getExcelJS(): Promise<any> {
+  if (!_ExcelJSModule) {
+    const mod: any = await import('exceljs')
+    // Compat CJS/ESM : exceljs est livré en CJS, son export par défaut peut être
+    // soit `mod.default` (interop ESM) soit `mod` lui-même selon le bundler.
+    _ExcelJSModule = mod.default ?? mod
+  }
+  return _ExcelJSModule
+}
+
+export async function createWorkbook(): Promise<ExcelJS.Workbook> {
+  const ExcelJSMod = await getExcelJS()
+  const wb = new ExcelJSMod.Workbook() as ExcelJS.Workbook
   wb.creator = 'FramPilot'
   wb.created = new Date()
   return wb

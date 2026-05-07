@@ -9,7 +9,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, Sun, Moon, LogOut, ChevronRight, HelpCircle, Plus, Activity,
-  ChevronDown,
+  ChevronDown, RefreshCw,
 } from 'lucide-react'
 
 import { getTheme, setTheme } from '@/lib/theme'
@@ -29,6 +29,16 @@ export function Topbar() {
   const [theme, setThemeState] = useState<'dark' | 'light'>('light')
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [isMac, setIsMac] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const handleRefresh = () => {
+    setRefreshing(true)
+    // 1. Force le re-rendu côté React (réexécute les useEffect via une nouvelle clé)
+    router.refresh()
+    // 2. Notifie les pages qui veulent recharger leurs données client-side
+    window.dispatchEvent(new CustomEvent('app:refresh-data'))
+    setTimeout(() => setRefreshing(false), 700)
+  }
 
   useEffect(() => {
     setThemeState(getTheme())
@@ -147,6 +157,23 @@ export function Topbar() {
           title="Recherche"
         >
           <Search size={14} strokeWidth={2.2} />
+        </button>
+
+        {/* Refresh data */}
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          title="Rafraîchir les données de la page"
+          className={cn(
+            'w-8 h-8 rounded-md',
+            'border border-border bg-surface-sunk/50 text-fg-tertiary',
+            'flex items-center justify-center',
+            'hover:bg-surface-hover hover:text-fg-secondary',
+            'transition-all duration-150',
+            refreshing && 'opacity-60'
+          )}
+        >
+          <RefreshCw size={14} strokeWidth={2.2} className={refreshing ? 'animate-spin' : ''} />
         </button>
 
         {/* Live badge */}

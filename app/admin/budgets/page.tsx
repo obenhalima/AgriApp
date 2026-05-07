@@ -268,7 +268,7 @@ export default function BudgetsAdminPage() {
     const totalCols = 1 + months.length + 1   // Catégorie + N mois + TOTAL
     const tree = buildTree(categories.filter(c => c.is_active))
 
-    const wb = createWorkbook()
+    const wb = await createWorkbook()
 
     // Helper : remplit une feuille avec la grille budget pour un set de lignes
     const fillBudgetSheet = (ws: import('exceljs').Worksheet, lines: BudgetLine[], scopeLbl: string) => {

@@ -59,7 +59,7 @@ export function PlanTab(props: { rows: PlantingRow[]; campaign: Campaign; loadin
 
   // ─── Export Excel formaté ───
   const exportExcel = async () => {
-    const wb = createWorkbook()
+    const wb = await createWorkbook()
     const ws = wb.addWorksheet('Plan de culture')
 
     const headers = [
