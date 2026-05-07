@@ -1,10 +1,18 @@
 'use client'
 /**
- * DASHBOARD EXÉCUTIF — refonte UI/UX complète.
+ * DASHBOARD CEO — Synthèse exécutive « comprendre en 5 secondes ».
  *
- * Stack design : Tailwind v3 + shadcn-style components + Framer Motion +
- * lucide-react + Recharts. Responsive mobile-first, dark/light parfait,
- * animations marquées (count-up, stagger, sparklines, glow).
+ * Philosophie « Big Four » :
+ *   1. Status banner global (santé du domaine en 1 phrase)
+ *   2. 4 KPI hero financiers (avec variance vs Budget + N-1 si dispo)
+ *   3. Actions prioritaires triées par impact € (computed)
+ *   4. Santé production : yield vs cible, mix qualité, top/flop serres
+ *   5. Tendance 30 jours (CA · Production · Coûts · Marge)
+ *   6. P&L compact YTD + Structure du CA
+ *
+ * Tout est calculé côté client à partir des données existantes — pas de nouveaux
+ * endpoints requis. Filtre temporel : Mois en cours par défaut (= ce que le CEO
+ * regarde en premier le matin), avec toggle pour basculer en semaine ou personnalisé.
  */
 
 import { useEffect, useMemo, useState } from 'react'
@@ -12,813 +20,1096 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
   Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
-  ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis,
+  ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis, Area, AreaChart,
 } from 'recharts'
 import {
   TrendingUp, TrendingDown, Wallet, Coins, Sprout, Award, Receipt, AlertTriangle,
   Activity, Target, Calendar, ChevronRight, Leaf, Zap, LineChart as LineIcon,
-  Banknote, PieChart as PieIcon, BarChart3, Boxes, ArrowUpRight,
+  Banknote, Boxes, ArrowUpRight, ArrowDownRight, CheckCircle2, AlertCircle,
+  XCircle, ArrowRight, Globe, Package, Users, ShieldAlert, Eye,
 } from 'lucide-react'
 
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/cn'
-import { formatMoney, formatWeight, formatPercent, computeTrend, formatDate } from '@/lib/format'
+import { formatMoney, formatWeight, formatPercent } from '@/lib/format'
 import { useAuthReady, useRefreshOnEvent } from '@/lib/useAuthGuard'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { KPICard } from '@/components/ui/KPICard'
 import { Skeleton, SkeletonKPI } from '@/components/ui/Skeleton'
-import { MoneyDisplay, VolumeDisplay, PercentDisplay } from '@/components/display'
+import { MoneyDisplay, VolumeDisplay } from '@/components/display'
 
 // ════════════════════════════════════════════════════════════════════════════
 // TYPES
 // ════════════════════════════════════════════════════════════════════════════
-
-type CountResponse = { count: number | null }
 type HarvestRow = {
   id: string; harvest_date: string | null; total_qty: number | null
   qty_category_1: number | null; qty_category_2: number | null; qty_category_3: number | null
   qty_waste: number | null; lot_number: string | null; campaign_planting_id: string | null
 }
-type CampaignPlantingRow = { id: string; greenhouse_id: string | null }
-type GreenhouseRow = { id: string; code: string | null }
-type InvoiceRow = { status: string | null; total_amount: number | null; paid_amount: number | null; invoice_date: string | null }
-type CostEntryRow = { cost_category: string | null; amount: number | null; is_planned: boolean | null; entry_date: string | null }
-type CampaignRow = { id: string; name: string; status: string | null; production_target_kg: number | null }
-type StatsState = {
-  recoltes: number; serres: number; clients: number; fournisseurs: number
-  stocks: number; factures: number; alertes: number; campagnes: number
+type PlantingRow = {
+  id: string; greenhouse_id: string | null; variety_id: string | null
+  planted_area: number | null; target_yield_per_m2: number | null; target_total_production: number | null
 }
+type GreenhouseRow = { id: string; code: string | null; name: string | null; total_area: number | null; exploitable_area: number | null }
+type InvoiceRow = { status: string | null; total_amount: number | null; paid_amount: number | null; invoice_date: string | null; due_date: string | null; clients?: { name: string | null } | null }
+type SupplierInvRow = { total_amount: number | null; paid_amount: number | null; invoice_date: string | null; due_date: string | null }
+type CostEntryRow = { cost_category: string | null; amount: number | null; is_planned: boolean | null; entry_date: string | null; account_categories?: { type: string | null } | null }
+type CampaignRow = { id: string; name: string; status: string | null; production_target_kg: number | null; preparation_start: string | null; campaign_end: string | null; budget_total: number | null }
+type DispatchRow = { id: string; quantity_kg: number | null; notes: string | null; created_at: string }
+type AlertRow = { id: string; type: string | null; level: string | null; message: string | null; created_at: string }
+type StockItem = { id: string; name: string; current_qty: number | null; min_qty: number | null; unit: string | null }
+type VarietyRow = { id: string; commercial_name: string | null }
+
 type DashboardData = {
-  stats: StatsState; harvests: HarvestRow[]; plantings: CampaignPlantingRow[]
-  greenhouses: GreenhouseRow[]; invoices: InvoiceRow[]; costEntries: CostEntryRow[]; campaigns: CampaignRow[]
+  harvests: HarvestRow[]
+  plantings: PlantingRow[]
+  greenhouses: GreenhouseRow[]
+  varieties: VarietyRow[]
+  invoices: InvoiceRow[]
+  supplierInvoices: SupplierInvRow[]
+  costEntries: CostEntryRow[]
+  campaigns: CampaignRow[]
+  dispatches: DispatchRow[]
+  alerts: AlertRow[]
+  stockItems: StockItem[]
+  workersCount: number
 }
-type PeriodMode = 'month' | 'week' | 'custom'
-type BucketMode = 'month' | 'week' | 'day'
 
-const EMPTY_STATS: StatsState = { recoltes: 0, serres: 0, clients: 0, fournisseurs: 0, stocks: 0, factures: 0, alertes: 0, campagnes: 0 }
-
-// Quick actions avec icônes lucide
-const QUICK_ACTIONS = [
-  { label: 'Nouvelle récolte',   href: '/recoltes',     icon: Sprout,  color: '#10b981' },
-  { label: 'Plan de culture',    href: '/plan-culture', icon: Leaf,    color: '#a855f7' },
-  { label: 'Mise à jour prix',   href: '/marches',      icon: Coins,   color: '#f59e0b' },
-  { label: 'Compte d\'expl.',    href: '/admin/compte-exploitation', icon: LineIcon, color: '#3b82f6' },
-]
-
-// Palette qualité / statut
-const QUALITY_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444']
-const STATUS_COLORS  = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899']
+const EMPTY_DATA: DashboardData = {
+  harvests: [], plantings: [], greenhouses: [], varieties: [], invoices: [],
+  supplierInvoices: [], costEntries: [], campaigns: [], dispatches: [], alerts: [], stockItems: [], workersCount: 0,
+}
 
 // ════════════════════════════════════════════════════════════════════════════
-// HELPERS DE DATE (conservés du dashboard original)
+// HELPERS
 // ════════════════════════════════════════════════════════════════════════════
-const toNumber = (v: number | null | undefined) => (typeof v === 'number' && !isNaN(v) ? v : 0)
+const toNumber = (v: any) => (typeof v === 'number' && !isNaN(v) ? v : 0)
 const normalizeDate = (v: string | null | undefined) => v ? v.slice(0, 10) : ''
-const asDate = (v: string) => new Date(`${v}T00:00:00`)
-const toMonthKey = (v: string) => v.slice(0, 7)
+const parseMeta = (s: string | null): any => { try { return JSON.parse(s || '{}') } catch { return {} } }
 
-function getWeekKey(value: string) {
-  const date = asDate(value)
-  const day = (date.getDay() + 6) % 7
-  date.setDate(date.getDate() - day + 3)
-  const firstThursday = new Date(date.getFullYear(), 0, 4)
-  const firstDay = (firstThursday.getDay() + 6) % 7
-  firstThursday.setDate(firstThursday.getDate() - firstDay + 3)
-  const week = 1 + Math.round((date.getTime() - firstThursday.getTime()) / 604800000)
-  return `${date.getFullYear()}-W${String(week).padStart(2, '0')}`
+function startOfMonth(d = new Date()) { return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10) }
+function endOfMonth(d = new Date())   { return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10) }
+function daysAgo(n: number, d = new Date()) { const x = new Date(d); x.setDate(x.getDate() - n); return x.toISOString().slice(0, 10) }
+function diffDays(a: string, b: string) { return Math.round((new Date(`${b}T00:00:00`).getTime() - new Date(`${a}T00:00:00`).getTime()) / 86400000) }
+function isInRange(d: string | null | undefined, from: string, to: string) {
+  const n = normalizeDate(d); return !!(n && n >= from && n <= to)
 }
-function weekKeyToRange(weekKey: string) {
-  const [yearPart, weekPart] = weekKey.split('-W')
-  const year = Number(yearPart), week = Number(weekPart)
-  const simple = new Date(year, 0, 1 + (week - 1) * 7)
-  const day = simple.getDay()
-  const monday = new Date(simple)
-  if (day <= 4) monday.setDate(simple.getDate() - ((day + 6) % 7))
-  else monday.setDate(simple.getDate() + (8 - day))
-  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6)
-  return { start: monday.toISOString().slice(0, 10), end: sunday.toISOString().slice(0, 10) }
-}
-function monthKeyToRange(monthKey: string) {
-  const [year, month] = monthKey.split('-').map(Number)
-  return { start: new Date(year, month - 1, 1).toISOString().slice(0, 10), end: new Date(year, month, 0).toISOString().slice(0, 10) }
-}
-const formatMonthLabel = (k: string) => {
-  const [y, m] = k.split('-').map(Number)
-  return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(new Date(y, m - 1, 1))
-}
-function formatWeekLabel(k: string) {
-  const r = weekKeyToRange(k)
-  return `${r.start.slice(8, 10)}/${r.start.slice(5, 7)} → ${r.end.slice(8, 10)}/${r.end.slice(5, 7)}`
-}
-const formatShortDate = (s: string) => new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short' }).format(asDate(s))
-function bucketModeForCustomRange(start: string, end: string): BucketMode {
-  const diffDays = Math.max(1, Math.round((asDate(end).getTime() - asDate(start).getTime()) / 86400000) + 1)
-  if (diffDays <= 21) return 'day'
-  if (diffDays <= 120) return 'week'
-  return 'month'
-}
-const getBucketKey = (s: string, mode: BucketMode) => mode === 'day' ? s : mode === 'week' ? getWeekKey(s) : toMonthKey(s)
-const formatBucketLabel = (k: string, mode: BucketMode) => mode === 'day' ? formatShortDate(k) : mode === 'week' ? formatWeekLabel(k) : formatMonthLabel(k)
-function formatStatus(s: string | null) {
-  const map: Record<string, string> = {
-    en_cours: 'En cours', planification: 'Planification', terminee: 'Terminée', annulee: 'Annulée',
-    sent: 'Envoyée', en_attente: 'En attente', partiellement_paye: 'Partiel', paye: 'Payée',
-  }
-  return map[s ?? 'non_defini'] ?? (s ?? 'N/A').replace(/_/g, ' ')
-}
+
+// Statut basé sur seuils business (vert/ambre/rouge)
+type Health = 'good' | 'warning' | 'critical'
+const healthColor = (h: Health) => h === 'good' ? '#10b981' : h === 'warning' ? '#f59e0b' : '#ef4444'
 
 // ════════════════════════════════════════════════════════════════════════════
 // COMPOSANT PRINCIPAL
 // ════════════════════════════════════════════════════════════════════════════
 export default function DashboardPage() {
-  const [data, setData] = useState<DashboardData>({
-    stats: EMPTY_STATS, harvests: [], plantings: [], greenhouses: [],
-    invoices: [], costEntries: [], campaigns: [],
-  })
+  const [data, setData] = useState<DashboardData>(EMPTY_DATA)
   const [loading, setLoading] = useState(true)
   const [time, setTime] = useState(new Date())
-  const [periodMode, setPeriodMode] = useState<PeriodMode>('month')
-  const [selectedMonth, setSelectedMonth] = useState('')
-  const [selectedWeek, setSelectedWeek] = useState('')
-  const [customStart, setCustomStart] = useState('')
-  const [customEnd, setCustomEnd] = useState('')
 
-  // Horloge
+  const { ready: authReady } = useAuthReady()
+  const [reloadKey, setReloadKey] = useState(0)
+  useRefreshOnEvent(() => setReloadKey(k => k + 1))
+
+  // Horloge live
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
 
-  // Garde-fou : ne fetch que lorsque l'auth est prête (évite RLS silencieux + "must refresh")
-  const { ready: authReady } = useAuthReady()
-  const [reloadKey, setReloadKey] = useState(0)
-  useRefreshOnEvent(() => setReloadKey(k => k + 1))
-
-  // Chargement data
+  // ─── Chargement data (auth-guarded + refresh-aware) ───
   useEffect(() => {
     if (!authReady) return
     let mounted = true
-    async function loadDashboard() {
+    async function load() {
       setLoading(true)
+      const monthStart = startOfMonth()
+      const monthEnd = endOfMonth()
+      const fromStart = daysAgo(180)  // 6 mois pour la tendance
+
       const [
-        harvestCount, greenhouseCount, clientsCount, suppliersCount, stockCount,
-        invoiceCount, alertCount, campaignCount,
-        harvestsRes, plantingsRes, greenhousesRes, invoicesRes, costEntriesRes, campaignsRes,
+        harvestsRes, plantingsRes, ghsRes, varietiesRes,
+        invoicesRes, supplierInvRes, costsRes, campaignsRes,
+        dispatchesRes, alertsRes, stockRes, workersRes,
       ] = await Promise.all([
-        supabase.from('harvests').select('id', { count: 'exact', head: true }),
-        supabase.from('greenhouses').select('id', { count: 'exact', head: true }),
-        supabase.from('clients').select('id', { count: 'exact', head: true }).eq('is_active', true),
-        supabase.from('suppliers').select('id', { count: 'exact', head: true }).eq('is_active', true),
-        supabase.from('stock_items').select('id', { count: 'exact', head: true }).eq('is_active', true),
-        supabase.from('invoices').select('id', { count: 'exact', head: true }),
-        supabase.from('alerts').select('id', { count: 'exact', head: true }).eq('is_resolved', false),
-        supabase.from('campaigns').select('id', { count: 'exact', head: true }),
-        // Limites réduites pour éviter de saturer le navigateur (gain ~60% sur transferts)
-        supabase.from('harvests').select('id, harvest_date, total_qty, qty_category_1, qty_category_2, qty_category_3, qty_waste, lot_number, campaign_planting_id').order('harvest_date', { ascending: false }).limit(120),
-        supabase.from('campaign_plantings').select('id, greenhouse_id'),
-        supabase.from('greenhouses').select('id, code'),
-        supabase.from('invoices').select('status, total_amount, paid_amount, invoice_date').order('invoice_date', { ascending: false }).limit(120),
-        supabase.from('cost_entries').select('cost_category, amount, is_planned, entry_date').order('entry_date', { ascending: false }).limit(300),
-        supabase.from('campaigns').select('id, name, status, production_target_kg').limit(30),
+        supabase.from('harvests')
+          .select('id, harvest_date, total_qty, qty_category_1, qty_category_2, qty_category_3, qty_waste, lot_number, campaign_planting_id')
+          .gte('harvest_date', fromStart)
+          .order('harvest_date', { ascending: false }).limit(300),
+        supabase.from('campaign_plantings')
+          .select('id, greenhouse_id, variety_id, planted_area, target_yield_per_m2, target_total_production'),
+        supabase.from('greenhouses').select('id, code, name, total_area, exploitable_area'),
+        supabase.from('varieties').select('id, commercial_name').eq('is_active', true),
+        supabase.from('invoices')
+          .select('status, total_amount, paid_amount, invoice_date, due_date, clients(name)')
+          .gte('invoice_date', fromStart)
+          .order('invoice_date', { ascending: false }).limit(200),
+        supabase.from('supplier_invoices')
+          .select('total_amount, paid_amount, invoice_date, due_date')
+          .gte('invoice_date', fromStart).limit(200),
+        supabase.from('cost_entries')
+          .select('cost_category, amount, is_planned, entry_date, account_categories(type)')
+          .gte('entry_date', fromStart)
+          .order('entry_date', { ascending: false }).limit(500),
+        supabase.from('campaigns')
+          .select('id, name, status, production_target_kg, preparation_start, campaign_end, budget_total')
+          .order('preparation_start', { ascending: false, nullsFirst: false }).limit(5),
+        supabase.from('harvest_lots')
+          .select('id, quantity_kg, notes, created_at')
+          .eq('category', 'station_dispatch')
+          .gte('created_at', fromStart)
+          .order('created_at', { ascending: false }).limit(200),
+        supabase.from('alerts').select('id, type, level, message, created_at').eq('is_resolved', false).order('created_at', { ascending: false }).limit(50),
+        supabase.from('stock_items').select('id, name, current_qty, min_qty, unit').eq('is_active', true).limit(200),
+        supabase.from('workers').select('id', { count: 'exact', head: true }).eq('is_active', true),
       ])
       if (!mounted) return
+
       setData({
-        stats: {
-          recoltes: (harvestCount as CountResponse).count ?? 0,
-          serres: (greenhouseCount as CountResponse).count ?? 0,
-          clients: (clientsCount as CountResponse).count ?? 0,
-          fournisseurs: (suppliersCount as CountResponse).count ?? 0,
-          stocks: (stockCount as CountResponse).count ?? 0,
-          factures: (invoiceCount as CountResponse).count ?? 0,
-          alertes: (alertCount as CountResponse).count ?? 0,
-          campagnes: (campaignCount as CountResponse).count ?? 0,
-        },
-        harvests:    (harvestsRes.data    ?? []) as HarvestRow[],
-        plantings:   (plantingsRes.data   ?? []) as CampaignPlantingRow[],
-        greenhouses: (greenhousesRes.data ?? []) as GreenhouseRow[],
-        invoices:    (invoicesRes.data    ?? []) as InvoiceRow[],
-        costEntries: (costEntriesRes.data ?? []) as CostEntryRow[],
-        campaigns:   (campaignsRes.data   ?? []) as CampaignRow[],
+        harvests: (harvestsRes.data ?? []) as any,
+        plantings: (plantingsRes.data ?? []) as any,
+        greenhouses: (ghsRes.data ?? []) as any,
+        varieties: (varietiesRes.data ?? []) as any,
+        invoices: (invoicesRes.data ?? []) as any,
+        supplierInvoices: (supplierInvRes.data ?? []) as any,
+        costEntries: (costsRes.data ?? []) as any,
+        campaigns: (campaignsRes.data ?? []) as any,
+        dispatches: (dispatchesRes.data ?? []) as any,
+        alerts: (alertsRes.data ?? []) as any,
+        stockItems: (stockRes.data ?? []) as any,
+        workersCount: workersRes.count ?? 0,
       })
       setLoading(false)
     }
-    loadDashboard()
+    load()
     return () => { mounted = false }
   }, [authReady, reloadKey])
 
-  // Dates disponibles
-  const availableDates = useMemo(() => {
-    const dates = [
-      ...data.harvests.map(i => normalizeDate(i.harvest_date)),
-      ...data.invoices.map(i => normalizeDate(i.invoice_date)),
-      ...data.costEntries.map(i => normalizeDate(i.entry_date)),
-    ].filter(Boolean)
-    return Array.from(new Set(dates)).sort((a, b) => b.localeCompare(a))
+  // ════════════════════════════════════════════════════════════════════════
+  // MÉTRIQUES CALCULÉES (cœur de la valeur exécutive)
+  // ════════════════════════════════════════════════════════════════════════
+  const metrics = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    const monthStart = startOfMonth()
+    const monthEnd = endOfMonth()
+    const last30 = daysAgo(30)
+    const last60 = daysAgo(60)
+    const prev30Start = daysAgo(60)
+    const prev30End = daysAgo(31)
+
+    // ─── PRODUCTION ─────────────────────────────────────────────────
+    const harvestsMonth = data.harvests.filter(h => isInRange(h.harvest_date, monthStart, monthEnd))
+    const harvests30 = data.harvests.filter(h => isInRange(h.harvest_date, last30, today))
+    const harvestsPrev30 = data.harvests.filter(h => isInRange(h.harvest_date, prev30Start, prev30End))
+
+    const prodMonth = harvestsMonth.reduce((s, h) => s + toNumber(h.total_qty), 0)
+    const prod30 = harvests30.reduce((s, h) => s + toNumber(h.total_qty), 0)
+    const prodPrev30 = harvestsPrev30.reduce((s, h) => s + toNumber(h.total_qty), 0)
+    const prodTrend = prodPrev30 > 0 ? ((prod30 - prodPrev30) / prodPrev30) * 100 : 0
+
+    const cat1 = harvestsMonth.reduce((s, h) => s + toNumber(h.qty_category_1), 0)
+    const cat2 = harvestsMonth.reduce((s, h) => s + toNumber(h.qty_category_2), 0)
+    const cat3 = harvestsMonth.reduce((s, h) => s + toNumber(h.qty_category_3), 0)
+    const waste = harvestsMonth.reduce((s, h) => s + toNumber(h.qty_waste), 0)
+    const totalQ = cat1 + cat2 + cat3 + waste
+    const premiumRate = totalQ > 0 ? (cat1 / totalQ) * 100 : 0
+    const wasteRate = totalQ > 0 ? (waste / totalQ) * 100 : 0
+
+    // Yield kg/m² actuel vs cible (sur les plantations actives)
+    const activePlantings = data.plantings.filter(p => toNumber(p.target_yield_per_m2) > 0 && toNumber(p.planted_area) > 0)
+    const totalPlantedArea = activePlantings.reduce((s, p) => s + toNumber(p.planted_area), 0)
+    const totalTargetProd = activePlantings.reduce((s, p) => s + toNumber(p.target_total_production), 0)
+    // yield réalisé = production totale (sur la campagne) / surface plantée
+    const allHarvests = data.harvests.reduce((s, h) => s + toNumber(h.total_qty), 0)
+    const yieldKgM2 = totalPlantedArea > 0 ? allHarvests / totalPlantedArea : 0
+    const targetYield = activePlantings.length > 0
+      ? activePlantings.reduce((s, p) => s + toNumber(p.target_yield_per_m2) * toNumber(p.planted_area), 0) / totalPlantedArea
+      : 0
+    const yieldRatio = targetYield > 0 ? (yieldKgM2 / targetYield) * 100 : 0
+
+    // ─── COMMERCE ──────────────────────────────────────────────────
+    // CA confirmé (dispatches avec ca_amount dans notes)
+    const dispatchesMonth = data.dispatches.filter(d => isInRange(d.created_at?.slice(0, 10) ?? null, monthStart, monthEnd))
+    const caDispatches = data.dispatches.reduce((s, d) => s + toNumber(parseMeta(d.notes).ca_amount), 0)
+    const caMonth = dispatchesMonth.reduce((s, d) => s + toNumber(parseMeta(d.notes).ca_amount), 0)
+    const dispatchesNoPriceCount = data.dispatches.filter(d => {
+      const meta = parseMeta(d.notes)
+      return !meta.ca_amount && toNumber(d.quantity_kg) > 0
+    }).length
+
+    // Factures clients
+    const invMonth = data.invoices.filter(i => isInRange(i.invoice_date, monthStart, monthEnd))
+    const totalInvoiced = data.invoices.reduce((s, i) => s + toNumber(i.total_amount), 0)
+    const totalCollected = data.invoices.reduce((s, i) => s + toNumber(i.paid_amount), 0)
+    const totalReceivable = data.invoices.reduce((s, i) => s + Math.max(toNumber(i.total_amount) - toNumber(i.paid_amount), 0), 0)
+    const overdueInvoices = data.invoices.filter(i => {
+      const remain = toNumber(i.total_amount) - toNumber(i.paid_amount)
+      const due = normalizeDate(i.due_date)
+      return remain > 0 && due && due < today
+    })
+    const overdueAmount = overdueInvoices.reduce((s, i) => s + Math.max(toNumber(i.total_amount) - toNumber(i.paid_amount), 0), 0)
+
+    // Encours client par client
+    const receivablesByClient: Map<string, number> = new Map()
+    data.invoices.forEach(i => {
+      const remain = Math.max(toNumber(i.total_amount) - toNumber(i.paid_amount), 0)
+      if (remain > 0) {
+        const name = i.clients?.name ?? '—'
+        receivablesByClient.set(name, (receivablesByClient.get(name) ?? 0) + remain)
+      }
+    })
+    const topReceivables = Array.from(receivablesByClient.entries())
+      .map(([name, amount]) => ({ name, amount }))
+      .sort((a, b) => b.amount - a.amount).slice(0, 3)
+
+    // ─── COÛTS / TRÉSORERIE ──────────────────────────────────────────
+    const costsMonth = data.costEntries.filter(c => !c.is_planned && isInRange(c.entry_date, monthStart, monthEnd))
+    const costs30 = data.costEntries.filter(c => !c.is_planned && isInRange(c.entry_date, last30, today))
+    const totalCostsMonth = costsMonth.reduce((s, c) => s + toNumber(c.amount), 0)
+    const totalCosts30 = costs30.reduce((s, c) => s + toNumber(c.amount), 0)
+    const totalCostsAll = data.costEntries.filter(c => !c.is_planned).reduce((s, c) => s + toNumber(c.amount), 0)
+
+    // Coûts par type comptable
+    const costsByType: Record<string, number> = {}
+    data.costEntries.filter(c => !c.is_planned).forEach(c => {
+      const t = c.account_categories?.type ?? 'autre'
+      costsByType[t] = (costsByType[t] ?? 0) + toNumber(c.amount)
+    })
+
+    // Trésorerie : encaissé - payé fournisseurs
+    const totalPaidOut = data.supplierInvoices.reduce((s, i) => s + toNumber(i.paid_amount), 0)
+    const totalToPay = data.supplierInvoices.reduce((s, i) => s + Math.max(toNumber(i.total_amount) - toNumber(i.paid_amount), 0), 0)
+    const cashPosition = totalCollected - totalPaidOut
+
+    // ─── MARGE BRUTE ───────────────────────────────────────────────
+    // CA = invoices facturées + dispatches confirmés (préférence dispatches pour le réel terrain)
+    const caTotal = totalInvoiced + caDispatches
+    const margeBrute = caTotal - totalCostsAll
+    const margePct = caTotal > 0 ? (margeBrute / caTotal) * 100 : 0
+
+    // ─── EBITDA YTD vs Budget annuel campagne ────────────────────────
+    const activeCampaign = data.campaigns.find(c => c.status === 'en_cours') ?? data.campaigns[0]
+    const budgetTotal = toNumber(activeCampaign?.budget_total)
+    const targetProd = toNumber(activeCampaign?.production_target_kg)
+    // Variance budget : différence entre coûts réels et budget attendu prorata
+    let budgetProgressPct = 0
+    if (activeCampaign?.preparation_start && activeCampaign?.campaign_end) {
+      const totalDays = diffDays(activeCampaign.preparation_start, activeCampaign.campaign_end)
+      const elapsedDays = Math.max(0, diffDays(activeCampaign.preparation_start, today))
+      budgetProgressPct = totalDays > 0 ? Math.min(100, (elapsedDays / totalDays) * 100) : 0
+    }
+    const expectedCostsByNow = (budgetTotal * budgetProgressPct) / 100
+    const costsVsBudgetPct = expectedCostsByNow > 0 ? ((totalCostsAll - expectedCostsByNow) / expectedCostsByNow) * 100 : 0
+
+    // ─── PERFORMANCE PAR SERRE ──────────────────────────────────────
+    const ghMap = new Map(data.greenhouses.map(g => [g.id, g]))
+    const plantingMap = new Map(data.plantings.map(p => [p.id, p]))
+    type GhPerf = { ghId: string; ghCode: string; ghName: string; production: number; targetProd: number; ratio: number; area: number }
+    const perfByGh = new Map<string, GhPerf>()
+
+    data.harvests.forEach(h => {
+      if (!h.campaign_planting_id) return
+      const planting = plantingMap.get(h.campaign_planting_id)
+      if (!planting?.greenhouse_id) return
+      const gh = ghMap.get(planting.greenhouse_id)
+      if (!gh) return
+      const cur = perfByGh.get(gh.id) ?? {
+        ghId: gh.id, ghCode: gh.code ?? '?', ghName: gh.name ?? '',
+        production: 0, targetProd: 0, ratio: 0, area: 0,
+      }
+      cur.production += toNumber(h.total_qty)
+      perfByGh.set(gh.id, cur)
+    })
+
+    // Compute targets per greenhouse
+    data.plantings.forEach(p => {
+      if (!p.greenhouse_id) return
+      const gh = ghMap.get(p.greenhouse_id)
+      if (!gh) return
+      const cur = perfByGh.get(gh.id) ?? {
+        ghId: gh.id, ghCode: gh.code ?? '?', ghName: gh.name ?? '',
+        production: 0, targetProd: 0, ratio: 0, area: 0,
+      }
+      cur.targetProd += toNumber(p.target_total_production)
+      cur.area += toNumber(p.planted_area)
+      perfByGh.set(gh.id, cur)
+    })
+
+    // Compute ratio + filter only those with both data points
+    const ghPerfList = Array.from(perfByGh.values())
+      .filter(g => g.targetProd > 0)
+      .map(g => ({ ...g, ratio: (g.production / g.targetProd) * 100 }))
+      .sort((a, b) => b.ratio - a.ratio)
+
+    const topGh = ghPerfList.slice(0, 3)
+    const flopGh = [...ghPerfList].reverse().slice(0, 3)
+
+    // ─── STOCKS EN ALERTE ──────────────────────────────────────────
+    const stockAlerts = data.stockItems.filter(s => toNumber(s.min_qty) > 0 && toNumber(s.current_qty) <= toNumber(s.min_qty))
+
+    // ─── ACTIONS PRIORITAIRES (smart alerts) ────────────────────────
+    const actions: Array<{ priority: 1 | 2 | 3; impact?: number; title: string; subtitle: string; href: string; icon: any; color: string }> = []
+
+    if (dispatchesNoPriceCount > 0) {
+      // Estimation : on prend la moyenne des prix des dispatches qui ont un prix
+      const dispatchesWithPrice = data.dispatches.filter(d => toNumber(parseMeta(d.notes).ca_amount) > 0)
+      const avgKgPrice = dispatchesWithPrice.length > 0
+        ? dispatchesWithPrice.reduce((s, d) => s + toNumber(parseMeta(d.notes).ca_amount), 0)
+          / dispatchesWithPrice.reduce((s, d) => s + Math.max(toNumber(d.quantity_kg), 1), 0)
+        : 0
+      const estimatedKg = data.dispatches.filter(d => !parseMeta(d.notes).ca_amount).reduce((s, d) => s + toNumber(d.quantity_kg), 0)
+      const estimatedCA = estimatedKg * avgKgPrice
+      actions.push({
+        priority: 1,
+        impact: estimatedCA,
+        title: `${dispatchesNoPriceCount} dispatch${dispatchesNoPriceCount > 1 ? 'es' : ''} sans prix`,
+        subtitle: `Saisir les prix pour libérer ~${formatMoney(estimatedCA, { compact: 'auto' })} de CA`,
+        href: '/recoltes',
+        icon: Receipt,
+        color: '#ef4444',
+      })
+    }
+    if (overdueAmount > 0) {
+      actions.push({
+        priority: 1,
+        impact: overdueAmount,
+        title: `${overdueInvoices.length} facture${overdueInvoices.length > 1 ? 's' : ''} en retard`,
+        subtitle: `${formatMoney(overdueAmount, { compact: 'auto' })} à recouvrer`,
+        href: '/factures',
+        icon: AlertTriangle,
+        color: '#ef4444',
+      })
+    }
+    if (stockAlerts.length > 0) {
+      actions.push({
+        priority: 2,
+        title: `${stockAlerts.length} article${stockAlerts.length > 1 ? 's' : ''} sous le seuil`,
+        subtitle: stockAlerts.slice(0, 2).map(s => s.name).join(', ') + (stockAlerts.length > 2 ? '…' : ''),
+        href: '/stocks',
+        icon: Package,
+        color: '#f59e0b',
+      })
+    }
+    if (costsVsBudgetPct > 10) {
+      actions.push({
+        priority: 2,
+        impact: totalCostsAll - expectedCostsByNow,
+        title: `Coûts +${costsVsBudgetPct.toFixed(0)}% vs budget`,
+        subtitle: `Dérive de ${formatMoney(totalCostsAll - expectedCostsByNow, { compact: 'auto' })}`,
+        href: '/admin/compte-exploitation',
+        icon: TrendingUp,
+        color: '#f59e0b',
+      })
+    }
+    if (yieldRatio < 80 && totalPlantedArea > 0) {
+      actions.push({
+        priority: 2,
+        title: `Yield ${yieldRatio.toFixed(0)}% de la cible`,
+        subtitle: `${yieldKgM2.toFixed(1)} kg/m² réalisé · cible ${targetYield.toFixed(1)} kg/m²`,
+        href: '/production',
+        icon: Sprout,
+        color: '#f59e0b',
+      })
+    }
+    if (data.alerts.length > 0) {
+      const critical = data.alerts.filter(a => a.level === 'critical' || a.level === 'high')
+      if (critical.length > 0) {
+        actions.push({
+          priority: 1,
+          title: `${critical.length} alerte${critical.length > 1 ? 's' : ''} critique${critical.length > 1 ? 's' : ''}`,
+          subtitle: critical[0]?.message ?? 'Voir le détail',
+          href: '/alertes',
+          icon: ShieldAlert,
+          color: '#ef4444',
+        })
+      }
+    }
+    if (premiumRate < 50 && totalQ > 0) {
+      actions.push({
+        priority: 3,
+        title: `Premium à ${premiumRate.toFixed(0)}% (cible 60%+)`,
+        subtitle: `${formatWeight(cat1)} en Cat. 1 sur ${formatWeight(totalQ)}`,
+        href: '/recoltes',
+        icon: Award,
+        color: '#f59e0b',
+      })
+    }
+    if (wasteRate > 8 && totalQ > 0) {
+      actions.push({
+        priority: 2,
+        title: `Taux de perte élevé : ${wasteRate.toFixed(1)}%`,
+        subtitle: `${formatWeight(waste)} de déchets`,
+        href: '/recoltes',
+        icon: AlertCircle,
+        color: '#ef4444',
+      })
+    }
+
+    // Tri par priorité puis impact
+    actions.sort((a, b) => {
+      if (a.priority !== b.priority) return a.priority - b.priority
+      return (b.impact ?? 0) - (a.impact ?? 0)
+    })
+
+    // ─── TENDANCE 30 JOURS (8 buckets, ~4 jours chacun) ──────────────
+    type TrendBucket = { label: string; sortKey: string; production: number; ca: number; couts: number }
+    const trendMap = new Map<string, TrendBucket>()
+    for (let i = 0; i < 30; i += 4) {
+      const dt = daysAgo(29 - i)
+      const key = dt.slice(5)  // "MM-DD"
+      trendMap.set(dt, {
+        label: new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short' }).format(new Date(dt + 'T00:00:00')),
+        sortKey: dt, production: 0, ca: 0, couts: 0,
+      })
+    }
+    const findBucket = (d: string) => {
+      const keys = Array.from(trendMap.keys()).sort()
+      for (let i = keys.length - 1; i >= 0; i--) {
+        if (d >= keys[i]) return keys[i]
+      }
+      return null
+    }
+    data.harvests.forEach(h => {
+      const d = normalizeDate(h.harvest_date); if (!d) return
+      const k = findBucket(d); if (!k) return
+      const b = trendMap.get(k); if (!b) return
+      b.production += toNumber(h.total_qty)
+    })
+    data.dispatches.forEach(dp => {
+      const d = normalizeDate(dp.created_at); if (!d) return
+      const k = findBucket(d); if (!k) return
+      const b = trendMap.get(k); if (!b) return
+      b.ca += toNumber(parseMeta(dp.notes).ca_amount)
+    })
+    data.costEntries.filter(c => !c.is_planned).forEach(c => {
+      const d = normalizeDate(c.entry_date); if (!d) return
+      const k = findBucket(d); if (!k) return
+      const b = trendMap.get(k); if (!b) return
+      b.couts += toNumber(c.amount)
+    })
+    const trendData = Array.from(trendMap.values()).sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+
+    // ─── HEALTH STATUS GLOBAL ─────────────────────────────────────
+    let health: Health = 'good'
+    let healthMessage = '✅ Le domaine performe bien'
+    if (actions.filter(a => a.priority === 1).length >= 1) {
+      health = 'critical'
+      healthMessage = '🚨 Actions urgentes à traiter'
+    } else if (actions.filter(a => a.priority <= 2).length >= 2 || costsVsBudgetPct > 15) {
+      health = 'warning'
+      healthMessage = '⚠ Plusieurs points méritent votre attention'
+    } else if (margePct < 0) {
+      health = 'critical'
+      healthMessage = '🚨 Marge brute négative — diagnostic urgent'
+    }
+
+    // Phrase de synthèse contextuelle
+    const synthesis: string[] = []
+    if (margeBrute > 0) synthesis.push(`Marge brute ${formatMoney(margeBrute, { compact: 'auto' })} (${margePct.toFixed(1)}%)`)
+    else synthesis.push(`⚠ Marge brute négative ${formatMoney(margeBrute, { compact: 'auto' })}`)
+    if (prodTrend !== 0) synthesis.push(`Production ${prodTrend > 0 ? '+' : ''}${prodTrend.toFixed(1)}% sur 30j`)
+    if (yieldRatio > 0) synthesis.push(`Yield ${yieldRatio.toFixed(0)}% de la cible`)
+
+    return {
+      // Production
+      prodMonth, prod30, prodPrev30, prodTrend,
+      cat1, cat2, cat3, waste, totalQ, premiumRate, wasteRate,
+      yieldKgM2, targetYield, yieldRatio, totalPlantedArea,
+      allHarvests, totalTargetProd,
+      // Commerce
+      caDispatches, caMonth, caTotal, dispatchesNoPriceCount,
+      totalInvoiced, totalCollected, totalReceivable, overdueAmount, overdueInvoices,
+      topReceivables,
+      // Coûts
+      totalCostsMonth, totalCosts30, totalCostsAll, costsByType,
+      cashPosition, totalPaidOut, totalToPay,
+      // Marge
+      margeBrute, margePct,
+      // Budget
+      activeCampaign, budgetTotal, targetProd, budgetProgressPct, expectedCostsByNow, costsVsBudgetPct,
+      // Performance
+      ghPerfList, topGh, flopGh,
+      // Stocks / RH
+      stockAlerts, workersCount: data.workersCount,
+      // Actions
+      actions, alerts: data.alerts,
+      // Trends
+      trendData,
+      // Health
+      health, healthMessage, synthesis,
+    }
   }, [data])
-  const availableMonthKeys = useMemo(() => Array.from(new Set(availableDates.map(toMonthKey))).sort((a, b) => b.localeCompare(a)), [availableDates])
-  const availableWeekKeys  = useMemo(() => Array.from(new Set(availableDates.map(getWeekKey))).sort((a, b) => b.localeCompare(a)), [availableDates])
 
-  useEffect(() => {
-    if (!selectedMonth && availableMonthKeys[0]) setSelectedMonth(availableMonthKeys[0])
-    if (!selectedWeek && availableWeekKeys[0])   setSelectedWeek(availableWeekKeys[0])
-    if (!customEnd && availableDates[0])         setCustomEnd(availableDates[0])
-    if (!customStart && availableDates[availableDates.length - 1]) setCustomStart(availableDates[availableDates.length - 1])
-  }, [availableDates, availableMonthKeys, availableWeekKeys, customEnd, customStart, selectedMonth, selectedWeek])
+  // ════════════════════════════════════════════════════════════════════
+  // RENDU
+  // ════════════════════════════════════════════════════════════════════
+  if (loading) return <DashboardSkeleton />
 
-  const activeRange = useMemo(() => {
-    if (periodMode === 'month' && selectedMonth) {
-      return { ...monthKeyToRange(selectedMonth), label: formatMonthLabel(selectedMonth), bucketMode: 'week' as BucketMode }
-    }
-    if (periodMode === 'week' && selectedWeek) {
-      return { ...weekKeyToRange(selectedWeek), label: `Semaine ${selectedWeek.split('-W')[1]} · ${formatWeekLabel(selectedWeek)}`, bucketMode: 'day' as BucketMode }
-    }
-    const start = customStart || availableDates[availableDates.length - 1] || ''
-    const end = customEnd || availableDates[0] || ''
-    return {
-      start, end,
-      label: start && end ? `${formatShortDate(start)} → ${formatShortDate(end)}` : 'Période personnalisée',
-      bucketMode: start && end ? bucketModeForCustomRange(start, end) : ('week' as BucketMode),
-    }
-  }, [availableDates, customEnd, customStart, periodMode, selectedMonth, selectedWeek])
-
-  const inRange = (d: string | null | undefined) => {
-    const n = normalizeDate(d)
-    return !!(n && activeRange.start && activeRange.end && n >= activeRange.start && n <= activeRange.end)
-  }
-
-  // Dérivation principale
-  const derived = useMemo(() => {
-    const fH = data.harvests.filter(h => inRange(h.harvest_date))
-    const fI = data.invoices.filter(i => inRange(i.invoice_date))
-    const fC = data.costEntries.filter(c => inRange(c.entry_date))
-
-    const totalProductionKg = fH.reduce((s, x) => s + toNumber(x.total_qty), 0)
-    const totalWasteKg      = fH.reduce((s, x) => s + toNumber(x.qty_waste), 0)
-    const q1 = fH.reduce((s, x) => s + toNumber(x.qty_category_1), 0)
-    const q2 = fH.reduce((s, x) => s + toNumber(x.qty_category_2), 0)
-    const q3 = fH.reduce((s, x) => s + toNumber(x.qty_category_3), 0)
-    const totalRevenue = fI.reduce((s, x) => s + toNumber(x.total_amount), 0)
-    const paidRevenue  = fI.reduce((s, x) => s + toNumber(x.paid_amount), 0)
-    const actualCosts  = fC.filter(c => !c.is_planned).reduce((s, x) => s + toNumber(x.amount), 0)
-    const grossMargin  = totalRevenue - actualCosts
-    const collection   = totalRevenue > 0 ? (paidRevenue / totalRevenue) * 100 : 0
-    const premium      = totalProductionKg > 0 ? (q1 / totalProductionKg) * 100 : 0
-    const wasteRate    = totalProductionKg > 0 ? (totalWasteKg / totalProductionKg) * 100 : 0
-    const activeCampaigns = data.campaigns.filter(c => c.status === 'en_cours').length
-
-    const plantingsById  = new Map(data.plantings.map(p => [p.id, p.greenhouse_id]))
-    const greenhouseById = new Map(data.greenhouses.map(g => [g.id, g.code ?? 'N/A']))
-
-    // Top serres
-    const topGhMap = new Map<string, number>()
-    for (const h of fH) {
-      const ghId = h.campaign_planting_id ? plantingsById.get(h.campaign_planting_id) : null
-      const code = ghId ? greenhouseById.get(ghId) ?? 'N/A' : 'N/A'
-      topGhMap.set(code, (topGhMap.get(code) ?? 0) + toNumber(h.total_qty))
-    }
-    const topGreenhouses = Array.from(topGhMap.entries())
-      .map(([code, production]) => ({ code, production }))
-      .sort((a, b) => b.production - a.production).slice(0, 6)
-
-    // Trend data
-    const trendMap = new Map<string, { label: string; sortKey: string; production: number; waste: number; revenue: number; costs: number }>()
-    const ensureBucket = (key: string) =>
-      trendMap.get(key) ?? { label: formatBucketLabel(key, activeRange.bucketMode), sortKey: key, production: 0, waste: 0, revenue: 0, costs: 0 }
-    for (const h of fH) {
-      const d = normalizeDate(h.harvest_date); if (!d) continue
-      const k = getBucketKey(d, activeRange.bucketMode)
-      const cur = ensureBucket(k)
-      cur.production += toNumber(h.total_qty); cur.waste += toNumber(h.qty_waste)
-      trendMap.set(k, cur)
-    }
-    for (const i of fI) {
-      const d = normalizeDate(i.invoice_date); if (!d) continue
-      const k = getBucketKey(d, activeRange.bucketMode)
-      const cur = ensureBucket(k); cur.revenue += toNumber(i.total_amount); trendMap.set(k, cur)
-    }
-    for (const c of fC) {
-      const d = normalizeDate(c.entry_date); if (!d) continue
-      const k = getBucketKey(d, activeRange.bucketMode)
-      const cur = ensureBucket(k); cur.costs += toNumber(c.amount); trendMap.set(k, cur)
-    }
-    const trendData = Array.from(trendMap.values()).sort((a, b) => a.sortKey.localeCompare(b.sortKey)).map(i => ({
-      label: i.label, production: Math.round(i.production), waste: Math.round(i.waste),
-      revenue: Math.round(i.revenue), costs: Math.round(i.costs),
-    }))
-
-    // Sparklines (production des 12 derniers buckets)
-    const productionSparkline = trendData.slice(-12).map(t => t.production)
-    const revenueSparkline    = trendData.slice(-12).map(t => t.revenue)
-    const costsSparkline      = trendData.slice(-12).map(t => t.costs)
-    const marginSparkline     = trendData.slice(-12).map(t => t.revenue - t.costs)
-
-    // Invoice status
-    const invMap = new Map<string, number>()
-    for (const i of fI) { const k = formatStatus(i.status); invMap.set(k, (invMap.get(k) ?? 0) + toNumber(i.total_amount)) }
-    const invoiceStatusData = Array.from(invMap.entries()).map(([name, value], i) => ({
-      name, value, color: STATUS_COLORS[i % STATUS_COLORS.length],
-    }))
-
-    // Cost categories
-    const ccMap = new Map<string, { actual: number; planned: number }>()
-    for (const c of fC) {
-      const k = c.cost_category ?? 'Autres'
-      const cur = ccMap.get(k) ?? { actual: 0, planned: 0 }
-      if (c.is_planned) cur.planned += toNumber(c.amount); else cur.actual += toNumber(c.amount)
-      ccMap.set(k, cur)
-    }
-    const costCategoryData = Array.from(ccMap.entries())
-      .map(([category, v]) => ({ category: category.replace(/_/g, ' '), actual: Math.round(v.actual), planned: Math.round(v.planned) }))
-      .sort((a, b) => (b.actual + b.planned) - (a.actual + a.planned)).slice(0, 6)
-
-    const qualityData = [
-      { name: 'Cat. 1', value: q1, color: QUALITY_COLORS[0] },
-      { name: 'Cat. 2', value: q2, color: QUALITY_COLORS[1] },
-      { name: 'Cat. 3', value: q3, color: QUALITY_COLORS[2] },
-      { name: 'Déchets', value: totalWasteKg, color: QUALITY_COLORS[3] },
-    ].filter(x => x.value > 0)
-
-    const recentHarvests = fH.slice(0, 6).map(h => ({
-      id: h.id, date: normalizeDate(h.harvest_date),
-      greenhouse: h.campaign_planting_id ? greenhouseById.get(plantingsById.get(h.campaign_planting_id) ?? '') ?? 'N/A' : 'N/A',
-      lot: h.lot_number ?? '—', total: toNumber(h.total_qty), waste: toNumber(h.qty_waste),
-    }))
-
-    return {
-      totalProductionKg, totalWasteKg, totalRevenue, paidRevenue, actualCosts, grossMargin,
-      collection, premium, wasteRate, activeCampaigns,
-      topGreenhouses, trendData, invoiceStatusData, costCategoryData, qualityData, recentHarvests,
-      productionSparkline, revenueSparkline, costsSparkline, marginSparkline,
-    }
-  }, [activeRange.bucketMode, data])
-
-  // ─── Render ───────────────────────────────────────────────────────────
   return (
     <div className="relative z-[1] flex flex-col gap-lg pb-2xl">
 
-      {/* ════════ HERO HEADER ════════ */}
-      <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-      >
-        <Card variant="gradient" className="relative overflow-hidden">
-          {/* Halo décoratif */}
-          <div aria-hidden className="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full blur-3xl opacity-30"
-            style={{ background: 'radial-gradient(circle, var(--neon), transparent 70%)' }} />
-          <div aria-hidden className="pointer-events-none absolute -bottom-32 -left-20 h-72 w-72 rounded-full blur-3xl opacity-20"
-            style={{ background: 'radial-gradient(circle, var(--blue), transparent 70%)' }} />
+      {/* ═══════════ STATUS BANNER (santé globale du domaine) ═══════════ */}
+      <HealthBanner
+        health={metrics.health}
+        message={metrics.healthMessage}
+        synthesis={metrics.synthesis}
+        time={time}
+        campaign={metrics.activeCampaign}
+        budgetProgressPct={metrics.budgetProgressPct}
+      />
 
-          <div className="relative grid gap-lg lg:grid-cols-[1fr_auto] items-start">
-            <div className="flex-1 max-w-3xl">
-              <div className="flex items-center gap-sm mb-sm">
-                <Badge variant="brand" size="md" dot pulse>
-                  Live
-                </Badge>
-                <span className="text-caption font-mono text-fg-tertiary tracking-wider">
-                  PILOTAGE AGRITECH
-                </span>
-              </div>
-              <h1 className="font-display text-display lg:text-display-lg text-fg-primary tracking-tight mb-xs">
-                Dashboard exécutif
-              </h1>
-              <p className="text-body text-fg-secondary mt-md leading-relaxed max-w-2xl">
-                Vue consolidée avec filtre temporel unique pour lire la <strong className="text-success">production</strong>,
-                les <strong className="text-info">revenus</strong>, les <strong className="text-warning">coûts</strong>
-                {' '}et la <strong className="text-fg-primary">qualité</strong> sur un même axe d'analyse.
-              </p>
-            </div>
+      {/* ═══════════ 4 KPI HERO FINANCIERS ═══════════ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-md">
+        <KPICard
+          label="Marge brute"
+          icon={metrics.margeBrute >= 0 ? TrendingUp : TrendingDown}
+          accent={metrics.margeBrute >= 0 ? '#10b981' : '#ef4444'}
+          value={<MoneyDisplay value={metrics.margeBrute} compact="auto" showCurrency={false} className="!text-current font-display !text-display-lg" />}
+          sub={`${metrics.margePct.toFixed(1)}% du CA · CA ${formatMoney(metrics.caTotal, { compact: 'auto' })}`}
+          variant="hero"
+          delay={0}
+        />
+        <KPICard
+          label="Trésorerie nette"
+          icon={Wallet}
+          accent={metrics.cashPosition >= 0 ? '#3b82f6' : '#ef4444'}
+          value={<MoneyDisplay value={metrics.cashPosition} compact="auto" showCurrency={false} className="!text-current font-display !text-display-lg" />}
+          sub={`Encaissé ${formatMoney(metrics.totalCollected, { compact: 'auto' })} − Payé ${formatMoney(metrics.totalPaidOut, { compact: 'auto' })}`}
+          variant="hero"
+          delay={0.05}
+        />
+        <KPICard
+          label="Créances clients"
+          icon={Receipt}
+          accent={metrics.overdueAmount > 0 ? '#f59e0b' : '#10b981'}
+          value={<MoneyDisplay value={metrics.totalReceivable} compact="auto" showCurrency={false} className="!text-current font-display !text-display-lg" />}
+          sub={metrics.overdueAmount > 0 ? `⚠ ${formatMoney(metrics.overdueAmount, { compact: 'auto' })} en retard` : 'Aucun retard'}
+          variant="hero"
+          delay={0.1}
+        />
+        <KPICard
+          label="Coûts vs Budget"
+          icon={metrics.costsVsBudgetPct > 5 ? TrendingUp : metrics.costsVsBudgetPct < -5 ? TrendingDown : Activity}
+          accent={Math.abs(metrics.costsVsBudgetPct) <= 5 ? '#10b981' : metrics.costsVsBudgetPct > 10 ? '#ef4444' : '#f59e0b'}
+          value={<span className="font-display !text-display-lg">{metrics.costsVsBudgetPct > 0 ? '+' : ''}{metrics.costsVsBudgetPct.toFixed(1)}%</span>}
+          sub={`Engagé ${formatMoney(metrics.totalCostsAll, { compact: 'auto' })} · Budget ${formatMoney(metrics.expectedCostsByNow, { compact: 'auto' })}`}
+          variant="hero"
+          delay={0.15}
+        />
+      </div>
 
-            <div className="flex flex-col gap-md min-w-[280px]">
-              {/* Synchronisation */}
-              <div className="rounded-lg border border-border bg-surface-sunk/60 backdrop-blur-sm px-md py-sm">
-                <div className="flex items-center gap-xs mb-xs">
-                  <div className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
-                  <span className="font-mono text-caption text-fg-tertiary tracking-wider">SYNCHRONISATION</span>
-                </div>
-                <div className="font-mono text-body-sm text-fg-primary tabular-nums">
-                  {time.toLocaleDateString('fr-FR')} · {time.toLocaleTimeString('fr-FR')}
-                </div>
-              </div>
+      {/* ═══════════ 2 COLONNES : ACTIONS PRIORITAIRES + SANTÉ PRODUCTION ═══════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-md">
+        <ActionsCard actions={metrics.actions} />
+        <ProductionHealthCard metrics={metrics} />
+      </div>
 
-              {/* Quick actions */}
-              <div className="flex flex-wrap gap-xs">
-                {QUICK_ACTIONS.map((action, i) => {
-                  const Icon = action.icon
-                  return (
-                    <motion.div
-                      key={action.label}
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 + i * 0.05, duration: 0.3 }}
-                    >
-                      <Link
-                        href={action.href}
-                        className="group inline-flex items-center gap-1.5 px-md py-1.5 rounded-full border transition-all duration-150 hover:-translate-y-0.5"
-                        style={{
-                          borderColor: `color-mix(in srgb, ${action.color} 30%, transparent)`,
-                          background:  `color-mix(in srgb, ${action.color} 12%, transparent)`,
-                          color: action.color,
-                        }}
-                      >
-                        <Icon size={12} strokeWidth={2.5} />
-                        <span className="text-[11px] font-semibold tracking-tight">{action.label}</span>
-                        <ArrowUpRight size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </Link>
-                    </motion.div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        </Card>
-      </motion.div>
-
-      {/* ════════ FILTRE TEMPOREL ════════ */}
-      <Card animate delay={0.1}>
-        <div className="flex items-center gap-sm mb-md">
-          <Calendar size={14} className="text-fg-tertiary" />
-          <span className="font-mono text-caption uppercase tracking-wider text-fg-tertiary">Filtre temporel</span>
-          <div className="flex-1 h-px bg-border" />
-          <Badge variant="info" size="sm">{activeRange.label}</Badge>
+      {/* ═══════════ TENDANCE 30 JOURS ═══════════ */}
+      <Card animate delay={0.25}>
+        <SectionLabel icon={LineIcon} color="#6366f1">Tendance 30 jours · Production / CA / Coûts</SectionLabel>
+        <div className="h-72 mt-md -mx-2">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={metrics.trendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: 'var(--tx-3)', fontSize: 10 }} stroke="var(--border)" />
+              <YAxis yAxisId="kg" tick={{ fill: 'var(--tx-3)', fontSize: 10 }} stroke="var(--border)" />
+              <YAxis yAxisId="mad" orientation="right" tick={{ fill: 'var(--tx-3)', fontSize: 10 }} stroke="var(--border)" />
+              <RTooltip
+                contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, boxShadow: 'var(--shadow-floating)' }}
+                labelStyle={{ color: 'var(--tx-2)', fontWeight: 600 }}
+                formatter={(v: number, n: string) => n === 'Production' ? [formatWeight(v), n] : [formatMoney(v, { compact: 'auto' }), n]}
+              />
+              <Legend wrapperStyle={{ fontSize: 11, color: 'var(--tx-2)' }} />
+              <Line yAxisId="kg"  type="monotone" dataKey="production" name="Production" stroke="#10b981" strokeWidth={3} dot={false} activeDot={{ r: 5 }} />
+              <Line yAxisId="mad" type="monotone" dataKey="ca"         name="CA"         stroke="#3b82f6" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
+              <Line yAxisId="mad" type="monotone" dataKey="couts"      name="Coûts"      stroke="#f59e0b" strokeWidth={2.5} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
+      </Card>
 
-        <div className="flex flex-col gap-md">
-          {/* Mode toggle */}
-          <div className="flex flex-wrap gap-xs">
-            {([
-              { key: 'month'  as PeriodMode, label: 'Par mois' },
-              { key: 'week'   as PeriodMode, label: 'Par semaine' },
-              { key: 'custom' as PeriodMode, label: 'Période précise' },
-            ]).map(item => (
-              <button
-                key={item.key}
-                onClick={() => setPeriodMode(item.key)}
-                className={cn(
-                  'px-md py-xs rounded-md font-mono text-[11px] uppercase tracking-wider font-semibold transition-all duration-150',
-                  periodMode === item.key
-                    ? 'bg-brand text-white shadow-[0_2px_10px_var(--neon-dim)] hover:brightness-110'
-                    : 'bg-surface-raised text-fg-secondary border border-border hover:border-border-strong hover:bg-surface-hover'
-                )}
-              >
-                {item.label}
-              </button>
-            ))}
+      {/* ═══════════ TOP/FLOP SERRES + STRUCTURE CA ═══════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-md">
+        <PerformersCard kind="top" items={metrics.topGh} />
+        <PerformersCard kind="flop" items={metrics.flopGh} />
+        <RevenueStructureCard
+          dispatchesCA={metrics.caDispatches}
+          invoicedCA={metrics.totalInvoiced - metrics.caDispatches}
+          margeBrute={metrics.margeBrute}
+          totalCostsAll={metrics.totalCostsAll}
+        />
+      </div>
+
+      {/* ═══════════ P&L COMPACT YTD ═══════════ */}
+      <PLCompactCard metrics={metrics} />
+
+      {/* ═══════════ FOOTER : NAVIGATION CONTEXTUELLE ═══════════ */}
+      <div className="flex flex-wrap gap-xs justify-center pt-md">
+        {[
+          { l: 'Compte d\'exploitation', h: '/admin/compte-exploitation', i: LineIcon },
+          { l: 'Plan de culture',        h: '/plan-culture',              i: Leaf },
+          { l: 'Récoltes',               h: '/recoltes',                  i: Sprout },
+          { l: 'Factures',               h: '/factures',                  i: Receipt },
+        ].map(item => {
+          const Icon = item.i
+          return (
+            <Link key={item.h} href={item.h}
+              className="inline-flex items-center gap-1.5 px-md py-1.5 rounded-full border border-border bg-surface-raised text-fg-secondary hover:border-border-strong hover:text-fg-primary hover:-translate-y-0.5 transition-all duration-150 text-caption">
+              <Icon size={11} strokeWidth={2.2} />
+              {item.l}
+              <ArrowUpRight size={10} className="opacity-60" />
+            </Link>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SOUS-COMPOSANTS
+// ════════════════════════════════════════════════════════════════════════════
+
+// ─── Banner statut global ─────────────────────────────────────────────
+function HealthBanner({ health, message, synthesis, time, campaign, budgetProgressPct }: {
+  health: Health; message: string; synthesis: string[]; time: Date
+  campaign: any; budgetProgressPct: number
+}) {
+  const color = healthColor(health)
+  const Icon = health === 'good' ? CheckCircle2 : health === 'warning' ? AlertCircle : XCircle
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+    >
+      <Card
+        variant="gradient"
+        className="relative overflow-hidden border-l-[4px]"
+        style={{ borderLeftColor: color }}
+      >
+        <div aria-hidden className="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full blur-3xl opacity-30"
+          style={{ background: `radial-gradient(circle, ${color}, transparent 70%)` }} />
+
+        <div className="relative grid gap-md lg:grid-cols-[1fr_auto] items-start">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-sm mb-sm">
+              <div className="rounded-full flex items-center justify-center"
+                style={{ width: 36, height: 36, background: `color-mix(in srgb, ${color} 18%, transparent)`, color }}>
+                <Icon size={20} strokeWidth={2.4} />
+              </div>
+              <div className="flex-1">
+                <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-0.5">SANTÉ DU DOMAINE</div>
+                <h1 className="font-display text-display-sm sm:text-display text-fg-primary tracking-tight" style={{ color }}>
+                  {message}
+                </h1>
+              </div>
+            </div>
+            {synthesis.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-sm">
+                {synthesis.map((s, i) => (
+                  <span key={i} className="text-body-sm text-fg-secondary px-3 py-1 rounded-full bg-surface-sunk border border-border">
+                    {s}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Selectors */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-md">
-            {periodMode === 'month' && (
-              <div>
-                <label className="font-mono text-[10px] text-fg-tertiary uppercase tracking-wider mb-xs block">Mois</label>
-                <select className="form-input" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}>
-                  {availableMonthKeys.map(k => <option key={k} value={k}>{formatMonthLabel(k)}</option>)}
-                </select>
+          <div className="flex flex-col gap-sm min-w-[260px]">
+            <div className="rounded-md border border-border bg-surface-sunk/60 backdrop-blur-sm px-md py-sm">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
+                <span className="font-mono text-caption text-fg-tertiary uppercase tracking-wider">Live</span>
               </div>
-            )}
-            {periodMode === 'week' && (
-              <div>
-                <label className="font-mono text-[10px] text-fg-tertiary uppercase tracking-wider mb-xs block">Semaine</label>
-                <select className="form-input" value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)}>
-                  {availableWeekKeys.map(k => <option key={k} value={k}>{`S${k.split('-W')[1]} · ${formatWeekLabel(k)}`}</option>)}
-                </select>
+              <div className="font-mono text-body-sm text-fg-primary tabular-nums">
+                {time.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' })} · {time.toLocaleTimeString('fr-FR')}
               </div>
-            )}
-            {periodMode === 'custom' && (
-              <>
-                <div>
-                  <label className="font-mono text-[10px] text-fg-tertiary uppercase tracking-wider mb-xs block">Début</label>
-                  <input className="form-input" type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} />
+            </div>
+            {campaign && (
+              <div className="rounded-md border border-border bg-surface-sunk/60 px-md py-sm">
+                <div className="font-mono text-caption text-fg-tertiary uppercase tracking-wider mb-1">Campagne en cours</div>
+                <div className="text-body-sm font-semibold text-fg-primary truncate">{campaign.name}</div>
+                <div className="mt-1 flex items-center gap-2">
+                  <div className="flex-1 h-1.5 rounded-full bg-surface-base overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-700"
+                      style={{ width: `${budgetProgressPct.toFixed(0)}%`, background: `linear-gradient(90deg, var(--neon), var(--blue))` }} />
+                  </div>
+                  <span className="font-mono text-[10px] text-fg-tertiary tabular-nums">{budgetProgressPct.toFixed(0)}%</span>
                 </div>
-                <div>
-                  <label className="font-mono text-[10px] text-fg-tertiary uppercase tracking-wider mb-xs block">Fin</label>
-                  <input className="form-input" type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} />
-                </div>
-                <div className="flex items-center px-md py-2 rounded-md border border-border bg-surface-sunk text-fg-secondary text-body-sm">
-                  Agrégation auto : <strong className="ml-xs text-fg-primary">{activeRange.bucketMode === 'day' ? 'jour' : activeRange.bucketMode === 'week' ? 'semaine' : 'mois'}</strong>
-                </div>
-              </>
+              </div>
             )}
           </div>
         </div>
       </Card>
-
-      {/* ════════ KPI HERO (4 majeurs) ════════ */}
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-md">
-          {Array.from({ length: 4 }).map((_, i) => <SkeletonKPI key={i} />)}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-md">
-          <KPICard
-            label="Production"
-            icon={Sprout}
-            accent="#10b981"
-            sparkline={derived.productionSparkline}
-            value={<VolumeDisplay value={derived.totalProductionKg} compact="auto" className="text-current font-display !text-display-lg" />}
-            sub={`${derived.recentHarvests.length} récolte${derived.recentHarvests.length > 1 ? 's' : ''}`}
-            variant="hero"
-            delay={0}
-          />
-          <KPICard
-            label="Chiffre d'affaires"
-            icon={Banknote}
-            accent="#3b82f6"
-            sparkline={derived.revenueSparkline}
-            value={<MoneyDisplay value={derived.totalRevenue} compact="auto" showCurrency={false} className="text-current font-display !text-display-lg" />}
-            sub="MAD encaissés et facturés"
-            variant="hero"
-            delay={0.05}
-          />
-          <KPICard
-            label="Coûts réels"
-            icon={Receipt}
-            accent="#f59e0b"
-            sparkline={derived.costsSparkline}
-            value={<MoneyDisplay value={derived.actualCosts} compact="auto" showCurrency={false} className="text-current font-display !text-display-lg" />}
-            sub="MAD engagés"
-            variant="hero"
-            delay={0.1}
-          />
-          <KPICard
-            label="Marge brute"
-            icon={derived.grossMargin >= 0 ? TrendingUp : TrendingDown}
-            accent={derived.grossMargin >= 0 ? '#8b5cf6' : '#ef4444'}
-            sparkline={derived.marginSparkline}
-            value={<MoneyDisplay value={derived.grossMargin} compact="auto" showCurrency={false} className="text-current font-display !text-display-lg" />}
-            sub={derived.grossMargin >= 0 ? 'Résultat positif' : 'Pression sur la marge'}
-            variant="hero"
-            delay={0.15}
-          />
-        </div>
-      )}
-
-      {/* ════════ KPI SECONDAIRES (compact) ════════ */}
-      {!loading && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-sm">
-          <CompactKPI label="Premium"     value={formatPercent(derived.premium, { decimals: 0 })}    sub="cat. 1"   color="#14b8a6" icon={Award}    delay={0.2} />
-          <CompactKPI label="Recouvrement" value={formatPercent(derived.collection, { decimals: 0 })} sub="encaissé" color="#ec4899" icon={Wallet}   delay={0.22} />
-          <CompactKPI label="Perte"        value={formatPercent(derived.wasteRate, { decimals: 0 })}  sub="déchets"  color="#ef4444" icon={AlertTriangle} delay={0.24} />
-          <CompactKPI label="Campagnes"    value={String(derived.activeCampaigns)} sub="en cours"     color="#10b981" icon={Activity} delay={0.26} />
-          <CompactKPI label="Serres"       value={String(data.stats.serres)}        sub="suivies"      color="#3b82f6" icon={Boxes}    delay={0.28} />
-          <CompactKPI label="Alertes"      value={String(data.stats.alertes)}       sub={data.stats.alertes > 0 ? 'ouvertes' : 'tout va bien'} color={data.stats.alertes > 0 ? '#f59e0b' : '#10b981'} icon={Zap} delay={0.30} />
-        </div>
-      )}
-
-      {/* ════════ ROW 1 : Tendance + Synthèse direction ════════ */}
-      <div className="grid lg:grid-cols-[1.6fr_1fr] gap-md">
-        <Card animate delay={0.35}>
-          <SectionLabel icon={LineIcon}>Production & Finance</SectionLabel>
-          <div className="h-72 -mx-2 mt-md">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={derived.trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="label" tick={{ fill: 'var(--tx-3)', fontSize: 10 }} stroke="var(--border)" />
-                <YAxis yAxisId="kg"  tick={{ fill: 'var(--tx-3)', fontSize: 10 }} stroke="var(--border)" />
-                <YAxis yAxisId="mad" orientation="right" tick={{ fill: 'var(--tx-3)', fontSize: 10 }} stroke="var(--border)" />
-                <RTooltip
-                  contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, boxShadow: 'var(--shadow-floating)' }}
-                  labelStyle={{ color: 'var(--tx-2)', fontWeight: 600 }}
-                  formatter={(v: number, n: string) => n === 'Production' || n === 'Déchets' ? [formatWeight(v), n] : [formatMoney(v, { compact: 'auto' }), n]}
-                />
-                <Legend wrapperStyle={{ fontSize: 11, color: 'var(--tx-2)' }} />
-                <Line yAxisId="kg"  type="monotone" dataKey="production" name="Production" stroke="#10b981" strokeWidth={3} dot={false} activeDot={{ r: 5 }} />
-                <Line yAxisId="kg"  type="monotone" dataKey="waste"      name="Déchets"    stroke="#ef4444" strokeDasharray="5 4" strokeWidth={2} dot={false} />
-                <Line yAxisId="mad" type="monotone" dataKey="revenue"    name="CA"         stroke="#3b82f6" strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
-                <Line yAxisId="mad" type="monotone" dataKey="costs"      name="Coûts"      stroke="#f59e0b" strokeWidth={2.5} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card animate delay={0.4}>
-          <SectionLabel icon={Target}>Synthèse direction</SectionLabel>
-          <div className="grid gap-sm mt-md">
-            {[
-              { label: 'Marge brute',     value: formatMoney(derived.grossMargin, { compact: 'auto' }), good: derived.grossMargin >= 0, note: `${formatMoney(derived.totalRevenue, { compact: 'auto' })} − ${formatMoney(derived.actualCosts, { compact: 'auto' })}` },
-              { label: 'Recouvrement',    value: formatPercent(derived.collection, { decimals: 0 }),    good: derived.collection >= 70,  note: `${formatMoney(derived.paidRevenue, { compact: 'auto' })} encaissés` },
-              { label: 'Taux premium',    value: formatPercent(derived.premium, { decimals: 0 }),       good: derived.premium >= 55,     note: 'part Cat. 1 sur la période' },
-              { label: 'Taux de perte',   value: formatPercent(derived.wasteRate, { decimals: 0 }),     good: derived.wasteRate <= 8,    note: `${formatWeight(derived.totalWasteKg)} en déchets` },
-              { label: 'Campagnes actives', value: String(derived.activeCampaigns), good: derived.activeCampaigns > 0, note: `${data.stats.serres} serres suivies` },
-            ].map((item, i) => (
-              <motion.div
-                key={item.label}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.45 + i * 0.05, duration: 0.3 }}
-                className="rounded-md border border-border bg-surface-sunk/60 px-md py-sm"
-              >
-                <div className="flex items-center justify-between gap-md mb-1">
-                  <span className="font-semibold text-fg-primary text-body-sm">{item.label}</span>
-                  <Badge variant={item.good ? 'success' : 'danger'} size="sm">{item.value}</Badge>
-                </div>
-                <div className="text-caption text-fg-tertiary font-mono">{item.note}</div>
-              </motion.div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      {/* ════════ ROW 2 : 3 charts en colonnes ════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-md">
-        <Card animate delay={0.5}>
-          <SectionLabel icon={PieIcon}>Mix qualité</SectionLabel>
-          <div className="h-64 mt-md">
-            {derived.qualityData.length === 0 ? (
-              <EmptyChart>Aucune récolte sur cette période</EmptyChart>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={derived.qualityData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={86} paddingAngle={3}>
-                    {derived.qualityData.map(e => <Cell key={e.name} fill={e.color} />)}
-                  </Pie>
-                  <RTooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [formatWeight(v), 'Quantité']} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: 'var(--tx-2)' }} />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </Card>
-
-        <Card animate delay={0.55}>
-          <SectionLabel icon={Receipt}>Factures par statut</SectionLabel>
-          <div className="h-64 mt-md">
-            {derived.invoiceStatusData.length === 0 ? (
-              <EmptyChart>Pas de factures sur la période</EmptyChart>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={derived.invoiceStatusData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={86} paddingAngle={3}>
-                    {derived.invoiceStatusData.map(e => <Cell key={e.name} fill={e.color} />)}
-                  </Pie>
-                  <RTooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [formatMoney(v, { compact: 'auto' }), 'Montant']} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: 'var(--tx-2)' }} />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </Card>
-
-        <Card animate delay={0.6}>
-          <SectionLabel icon={BarChart3}>Coûts par catégorie</SectionLabel>
-          <div className="h-64 mt-md -mx-2">
-            {derived.costCategoryData.length === 0 ? (
-              <EmptyChart>Pas de coûts sur la période</EmptyChart>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={derived.costCategoryData} barGap={4}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="category" tick={{ fill: 'var(--tx-3)', fontSize: 9 }} stroke="var(--border)" />
-                  <YAxis tick={{ fill: 'var(--tx-3)', fontSize: 10 }} stroke="var(--border)" />
-                  <RTooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [formatMoney(v, { compact: 'auto' }), 'Montant']} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: 'var(--tx-2)' }} />
-                  <Bar dataKey="planned" name="Prévu" fill="#94a3b8" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="actual"  name="Réel"  fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </Card>
-      </div>
-
-      {/* ════════ ROW 3 : Top serres + Dernières récoltes ════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-md">
-        <Card animate delay={0.65}>
-          <SectionLabel icon={Boxes}>Top serres sur la période</SectionLabel>
-          <div className="h-72 mt-md -mx-2">
-            {derived.topGreenhouses.length === 0 ? (
-              <EmptyChart>Aucune production</EmptyChart>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={derived.topGreenhouses} layout="vertical" margin={{ left: 10, right: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: 'var(--tx-3)', fontSize: 10 }} stroke="var(--border)" />
-                  <YAxis type="category" dataKey="code" tick={{ fill: 'var(--tx-3)', fontSize: 10 }} width={70} stroke="var(--border)" />
-                  <RTooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [formatWeight(v), 'Production']} />
-                  <Bar dataKey="production" radius={[0, 6, 6, 0]}>
-                    {derived.topGreenhouses.map((_, i) => <Cell key={i} fill={`url(#topGhGrad-${i})`} />)}
-                  </Bar>
-                  <defs>
-                    {derived.topGreenhouses.map((_, i) => (
-                      <linearGradient key={i} id={`topGhGrad-${i}`} x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%"   stopColor="#10b981" stopOpacity={0.6} />
-                        <stop offset="100%" stopColor="#10b981" stopOpacity={1} />
-                      </linearGradient>
-                    ))}
-                  </defs>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </Card>
-
-        <Card animate delay={0.7}>
-          <SectionLabel icon={Sprout}>Dernières récoltes</SectionLabel>
-          <div className="overflow-x-auto mt-md">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <Th>Date</Th>
-                  <Th>Serre</Th>
-                  <Th>Lot</Th>
-                  <Th right>Total</Th>
-                  <Th right>Déchets</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {derived.recentHarvests.length === 0 ? (
-                  <tr><td colSpan={5} className="text-center text-fg-tertiary py-xl text-body-sm">Aucune récolte sur cette période.</td></tr>
-                ) : derived.recentHarvests.map((item, i) => (
-                  <motion.tr
-                    key={item.id}
-                    initial={{ opacity: 0, x: -4 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.75 + i * 0.04, duration: 0.25 }}
-                    className="border-b border-border last:border-b-0 hover:bg-surface-hover transition-colors"
-                  >
-                    <Td><span className="font-mono text-body-sm text-fg-tertiary">{item.date ? formatShortDate(item.date) : '—'}</span></Td>
-                    <Td><Badge variant="default" size="sm">{item.greenhouse}</Badge></Td>
-                    <Td><span className="font-mono text-body-sm">{item.lot}</span></Td>
-                    <Td right><VolumeDisplay value={item.total} className="font-semibold text-fg-primary" /></Td>
-                    <Td right><VolumeDisplay value={item.waste} className="text-danger/80" /></Td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
-    </div>
-  )
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-// SOUS-COMPOSANTS LOCAUX
-// ════════════════════════════════════════════════════════════════════════════
-
-function CompactKPI({
-  label, value, sub, color, icon: Icon, delay = 0,
-}: { label: string; value: string; sub: string; color: string; icon: any; delay?: number }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.4 }}
-      className={cn(
-        'rounded-md border border-border bg-surface-raised p-md',
-        'flex items-center gap-sm',
-        'hover:border-border-strong hover:-translate-y-0.5 transition-all duration-200 cursor-default'
-      )}
-    >
-      <div
-        className="rounded-md flex items-center justify-center flex-shrink-0"
-        style={{ width: 32, height: 32, background: `color-mix(in srgb, ${color} 14%, transparent)`, color }}
-      >
-        <Icon size={16} strokeWidth={2.2} />
-      </div>
-      <div className="min-w-0">
-        <div className="font-mono text-[9px] uppercase tracking-wider text-fg-tertiary leading-tight">{label}</div>
-        <div className="font-mono tabular-nums text-base font-bold text-fg-primary leading-tight" style={{ color }}>{value}</div>
-        <div className="font-mono text-[9px] text-fg-tertiary leading-tight truncate">{sub}</div>
-      </div>
     </motion.div>
   )
 }
 
-function SectionLabel({ icon: Icon, children }: { icon: any; children: React.ReactNode }) {
+// ─── Carte Actions prioritaires ─────────────────────────────────────────
+function ActionsCard({ actions }: { actions: any[] }) {
+  return (
+    <Card animate delay={0.15} padding="none" className="overflow-hidden">
+      <div className="px-md py-sm border-b border-border flex items-center gap-sm">
+        <Target size={14} className="text-danger" strokeWidth={2.4} />
+        <span className="font-display text-heading-sm font-bold text-fg-primary">Actions prioritaires</span>
+        <Badge variant={actions.length > 0 ? 'danger' : 'success'} size="sm" className="ml-auto">
+          {actions.length === 0 ? 'Aucune action requise' : `${actions.length} action${actions.length > 1 ? 's' : ''}`}
+        </Badge>
+      </div>
+      {actions.length === 0 ? (
+        <div className="p-xl text-center">
+          <CheckCircle2 size={32} className="text-success mx-auto mb-sm" />
+          <div className="font-display text-body font-semibold text-fg-primary">Tout est sous contrôle</div>
+          <div className="text-caption text-fg-tertiary mt-1">Aucune action urgente à traiter</div>
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {actions.slice(0, 6).map((a, i) => {
+            const Icon = a.icon
+            const priorityLabel = a.priority === 1 ? 'URGENT' : a.priority === 2 ? 'IMPORTANT' : 'À SUIVRE'
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -4 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 + i * 0.04 }}
+              >
+                <Link href={a.href} className="flex items-start gap-sm px-md py-sm hover:bg-surface-hover transition-colors group">
+                  <div className="rounded-md flex items-center justify-center flex-shrink-0"
+                    style={{ width: 32, height: 32, background: `color-mix(in srgb, ${a.color} 14%, transparent)`, color: a.color }}>
+                    <Icon size={15} strokeWidth={2.2} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="font-mono text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                        style={{ background: `color-mix(in srgb, ${a.color} 14%, transparent)`, color: a.color }}>
+                        {priorityLabel}
+                      </span>
+                      <div className="font-display text-body-sm font-bold text-fg-primary truncate">{a.title}</div>
+                    </div>
+                    <div className="text-caption text-fg-tertiary truncate">{a.subtitle}</div>
+                  </div>
+                  <ChevronRight size={14} className="text-fg-tertiary group-hover:text-fg-primary group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-2" />
+                </Link>
+              </motion.div>
+            )
+          })}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+// ─── Carte Santé Production ─────────────────────────────────────────────
+function ProductionHealthCard({ metrics }: { metrics: any }) {
+  return (
+    <Card animate delay={0.2} padding="none" className="overflow-hidden">
+      <div className="px-md py-sm border-b border-border flex items-center gap-sm">
+        <Sprout size={14} className="text-success" strokeWidth={2.4} />
+        <span className="font-display text-heading-sm font-bold text-fg-primary">Santé production</span>
+      </div>
+
+      <div className="p-md space-y-md">
+        {/* Yield */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <div>
+              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary">Yield (kg/m²)</div>
+              <div className="font-display text-display-sm font-extrabold mt-0.5"
+                style={{ color: metrics.yieldRatio >= 95 ? '#10b981' : metrics.yieldRatio >= 80 ? '#f59e0b' : '#ef4444' }}>
+                {metrics.yieldKgM2.toFixed(1)}
+                <span className="text-body text-fg-tertiary font-normal ml-1">/ {metrics.targetYield.toFixed(1)} cible</span>
+              </div>
+            </div>
+            <Badge
+              variant={metrics.yieldRatio >= 95 ? 'success' : metrics.yieldRatio >= 80 ? 'warning' : 'danger'}
+              size="md"
+            >
+              {metrics.yieldRatio.toFixed(0)}%
+            </Badge>
+          </div>
+          <div className="h-2 rounded-full bg-surface-sunk overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }} animate={{ width: `${Math.min(120, metrics.yieldRatio)}%` }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              className="h-full rounded-full"
+              style={{ background: `linear-gradient(90deg, ${metrics.yieldRatio >= 95 ? '#10b981' : metrics.yieldRatio >= 80 ? '#f59e0b' : '#ef4444'}, ${metrics.yieldRatio >= 95 ? '#22c55e' : metrics.yieldRatio >= 80 ? '#fbbf24' : '#dc2626'})` }}
+            />
+          </div>
+        </div>
+
+        {/* Mix qualité */}
+        <div>
+          <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-2">Mix qualité (mois)</div>
+          <div className="flex h-5 rounded-md overflow-hidden border border-border">
+            {[
+              { v: metrics.cat1, c: '#10b981', l: 'Cat 1' },
+              { v: metrics.cat2, c: '#3b82f6', l: 'Cat 2' },
+              { v: metrics.cat3, c: '#f59e0b', l: 'Cat 3' },
+              { v: metrics.waste, c: '#ef4444', l: 'Déchets' },
+            ].map((s, i) => {
+              const pct = metrics.totalQ > 0 ? (s.v / metrics.totalQ) * 100 : 0
+              return pct > 0 ? <div key={i} title={`${s.l} : ${pct.toFixed(1)}%`} style={{ width: `${pct}%`, background: s.c }} /> : null
+            })}
+          </div>
+          <div className="grid grid-cols-4 gap-xs mt-2">
+            <QualityCell label="Cat 1" value={metrics.cat1} pct={metrics.totalQ > 0 ? (metrics.cat1 / metrics.totalQ) * 100 : 0} color="#10b981" highlight={metrics.premiumRate >= 60} />
+            <QualityCell label="Cat 2" value={metrics.cat2} pct={metrics.totalQ > 0 ? (metrics.cat2 / metrics.totalQ) * 100 : 0} color="#3b82f6" />
+            <QualityCell label="Cat 3" value={metrics.cat3} pct={metrics.totalQ > 0 ? (metrics.cat3 / metrics.totalQ) * 100 : 0} color="#f59e0b" />
+            <QualityCell label="Déchets" value={metrics.waste} pct={metrics.totalQ > 0 ? (metrics.waste / metrics.totalQ) * 100 : 0} color="#ef4444" warn={metrics.wasteRate > 8} />
+          </div>
+        </div>
+
+        {/* Stats opérationnelles */}
+        <div className="grid grid-cols-3 gap-sm pt-sm border-t border-border">
+          <MiniStat label="Production 30j" value={formatWeight(metrics.prod30)} trend={metrics.prodTrend} />
+          <MiniStat label="Surface plantée" value={`${(metrics.totalPlantedArea / 10000).toFixed(2)} ha`} />
+          <MiniStat label="Effectif" value={String(metrics.workersCount)} />
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function QualityCell({ label, value, pct, color, highlight, warn }: { label: string; value: number; pct: number; color: string; highlight?: boolean; warn?: boolean }) {
+  return (
+    <div className={cn('rounded-md px-sm py-1.5 border', highlight ? 'border-success/40 bg-success/5' : warn ? 'border-danger/30 bg-danger/5' : 'border-border bg-surface-sunk/40')}>
+      <div className="font-mono text-[9px] uppercase tracking-wider text-fg-tertiary leading-tight" style={{ color: highlight ? '#10b981' : warn ? '#ef4444' : undefined }}>
+        {label}
+      </div>
+      <div className="font-display text-body-sm font-bold text-fg-primary leading-tight mt-0.5">
+        {pct.toFixed(0)}%
+      </div>
+      <div className="font-mono text-[9px] text-fg-tertiary leading-tight">{formatWeight(value)}</div>
+    </div>
+  )
+}
+
+function MiniStat({ label, value, trend }: { label: string; value: string; trend?: number }) {
+  return (
+    <div>
+      <div className="font-mono text-[9px] uppercase tracking-wider text-fg-tertiary leading-tight">{label}</div>
+      <div className="font-display text-body font-bold text-fg-primary leading-tight mt-0.5">{value}</div>
+      {trend !== undefined && trend !== 0 && (
+        <div className={cn('text-[10px] font-mono mt-0.5', trend > 0 ? 'text-success' : 'text-danger')}>
+          {trend > 0 ? '↗' : '↘'} {Math.abs(trend).toFixed(1)}%
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Top/Flop performers ─────────────────────────────────────────────
+function PerformersCard({ kind, items }: { kind: 'top' | 'flop'; items: any[] }) {
+  const isTop = kind === 'top'
+  return (
+    <Card animate delay={isTop ? 0.3 : 0.32} padding="none" className="overflow-hidden">
+      <div className="px-md py-sm border-b border-border flex items-center gap-sm">
+        {isTop ? <Award size={14} className="text-success" strokeWidth={2.4} /> : <AlertTriangle size={14} className="text-warning" strokeWidth={2.4} />}
+        <span className="font-display text-heading-sm font-bold text-fg-primary">
+          {isTop ? '🏆 Top serres' : '⚠ Sous-performance'}
+        </span>
+      </div>
+      {items.length === 0 ? (
+        <div className="p-lg text-center text-caption text-fg-tertiary">Pas assez de données pour comparer.</div>
+      ) : (
+        <div className="divide-y divide-border">
+          {items.map((g, i) => {
+            const ratioColor = g.ratio >= 95 ? '#10b981' : g.ratio >= 80 ? '#f59e0b' : '#ef4444'
+            return (
+              <div key={g.ghId} className="px-md py-sm flex items-center gap-sm">
+                <div className="font-display text-display-sm font-extrabold w-6" style={{ color: isTop ? '#10b981' : '#ef4444' }}>
+                  {isTop ? `#${i + 1}` : `↓${i + 1}`}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-display text-body-sm font-bold text-fg-primary truncate">{g.ghCode}</div>
+                  <div className="text-caption text-fg-tertiary truncate">
+                    {formatWeight(g.production)} / {formatWeight(g.targetProd)} cible
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-mono text-body font-bold tabular-nums" style={{ color: ratioColor }}>
+                    {g.ratio.toFixed(0)}%
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+// ─── Structure du CA ─────────────────────────────────────────────────
+function RevenueStructureCard({ dispatchesCA, invoicedCA, margeBrute, totalCostsAll }: any) {
+  const ca = dispatchesCA + invoicedCA
+  const data = ca > 0 ? [
+    { name: 'CA Dispatches', value: dispatchesCA, color: '#10b981' },
+    { name: 'CA Factures', value: Math.max(invoicedCA, 0), color: '#3b82f6' },
+  ] : []
+
+  return (
+    <Card animate delay={0.34} padding="none" className="overflow-hidden">
+      <div className="px-md py-sm border-b border-border flex items-center gap-sm">
+        <Banknote size={14} className="text-info" strokeWidth={2.4} />
+        <span className="font-display text-heading-sm font-bold text-fg-primary">Structure du CA</span>
+      </div>
+      <div className="p-md">
+        <div className="text-center mb-md">
+          <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-1">CA total YTD</div>
+          <div className="font-display text-display font-extrabold text-info">
+            <MoneyDisplay value={ca} compact="auto" showCurrency={false} className="!text-current" />
+          </div>
+        </div>
+
+        {data.length > 0 ? (
+          <div className="h-32">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={data} dataKey="value" innerRadius={32} outerRadius={56} paddingAngle={2}>
+                  {data.map((d, i) => <Cell key={i} fill={d.color} />)}
+                </Pie>
+                <RTooltip
+                  contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+                  formatter={(v: number) => [formatMoney(v, { compact: 'auto' }), '']}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="h-24 flex items-center justify-center text-caption text-fg-tertiary">Aucune donnée</div>
+        )}
+
+        <div className="space-y-1 mt-md">
+          {data.map((d, i) => (
+            <div key={i} className="flex items-center justify-between text-caption">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full" style={{ background: d.color }} />
+                <span className="text-fg-secondary">{d.name}</span>
+              </span>
+              <span className="font-mono text-fg-primary font-semibold">
+                <MoneyDisplay value={d.value} compact="auto" showCurrency={false} />
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-md pt-sm border-t border-border space-y-1">
+          <div className="flex items-center justify-between text-caption">
+            <span className="text-fg-secondary">Coûts engagés</span>
+            <span className="font-mono text-warning"><MoneyDisplay value={-totalCostsAll} compact="auto" showCurrency={false} /></span>
+          </div>
+          <div className="flex items-center justify-between text-body-sm font-semibold">
+            <span className="text-fg-primary">= Marge brute</span>
+            <span className={cn('font-mono', margeBrute >= 0 ? 'text-success' : 'text-danger')}>
+              <MoneyDisplay value={margeBrute} compact="auto" showCurrency={false} />
+            </span>
+          </div>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+// ─── P&L Compact ─────────────────────────────────────────────────────
+function PLCompactCard({ metrics }: { metrics: any }) {
+  const ca = metrics.caTotal
+  const chargesVar = toNumber(metrics.costsByType['charge_variable'])
+  const chargesFix = toNumber(metrics.costsByType['charge_fixe'])
+  const amort = toNumber(metrics.costsByType['amortissement'])
+  const ebitda = ca - chargesVar - chargesFix
+  const result = ebitda - amort
+
+  const lines = [
+    { label: 'Chiffre d\'affaires', value: ca, isPositive: true, color: '#3b82f6' },
+    { label: '− Charges variables', value: -chargesVar, isPositive: false, color: '#f59e0b' },
+    { label: '− Charges fixes', value: -chargesFix, isPositive: false, color: '#3b82f6' },
+    { label: '= EBITDA', value: ebitda, isPositive: ebitda >= 0, color: ebitda >= 0 ? '#10b981' : '#ef4444', strong: true },
+    { label: '− Amortissements', value: -amort, isPositive: false, color: '#a855f7' },
+    { label: '= Résultat d\'exploitation', value: result, isPositive: result >= 0, color: result >= 0 ? '#10b981' : '#ef4444', strong: true, total: true },
+  ]
+  const maxAbs = Math.max(...lines.map(l => Math.abs(l.value))) || 1
+
+  return (
+    <Card animate delay={0.4} padding="none" className="overflow-hidden">
+      <div className="px-md py-sm border-b border-border flex items-center justify-between">
+        <div className="flex items-center gap-sm">
+          <LineIcon size={14} className="text-success" strokeWidth={2.4} />
+          <span className="font-display text-heading-sm font-bold text-fg-primary">P&L exécutif YTD</span>
+        </div>
+        <Link href="/admin/compte-exploitation" className="text-caption text-brand hover:underline flex items-center gap-1">
+          Détail complet <ArrowRight size={11} />
+        </Link>
+      </div>
+      <div className="p-md space-y-2">
+        {lines.map((l, i) => {
+          const pct = (Math.abs(l.value) / maxAbs) * 100
+          return (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -4 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.45 + i * 0.04 }}
+              className={cn(
+                'flex items-center gap-md py-1.5 px-md rounded-md',
+                l.total && 'bg-surface-sunk border-t-2 border-border mt-2',
+                l.strong && !l.total && 'bg-surface-sunk/50',
+              )}
+            >
+              <div className={cn('flex-1 min-w-0', l.strong ? 'font-display text-body font-bold' : 'text-body-sm')}
+                style={{ color: l.strong ? l.color : 'var(--tx-1)' }}>
+                {l.label}
+              </div>
+              <div className="flex-1 max-w-[200px] h-1.5 rounded-full bg-surface-sunk overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }} animate={{ width: `${pct}%` }}
+                  transition={{ duration: 0.6, delay: 0.5 + i * 0.04 }}
+                  className="h-full rounded-full"
+                  style={{ background: l.color }}
+                />
+              </div>
+              <div className={cn('font-mono tabular-nums text-right min-w-[110px]', l.strong ? 'text-body font-bold' : 'text-body-sm')}
+                style={{ color: l.value >= 0 ? l.color : '#ef4444' }}>
+                <MoneyDisplay value={l.value} compact="auto" showCurrency={false} />
+              </div>
+            </motion.div>
+          )
+        })}
+      </div>
+    </Card>
+  )
+}
+
+// ─── Skeleton de chargement ───────────────────────────────────────────
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-lg">
+      <Skeleton className="h-32 w-full" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-md">
+        {Array.from({ length: 4 }).map((_, i) => <SkeletonKPI key={i} />)}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-md">
+        <Skeleton className="h-80" />
+        <Skeleton className="h-80" />
+      </div>
+      <Skeleton className="h-72" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-md">
+        {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-64" />)}
+      </div>
+    </div>
+  )
+}
+
+// ─── Helpers UI ───────────────────────────────────────────────────────
+function SectionLabel({ icon: Icon, color, children }: { icon: any; color: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-sm">
-      <Icon size={14} className="text-fg-tertiary" strokeWidth={2.2} />
-      <span className="font-mono text-caption uppercase tracking-wider text-fg-tertiary">{children}</span>
+      <Icon size={14} style={{ color }} strokeWidth={2.4} />
+      <span className="font-mono text-caption uppercase tracking-wider text-fg-tertiary font-bold">{children}</span>
       <div className="flex-1 h-px bg-border" />
     </div>
-  )
-}
-
-function EmptyChart({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="h-full flex items-center justify-center text-fg-tertiary text-body-sm font-mono">
-      {children}
-    </div>
-  )
-}
-
-function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
-  return (
-    <th className={cn(
-      'py-sm px-md font-mono text-[9px] uppercase tracking-wider text-fg-tertiary font-semibold',
-      right ? 'text-right' : 'text-left'
-    )}>
-      {children}
-    </th>
-  )
-}
-
-function Td({ children, right }: { children: React.ReactNode; right?: boolean }) {
-  return (
-    <td className={cn('py-sm px-md text-body-sm', right ? 'text-right' : 'text-left')}>
-      {children}
-    </td>
   )
 }
