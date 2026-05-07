@@ -26,13 +26,18 @@ import {
   TrendingUp, TrendingDown, Wallet, Coins, Sprout, Award, Receipt, AlertTriangle,
   Activity, Target, Calendar, ChevronRight, Leaf, Zap, LineChart as LineIcon,
   Banknote, Boxes, ArrowUpRight, ArrowDownRight, CheckCircle2, AlertCircle,
-  XCircle, ArrowRight, Globe, Package, Users, ShieldAlert, Eye,
+  XCircle, ArrowRight, Globe, Package, Users, ShieldAlert, Eye, Sparkles, Lightbulb, Info,
 } from 'lucide-react'
 
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/cn'
 import { formatMoney, formatWeight, formatPercent } from '@/lib/format'
 import { useAuthReady, useRefreshOnEvent } from '@/lib/useAuthGuard'
+import {
+  insightMargeBrute, insightCash, insightReceivables, insightCostsBudget,
+  insightProduction, insightQuality, insightPerformance, buildGlobalInsight,
+  type DashboardMetrics, type Insight, type InsightLevel,
+} from '@/lib/aiInsights'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { KPICard } from '@/components/ui/KPICard'
@@ -542,6 +547,49 @@ export default function DashboardPage() {
   }, [data])
 
   // ════════════════════════════════════════════════════════════════════
+  // ADAPTER POUR aiInsights (transforme metrics → DashboardMetrics)
+  // ════════════════════════════════════════════════════════════════════
+  const aiMetrics: DashboardMetrics = useMemo(() => ({
+    margeBrute: metrics.margeBrute,
+    margePct: metrics.margePct,
+    caTotal: metrics.caTotal,
+    totalCostsAll: metrics.totalCostsAll,
+    expectedCostsByNow: metrics.expectedCostsByNow,
+    costsVsBudgetPct: metrics.costsVsBudgetPct,
+    budgetTotal: metrics.budgetTotal,
+    budgetProgressPct: metrics.budgetProgressPct,
+    cashPosition: metrics.cashPosition,
+    totalCollected: metrics.totalCollected,
+    totalPaidOut: metrics.totalPaidOut,
+    totalToPay: metrics.totalToPay,
+    totalReceivable: metrics.totalReceivable,
+    overdueAmount: metrics.overdueAmount,
+    overdueInvoicesCount: metrics.overdueInvoices.length,
+    topReceivableName: metrics.topReceivables[0]?.name,
+    topReceivableAmount: metrics.topReceivables[0]?.amount,
+    prodMonth: metrics.prodMonth,
+    prod30: metrics.prod30,
+    prodPrev30: metrics.prodPrev30,
+    prodTrend: metrics.prodTrend,
+    yieldKgM2: metrics.yieldKgM2,
+    targetYield: metrics.targetYield,
+    yieldRatio: metrics.yieldRatio,
+    premiumRate: metrics.premiumRate,
+    wasteRate: metrics.wasteRate,
+    totalQ: metrics.totalQ,
+    topGhCode: metrics.topGh[0]?.ghCode,
+    topGhRatio: metrics.topGh[0]?.ratio,
+    flopGhCode: metrics.flopGh[0]?.ghCode,
+    flopGhRatio: metrics.flopGh[0]?.ratio,
+    dispatchesNoPriceCount: metrics.dispatchesNoPriceCount,
+    caDispatches: metrics.caDispatches,
+    stockAlertsCount: metrics.stockAlerts.length,
+    workersCount: metrics.workersCount,
+  }), [metrics])
+
+  const globalInsight = useMemo(() => buildGlobalInsight(aiMetrics), [aiMetrics])
+
+  // ════════════════════════════════════════════════════════════════════
   // RENDU
   // ════════════════════════════════════════════════════════════════════
   if (loading) return <DashboardSkeleton />
@@ -559,44 +607,55 @@ export default function DashboardPage() {
         budgetProgressPct={metrics.budgetProgressPct}
       />
 
-      {/* ═══════════ 4 KPI HERO FINANCIERS ═══════════ */}
+      {/* ═══════════ SYNTHÈSE EXÉCUTIVE IA ═══════════ */}
+      <AISynthesisCard global={globalInsight} />
+
+      {/* ═══════════ 4 KPI HERO FINANCIERS + INSIGHTS ═══════════ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-md">
-        <KPICard
-          label="Marge brute"
-          icon={metrics.margeBrute >= 0 ? TrendingUp : TrendingDown}
-          accent={metrics.margeBrute >= 0 ? '#10b981' : '#ef4444'}
-          value={<MoneyDisplay value={metrics.margeBrute} compact="auto" showCurrency={false} className="!text-current font-display !text-display-lg" />}
-          sub={`${metrics.margePct.toFixed(1)}% du CA · CA ${formatMoney(metrics.caTotal, { compact: 'auto' })}`}
-          variant="hero"
-          delay={0}
-        />
-        <KPICard
-          label="Trésorerie nette"
-          icon={Wallet}
-          accent={metrics.cashPosition >= 0 ? '#3b82f6' : '#ef4444'}
-          value={<MoneyDisplay value={metrics.cashPosition} compact="auto" showCurrency={false} className="!text-current font-display !text-display-lg" />}
-          sub={`Encaissé ${formatMoney(metrics.totalCollected, { compact: 'auto' })} − Payé ${formatMoney(metrics.totalPaidOut, { compact: 'auto' })}`}
-          variant="hero"
-          delay={0.05}
-        />
-        <KPICard
-          label="Créances clients"
-          icon={Receipt}
-          accent={metrics.overdueAmount > 0 ? '#f59e0b' : '#10b981'}
-          value={<MoneyDisplay value={metrics.totalReceivable} compact="auto" showCurrency={false} className="!text-current font-display !text-display-lg" />}
-          sub={metrics.overdueAmount > 0 ? `⚠ ${formatMoney(metrics.overdueAmount, { compact: 'auto' })} en retard` : 'Aucun retard'}
-          variant="hero"
-          delay={0.1}
-        />
-        <KPICard
-          label="Coûts vs Budget"
-          icon={metrics.costsVsBudgetPct > 5 ? TrendingUp : metrics.costsVsBudgetPct < -5 ? TrendingDown : Activity}
-          accent={Math.abs(metrics.costsVsBudgetPct) <= 5 ? '#10b981' : metrics.costsVsBudgetPct > 10 ? '#ef4444' : '#f59e0b'}
-          value={<span className="font-display !text-display-lg">{metrics.costsVsBudgetPct > 0 ? '+' : ''}{metrics.costsVsBudgetPct.toFixed(1)}%</span>}
-          sub={`Engagé ${formatMoney(metrics.totalCostsAll, { compact: 'auto' })} · Budget ${formatMoney(metrics.expectedCostsByNow, { compact: 'auto' })}`}
-          variant="hero"
-          delay={0.15}
-        />
+        <KPIWithInsight insight={insightMargeBrute(aiMetrics)}>
+          <KPICard
+            label="Marge brute"
+            icon={metrics.margeBrute >= 0 ? TrendingUp : TrendingDown}
+            accent={metrics.margeBrute >= 0 ? '#10b981' : '#ef4444'}
+            value={<MoneyDisplay value={metrics.margeBrute} compact="auto" showCurrency={false} className="!text-current font-display !text-display-lg" />}
+            sub={`${metrics.margePct.toFixed(1)}% du CA · CA ${formatMoney(metrics.caTotal, { compact: 'auto' })}`}
+            variant="hero"
+            delay={0}
+          />
+        </KPIWithInsight>
+        <KPIWithInsight insight={insightCash(aiMetrics)}>
+          <KPICard
+            label="Trésorerie nette"
+            icon={Wallet}
+            accent={metrics.cashPosition >= 0 ? '#3b82f6' : '#ef4444'}
+            value={<MoneyDisplay value={metrics.cashPosition} compact="auto" showCurrency={false} className="!text-current font-display !text-display-lg" />}
+            sub={`Encaissé ${formatMoney(metrics.totalCollected, { compact: 'auto' })} − Payé ${formatMoney(metrics.totalPaidOut, { compact: 'auto' })}`}
+            variant="hero"
+            delay={0.05}
+          />
+        </KPIWithInsight>
+        <KPIWithInsight insight={insightReceivables(aiMetrics)}>
+          <KPICard
+            label="Créances clients"
+            icon={Receipt}
+            accent={metrics.overdueAmount > 0 ? '#f59e0b' : '#10b981'}
+            value={<MoneyDisplay value={metrics.totalReceivable} compact="auto" showCurrency={false} className="!text-current font-display !text-display-lg" />}
+            sub={metrics.overdueAmount > 0 ? `⚠ ${formatMoney(metrics.overdueAmount, { compact: 'auto' })} en retard` : 'Aucun retard'}
+            variant="hero"
+            delay={0.1}
+          />
+        </KPIWithInsight>
+        <KPIWithInsight insight={insightCostsBudget(aiMetrics)}>
+          <KPICard
+            label="Coûts vs Budget"
+            icon={metrics.costsVsBudgetPct > 5 ? TrendingUp : metrics.costsVsBudgetPct < -5 ? TrendingDown : Activity}
+            accent={Math.abs(metrics.costsVsBudgetPct) <= 5 ? '#10b981' : metrics.costsVsBudgetPct > 10 ? '#ef4444' : '#f59e0b'}
+            value={<span className="font-display !text-display-lg">{metrics.costsVsBudgetPct > 0 ? '+' : ''}{metrics.costsVsBudgetPct.toFixed(1)}%</span>}
+            sub={`Engagé ${formatMoney(metrics.totalCostsAll, { compact: 'auto' })} · Budget ${formatMoney(metrics.expectedCostsByNow, { compact: 'auto' })}`}
+            variant="hero"
+            delay={0.15}
+          />
+        </KPIWithInsight>
       </div>
 
       {/* ═══════════ 2 COLONNES : ACTIONS PRIORITAIRES + SANTÉ PRODUCTION ═══════════ */}
@@ -1111,5 +1170,143 @@ function SectionLabel({ icon: Icon, color, children }: { icon: any; color: strin
       <span className="font-mono text-caption uppercase tracking-wider text-fg-tertiary font-bold">{children}</span>
       <div className="flex-1 h-px bg-border" />
     </div>
+  )
+}
+
+// ─── KPIWithInsight : KPI card + ligne d'insight juste en dessous ─────
+const INSIGHT_COLOR: Record<InsightLevel, string> = {
+  good: '#10b981',
+  warning: '#f59e0b',
+  critical: '#ef4444',
+  info: '#3b82f6',
+}
+const INSIGHT_ICON: Record<InsightLevel, any> = {
+  good: CheckCircle2,
+  warning: AlertCircle,
+  critical: AlertTriangle,
+  info: Info,
+}
+
+function KPIWithInsight({ insight, children }: { insight: Insight; children: React.ReactNode }) {
+  const color = INSIGHT_COLOR[insight.level]
+  const Icon = INSIGHT_ICON[insight.level]
+  return (
+    <div className="flex flex-col gap-2">
+      {children}
+      <motion.div
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.4 }}
+        className="rounded-md border border-border p-2.5 bg-surface-raised"
+        style={{ borderLeftColor: color, borderLeftWidth: 2 }}
+      >
+        <div className="flex items-start gap-2">
+          <Icon size={12} style={{ color }} strokeWidth={2.4} className="flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] leading-snug font-semibold text-fg-primary">
+              {insight.headline}
+            </div>
+            {insight.recommendation && (
+              <div className="text-[10px] leading-snug text-fg-tertiary mt-0.5 flex items-start gap-1">
+                <Lightbulb size={9} className="text-warning flex-shrink-0 mt-0.5" strokeWidth={2.4} />
+                <span>{insight.recommendation}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
+// ─── AISynthesisCard : synthèse exécutive globale par l'IA ────────────
+function AISynthesisCard({ global }: { global: ReturnType<typeof buildGlobalInsight> }) {
+  const color = global.health === 'good' ? '#10b981' : global.health === 'warning' ? '#f59e0b' : '#ef4444'
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.05 }}
+    >
+      <Card variant="default" className="relative overflow-hidden">
+        <div aria-hidden className="pointer-events-none absolute -top-16 -right-16 h-44 w-44 rounded-full blur-3xl opacity-20"
+          style={{ background: `radial-gradient(circle, ${color}, transparent 70%)` }} />
+
+        <div className="relative">
+          {/* Header */}
+          <div className="flex items-center gap-sm mb-md">
+            <div className="flex items-center justify-center rounded-full"
+              style={{
+                width: 32, height: 32,
+                background: 'linear-gradient(135deg, var(--neon), color-mix(in srgb, var(--neon) 60%, #6366f1))',
+              }}>
+              <Sparkles size={15} strokeWidth={2.4} color="white" />
+            </div>
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary">Synthèse exécutive</div>
+              <div className="font-display font-bold text-body text-fg-primary leading-tight">
+                Analyse intelligente
+              </div>
+            </div>
+            <div className="ml-auto">
+              <Badge
+                variant={global.health === 'good' ? 'success' : global.health === 'warning' ? 'warning' : 'danger'}
+                size="sm"
+                dot
+              >
+                {global.health === 'good' ? 'Sain' : global.health === 'warning' ? 'À surveiller' : 'Action urgente'}
+              </Badge>
+            </div>
+          </div>
+
+          {/* One-liner */}
+          <div className="font-display text-heading text-fg-primary leading-snug mb-md">
+            {global.oneLiner}
+          </div>
+
+          {/* Bullets + actions */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-md">
+            {global.bullets.length > 0 && (
+              <div>
+                <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary mb-sm">
+                  Points clés
+                </div>
+                <ul className="space-y-1.5">
+                  {global.bullets.map((b, i) => (
+                    <li key={i} className="text-body-sm text-fg-secondary leading-relaxed">
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {global.topActions.length > 0 && (
+              <div>
+                <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary mb-sm">
+                  Actions à fort impact
+                </div>
+                <div className="space-y-1.5">
+                  {global.topActions.slice(0, 4).map((a, i) => (
+                    <Link
+                      key={i}
+                      href={a.href}
+                      className="flex items-center gap-sm px-md py-2 rounded-md bg-surface-sunk hover:bg-surface-hover border border-border hover:border-border-strong transition-all group"
+                    >
+                      <Lightbulb size={13} className="text-warning flex-shrink-0" strokeWidth={2.4} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-body-sm font-semibold text-fg-primary truncate">{a.label}</div>
+                        {a.impact && <div className="text-caption font-mono text-fg-tertiary">{a.impact}</div>}
+                      </div>
+                      <ChevronRight size={12} className="text-fg-tertiary group-hover:text-fg-primary group-hover:translate-x-0.5 transition-all" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+    </motion.div>
   )
 }

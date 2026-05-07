@@ -17,6 +17,7 @@ import { useAuth } from '@/lib/auth'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { CommandPalette } from './CommandPalette'
+import { AIAssistantFAB } from '@/components/ai/AIAssistantFAB'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -107,6 +108,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Cmd+K Command Palette (globale) */}
       <CommandPalette />
+
+      {/* IA Assistant FAB (globale) */}
+      <AIAssistantFAB />
 
       {/* Toaster Sonner (notifications) */}
       <Toaster
