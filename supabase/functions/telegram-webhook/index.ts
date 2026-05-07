@@ -17,6 +17,7 @@
 // ============================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { t, buildMainMenu, reasonLabel, langInstructionForGemini, normalizeLang } from './_i18n.ts'
 
 const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')!
 const TELEGRAM_WEBHOOK_SECRET = Deno.env.get('TELEGRAM_WEBHOOK_SECRET') ?? ''
@@ -48,13 +49,14 @@ async function downloadTelegramAudio(fileId: string): Promise<{ data: string; mi
   return { data: btoa(binary), mime: 'audio/ogg' }
 }
 
-/** Transcription simple d'un audio en texte (pour les flows non-harvest). */
+/** Transcription simple d'un audio en texte (pour les flows non-harvest).
+ *  La transcription reste fidèle à la langue parlée (FR/AR/Darija/EN sont tous gérés). */
 async function transcribeAudioOnly(audioB64: string, mime: string): Promise<string> {
   if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY non configurée')
   const body = {
     contents: [{
       parts: [
-        { text: 'Transcris exactement et brièvement ce que dit cette personne en français/darija/arabe. Réponds UNIQUEMENT avec la transcription, sans explication ni formattage.' },
+        { text: 'Transcris exactement ce que dit cette personne. Le locuteur peut parler en français, darija marocaine, arabe classique ou anglais. Garde la langue d\'origine. Pour la darija, utilise le script latin (Arabizi : "wakha", "safi", numbers in Latin). Réponds UNIQUEMENT avec la transcription, sans explication ni formattage.' },
         { inline_data: { mime_type: mime, data: audioB64 } },
       ],
     }],
@@ -139,8 +141,9 @@ type VoiceExtraction = {
   confidence: number
 }
 
-/** Envoie l'audio à Gemini 2.5 Flash : transcription + extraction structurée (V3 conversationnel). */
-async function transcribeAndExtract(audioB64: string, mime: string, plantings: any[], pendingCount: number = 0): Promise<VoiceExtraction & {
+/** Envoie l'audio à Gemini 2.5 Flash : transcription + extraction structurée (V3 conversationnel).
+ *  La langue de l'ouvrier (FR/EN/AR/Darija) est passée pour adapter le reply_hint. */
+async function transcribeAndExtract(audioB64: string, mime: string, plantings: any[], pendingCount: number = 0, userLang: string = 'fr'): Promise<VoiceExtraction & {
   // legacy fields pour compat V2 single-harvest
   planting_id: string | null
   qty_kg: number | null
@@ -160,23 +163,38 @@ async function transcribeAndExtract(audioB64: string, mime: string, plantings: a
     ? `\n\nL'ouvrier est dans une session de saisie groupée et a déjà dicté ${pendingCount} récolte(s). Il peut en ajouter d'autres OU dire qu'il a terminé.`
     : ''
 
-  const prompt = `Tu es l'assistant vocal d'une ferme de tomates au Maroc. Un ouvrier dicte ses récoltes en français ou darija. Ton rôle : transcrire fidèlement, extraire UNE OU PLUSIEURS récoltes du même message, ou détecter la fin de saisie.${sessionContext}
+  const langInstruction = langInstructionForGemini(userLang)
+
+  const prompt = `Tu es l'assistant vocal d'une ferme de tomates au Maroc. Un ouvrier dicte ses récoltes en français, darija marocaine, arabe classique ou anglais. Ton rôle : transcrire fidèlement, extraire UNE OU PLUSIEURS récoltes du même message, ou détecter la fin de saisie.${sessionContext}
+
+${langInstruction}
 
 PLANTATIONS ACTIVES :
 ${plantingsList}
 
 INSTRUCTIONS :
-1. Transcris exactement ce que dit l'ouvrier.
+1. Transcris exactement ce que dit l'ouvrier dans sa langue d'origine. Pour la darija, utilise le script latin (Arabizi). Pour l'arabe classique, utilise le script arabe.
 2. Détermine intent :
    - "harvest" : il annonce 1+ récolte(s) (qty + serre/variété)
    - "no_harvest" : il signale qu'il n'y a pas de récolte (panne, maladie, météo, etc.)
-   - "done" : il signale qu'il a terminé sa saisie (mots clés : "fini", "c'est tout", "voilà", "khlas", "barakallah", "termine", "j'ai terminé", "rien d'autre", "non c'est tout")
+   - "done" : il signale qu'il a terminé sa saisie. Mots clés multilingues :
+     · FR : "fini", "c'est tout", "voilà", "termine", "j'ai terminé", "rien d'autre", "non c'est tout"
+     · Darija : "khlas", "safi", "barakallah", "wakha hadak chi", "ghir hadi"
+     · Arabe : "انتهيت", "هذا كل شيء", "خلاص"
+     · EN : "done", "that's all", "finished", "nothing else"
    - "unknown" : ambigu ou pas exploitable
 3. Si "harvest" : remplis le tableau "harvests" avec autant d'éléments que de récoltes mentionnées (le message peut en contenir plusieurs : "150 sur S1 marquise et 200 sur S3 cherry").
    - planting_id : matche serre + variété aux plantations actives
-   - qty_kg : convertir oralement → nombres ("cent cinquante" = 150, "deux quintaux" = 200, "un quintal et demi" = 150, "khamsin" = 50, "miya" = 100, "alf" = 1000)
+   - qty_kg : convertir oralement → nombres :
+     · FR : "cent cinquante" = 150, "deux quintaux" = 200, "un quintal et demi" = 150
+     · Darija : "khamsin" = 50, "miya" = 100, "alf" = 1000, "miyatayn" = 200
+     · Arabe : "خمسون" = 50, "مئة" = 100, "ألف" = 1000
    - notes : observations qualitatives (catégorie, déchets, etc.)
-4. reply_hint : une réponse courte en français adaptée au contexte ; ex après acquittement : "Noté ! D'autres récoltes ?". Ex si fini : "Parfait, je prépare le récap.". Ex si ambigu : "Je n'ai pas bien compris, peux-tu répéter en précisant la serre et la variété ?".
+4. reply_hint : une réponse courte ADAPTÉE À LA LANGUE DE L'UTILISATEUR. Exemples :
+   · FR après acquittement : "Noté ! D'autres récoltes ?"
+   · Darija après acquittement : "Wakha ! Récoltes oukhrin ?"
+   · AR après acquittement : "تم! محاصيل أخرى؟"
+   · EN après acquittement : "Got it! Other harvests?"
 5. confidence : ta confiance entre 0 et 1.`
 
   const body = {
@@ -269,19 +287,9 @@ async function answerCallbackQuery(callbackId: string, text?: string) {
   })
 }
 
-// Boutons inline
-const mainMenuKeyboard = {
-  inline_keyboard: [
-    [{ text: '🎙️ Saisie vocale groupée', callback_data: 'menu:voice_session' }],
-    [{ text: '📦 Nouvelle récolte', callback_data: 'menu:harvest' }],
-    [{ text: '🚚 Composer un envoi station', callback_data: 'menu:compose_dispatch' }],
-    [{ text: '🔬 Saisir tri (freinte/écart)', callback_data: 'menu:tri' }],
-    [{ text: '💰 Confirmer un prix', callback_data: 'menu:confirm_price' }],
-    [{ text: '🚨 Journée sans récolte', callback_data: 'menu:no_harvest' }],
-    [{ text: '📊 Mes derniers lots', callback_data: 'menu:my_lots' }],
-    [{ text: '❓ Aide', callback_data: 'menu:help' }],
-  ],
-}
+// Boutons inline (fallback FR — utilisé seulement quand on n'a pas le contexte user.
+// Préférer buildMainMenu(user.language) dès qu'on a accès au user enrôlé).
+const mainMenuKeyboard = buildMainMenu('fr')
 
 // ─── Logging des messages ────────────────────────────────────
 async function logMessage(opts: {
@@ -320,12 +328,14 @@ async function handleStart(chatId: string, args: string[], from: any): Promise<s
       .maybeSingle()
 
     if (!pending) {
-      await sendMessage(chatId, '❌ Code invalide ou expiré. Contacte ton responsable.')
+      // Code invalide → on n'a pas la langue du user, fallback FR
+      await sendMessage(chatId, t('fr', 'enroll_invalid_code'))
       return 'enroll_failed'
     }
 
+    const lang = normalizeLang((pending as any).language)
     const w: any = pending.workers
-    const greet = w ? `${w.first_name} ${w.last_name}` : 'à toi'
+    const greet = w ? `${w.first_name} ${w.last_name}` : ''
 
     await supabase.from('chatbot_users').update({
       channel_user_id: chatId,
@@ -337,25 +347,27 @@ async function handleStart(chatId: string, args: string[], from: any): Promise<s
     }).eq('id', pending.id)
 
     await sendMessage(chatId,
-      `✅ Bienvenue ${greet} !\nTu peux maintenant enregistrer tes récoltes par message.\n\nQue veux-tu faire ?`,
-      mainMenuKeyboard
+      t(lang, 'welcome_enrolled', { name: greet }),
+      buildMainMenu(lang)
     )
     return 'enroll_success'
   }
-  // Pas de code
-  await sendMessage(chatId,
-    "👋 Salam ! Je suis le bot du Domaine BENHALIMA.\n\nPour t'utiliser, tu dois être inscrit. Demande à ton responsable un <b>code d'invitation</b>, puis envoie :\n\n<code>/start TONCODE</code>"
-  )
+  // Pas de code → on ne connaît pas la langue, on envoie en FR (défaut)
+  await sendMessage(chatId, t('fr', 'welcome_no_code'))
   return 'enroll_request'
 }
 
-/** Identifie l'utilisateur authentifié (déjà enrôlé). */
+/** Identifie l'utilisateur authentifié (déjà enrôlé). La langue est normalisée. */
 async function authUser(chatId: string) {
   const { data } = await supabase.from('chatbot_users')
     .select('*, workers(*)')
     .eq('channel', 'telegram')
     .eq('channel_user_id', chatId)
     .maybeSingle()
+  if (data) {
+    // Normalise la langue à 'fr' | 'en' | 'ar' | 'darija' pour tous les handlers
+    ;(data as any).language = normalizeLang((data as any).language)
+  }
   return data
 }
 
@@ -378,9 +390,10 @@ async function listPlantings() {
 
 /** Démarre le flow "nouvelle récolte". */
 async function startHarvestFlow(user: any) {
+  const lang = user.language
   const plantings = await listPlantings()
   if (plantings.length === 0) {
-    await sendMessage(user.channel_user_id, '❌ Aucune plantation active trouvée. Contacte le responsable.')
+    await sendMessage(user.channel_user_id, t(lang, 'no_active_planting'))
     return
   }
   await updateSession(user.id, { intent: 'new_harvest', step: 'pick_planting' })
@@ -388,39 +401,40 @@ async function startHarvestFlow(user: any) {
     text: `${p.greenhouses?.code ?? '?'} — ${p.varieties?.code ?? '?'}`,
     callback_data: `harvest:planting:${p.id}`,
   }]))
-  buttons.push([{ text: '✖ Annuler', callback_data: 'cancel' }])
-  await sendMessage(user.channel_user_id, '📦 Choisis la plantation :', { inline_keyboard: buttons })
+  buttons.push([{ text: t(lang, 'cancel'), callback_data: 'cancel' }])
+  await sendMessage(user.channel_user_id, t(lang, 'pick_planting'), { inline_keyboard: buttons })
 }
 
 /** Continue le flow récolte après choix planting. */
 async function continueHarvestPickPlanting(user: any, plantingId: string) {
+  const lang = user.language
   const { data: planting } = await supabase.from('campaign_plantings')
     .select('id, campaigns(name), greenhouses(code, name), varieties(code, commercial_name)')
     .eq('id', plantingId)
     .maybeSingle()
   if (!planting) {
-    await sendMessage(user.channel_user_id, '❌ Plantation introuvable.')
+    await sendMessage(user.channel_user_id, t(lang, 'planting_not_found'))
     return
   }
   await updateSession(user.id, {
     intent: 'new_harvest', step: 'ask_qty', planting_id: plantingId,
   })
   const p: any = planting
-  await sendMessage(user.channel_user_id,
-    `🌿 ${p.greenhouses?.code} / ${p.varieties?.commercial_name}\n\nQuelle quantité (en kg) ? Envoie juste le nombre.`
-  )
+  const label = `${p.greenhouses?.code} / ${p.varieties?.commercial_name}`
+  await sendMessage(user.channel_user_id, t(lang, 'ask_quantity', { label }))
 }
 
 /** Reçoit la quantité, crée la récolte. */
 async function continueHarvestSaveQty(user: any, text: string) {
+  const lang = user.language
   const qty = Number(String(text).replace(',', '.').replace(/[^\d.]/g, ''))
   if (!Number.isFinite(qty) || qty <= 0) {
-    await sendMessage(user.channel_user_id, '❌ Quantité invalide. Envoie juste un nombre, ex: <code>150</code>')
+    await sendMessage(user.channel_user_id, t(lang, 'invalid_quantity'))
     return null
   }
   const plantingId = user.session_state?.planting_id
   if (!plantingId) {
-    await sendMessage(user.channel_user_id, '❌ Session perdue. Recommence avec /start')
+    await sendMessage(user.channel_user_id, t(lang, 'session_lost'))
     return null
   }
   // Création de la récolte
@@ -436,63 +450,57 @@ async function continueHarvestSaveQty(user: any, text: string) {
   }).select('id, lot_number').single()
 
   if (error) {
-    await sendMessage(user.channel_user_id, `❌ Erreur : ${error.message}`)
+    await sendMessage(user.channel_user_id, t(lang, 'error_with_msg', { msg: error.message }))
     return null
   }
   // Reset session
   await updateSession(user.id, {})
   await sendMessage(user.channel_user_id,
-    `✅ <b>Récolte enregistrée</b>\n` +
-    `Lot : <code>${harvest!.lot_number}</code>\n` +
-    `Qté : ${qty} kg\n` +
-    `Date : ${today}`,
-    mainMenuKeyboard
+    t(lang, 'harvest_saved', { lot: harvest!.lot_number, qty: String(qty), date: today }),
+    buildMainMenu(lang)
   )
   return harvest!.id
 }
 
 /** Démarre flow "journée sans récolte". */
 async function startNoHarvestFlow(user: any) {
+  const lang = user.language
   await updateSession(user.id, { intent: 'no_harvest', step: 'pick_reason' })
-  await sendMessage(user.channel_user_id, '🚨 Quelle est la raison ?', {
+  await sendMessage(user.channel_user_id, t(lang, 'ask_no_harvest_reason'), {
     inline_keyboard: [
-      [{ text: '⚙️ Panne d\'irrigation', callback_data: 'no_harvest:reason:panne_irrigation' }],
-      [{ text: '🌧️ Météo défavorable', callback_data: 'no_harvest:reason:meteo' }],
-      [{ text: '👥 Manque de main d\'œuvre', callback_data: 'no_harvest:reason:main_oeuvre' }],
-      [{ text: '🦠 Maladie / phytopathologie', callback_data: 'no_harvest:reason:maladie' }],
-      [{ text: '🔧 Maintenance', callback_data: 'no_harvest:reason:maintenance' }],
-      [{ text: '❓ Autre (préciser)', callback_data: 'no_harvest:reason:autre' }],
-      [{ text: '✖ Annuler', callback_data: 'cancel' }],
+      [{ text: t(lang, 'reason_panne_irrigation'), callback_data: 'no_harvest:reason:panne_irrigation' }],
+      [{ text: t(lang, 'reason_meteo'), callback_data: 'no_harvest:reason:meteo' }],
+      [{ text: t(lang, 'reason_main_oeuvre'), callback_data: 'no_harvest:reason:main_oeuvre' }],
+      [{ text: t(lang, 'reason_maladie'), callback_data: 'no_harvest:reason:maladie' }],
+      [{ text: t(lang, 'reason_maintenance'), callback_data: 'no_harvest:reason:maintenance' }],
+      [{ text: t(lang, 'reason_other'), callback_data: 'no_harvest:reason:autre' }],
+      [{ text: t(lang, 'cancel'), callback_data: 'cancel' }],
     ],
   })
 }
 
 /** Sauvegarde l'alerte journée sans récolte. */
 async function saveNoHarvest(user: any, reason: string, notes: string | null = null) {
+  const lang = user.language
   const today = new Date().toISOString().slice(0, 10)
-  const reasonLabels: Record<string, string> = {
-    panne_irrigation: 'Panne d\'irrigation',
-    meteo: 'Météo défavorable',
-    main_oeuvre: 'Manque de main d\'œuvre',
-    maladie: 'Maladie / phytopathologie',
-    maintenance: 'Maintenance',
-    autre: 'Autre',
-  }
-  const reasonLabel = reasonLabels[reason] ?? reason
+  const rLabel = reasonLabel(lang, reason)
+  // Le label en clair pour l'admin (toujours en FR pour cohérence DB/dashboard)
+  const reasonFR = reasonLabel('fr', reason)
   const { data: alert, error } = await supabase.from('alerts').insert({
     type: 'no_harvest', severity: 'warning',
     title: `Journée sans récolte — ${today}`,
-    message: `Motif: ${reasonLabel}${notes ? ' — ' + notes : ''}\nSignalé via Telegram par ${user.workers?.first_name ?? '?'} ${user.workers?.last_name ?? ''}`,
+    message: `Motif: ${reasonFR}${notes ? ' — ' + notes : ''}\nSignalé via Telegram par ${user.workers?.first_name ?? '?'} ${user.workers?.last_name ?? ''}`,
     entity_type: 'harvest', is_read: false, is_resolved: false,
   }).select('id').single()
   if (error) {
-    await sendMessage(user.channel_user_id, `❌ Erreur : ${error.message}`)
+    await sendMessage(user.channel_user_id, t(lang, 'error_with_msg', { msg: error.message }))
     return null
   }
   await updateSession(user.id, {})
+  const noteLine = notes ? `\n${t(lang, 'note_label')} : ${notes}` : ''
   await sendMessage(user.channel_user_id,
-    `✅ <b>Journée sans récolte signalée</b>\nDate : ${today}\nMotif : ${reasonLabel}${notes ? '\nNote : ' + notes : ''}`,
-    mainMenuKeyboard
+    t(lang, 'no_harvest_saved', { date: today, reason: rLabel, noteLine }),
+    buildMainMenu(lang)
   )
   return alert!.id
 }
@@ -507,11 +515,12 @@ type PendingHarvest = {
 }
 
 /** Affiche le récap final de la session vocale + boutons confirm/cancel. */
-async function showVoiceSessionRecap(chatId: string, pending: PendingHarvest[]) {
+async function showVoiceSessionRecap(chatId: string, pending: PendingHarvest[], lang: string = 'fr') {
   if (pending.length === 0) {
     await sendMessage(chatId,
-      'Aucune récolte saisie pendant la session.',
-      mainMenuKeyboard
+      // Pas de strings i18n pour ce cas marginal — réutilise help/menu
+      t(lang, 'menu_help'),
+      buildMainMenu(lang)
     )
     return
   }
@@ -520,15 +529,14 @@ async function showVoiceSessionRecap(chatId: string, pending: PendingHarvest[]) 
   ).join('\n')
   const total = pending.reduce((s, h) => s + h.qty_kg, 0)
   await sendMessage(chatId,
-    `📋 <b>Récap de la session vocale</b>\n\n${lines}\n` +
+    `${t(lang, 'voice_recap_title')}\n\n${lines}\n` +
     `─────────────\n` +
-    `<b>Total : ${total.toLocaleString('fr-FR')} kg</b> sur ${pending.length} lot(s)\n\n` +
-    `Tout est correct ?`,
+    t(lang, 'voice_recap_total', { total: total.toLocaleString('fr-FR'), count: String(pending.length) }),
     {
       inline_keyboard: [
-        [{ text: '✅ Tout enregistrer', callback_data: 'voice:confirm_all' }],
-        [{ text: '🔁 Continuer la dictée', callback_data: 'voice:continue' }],
-        [{ text: '✗ Annuler la session', callback_data: 'cancel' }],
+        [{ text: t(lang, 'voice_save_all'), callback_data: 'voice:confirm_all' }],
+        [{ text: t(lang, 'voice_continue'), callback_data: 'voice:continue' }],
+        [{ text: t(lang, 'voice_cancel_session'), callback_data: 'cancel' }],
       ],
     }
   )
@@ -537,6 +545,7 @@ async function showVoiceSessionRecap(chatId: string, pending: PendingHarvest[]) 
 /** Voix contextuelle : si l'utilisateur est dans un flow compose/tri/prix, on transcrit
  *  et on route comme du texte. Retourne true si traité. */
 async function handleContextualVoice(user: any, voice: any): Promise<boolean> {
+  const lang = user.language
   const state = (user.session_state ?? {}) as any
   const chatId = user.channel_user_id
   const contextual = (state.intent === 'compose_dispatch' && state.step === 'ask_qty_for_harvest')
@@ -545,7 +554,7 @@ async function handleContextualVoice(user: any, voice: any): Promise<boolean> {
   console.log('[ctx-voice] intent=', state.intent, 'step=', state.step, 'contextual=', contextual)
   if (!contextual) return false
 
-  await sendMessage(chatId, '🎤 J\'écoute…')
+  await sendMessage(chatId, t(lang, 'voice_listening'))
   let text: string
   try {
     const audio = await downloadTelegramAudio(voice.file_id)
@@ -553,20 +562,20 @@ async function handleContextualVoice(user: any, voice: any): Promise<boolean> {
     console.log('[ctx-voice] transcription:', text)
   } catch (e: any) {
     console.error('[ctx-voice] transcription error:', e)
-    await sendMessage(chatId, `❌ Erreur transcription : ${e?.message ?? '?'}`)
+    await sendMessage(chatId, t(lang, 'voice_transcription_error', { msg: e?.message ?? '?' }))
     return true
   }
   await sendMessage(chatId, `🎤 <i>"${text}"</i>`)
 
   // Compose : qty à contribuer
   if (state.intent === 'compose_dispatch' && state.step === 'ask_qty_for_harvest') {
-    // Détecte "tout" (FR) ou "kollou/kolha" (darija)
-    if (/\b(tout|toute|kollou|kolha|all)\b/i.test(text)) {
+    // Détecte "tout" (FR) / "all" (EN) / "kollou/kolha" (darija) / "الكل" (AR)
+    if (/\b(tout|toute|kollou|kolha|all|الكل|كولو)\b/i.test(text)) {
       await continueComposeSaveQty(user, 'tout')
     } else {
       const n = parseNumberFromText(text)
       if (n == null || n <= 0) {
-        await sendMessage(chatId, '❌ Quantité non comprise. Réessaye en disant un nombre clairement, ou utilise le clavier.')
+        await sendMessage(chatId, t(lang, 'voice_qty_unclear'))
         return true
       }
       await continueComposeSaveQty(user, String(n))
@@ -578,7 +587,7 @@ async function handleContextualVoice(user: any, voice: any): Promise<boolean> {
   if (state.intent === 'tri' && state.step === 'ask_freinte') {
     const v = parseNumberFromText(text)
     if (v == null || v < 0 || v > 100) {
-      await sendMessage(chatId, '❌ Pourcentage non compris. Tape un nombre entre 0 et 100, ou utilise les boutons.')
+      await sendMessage(chatId, t(lang, 'voice_pct_unclear'))
       return true
     }
     await continueTriSaveFreinte(user, v)
@@ -589,7 +598,7 @@ async function handleContextualVoice(user: any, voice: any): Promise<boolean> {
   if (state.intent === 'tri' && state.step === 'ask_ecart') {
     const v = parseNumberFromText(text)
     if (v == null || v < 0 || v > 100) {
-      await sendMessage(chatId, '❌ Pourcentage non compris.')
+      await sendMessage(chatId, t(lang, 'voice_pct_unclear'))
       return true
     }
     await continueTriFinalize(user, v)
@@ -600,7 +609,7 @@ async function handleContextualVoice(user: any, voice: any): Promise<boolean> {
   if (state.intent === 'confirm_price' && state.step === 'ask_price') {
     const v = parseNumberFromText(text)
     if (v == null || v <= 0) {
-      await sendMessage(chatId, '❌ Prix non compris. Réessaye, ex: <code>8.50</code>.')
+      await sendMessage(chatId, t(lang, 'voice_price_unclear'))
       return true
     }
     await continuePriceSavePrice(user, String(v))
@@ -619,11 +628,12 @@ async function handleContextualVoice(user: any, voice: any): Promise<boolean> {
 /** Handler conversationnel d'un message vocal (V3 multi-récoltes). */
 async function handleVoiceMessage(user: any, voice: any): Promise<void> {
   const chatId = user.channel_user_id
+  const lang = user.language
 
   // Voix contextuelle : si dans un flow compose/tri/prix, on transcrit + route
   if (await handleContextualVoice(user, voice)) return
 
-  await sendMessage(chatId, '🎤 J\'écoute…')
+  await sendMessage(chatId, t(lang, 'voice_listening'))
 
   // Récupère ou initialise la session vocale
   const state = (user.session_state ?? {}) as any
@@ -634,13 +644,13 @@ async function handleVoiceMessage(user: any, voice: any): Promise<void> {
     const audio = await downloadTelegramAudio(voice.file_id)
     const plantings = await listPlantings()
     if (plantings.length === 0) {
-      await sendMessage(chatId, '❌ Aucune plantation active. Contacte le responsable.')
+      await sendMessage(chatId, t(lang, 'voice_no_planting'))
       return
     }
-    payload = await transcribeAndExtract(audio.data, audio.mime, plantings, pending.length)
+    payload = await transcribeAndExtract(audio.data, audio.mime, plantings, pending.length, lang)
   } catch (e: any) {
     console.error('[voice] error:', e)
-    await sendMessage(chatId, `❌ Erreur transcription : ${e?.message ?? 'inconnue'}.\n\nUtilise les boutons à la place :`, mainMenuKeyboard)
+    await sendMessage(chatId, t(lang, 'voice_transcription_error', { msg: e?.message ?? '?' }), buildMainMenu(lang))
     return
   }
 
@@ -649,18 +659,19 @@ async function handleVoiceMessage(user: any, voice: any): Promise<void> {
   // ─── INTENT : journée sans récolte ──────────────────
   if (payload.intent === 'no_harvest') {
     if (pending.length > 0) {
-      // Si une session avait commencé, demander quoi faire
+      // Si une session avait commencé, demander quoi faire (utilise reply_hint Gemini si dispo)
+      const ack = payload.reply_hint ?? ''
       await sendMessage(chatId,
-        `🎤 <i>"${payload.transcription}"</i>\n\nTu as déjà ${pending.length} récolte(s) en attente. Veux-tu d'abord les enregistrer puis signaler la journée sans récolte ?`,
+        `🎤 <i>"${payload.transcription}"</i>${ack ? '\n\n' + ack : ''}`,
         {
           inline_keyboard: [
-            [{ text: '✅ Enregistrer puis signaler', callback_data: 'voice:confirm_then_no_harvest' }],
-            [{ text: '✗ Annuler la session vocale', callback_data: 'cancel' }],
+            [{ text: t(lang, 'voice_save_all'), callback_data: 'voice:confirm_then_no_harvest' }],
+            [{ text: t(lang, 'voice_cancel_session'), callback_data: 'cancel' }],
           ],
         })
       return
     }
-    await sendMessage(chatId, `🎤 <i>"${payload.transcription}"</i>\n\nOK, on signale la journée sans récolte :`)
+    await sendMessage(chatId, `🎤 <i>"${payload.transcription}"</i>${payload.reply_hint ? '\n\n' + payload.reply_hint : ''}`)
     await startNoHarvestFlow(user)
     return
   }
@@ -669,13 +680,13 @@ async function handleVoiceMessage(user: any, voice: any): Promise<void> {
   if (payload.intent === 'done') {
     if (pending.length === 0) {
       await sendMessage(chatId,
-        `🎤 <i>"${payload.transcription}"</i>\n\nTu n'as encore rien dicté. Énumère tes récoltes (vocal ou texte), ou utilise les boutons :`,
-        mainMenuKeyboard
+        `🎤 <i>"${payload.transcription}"</i>${payload.reply_hint ? '\n\n' + payload.reply_hint : ''}`,
+        buildMainMenu(lang)
       )
       await updateSession(user.id, {})
       return
     }
-    await showVoiceSessionRecap(chatId, pending)
+    await showVoiceSessionRecap(chatId, pending, lang)
     return
   }
 
@@ -710,29 +721,29 @@ async function handleVoiceMessage(user: any, voice: any): Promise<void> {
     if (valid.length === 0) {
       // Aucune récolte exploitée
       await sendMessage(chatId,
-        `🎤 <i>"${payload.transcription}"</i>\n\n❓ Je n'ai pas pu extraire de récolte exploitable. Réessaye en disant clairement <b>quantité, serre et variété</b>.`,
+        t(lang, 'voice_extracted_unclear', { transcription: payload.transcription }),
         merged.length > 0 ? {
           inline_keyboard: [
-            [{ text: '📋 Voir le récap actuel', callback_data: 'voice:show_recap' }],
-            [{ text: '✗ Annuler', callback_data: 'cancel' }],
+            [{ text: t(lang, 'voice_save_all'), callback_data: 'voice:show_recap' }],
+            [{ text: t(lang, 'cancel'), callback_data: 'cancel' }],
           ],
-        } : mainMenuKeyboard
+        } : buildMainMenu(lang)
       )
       return
     }
 
-    // Acquittement : liste des saisies de ce message
+    // Acquittement : liste des saisies de ce message + reply_hint Gemini (déjà dans la langue du user)
     const ackLines = valid.map(h => `✓ ${h.planting_label} — <b>${h.qty_kg} kg</b>${h.notes ? ` <i>(${h.notes})</i>` : ''}`).join('\n')
-    const replyHint = payload.reply_hint ?? (merged.length === 1 ? "Noté ! D'autres récoltes ? Dis 'fini' quand tu as terminé."
-                                                                  : `Total : ${merged.length} récoltes en attente. Dis 'fini' pour le récap.`)
+    // Gemini renvoie reply_hint adapté à la langue → on le garde tel quel
+    const replyHint = payload.reply_hint ?? ''
     await sendMessage(chatId,
       `🎤 <i>"${payload.transcription}"</i>\n\n` +
-      `${ackLines}\n\n` +
-      `💬 ${replyHint}`,
+      `${ackLines}` +
+      (replyHint ? `\n\n💬 ${replyHint}` : ''),
       {
         inline_keyboard: [
-          [{ text: '✅ Terminer et voir le récap', callback_data: 'voice:show_recap' }],
-          [{ text: '✗ Annuler la session', callback_data: 'cancel' }],
+          [{ text: t(lang, 'voice_save_all'), callback_data: 'voice:show_recap' }],
+          [{ text: t(lang, 'voice_cancel_session'), callback_data: 'cancel' }],
         ],
       }
     )
@@ -741,23 +752,24 @@ async function handleVoiceMessage(user: any, voice: any): Promise<void> {
 
   // ─── INTENT : unknown ───────────────────────────────
   await sendMessage(chatId,
-    `🎤 <i>"${payload.transcription}"</i>\n\n` +
-    `❓ ${payload.reply_hint ?? "Je n'ai pas bien compris. Précise <b>quantité, serre et variété</b>, ou dis 'fini' si tu as terminé."}`,
+    `🎤 <i>"${payload.transcription}"</i>` +
+    (payload.reply_hint ? `\n\n❓ ${payload.reply_hint}` : `\n\n${t(lang, 'voice_extracted_unclear', { transcription: '' }).split('\n\n')[1] ?? ''}`),
     pending.length > 0 ? {
       inline_keyboard: [
-        [{ text: '📋 Voir le récap actuel', callback_data: 'voice:show_recap' }],
-        [{ text: '✗ Annuler', callback_data: 'cancel' }],
+        [{ text: t(lang, 'voice_save_all'), callback_data: 'voice:show_recap' }],
+        [{ text: t(lang, 'cancel'), callback_data: 'cancel' }],
       ],
-    } : mainMenuKeyboard
+    } : buildMainMenu(lang)
   )
 }
 
 /** Confirme la session vocale : crée toutes les récoltes en batch. */
 async function confirmVoiceSession(user: any): Promise<{ inserted: number; lots: string[] }> {
+  const lang = user.language
   const state = (user.session_state ?? {}) as any
   const pending: PendingHarvest[] = Array.isArray(state.pending) ? state.pending : []
   if (pending.length === 0) {
-    await sendMessage(user.channel_user_id, '❌ Aucune récolte à enregistrer.', mainMenuKeyboard)
+    await sendMessage(user.channel_user_id, t(lang, 'compose_no_lots'), buildMainMenu(lang))
     return { inserted: 0, lots: [] }
   }
   const today = new Date().toISOString().slice(0, 10)
@@ -1379,22 +1391,7 @@ Deno.serve(async (req) => {
       if (callbackData === 'menu:no_harvest') { await startNoHarvestFlow(user); return new Response('OK', { status: 200 }) }
       if (callbackData === 'menu:my_lots') { await showMyLots(user); return new Response('OK', { status: 200 }) }
       if (callbackData === 'menu:help') {
-        await sendMessage(chatId,
-          `<b>Aide</b>\n\n` +
-          `🎙️ <b>Saisie vocale groupée</b> — la méthode <u>la plus rapide</u> :\n` +
-          `   • Dicte tes récoltes au micro 🎤 (français ou darija)\n` +
-          `   • Plusieurs dans un seul message possible\n` +
-          `   • Dis <b>"fini"</b> → récap → confirme tout d'un coup\n\n` +
-          `📦 <b>Nouvelle récolte</b> — saisie guidée pas-à-pas\n` +
-          `🚚 <b>Composer un envoi station</b> — regroupe N récoltes vers un marché\n` +
-          `🔬 <b>Saisir tri</b> — freinte + écart après réception station\n` +
-          `💰 <b>Confirmer un prix</b> — prix /kg → CA calculé sur la qté acceptée\n` +
-          `🚨 <b>Journée sans récolte</b> — signaler un motif (panne, météo…)\n` +
-          `📊 <b>Mes derniers lots</b> — voir les 7 derniers jours\n\n` +
-          `<i>Cycle d'un envoi : Composer → Saisir tri → Confirmer prix</i>\n\n` +
-          `Tape /menu à tout moment pour revenir au menu principal.`,
-          mainMenuKeyboard
-        )
+        await sendMessage(chatId, t(user.language, 'help_text'), buildMainMenu(user.language))
         return new Response('OK', { status: 200 })
       }
       if (callbackData.startsWith('harvest:planting:')) {

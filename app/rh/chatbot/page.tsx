@@ -335,7 +335,9 @@ export default function ChatbotPage() {
               <Field label="Langue">
                 <TSelect value={form.language} onChange={(e) => setForm(s => ({ ...s, language: e.target.value }))}>
                   <option value="fr">Français</option>
-                  <option value="ar">العربية</option>
+                  <option value="darija">Darija (Maroc, latin)</option>
+                  <option value="ar">العربية الفصحى</option>
+                  <option value="en">English</option>
                 </TSelect>
               </Field>
               <div className="rounded-md bg-surface-sunk border border-border p-md text-body-sm text-fg-tertiary">
