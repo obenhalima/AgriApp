@@ -256,24 +256,48 @@ export default function DemoResetPage() {
       toast.error('Tape "RESET" pour confirmer'); return
     }
     setSaving(true)
+    const toastId = toast.loading('🔄 Reset opérationnel en cours…')
     try {
-      const { data, error } = await supabase.rpc('admin_operational_reset')
+      const { data, error } = await rpcWithTimeout(
+        supabase.rpc('admin_operational_reset'),
+        75000,
+        'admin_operational_reset'
+      )
       if (error) throw error
-      toast.success(`✅ ${(data as any)?.message ?? 'Reset opérationnel effectué'}`)
+      const result = data as any
+      console.log('[admin_operational_reset] result:', result)
+      toast.dismiss(toastId)
+      toast.success(`✅ ${result?.message ?? 'Reset opérationnel effectué'}`)
       setResetOpsOpen(false)
       setConfirmReset('')
       load()
     } catch (e: any) {
+      toast.dismiss(toastId)
       console.error('[admin_operational_reset]', e)
       if (isRpcMissingError(e)) {
         setRpcStatus('missing')
         setShowMigrationSql(true)
         toast.error('⚠️ La migration 036_admin_wipe_rpc.sql n\'est pas appliquée. Voir bannière en haut.', { duration: 6000 })
       } else {
-        toast.error('Erreur: ' + e.message)
+        toast.error('Erreur: ' + (e.message ?? 'inconnue'), { duration: 8000 })
       }
     }
     setSaving(false)
+  }
+
+  // Helper : timeout wrapper sur RPC pour éviter le spinner infini
+  const rpcWithTimeout = async (
+    rpcBuilder: any,
+    timeoutMs = 75000,
+    label = 'RPC'
+  ): Promise<{ data: any; error: any }> => {
+    const rpcPromise: Promise<{ data: any; error: any }> = Promise.resolve(rpcBuilder).then((res: any) => res)
+    return Promise.race([
+      rpcPromise,
+      new Promise<{ data: any; error: any }>((_, reject) =>
+        setTimeout(() => reject(new Error(`Timeout ${timeoutMs / 1000}s — ${label} ne répond pas. Vérifie les logs Supabase (Database → Logs → Postgres).`)), timeoutMs)
+      ),
+    ])
   }
 
   // ─── Action 4 : Nuclear (via RPC) ──────────────────────────────────────
@@ -282,29 +306,44 @@ export default function DemoResetPage() {
       toast.error('Tape exactement "SUPPRIMER TOUT" pour confirmer'); return
     }
     setSaving(true)
+    const toastId = toast.loading('☢️ Nuclear wipe en cours… (peut prendre ~30s)')
     try {
-      const { data, error } = await supabase.rpc('admin_nuclear_wipe')
+      const { data, error } = await rpcWithTimeout(
+        supabase.rpc('admin_nuclear_wipe'),
+        75000,
+        'admin_nuclear_wipe'
+      )
       if (error) throw error
-      toast.success(`☢️ ${(data as any)?.message ?? 'Nuclear wipe terminé'}`, { duration: 5000 })
+      const result = data as any
+      const totalRows = result?.total_rows ?? 0
+      const errors = (result?.tables ?? []).filter((t: any) => t.status === 'error')
+      console.log('[admin_nuclear_wipe] result:', result)
+      toast.dismiss(toastId)
+      if (errors.length > 0) {
+        toast.warning(`⚠️ Wipe partiel : ${totalRows} lignes effacées, ${errors.length} table(s) en erreur. Voir la console.`, { duration: 8000 })
+      } else {
+        toast.success(`☢️ ${result?.message ?? `${totalRows} lignes effacées`}`, { duration: 5000 })
+      }
       setNuclearOpen(false)
       setConfirmNuclear('')
       load()
     } catch (e: any) {
+      toast.dismiss(toastId)
       console.error('[admin_nuclear_wipe]', e)
       if (isRpcMissingError(e)) {
         setRpcStatus('missing')
         setShowMigrationSql(true)
         toast.error('⚠️ La migration 036_admin_wipe_rpc.sql n\'est pas appliquée. Voir bannière en haut.', { duration: 6000 })
       } else {
-        toast.error('Erreur: ' + e.message)
+        toast.error('Erreur: ' + (e.message ?? 'inconnue'), { duration: 8000 })
       }
     }
     setSaving(false)
   }
 
-  // ─── Constante : SQL à copier-coller dans Supabase ─────────────────────
-  const MIGRATION_036_SQL = `-- Copier ce bloc dans le SQL Editor de Supabase puis cliquer RUN
--- Migration 036 : RPC admin_delete_campaign / admin_operational_reset / admin_nuclear_wipe
+  // ─── Constante : SQL à copier-coller dans Supabase (V2 défensive) ──────
+  const MIGRATION_036_SQL = `-- Migration 036 V2 — RPC admin défensives (per-table EXCEPTION + timeout)
+-- Copier tout ce bloc dans le SQL Editor de Supabase puis cliquer RUN.
 
 CREATE OR REPLACE FUNCTION is_admin_caller() RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v BOOLEAN := FALSE;
@@ -314,58 +353,66 @@ BEGIN
   RETURN v;
 END; $$;
 
+CREATE OR REPLACE FUNCTION _admin_truncate_table(p_table TEXT) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_count BIGINT := 0; v_status TEXT := 'ok'; v_err TEXT := NULL;
+BEGIN
+  BEGIN EXECUTE format('SELECT COUNT(*) FROM %I', p_table) INTO v_count;
+  EXCEPTION WHEN OTHERS THEN RETURN jsonb_build_object('table', p_table, 'status', 'missing', 'rows', 0); END;
+  BEGIN EXECUTE format('TRUNCATE TABLE %I RESTART IDENTITY CASCADE', p_table);
+  EXCEPTION WHEN OTHERS THEN v_status := 'error'; v_err := SQLERRM; END;
+  RETURN jsonb_build_object('table', p_table, 'status', v_status, 'rows', v_count, 'error', v_err);
+END; $$;
+
 CREATE OR REPLACE FUNCTION admin_nuclear_wipe() RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE tbl TEXT; results JSONB := '[]'::jsonb; rec JSONB; total_rows BIGINT := 0;
 BEGIN
   IF NOT is_admin_caller() THEN RAISE EXCEPTION 'Admin requis'; END IF;
-  TRUNCATE TABLE chatbot_messages, harvest_lot_sources, harvest_lots, harvests,
-    production_forecasts, station_prices, recoltes_marche_daily,
-    payments_received, invoices, delivery_notes, sales_order_lines, sales_orders,
-    payments_made, supplier_invoices, purchase_order_lines, purchase_orders,
-    cost_entries, stock_movements, cultural_operations, labor_entries, alerts,
-    budget_lines, amortissements, campaign_plantings, campaigns, market_prices
-    RESTART IDENTITY CASCADE;
-  TRUNCATE TABLE chatbot_users, workers, teams, stock_items, assets,
-    clients, suppliers, markets, varieties, seed_suppliers,
-    greenhouses, farm_zones, farms RESTART IDENTITY CASCADE;
-  RETURN jsonb_build_object('status', 'success', 'message', 'Nuclear wipe ok');
+  SET LOCAL statement_timeout = '60s';
+  FOR tbl IN SELECT unnest(ARRAY['chatbot_messages','harvest_lot_sources','harvest_lots','harvests','production_forecasts','station_prices','recoltes_marche_daily','payments_received','invoices','delivery_notes','sales_order_lines','sales_orders','payments_made','supplier_invoices','purchase_order_lines','purchase_orders','cost_entries','stock_movements','cultural_operations','labor_entries','alerts','budget_lines','amortissements','campaign_plantings','campaigns','market_prices','chatbot_users','workers','teams','stock_items','assets','clients','suppliers','markets','varieties','seed_suppliers','greenhouses','farm_zones','farms']) LOOP
+    rec := _admin_truncate_table(tbl);
+    total_rows := total_rows + COALESCE((rec->>'rows')::BIGINT, 0);
+    results := results || rec;
+  END LOOP;
+  RETURN jsonb_build_object('status','success','total_rows',total_rows,'message',format('%s lignes effacées',total_rows),'tables',results);
 END; $$;
 
 CREATE OR REPLACE FUNCTION admin_operational_reset() RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE tbl TEXT; results JSONB := '[]'::jsonb; rec JSONB; total_rows BIGINT := 0;
 BEGIN
   IF NOT is_admin_caller() THEN RAISE EXCEPTION 'Admin requis'; END IF;
-  TRUNCATE TABLE chatbot_messages, harvest_lot_sources, harvest_lots, harvests,
-    production_forecasts, station_prices, recoltes_marche_daily,
-    payments_received, invoices, delivery_notes, sales_order_lines, sales_orders,
-    payments_made, supplier_invoices, purchase_order_lines, purchase_orders,
-    cost_entries, stock_movements, cultural_operations, labor_entries, alerts,
-    budget_lines, amortissements, campaign_plantings, campaigns, market_prices
-    RESTART IDENTITY CASCADE;
-  RETURN jsonb_build_object('status', 'success', 'message', 'Reset operational ok');
+  SET LOCAL statement_timeout = '60s';
+  FOR tbl IN SELECT unnest(ARRAY['chatbot_messages','harvest_lot_sources','harvest_lots','harvests','production_forecasts','station_prices','recoltes_marche_daily','payments_received','invoices','delivery_notes','sales_order_lines','sales_orders','payments_made','supplier_invoices','purchase_order_lines','purchase_orders','cost_entries','stock_movements','cultural_operations','labor_entries','alerts','budget_lines','amortissements','campaign_plantings','campaigns','market_prices']) LOOP
+    rec := _admin_truncate_table(tbl);
+    total_rows := total_rows + COALESCE((rec->>'rows')::BIGINT, 0);
+    results := results || rec;
+  END LOOP;
+  RETURN jsonb_build_object('status','success','total_rows',total_rows,'message',format('Reset op terminé. %s lignes effacées',total_rows),'tables',results);
 END; $$;
 
 CREATE OR REPLACE FUNCTION admin_delete_campaign(p_campaign_id UUID) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_count INTEGER; v JSONB := '{}'::jsonb;
 BEGIN
   IF NOT is_admin_caller() THEN RAISE EXCEPTION 'Admin requis'; END IF;
-  DELETE FROM amortissements WHERE campaign_id = p_campaign_id; GET DIAGNOSTICS v_count = ROW_COUNT;
-  v := jsonb_set(v, '{amortissements}', to_jsonb(v_count));
-  DELETE FROM recoltes_marche_daily WHERE campaign_id = p_campaign_id;
-  DELETE FROM cost_entries WHERE campaign_id = p_campaign_id;
-  DELETE FROM supplier_invoices WHERE campaign_id = p_campaign_id;
-  DELETE FROM purchase_orders WHERE campaign_id = p_campaign_id;
-  DELETE FROM sales_orders WHERE campaign_id = p_campaign_id;
-  DELETE FROM cultural_operations WHERE campaign_id = p_campaign_id;
-  DELETE FROM labor_entries WHERE campaign_id = p_campaign_id;
-  DELETE FROM harvest_lot_sources WHERE harvest_id IN (SELECT h.id FROM harvests h JOIN campaign_plantings cp ON cp.id = h.campaign_planting_id WHERE cp.campaign_id = p_campaign_id);
-  DELETE FROM harvest_lots WHERE harvest_id IN (SELECT h.id FROM harvests h JOIN campaign_plantings cp ON cp.id = h.campaign_planting_id WHERE cp.campaign_id = p_campaign_id);
-  DELETE FROM harvests WHERE campaign_planting_id IN (SELECT id FROM campaign_plantings WHERE campaign_id = p_campaign_id);
-  DELETE FROM production_forecasts WHERE campaign_planting_id IN (SELECT id FROM campaign_plantings WHERE campaign_id = p_campaign_id);
+  SET LOCAL statement_timeout = '30s';
+  BEGIN DELETE FROM amortissements WHERE campaign_id = p_campaign_id; GET DIAGNOSTICS v_count = ROW_COUNT; v := jsonb_set(v,'{amortissements}',to_jsonb(v_count)); EXCEPTION WHEN OTHERS THEN END;
+  BEGIN DELETE FROM recoltes_marche_daily WHERE campaign_id = p_campaign_id; EXCEPTION WHEN OTHERS THEN END;
+  BEGIN DELETE FROM cost_entries WHERE campaign_id = p_campaign_id; EXCEPTION WHEN OTHERS THEN END;
+  BEGIN DELETE FROM supplier_invoices WHERE campaign_id = p_campaign_id; EXCEPTION WHEN OTHERS THEN END;
+  BEGIN DELETE FROM purchase_orders WHERE campaign_id = p_campaign_id; EXCEPTION WHEN OTHERS THEN END;
+  BEGIN DELETE FROM sales_orders WHERE campaign_id = p_campaign_id; EXCEPTION WHEN OTHERS THEN END;
+  BEGIN DELETE FROM cultural_operations WHERE campaign_id = p_campaign_id; EXCEPTION WHEN OTHERS THEN END;
+  BEGIN DELETE FROM labor_entries WHERE campaign_id = p_campaign_id; EXCEPTION WHEN OTHERS THEN END;
+  BEGIN DELETE FROM harvest_lot_sources WHERE harvest_id IN (SELECT h.id FROM harvests h JOIN campaign_plantings cp ON cp.id = h.campaign_planting_id WHERE cp.campaign_id = p_campaign_id); EXCEPTION WHEN OTHERS THEN END;
+  BEGIN DELETE FROM harvest_lots WHERE harvest_id IN (SELECT h.id FROM harvests h JOIN campaign_plantings cp ON cp.id = h.campaign_planting_id WHERE cp.campaign_id = p_campaign_id); EXCEPTION WHEN OTHERS THEN END;
+  BEGIN DELETE FROM harvests WHERE campaign_planting_id IN (SELECT id FROM campaign_plantings WHERE campaign_id = p_campaign_id); EXCEPTION WHEN OTHERS THEN END;
+  BEGIN DELETE FROM production_forecasts WHERE campaign_planting_id IN (SELECT id FROM campaign_plantings WHERE campaign_id = p_campaign_id); EXCEPTION WHEN OTHERS THEN END;
   DELETE FROM campaigns WHERE id = p_campaign_id; GET DIAGNOSTICS v_count = ROW_COUNT;
-  v := jsonb_set(v, '{campaigns}', to_jsonb(v_count));
+  v := jsonb_set(v,'{campaigns}',to_jsonb(v_count));
   RETURN v;
 END; $$;
 
 REVOKE ALL ON FUNCTION is_admin_caller() FROM PUBLIC;
+REVOKE ALL ON FUNCTION _admin_truncate_table(TEXT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION admin_nuclear_wipe() FROM PUBLIC;
 REVOKE ALL ON FUNCTION admin_operational_reset() FROM PUBLIC;
 REVOKE ALL ON FUNCTION admin_delete_campaign(UUID) FROM PUBLIC;
