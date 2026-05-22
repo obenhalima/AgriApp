@@ -32,6 +32,7 @@ import {
   UserCog, ShieldCheck,
   BookOpen,
   Plus, Search, Bell,
+  Database,
 } from 'lucide-react'
 
 export type NavItem = {
@@ -197,8 +198,9 @@ export const NAV: NavSection[] = [
     icon: ShieldAlert,
     color: '#ef4444',
     items: [
-      { href: '/admin/users', moduleCode: 'users', label: 'Utilisateurs',        icon: UserCog,     color: '#ef4444', description: 'Comptes utilisateurs' },
-      { href: '/admin/roles', moduleCode: 'roles', label: 'Rôles & Permissions', icon: ShieldCheck, color: '#ef4444', description: 'Rôles & matrice de permissions' },
+      { href: '/admin/users',       moduleCode: 'users',  label: 'Utilisateurs',        icon: UserCog,     color: '#ef4444', description: 'Comptes utilisateurs' },
+      { href: '/admin/roles',       moduleCode: 'roles',  label: 'Rôles & Permissions', icon: ShieldCheck, color: '#ef4444', description: 'Rôles & matrice de permissions' },
+      { href: '/admin/demo-reset',  moduleCode: 'users',  label: 'Démo / Reset',        icon: Database,    color: '#ef4444', keywords: ['nouvelle campagne', 'supprimer', 'reset', 'wipe', 'demo', 'nuclear'], description: 'Nouvelle campagne, suppression et reset (démo)' },
     ],
   },
 
