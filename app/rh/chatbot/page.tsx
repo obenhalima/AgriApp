@@ -36,7 +36,7 @@ export default function ChatbotPage() {
   const [tab, setTab] = useState<'users' | 'messages' | 'recap'>('users')
 
   const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<{ worker_id: string; language: string }>({ worker_id: '', language: 'fr' })
+  const [form, setForm] = useState<{ worker_id: string; language: string }>({ worker_id: '', language: 'darija' })
   const [generated, setGenerated] = useState<{ code: string; expires: string } | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -104,6 +104,23 @@ export default function ChatbotPage() {
     } catch (e: any) { toast.error(e.message) }
   }
 
+  const changeLanguage = async (u: ChatbotUser, lang: string) => {
+    try {
+      const { error } = await supabase.from('chatbot_users').update({ language: lang }).eq('id', u.id)
+      if (error) throw error
+      toast.success(`Langue → ${lang}`); load()
+    } catch (e: any) { toast.error(e.message) }
+  }
+
+  const setAllToDarija = async () => {
+    if (!confirm('Passer TOUS les utilisateurs actifs en Darija marocaine ?')) return
+    try {
+      const { error } = await supabase.from('chatbot_users').update({ language: 'darija' }).eq('is_active', true)
+      if (error) throw error
+      toast.success('Tous les utilisateurs passent en Darija'); load()
+    } catch (e: any) { toast.error(e.message) }
+  }
+
   const previewRecap = async () => {
     setRecapSending(true); setRecapResult(null); setRecapPreview('')
     try {
@@ -135,7 +152,16 @@ export default function ChatbotPage() {
       <PageHeader
         title="Chatbot Telegram" subtitle="Ressources humaines" icon={MessageSquare} iconColor="#26a5e4"
         description="Saisie des récoltes par message — pour les ouvriers ne maîtrisant pas le PC"
-        actions={<Button onClick={() => { setModalOpen(true); setGenerated(null) }} variant="primary"><UserPlus size={14} strokeWidth={2.5} /> Inviter un employé</Button>}
+        actions={
+          <div className="flex gap-2">
+            {enrolledCount > 0 && (
+              <Button onClick={setAllToDarija} variant="secondary" size="sm" title="Bascule tous les utilisateurs actifs en Darija marocaine">
+                🇲🇦 Tout en Darija
+              </Button>
+            )}
+            <Button onClick={() => { setModalOpen(true); setGenerated(null) }} variant="primary"><UserPlus size={14} strokeWidth={2.5} /> Inviter un employé</Button>
+          </div>
+        }
         stats={loading ? [] : [
           { label: 'Inscrits actifs', value: String(enrolledCount), icon: Users, color: '#10b981' },
           { label: 'En attente', value: String(pendingCount), icon: Clock, color: '#f59e0b' },
@@ -170,7 +196,7 @@ export default function ChatbotPage() {
             <EmptyState icon={MessageSquare} title="Aucun compte" description="Cliquer Inviter un employé." action={<Button onClick={() => setModalOpen(true)}><UserPlus size={14} /> Inviter</Button>} />
           ) : (
             <DataTable minWidth={1200}>
-              <THead><TR><TH>Employé</TH><TH>Canal</TH><TH>Statut</TH><TH>Code</TH><TH>Récap 18h</TH><TH>Inscrit le</TH><TH>Dernier msg</TH><TH right>Actions</TH></TR></THead>
+              <THead><TR><TH>Employé</TH><TH>Canal</TH><TH>Statut</TH><TH>Langue</TH><TH>Code</TH><TH>Récap 18h</TH><TH>Inscrit le</TH><TH>Dernier msg</TH><TH right>Actions</TH></TR></THead>
               <tbody>
                 {users.map((u, i) => {
                   const w = workers.find(x => x.id === u.worker_id)
@@ -186,6 +212,19 @@ export default function ChatbotPage() {
                         {status === 'enrolled' && <Badge variant="success" size="sm" dot>Inscrit</Badge>}
                         {status === 'pending' && <Badge variant="warning" size="sm">⏳ En attente</Badge>}
                         {status === 'inactive' && <Badge variant="default" size="sm">○ Inactif</Badge>}
+                      </TD>
+                      <TD>
+                        <select
+                          value={u.language ?? 'fr'}
+                          onChange={(e) => changeLanguage(u, e.target.value)}
+                          className="h-7 px-2 rounded border border-border bg-surface-sunk text-caption text-fg-secondary hover:border-border-strong focus:outline-none focus:border-brand cursor-pointer"
+                          title="Langue de réponse du bot pour cet utilisateur"
+                        >
+                          <option value="fr">🇫🇷 Français</option>
+                          <option value="darija">🇲🇦 Darija</option>
+                          <option value="ar">🇸🇦 العربية</option>
+                          <option value="en">🇬🇧 English</option>
+                        </select>
                       </TD>
                       <TD mono className={`text-caption font-bold ${status === 'pending' ? 'text-warning' : 'text-fg-tertiary'}`}>{u.enrollment_code ?? '—'}</TD>
                       <TD>
