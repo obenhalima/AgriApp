@@ -18,7 +18,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import {
   RotateCcw, Trash2, AlertTriangle, Plus, Calendar, Sprout, AlertOctagon,
-  ShieldAlert, Database, Skull, CheckCircle2, Loader2, Info,
+  ShieldAlert, Database, Skull, CheckCircle2, Loader2, Info, Dices,
+  TrendingUp, Eye,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
@@ -28,6 +29,11 @@ import { Badge } from '@/components/ui/Badge'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Input as TInput, Select as TSelect, Field } from '@/components/ui/Input'
 import { Modal, ModalFooter } from '@/components/ui/Modal'
+import {
+  generateAll, buildPreview, listAvailableMonths,
+  type PlantingInput, type GeneratorOptions, type GenerationPreview,
+  type VarianceLevel, type QualityPreset, type HarvestFrequency,
+} from '@/lib/testDataGenerator'
 
 type Campaign = {
   id: string; code: string; name: string; status: string | null
@@ -97,6 +103,23 @@ export default function DemoResetPage() {
     production_target_kg: '', budget_total: '',
   })
   const [saving, setSaving] = useState(false)
+
+  // Générateur de données de test
+  const [genOpen, setGenOpen] = useState(false)
+  const [genCampaignId, setGenCampaignId] = useState<string>('')
+  const [genPlantings, setGenPlantings] = useState<PlantingInput[]>([])
+  const [genLoading, setGenLoading] = useState(false)
+  const [genOptions, setGenOptions] = useState<GeneratorOptions>({
+    variance: 'medium',
+    quality: 'good',
+    frequency: 'biweekly',
+    onlyPast: true,
+  })
+  const [selectedPlantings, setSelectedPlantings] = useState<Set<string>>(new Set())
+  const [selectedMonths, setSelectedMonths] = useState<Set<string>>(new Set())
+  const [genPreview, setGenPreview] = useState<GenerationPreview | null>(null)
+  const [genInserting, setGenInserting] = useState(false)
+  const [genProgress, setGenProgress] = useState({ done: 0, total: 0 })
 
   const load = async () => {
     setLoading(true)
@@ -266,6 +289,132 @@ export default function DemoResetPage() {
     setSaving(false)
   }
 
+  // ─── Générateur : charge les plantings de la campagne sélectionnée ─────
+  const loadPlantings = async (campaignId: string) => {
+    setGenLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('campaign_plantings')
+        .select(`
+          id, planted_area, target_yield_per_m2, target_total_production,
+          planting_date, first_harvest_date, last_harvest_date,
+          greenhouses(code),
+          varieties(code, commercial_name)
+        `)
+        .eq('campaign_id', campaignId)
+      if (error) throw error
+
+      // Récupère aussi les dates de la campagne (fallback si pas sur le planting)
+      const campaign = campaigns.find(c => c.id === campaignId)
+      const camp = await supabase.from('campaigns')
+        .select('preparation_start, harvest_start, harvest_end, campaign_end')
+        .eq('id', campaignId).maybeSingle()
+
+      const harvestStart = camp.data?.harvest_start ?? null
+      const harvestEnd = camp.data?.harvest_end ?? null
+
+      const items: PlantingInput[] = (data ?? []).map((p: any) => ({
+        id: p.id,
+        greenhouse_code: p.greenhouses?.code ?? null,
+        variety_code: p.varieties?.code ?? null,
+        variety_name: p.varieties?.commercial_name ?? null,
+        planted_area: Number(p.planted_area) || 0,
+        target_yield_per_m2: p.target_yield_per_m2 != null ? Number(p.target_yield_per_m2) : null,
+        target_total_production: p.target_total_production != null ? Number(p.target_total_production) : null,
+        // Fallback : dates de la plantation, sinon dates de la campagne
+        harvest_start_date: p.first_harvest_date ?? harvestStart,
+        harvest_end_date:   p.last_harvest_date  ?? harvestEnd,
+        planting_date: p.planting_date,
+      }))
+
+      setGenPlantings(items)
+      // Pré-sélectionne toutes les plantations qui ont des dates valides
+      setSelectedPlantings(new Set(
+        items.filter(p => p.harvest_start_date && p.harvest_end_date && (p.target_total_production ?? (p.target_yield_per_m2 ?? 0) * p.planted_area) > 0).map(p => p.id)
+      ))
+      // Pré-sélectionne tous les mois
+      const months = listAvailableMonths(items)
+      setSelectedMonths(new Set(months))
+    } catch (e: any) { toast.error(e.message) }
+    setGenLoading(false)
+  }
+
+  const openGenerator = (campaignId?: string) => {
+    setGenOpen(true)
+    setGenPreview(null)
+    if (campaignId) {
+      setGenCampaignId(campaignId)
+      loadPlantings(campaignId)
+    } else {
+      setGenCampaignId('')
+      setGenPlantings([])
+      setSelectedPlantings(new Set())
+      setSelectedMonths(new Set())
+    }
+  }
+
+  const onSelectCampaignForGen = (campaignId: string) => {
+    setGenCampaignId(campaignId)
+    setGenPreview(null)
+    if (campaignId) loadPlantings(campaignId)
+    else { setGenPlantings([]); setSelectedPlantings(new Set()); setSelectedMonths(new Set()) }
+  }
+
+  const togglePlanting = (id: string) => {
+    const next = new Set(selectedPlantings)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    setSelectedPlantings(next)
+    setGenPreview(null)
+  }
+  const toggleMonth = (m: string) => {
+    const next = new Set(selectedMonths)
+    if (next.has(m)) next.delete(m); else next.add(m)
+    setSelectedMonths(next)
+    setGenPreview(null)
+  }
+
+  const computePreview = () => {
+    const selected = genPlantings.filter(p => selectedPlantings.has(p.id))
+    if (selected.length === 0) { toast.error('Sélectionne au moins une plantation'); return }
+    const months = Array.from(selectedMonths)
+    const preview = buildPreview(selected, { ...genOptions, monthsFilter: months.length > 0 ? months : undefined })
+    setGenPreview(preview)
+    if (preview.totalHarvests === 0) {
+      toast.warning('Aucune récolte ne serait générée avec ces options')
+    }
+  }
+
+  const generateHarvests = async () => {
+    const selected = genPlantings.filter(p => selectedPlantings.has(p.id))
+    if (selected.length === 0) { toast.error('Sélectionne au moins une plantation'); return }
+    const months = Array.from(selectedMonths)
+    const harvests = generateAll(selected, { ...genOptions, monthsFilter: months.length > 0 ? months : undefined })
+    if (harvests.length === 0) { toast.error('Rien à générer'); return }
+
+    if (!confirm(`Générer ${harvests.length} récolte(s) (${Math.round(harvests.reduce((s, h) => s + h.qty_category_1 + h.qty_category_2 + h.qty_category_3 + h.qty_waste, 0))} kg au total) ?`)) return
+
+    setGenInserting(true)
+    setGenProgress({ done: 0, total: harvests.length })
+    try {
+      // Insertion en batches de 50
+      const BATCH = 50
+      for (let i = 0; i < harvests.length; i += BATCH) {
+        const slice = harvests.slice(i, i + BATCH)
+        const { error } = await supabase.from('harvests').insert(slice as any)
+        if (error) throw error
+        setGenProgress({ done: Math.min(i + BATCH, harvests.length), total: harvests.length })
+      }
+      toast.success(`✅ ${harvests.length} récolte(s) générées et insérées !`)
+      setGenOpen(false)
+      setGenPreview(null)
+    } catch (e: any) {
+      toast.error('Erreur: ' + e.message)
+    }
+    setGenInserting(false)
+  }
+
+  const availableMonths = useMemo(() => listAvailableMonths(genPlantings), [genPlantings])
+
   if (!isAdmin) {
     return (
       <div>
@@ -361,6 +510,28 @@ export default function DemoResetPage() {
           </div>
         </Card>
 
+        {/* ─── 2.5 Générateur de données de test ─── */}
+        <Card animate className="border-l-[3px] border-l-info">
+          <div className="flex items-start gap-md">
+            <div className="rounded-md flex items-center justify-center flex-shrink-0"
+              style={{ width: 40, height: 40, background: 'color-mix(in srgb, #3b82f6 15%, transparent)', color: '#3b82f6' }}>
+              <Dices size={20} strokeWidth={2.4} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-display text-body font-bold text-fg-primary mb-1 flex items-center gap-2">
+                Générer jeu de récoltes
+                <Badge variant="info" size="xs">SMART</Badge>
+              </div>
+              <div className="text-caption text-fg-tertiary leading-relaxed mb-md">
+                Génère automatiquement des récoltes réalistes <strong>mois par mois</strong> en respectant : production cible, yield kg/m², courbe en cloche (phénologie tomate), variance configurable, mix qualité.
+              </div>
+              <Button onClick={() => openGenerator()} variant="primary" size="sm">
+                <Dices size={13} /> Ouvrir le générateur
+              </Button>
+            </div>
+          </div>
+        </Card>
+
         {/* ─── 3. Reset opérationnel ─── */}
         <Card animate className="border-l-[3px] border-l-danger">
           <div className="flex items-start gap-md">
@@ -446,6 +617,246 @@ export default function DemoResetPage() {
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* MODALES                                                              */}
       {/* ════════════════════════════════════════════════════════════════════ */}
+
+      {/* ─── Modal : Générateur ─── */}
+      {genOpen && (
+        <Modal title="🎲 Générer jeu de récoltes test" onClose={() => { setGenOpen(false); setGenPreview(null) }} size="lg">
+          <div className="space-y-md">
+            {/* 1. Campagne */}
+            <Field label="Campagne" required>
+              <TSelect value={genCampaignId} onChange={(e) => onSelectCampaignForGen(e.target.value)}>
+                <option value="">— Sélectionner —</option>
+                {campaigns.map(c => (
+                  <option key={c.id} value={c.id}>{c.name} ({c.code}) · {c.farms?.name ?? '?'}</option>
+                ))}
+              </TSelect>
+            </Field>
+
+            {genLoading && (
+              <div className="text-center py-4 text-fg-tertiary text-caption">
+                <Loader2 size={16} className="inline-block animate-spin mr-2" />Chargement plantations…
+              </div>
+            )}
+
+            {!genLoading && genCampaignId && genPlantings.length > 0 && (
+              <>
+                {/* 2. Options génération */}
+                <div className="grid grid-cols-3 gap-md">
+                  <Field label="Cadence">
+                    <TSelect value={genOptions.frequency} onChange={(e) => { setGenOptions(o => ({ ...o, frequency: e.target.value as HarvestFrequency })); setGenPreview(null) }}>
+                      <option value="weekly">1/semaine</option>
+                      <option value="biweekly">2/semaine</option>
+                      <option value="triweekly">3/semaine</option>
+                    </TSelect>
+                  </Field>
+                  <Field label="Variance">
+                    <TSelect value={genOptions.variance} onChange={(e) => { setGenOptions(o => ({ ...o, variance: e.target.value as VarianceLevel })); setGenPreview(null) }}>
+                      <option value="low">Faible (±8%)</option>
+                      <option value="medium">Moyenne (±18%)</option>
+                      <option value="high">Élevée (±30%)</option>
+                    </TSelect>
+                  </Field>
+                  <Field label="Qualité">
+                    <TSelect value={genOptions.quality} onChange={(e) => { setGenOptions(o => ({ ...o, quality: e.target.value as QualityPreset })); setGenPreview(null) }}>
+                      <option value="excellent">Excellente (72% Cat 1)</option>
+                      <option value="good">Bonne (60% Cat 1)</option>
+                      <option value="average">Moyenne (48% Cat 1)</option>
+                      <option value="poor">Faible (35% Cat 1)</option>
+                    </TSelect>
+                  </Field>
+                </div>
+
+                <div className="flex items-center gap-sm">
+                  <label className="flex items-center gap-2 cursor-pointer text-body-sm text-fg-secondary">
+                    <input
+                      type="checkbox"
+                      checked={genOptions.onlyPast ?? false}
+                      onChange={(e) => { setGenOptions(o => ({ ...o, onlyPast: e.target.checked })); setGenPreview(null) }}
+                      className="w-4 h-4 accent-brand"
+                    />
+                    <span>Uniquement les dates passées (jusqu'à aujourd'hui)</span>
+                  </label>
+                </div>
+
+                {/* 3. Plantations à inclure */}
+                <div>
+                  <div className="flex items-center justify-between mb-sm">
+                    <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-bold">
+                      Plantations à inclure ({selectedPlantings.size}/{genPlantings.length})
+                    </div>
+                    <div className="flex gap-1">
+                      <Button onClick={() => { setSelectedPlantings(new Set(genPlantings.map(p => p.id))); setGenPreview(null) }} variant="ghost" size="xs">Tout</Button>
+                      <Button onClick={() => { setSelectedPlantings(new Set()); setGenPreview(null) }} variant="ghost" size="xs">Aucun</Button>
+                    </div>
+                  </div>
+                  <div className="max-h-32 overflow-y-auto rounded border border-border bg-surface-sunk p-2 space-y-1">
+                    {genPlantings.map(p => {
+                      const total = p.target_total_production ?? (p.target_yield_per_m2 ?? 0) * p.planted_area
+                      const hasData = p.harvest_start_date && p.harvest_end_date && total > 0
+                      return (
+                        <label key={p.id} className={`flex items-center gap-2 px-2 py-1 rounded text-caption cursor-pointer hover:bg-surface-hover ${!hasData ? 'opacity-50' : ''}`}>
+                          <input
+                            type="checkbox"
+                            checked={selectedPlantings.has(p.id)}
+                            onChange={() => togglePlanting(p.id)}
+                            disabled={!hasData}
+                            className="w-3.5 h-3.5 accent-brand"
+                          />
+                          <span className="font-mono text-fg-primary">{p.greenhouse_code ?? '?'}</span>
+                          <span className="text-fg-tertiary">·</span>
+                          <span className="text-fg-secondary">{p.variety_name ?? p.variety_code ?? '?'}</span>
+                          <span className="ml-auto font-mono text-fg-tertiary text-[10px]">
+                            {Math.round(total).toLocaleString('fr-FR')} kg cible · {p.harvest_start_date ?? '?'} → {p.harvest_end_date ?? '?'}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* 4. Mois à inclure */}
+                {availableMonths.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-sm">
+                      <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-bold">
+                        Mois à inclure ({selectedMonths.size}/{availableMonths.length})
+                      </div>
+                      <div className="flex gap-1">
+                        <Button onClick={() => { setSelectedMonths(new Set(availableMonths)); setGenPreview(null) }} variant="ghost" size="xs">Tout</Button>
+                        <Button onClick={() => { setSelectedMonths(new Set()); setGenPreview(null) }} variant="ghost" size="xs">Aucun</Button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {availableMonths.map(m => {
+                        const date = new Date(m + '-01T00:00:00')
+                        const label = date.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+                        return (
+                          <button
+                            key={m}
+                            onClick={() => toggleMonth(m)}
+                            className={`px-2.5 py-1 rounded-full text-caption font-semibold border transition-all ${selectedMonths.has(m)
+                              ? 'bg-brand/15 border-brand text-brand'
+                              : 'bg-surface-sunk border-border text-fg-tertiary hover:border-border-strong'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. Bouton Aperçu */}
+                <Button onClick={computePreview} variant="secondary" size="sm">
+                  <Eye size={13} /> Calculer l'aperçu
+                </Button>
+
+                {/* 6. Aperçu */}
+                {genPreview && (
+                  <div className="rounded-md border border-border bg-surface-sunk p-md">
+                    <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-bold mb-sm">
+                      📊 Aperçu de génération
+                    </div>
+                    <div className="grid grid-cols-3 gap-md mb-md">
+                      <div>
+                        <div className="text-caption text-fg-tertiary">Plantations</div>
+                        <div className="font-display text-heading font-bold text-fg-primary">{genPreview.totalPlantings}</div>
+                      </div>
+                      <div>
+                        <div className="text-caption text-fg-tertiary">Récoltes</div>
+                        <div className="font-display text-heading font-bold text-brand">{genPreview.totalHarvests}</div>
+                      </div>
+                      <div>
+                        <div className="text-caption text-fg-tertiary">Total kg</div>
+                        <div className="font-display text-heading font-bold text-success">{Math.round(genPreview.totalKg).toLocaleString('fr-FR')}</div>
+                      </div>
+                    </div>
+
+                    {genPreview.byMonth.length > 0 && (
+                      <div className="mb-md">
+                        <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary mb-1">Par mois</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {genPreview.byMonth.map(b => {
+                            const date = new Date(b.month + '-01T00:00:00')
+                            const label = date.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+                            return (
+                              <div key={b.month} className="px-2 py-1 rounded bg-surface-raised border border-border text-[10px]">
+                                <span className="font-semibold text-fg-primary">{label}</span>
+                                <span className="text-fg-tertiary mx-1">·</span>
+                                <span className="text-brand font-mono">{b.harvests}×</span>
+                                <span className="text-fg-tertiary mx-1">·</span>
+                                <span className="text-success font-mono">{Math.round(b.kg).toLocaleString('fr-FR')}kg</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {genPreview.byPlanting.length > 0 && (
+                      <div>
+                        <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary mb-1">Top plantations</div>
+                        <div className="space-y-1">
+                          {genPreview.byPlanting.slice(0, 5).map(p => (
+                            <div key={p.plantingId} className="flex items-center justify-between text-caption">
+                              <span className="text-fg-secondary truncate">{p.label}</span>
+                              <span className="text-fg-tertiary font-mono ml-2 flex-shrink-0">
+                                {p.harvests}× · {Math.round(p.kg).toLocaleString('fr-FR')} kg
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 7. Progress */}
+                {genInserting && (
+                  <div className="rounded-md bg-info/10 border border-info/30 p-md">
+                    <div className="flex items-center gap-sm">
+                      <Loader2 size={16} className="animate-spin text-info" />
+                      <div className="flex-1">
+                        <div className="text-body-sm font-semibold text-fg-primary">Insertion en cours…</div>
+                        <div className="text-caption text-fg-tertiary">
+                          {genProgress.done} / {genProgress.total} récoltes
+                        </div>
+                        <div className="h-1.5 mt-1 rounded-full bg-surface-sunk overflow-hidden">
+                          <div className="h-full bg-info transition-all duration-300"
+                            style={{ width: `${(genProgress.done / Math.max(genProgress.total, 1)) * 100}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {!genLoading && genCampaignId && genPlantings.length === 0 && (
+              <div className="rounded-md bg-warning/10 border border-warning/30 p-md text-body-sm text-fg-secondary">
+                <AlertTriangle size={16} className="inline-block text-warning mr-2" />
+                Cette campagne n'a aucune plantation. Crée d'abord des plantations dans <code>/admin/budgets</code> ou <code>/plan-culture</code>.
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex justify-end gap-sm pt-sm border-t border-border">
+              <Button onClick={() => { setGenOpen(false); setGenPreview(null) }} variant="secondary" disabled={genInserting}>
+                Fermer
+              </Button>
+              <Button
+                onClick={generateHarvests}
+                variant="primary"
+                disabled={!genPreview || genPreview.totalHarvests === 0 || genInserting}
+                loading={genInserting}
+              >
+                <Dices size={13} /> GÉNÉRER {genPreview ? `(${genPreview.totalHarvests})` : ''}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* ─── Modal : Nouvelle campagne ─── */}
       {newCampaignOpen && (
