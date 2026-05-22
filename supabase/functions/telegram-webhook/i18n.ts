@@ -334,6 +334,130 @@ const T: Translations = {
   quantity_label: { fr: 'Quantité', en: 'Quantity', ar: 'الكمية', darija: 'L-kemmiya' },
   reason_label: { fr: 'Motif', en: 'Reason', ar: 'السبب', darija: 'Sbab' },
   note_label:  { fr: 'Note', en: 'Note', ar: 'ملاحظة', darija: 'Mola7adha' },
+
+  // ─── Compose (suite) ───────────────────────────────────────
+  compose_session_empty: {
+    fr: '❌ Session vide.',
+    en: '❌ Empty session.',
+    ar: '❌ الجلسة فارغة.',
+    darija: '❌ Session khawya.',
+  },
+  compose_no_variety: {
+    fr: '❌ Récolte {{lot}} sans variété — annulation.',
+    en: '❌ Harvest {{lot}} has no variety — cancelled.',
+    ar: '❌ المحصول {{lot}} بدون صنف — إلغاء.',
+    darija: '❌ Récolte {{lot}} bla variété — tla8at.',
+  },
+  compose_lot_error: {
+    fr: '❌ Erreur lot {{idx}} : {{msg}}',
+    en: '❌ Lot {{idx}} error: {{msg}}',
+    ar: '❌ خطأ في الدفعة {{idx}}: {{msg}}',
+    darija: '❌ Mochkil f lot {{idx}} : {{msg}}',
+  },
+
+  // ─── Tri (sorting) ─────────────────────────────────────────
+  tri_nothing_to_sort: {
+    fr: '✅ Aucun envoi en attente de tri.',
+    en: '✅ No dispatch waiting for sorting.',
+    ar: '✅ لا يوجد إرسال بانتظار الفرز.',
+    darija: '✅ Ma kayn 7etta sho7na kat-stnna le tri.',
+  },
+  tri_pick_dispatch: {
+    fr: '🔬 Choisis l\'envoi à trier :',
+    en: '🔬 Choose the dispatch to sort:',
+    ar: '🔬 اختر الإرسال للفرز:',
+    darija: '🔬 Khtar sho7na bach t-tri-ha :',
+  },
+  not_found: {
+    fr: '❌ Introuvable.',
+    en: '❌ Not found.',
+    ar: '❌ غير موجود.',
+    darija: '❌ Maleknach.',
+  },
+  invalid_input_pct: {
+    fr: '❌ Saisie invalide. Nombre entre 0 et 100.',
+    en: '❌ Invalid input. Number between 0 and 100.',
+    ar: '❌ إدخال غير صحيح. رقم بين 0 و 100.',
+    darija: '❌ Dakhalti khta. Raqm bin 0 w 100.',
+  },
+
+  // ─── Prix ──────────────────────────────────────────────────
+  price_pick_dispatch: {
+    fr: '💰 Choisis l\'envoi à tarifer :',
+    en: '💰 Choose the dispatch to price:',
+    ar: '💰 اختر الإرسال لتسعيره:',
+    darija: '💰 Khtar sho7na bach t-akkad l-prix :',
+  },
+  price_invalid: {
+    fr: '❌ Prix invalide. Tape juste un nombre, ex: <code>8.50</code>',
+    en: '❌ Invalid price. Just type a number, e.g.: <code>8.50</code>',
+    ar: '❌ السعر غير صحيح. اكتب رقماً فقط، مثال: <code>8.50</code>',
+    darija: '❌ L-prix makhdamch. Kteb raqm bark, mital : <code>8.50</code>',
+  },
+
+  // ─── My lots ───────────────────────────────────────────────
+  my_lots_empty: {
+    fr: '📊 Aucune récolte sur les 7 derniers jours.',
+    en: '📊 No harvest in the last 7 days.',
+    ar: '📊 لا توجد محاصيل في الأيام السبعة الأخيرة.',
+    darija: '📊 Ma kayna 7etta récolte f 7iyam l-fayta.',
+  },
+  my_lots_title: {
+    fr: '📊 <b>Derniers lots (7j)</b>',
+    en: '📊 <b>Latest lots (7d)</b>',
+    ar: '📊 <b>آخر الدفعات (7 أيام)</b>',
+    darija: '📊 <b>Lots l-akhrayn (7 iyyam)</b>',
+  },
+
+  // ─── Annulation / divers ───────────────────────────────────
+  cancelled_what_to_do: {
+    fr: 'Annulé. Que veux-tu faire ?',
+    en: 'Cancelled. What do you want to do?',
+    ar: 'تم الإلغاء. ماذا تريد أن تفعل؟',
+    darija: 'Tla8at. Ach bghiti tdir ?',
+  },
+  what_to_do: {
+    fr: 'Que veux-tu faire ?',
+    en: 'What do you want to do?',
+    ar: 'ماذا تريد أن تفعل؟',
+    darija: 'Ach bghiti tdir ?',
+  },
+  voice_continue_dictating: {
+    fr: '🎤 OK, continue à dicter. Dis "fini" quand tu as terminé.',
+    en: '🎤 OK, keep dictating. Say "done" when finished.',
+    ar: '🎤 حسناً، تابع الإملاء. قل "انتهيت" عندما تنتهي.',
+    darija: '🎤 Wakha, kemmel l-dicté. 9ol "khlas" mli tsali.',
+  },
+  specify_reason: {
+    fr: '✏️ Précise le motif (texte libre) :',
+    en: '✏️ Specify the reason (free text):',
+    ar: '✏️ حدد السبب (نص حر):',
+    darija: '✏️ Wddh sbab (kteb li bghiti) :',
+  },
+  unknown_action: {
+    fr: 'Action non reconnue.',
+    en: 'Unknown action.',
+    ar: 'إجراء غير معروف.',
+    darija: 'Action ma 3reftha.',
+  },
+  voice_session_saved: {
+    fr: '✅ <b>{{inserted}}/{{total}} récolte(s) enregistrée(s)</b>\nDate : {{date}}\nTotal : {{kg}} kg',
+    en: '✅ <b>{{inserted}}/{{total}} harvest(s) saved</b>\nDate: {{date}}\nTotal: {{kg}} kg',
+    ar: '✅ <b>{{inserted}}/{{total}} محصول تم تسجيله</b>\nالتاريخ: {{date}}\nالمجموع: {{kg}} كغ',
+    darija: '✅ <b>{{inserted}}/{{total}} récolte(s) tsajjlou</b>\nNhar : {{date}}\nL-mjmou3 : {{kg}} kg',
+  },
+  voice_session_open: {
+    fr: '🎙️ <b>Session vocale ouverte</b>\n\nDicte tes récoltes une par une OU plusieurs dans le même message.\nExemple : <i>"Cent cinquante kilos sur la serre 1 marquise, et deux quintaux sur la serre 3 cherry"</i>\n\nQuand tu as terminé, dis <b>"fini"</b> ou tape sur le bouton.',
+    en: '🎙️ <b>Voice session open</b>\n\nDictate your harvests one by one OR several in the same message.\nExample: <i>"One hundred fifty kilos on greenhouse 1 marquise, and two quintals on greenhouse 3 cherry"</i>\n\nWhen you\'re done, say <b>"done"</b> or tap the button.',
+    ar: '🎙️ <b>الجلسة الصوتية مفتوحة</b>\n\nأملِ محاصيلك واحداً تلو الآخر أو عدة في الرسالة نفسها.\nمثال: <i>"مئة وخمسون كيلو على البيت الأول مركيز، ومئتان على البيت الثالث شيري"</i>\n\nعندما تنتهي، قل <b>"انتهيت"</b> أو اضغط الزر.',
+    darija: '🎙️ <b>Session vocale me7loula</b>\n\n9ol les récoltes dyalek wahda b wahda WLLA b zaaf f message wahed.\nMital : <i>"Miya w khamsin kilo f serre 1 marquise, w miyatayn f serre 3 cherry"</i>\n\nMli tsali, 9ol <b>"khlas"</b> wlla door 3la l-button.',
+  },
+  voice_show_recap: {
+    fr: '✅ Terminer (afficher récap)',
+    en: '✅ Finish (show summary)',
+    ar: '✅ إنهاء (عرض الملخص)',
+    darija: '✅ Sali (wri-li récap)',
+  },
 }
 
 /**

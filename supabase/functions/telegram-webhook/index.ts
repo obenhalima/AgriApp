@@ -17,7 +17,7 @@
 // ============================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { t, buildMainMenu, reasonLabel, langInstructionForGemini, normalizeLang } from './_i18n.ts'
+import { t, buildMainMenu, reasonLabel, langInstructionForGemini, normalizeLang } from './i18n.ts'
 
 const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')!
 const TELEGRAM_WEBHOOK_SECRET = Deno.env.get('TELEGRAM_WEBHOOK_SECRET') ?? ''
@@ -801,11 +801,15 @@ async function confirmVoiceSession(user: any): Promise<{ inserted: number; lots:
   await updateSession(user.id, {})
   const total = pending.slice(0, inserted.length).reduce((s, h) => s + h.qty_kg, 0)
   await sendMessage(user.channel_user_id,
-    `✅ <b>${inserted.length}/${pending.length} récolte(s) enregistrée(s)</b>\n` +
-    `Date : ${today}\n` +
-    `Total : ${total.toLocaleString('fr-FR')} kg\n\n` +
+    t(lang, 'voice_session_saved', {
+      inserted: String(inserted.length),
+      total: String(pending.length),
+      date: today,
+      kg: total.toLocaleString('fr-FR'),
+    }) +
+    '\n\n' +
     inserted.map(l => `• <code>${l}</code>`).join('\n'),
-    mainMenuKeyboard
+    buildMainMenu(lang)
   )
   return { inserted: inserted.length, lots: inserted }
 }
@@ -847,7 +851,7 @@ async function listHarvestsAvailable(): Promise<any[]> {
 async function startComposeDispatch(user: any) {
   const usable = await listHarvestsAvailable()
   if (usable.length === 0) {
-    await sendMessage(user.channel_user_id, '❌ Aucune récolte récente avec quantité disponible.', mainMenuKeyboard)
+    await sendMessage(user.channel_user_id, t(user.language, 'compose_no_harvest_available'), buildMainMenu(user.language))
     return
   }
   await updateSession(user.id, { intent: 'compose_dispatch', step: 'pick_harvest', sources: [] })
@@ -906,13 +910,13 @@ async function continueComposeAddHarvest(user: any, harvestId: string) {
   const usable = await listHarvestsAvailable()
   const h: any = usable.find((x: any) => x.id === harvestId)
   if (!h) {
-    await sendMessage(user.channel_user_id, '❌ Lot indisponible.')
+    await sendMessage(user.channel_user_id, t(user.language, 'compose_lot_unavailable'))
     return
   }
   // Vérifie que pas déjà sélectionné
   const sources: any[] = state.sources ?? []
   if (sources.find(s => s.harvest_id === harvestId)) {
-    await sendMessage(user.channel_user_id, `Ce lot est déjà ajouté. Annule via /menu pour recommencer.`)
+    await sendMessage(user.channel_user_id, t(user.language, 'compose_lot_already_added'))
     return
   }
   await updateSession(user.id, {
@@ -940,7 +944,7 @@ async function continueComposeAddHarvest(user: any, harvestId: string) {
 async function continueComposeSaveQty(user: any, text: string) {
   const state = (user.session_state ?? {}) as any
   const ph = state.pending_harvest
-  if (!ph) { await sendMessage(user.channel_user_id, '❌ Session perdue.'); return }
+  if (!ph) { await sendMessage(user.channel_user_id, t(user.language, 'session_lost')); return }
   const max = Number(ph.max_qty)
   let qty: number
   if (text.toLowerCase().trim() === 'tout') {
@@ -949,11 +953,11 @@ async function continueComposeSaveQty(user: any, text: string) {
     qty = Number(String(text).replace(',', '.').replace(/[^\d.]/g, ''))
   }
   if (!Number.isFinite(qty) || qty <= 0) {
-    await sendMessage(user.channel_user_id, '❌ Quantité invalide. Envoie un nombre ou <code>tout</code>.')
+    await sendMessage(user.channel_user_id, t(user.language, 'compose_qty_invalid_or_all'))
     return
   }
   if (qty > max + 0.01) {
-    await sendMessage(user.channel_user_id, `❌ Dépasse le disponible (${Math.round(max)}kg max).`)
+    await sendMessage(user.channel_user_id, t(user.language, 'compose_qty_exceeds', { max: String(Math.round(max)) }))
     return
   }
   const sources = [...(state.sources ?? []), {
@@ -985,7 +989,7 @@ async function continueComposePickMarket(user: any) {
   const state = (user.session_state ?? {}) as any
   const sources: any[] = state.sources ?? []
   if (sources.length === 0) {
-    await sendMessage(user.channel_user_id, '❌ Aucun lot sélectionné.', mainMenuKeyboard)
+    await sendMessage(user.channel_user_id, t(user.language, 'compose_no_lots'), buildMainMenu(user.language))
     await updateSession(user.id, {})
     return
   }
@@ -993,7 +997,7 @@ async function continueComposePickMarket(user: any) {
     .select('id, code, name').eq('is_active', true).order('name').limit(15)
   const mList = (markets ?? []) as any[]
   if (mList.length === 0) {
-    await sendMessage(user.channel_user_id, '❌ Aucun marché actif.', mainMenuKeyboard)
+    await sendMessage(user.channel_user_id, t(user.language, 'compose_no_market'), buildMainMenu(user.language))
     await updateSession(user.id, {})
     return
   }
@@ -1014,7 +1018,7 @@ async function continueComposePickMarket(user: any) {
 async function continueComposeSaveMarket(user: any, marketId: string): Promise<string | null> {
   const state = (user.session_state ?? {}) as any
   const sources: any[] = state.sources ?? []
-  if (sources.length === 0) { await sendMessage(user.channel_user_id, '❌ Session vide.'); return null }
+  if (sources.length === 0) { await sendMessage(user.channel_user_id, t(user.language, 'compose_session_empty')); return null }
   const { data: market } = await supabase.from('markets').select('name').eq('id', marketId).maybeSingle()
   const totalQty = sources.reduce((s, x) => s + Number(x.qty_kg), 0)
   const ts = String(Date.now())
@@ -1025,7 +1029,7 @@ async function continueComposeSaveMarket(user: any, marketId: string): Promise<s
   for (const s of sources) {
     const vid = s.variety_id
     if (!vid) {
-      await sendMessage(user.channel_user_id, `❌ Récolte ${s.lot_number} sans variété — annulation.`)
+      await sendMessage(user.channel_user_id, t(user.language, 'compose_no_variety', { lot: s.lot_number }))
       return null
     }
     const arr = groups.get(vid) ?? []
@@ -1056,7 +1060,7 @@ async function continueComposeSaveMarket(user: any, marketId: string): Promise<s
       notes: `Envoi composite via Telegram par ${user.workers?.first_name ?? '?'} ${user.workers?.last_name ?? ''} — ${gSources.length} récolte(s) variété ${sub.variety_code ?? '?'}`,
     }).select('id, lot_number').single()
     if (error) {
-      await sendMessage(user.channel_user_id, `❌ Erreur lot ${groupIdx} : ${error.message}`)
+      await sendMessage(user.channel_user_id, t(user.language, 'compose_lot_error', { idx: String(groupIdx), msg: error.message }))
       return null
     }
     if (!firstLotId) firstLotId = lot!.id
@@ -1103,7 +1107,7 @@ async function startTriFlow(user: any) {
     .limit(15)
   const list = (data ?? []) as any[]
   if (list.length === 0) {
-    await sendMessage(user.channel_user_id, '✅ Aucun envoi en attente de tri.', mainMenuKeyboard)
+    await sendMessage(user.channel_user_id, t(user.language, 'tri_nothing_to_sort'), buildMainMenu(user.language))
     return
   }
   await updateSession(user.id, { intent: 'tri', step: 'pick_dispatch' })
@@ -1112,14 +1116,14 @@ async function startTriFlow(user: any) {
     callback_data: `tri:dispatch:${d.id}`,
   }]))
   buttons.push([{ text: '✖ Annuler', callback_data: 'cancel' }])
-  await sendMessage(user.channel_user_id, '🔬 Choisis l\'envoi à trier :', { inline_keyboard: buttons })
+  await sendMessage(user.channel_user_id, t(user.language, 'tri_pick_dispatch'), { inline_keyboard: buttons })
 }
 
 async function continueTriPickDispatch(user: any, dispatchId: string) {
   const { data: d } = await supabase.from('harvest_lots')
     .select('id, lot_number, quantity_kg, markets(name), varieties(code, commercial_name)')
     .eq('id', dispatchId).maybeSingle()
-  if (!d) { await sendMessage(user.channel_user_id, '❌ Introuvable.'); return }
+  if (!d) { await sendMessage(user.channel_user_id, t(user.language, 'not_found')); return }
   const dd: any = d
   await updateSession(user.id, {
     intent: 'tri', step: 'ask_freinte',
@@ -1164,7 +1168,7 @@ async function continueTriFinalize(user: any, ecart: number) {
     tri_status: 'tried',
   }).eq('id', state.dispatch_id)
   if (error) {
-    await sendMessage(user.channel_user_id, `❌ Erreur : ${error.message}`)
+    await sendMessage(user.channel_user_id, t(user.language, 'error_with_msg', { msg: error.message }))
     return
   }
   await updateSession(user.id, {})
@@ -1203,14 +1207,14 @@ async function startConfirmPriceFlow(user: any) {
     callback_data: `price:dispatch:${d.id}`,
   }]))
   buttons.push([{ text: '✖ Annuler', callback_data: 'cancel' }])
-  await sendMessage(user.channel_user_id, '💰 Choisis l\'envoi à tarifer :', { inline_keyboard: buttons })
+  await sendMessage(user.channel_user_id, t(user.language, 'price_pick_dispatch'), { inline_keyboard: buttons })
 }
 
 async function continuePricePickDispatch(user: any, dispatchId: string) {
   const { data: d } = await supabase.from('harvest_lots')
     .select('id, lot_number, quantity_kg, qty_acceptee_kg, freinte_pct, ecart_pct, markets(name, currency), varieties(code, commercial_name)')
     .eq('id', dispatchId).maybeSingle()
-  if (!d) { await sendMessage(user.channel_user_id, '❌ Introuvable.'); return }
+  if (!d) { await sendMessage(user.channel_user_id, t(user.language, 'not_found')); return }
   const dd: any = d
   await updateSession(user.id, {
     intent: 'confirm_price', step: 'ask_price',
@@ -1236,7 +1240,7 @@ async function continuePriceSavePrice(user: any, text: string) {
   const state = (user.session_state ?? {}) as any
   const price = Number(String(text).replace(',', '.').replace(/[^\d.]/g, ''))
   if (!Number.isFinite(price) || price <= 0) {
-    await sendMessage(user.channel_user_id, '❌ Prix invalide. Tape juste un nombre, ex: <code>8.50</code>')
+    await sendMessage(user.channel_user_id, t(user.language, 'price_invalid'))
     return
   }
   await updateSession(user.id, { ...state, step: 'ask_station_ref', price })
@@ -1263,7 +1267,7 @@ async function continuePriceFinalize(user: any, stationRef: string) {
     tri_status: 'priced',
   }).eq('id', state.dispatch_id)
   if (error) {
-    await sendMessage(user.channel_user_id, `❌ Erreur : ${error.message}`)
+    await sendMessage(user.channel_user_id, t(user.language, 'error_with_msg', { msg: error.message }))
     return
   }
   await updateSession(user.id, {})
@@ -1290,13 +1294,13 @@ async function showMyLots(user: any) {
     .order('harvest_date', { ascending: false })
     .limit(10)
   if (!data || data.length === 0) {
-    await sendMessage(user.channel_user_id, '📊 Aucune récolte sur les 7 derniers jours.', mainMenuKeyboard)
+    await sendMessage(user.channel_user_id, t(user.language, 'my_lots_empty'), buildMainMenu(user.language))
     return
   }
   const lines = data.map((h: any) =>
     `• ${h.harvest_date} · ${h.campaign_plantings?.greenhouses?.code ?? '?'}/${h.campaign_plantings?.varieties?.code ?? '?'} · ${Number(h.total_qty).toLocaleString('fr-FR')} kg · <code>${h.lot_number}</code>`
   ).join('\n')
-  await sendMessage(user.channel_user_id, `📊 <b>Derniers lots (7j)</b>\n\n${lines}`, mainMenuKeyboard)
+  await sendMessage(user.channel_user_id, `${t(user.language, 'my_lots_title')}\n\n${lines}`, buildMainMenu(user.language))
 }
 
 // ─── Webhook handler ─────────────────────────────────────────
@@ -1365,20 +1369,17 @@ Deno.serve(async (req) => {
 
       if (callbackData === 'cancel') {
         await updateSession(user.id, {})
-        await sendMessage(chatId, 'Annulé. Que veux-tu faire ?', mainMenuKeyboard)
+        await sendMessage(chatId, t(user.language, 'cancelled_what_to_do'), buildMainMenu(user.language))
         return new Response('OK', { status: 200 })
       }
       if (callbackData === 'menu:voice_session') {
         await updateSession(user.id, { intent: 'voice_session', pending: [] })
         await sendMessage(chatId,
-          `🎙️ <b>Session vocale ouverte</b>\n\n` +
-          `Dicte tes récoltes une par une OU plusieurs dans le même message.\n` +
-          `Exemple : <i>"Cent cinquante kilos sur la serre 1 marquise, et deux quintaux sur la serre 3 cherry"</i>\n\n` +
-          `Quand tu as terminé, dis <b>"fini"</b> ou tape sur le bouton.`,
+          t(user.language, 'voice_session_open'),
           {
             inline_keyboard: [
-              [{ text: '✅ Terminer (afficher récap)', callback_data: 'voice:show_recap' }],
-              [{ text: '✗ Annuler', callback_data: 'cancel' }],
+              [{ text: t(user.language, 'voice_show_recap'), callback_data: 'voice:show_recap' }],
+              [{ text: t(user.language, 'cancel'), callback_data: 'cancel' }],
             ],
           }
         )
@@ -1443,7 +1444,7 @@ Deno.serve(async (req) => {
         return new Response('OK', { status: 200 })
       }
       if (callbackData === 'voice:continue') {
-        await sendMessage(chatId, '🎤 OK, continue à dicter. Dis "fini" quand tu as terminé.')
+        await sendMessage(chatId, t(user.language, 'voice_continue_dictating'))
         return new Response('OK', { status: 200 })
       }
       if (callbackData === 'voice:confirm_all') {
@@ -1463,7 +1464,7 @@ Deno.serve(async (req) => {
         const reason = callbackData.split(':')[2]
         if (reason === 'autre') {
           await updateSession(user.id, { intent: 'no_harvest', step: 'ask_other_reason' })
-          await sendMessage(chatId, '✏️ Précise le motif (texte libre) :')
+          await sendMessage(chatId, t(user.language, 'specify_reason'))
         } else {
           const alertId = await saveNoHarvest(user, reason)
           await logMessage({
@@ -1475,7 +1476,7 @@ Deno.serve(async (req) => {
       }
 
       // Default
-      await sendMessage(chatId, "Action non reconnue.", mainMenuKeyboard)
+      await sendMessage(chatId, t(user.language, 'unknown_action'), buildMainMenu(user.language))
       return new Response('OK', { status: 200 })
     }
 
@@ -1497,7 +1498,7 @@ Deno.serve(async (req) => {
       })
 
       if (text === '/menu' || text === '/help') {
-        await sendMessage(chatId, 'Que veux-tu faire ?', mainMenuKeyboard)
+        await sendMessage(chatId, t(user.language, 'what_to_do'), buildMainMenu(user.language))
         return new Response('OK', { status: 200 })
       }
 
@@ -1534,7 +1535,7 @@ Deno.serve(async (req) => {
       if (state.intent === 'tri' && state.step === 'ask_freinte') {
         const v = Number(String(text).replace(',', '.').replace(/[^\d.]/g, ''))
         if (!Number.isFinite(v) || v < 0 || v > 100) {
-          await sendMessage(chatId, '❌ Saisie invalide. Nombre entre 0 et 100.')
+          await sendMessage(chatId, t(user.language, 'invalid_input_pct'))
           return new Response('OK', { status: 200 })
         }
         await continueTriSaveFreinte(user, v)
@@ -1543,7 +1544,7 @@ Deno.serve(async (req) => {
       if (state.intent === 'tri' && state.step === 'ask_ecart') {
         const v = Number(String(text).replace(',', '.').replace(/[^\d.]/g, ''))
         if (!Number.isFinite(v) || v < 0 || v > 100) {
-          await sendMessage(chatId, '❌ Saisie invalide. Nombre entre 0 et 100.')
+          await sendMessage(chatId, t(user.language, 'invalid_input_pct'))
           return new Response('OK', { status: 200 })
         }
         await continueTriFinalize(user, v)
