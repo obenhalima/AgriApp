@@ -19,7 +19,7 @@ import { toast } from 'sonner'
 import {
   RotateCcw, Trash2, AlertTriangle, Plus, Calendar, Sprout, AlertOctagon,
   ShieldAlert, Database, Skull, CheckCircle2, Loader2, Info, Dices,
-  TrendingUp, Eye,
+  TrendingUp, Eye, Sparkles,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
@@ -34,6 +34,7 @@ import {
   type PlantingInput, type GeneratorOptions, type GenerationPreview,
   type VarianceLevel, type QualityPreset, type HarvestFrequency,
 } from '@/lib/testDataGenerator'
+import { DemoSetupWizard } from '@/components/admin/DemoSetupWizard'
 
 type Campaign = {
   id: string; code: string; name: string; status: string | null
@@ -103,6 +104,9 @@ export default function DemoResetPage() {
     production_target_kg: '', budget_total: '',
   })
   const [saving, setSaving] = useState(false)
+
+  // Wizard de setup démo complète
+  const [wizardOpen, setWizardOpen] = useState(false)
 
   // Générateur de données de test
   const [genOpen, setGenOpen] = useState(false)
@@ -421,6 +425,33 @@ export default function DemoResetPage() {
           <Info size={20} className="text-info flex-shrink-0 mt-0.5" />
           <div className="text-body-sm text-fg-secondary leading-relaxed">
             <strong className="text-fg-primary">Pré-requis :</strong> les actions destructives utilisent les RPC Postgres définies dans la migration <code className="font-mono text-info">036_admin_wipe_rpc.sql</code>. Si tu obtiens une erreur du type <em>"function admin_xxx does not exist"</em>, applique cette migration via le <strong>SQL Editor du dashboard Supabase</strong> avant d'utiliser cette page.
+          </div>
+        </div>
+      </Card>
+
+      {/* ─── Wizard Setup démo complète (full-width, mise en avant) ─── */}
+      <Card animate className="mb-md border-l-[3px] border-l-brand relative overflow-hidden">
+        <div aria-hidden className="pointer-events-none absolute -top-12 -right-12 h-40 w-40 rounded-full blur-3xl opacity-30"
+          style={{ background: 'radial-gradient(circle, var(--neon), transparent 70%)' }} />
+        <div className="relative flex items-start gap-md">
+          <div className="rounded-md flex items-center justify-center flex-shrink-0"
+            style={{
+              width: 48, height: 48,
+              background: 'linear-gradient(135deg, var(--neon), color-mix(in srgb, var(--neon) 60%, #6366f1))',
+            }}>
+            <Sparkles size={24} strokeWidth={2.4} color="white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="font-display text-heading font-bold text-fg-primary">🧙 Setup démo complète</div>
+              <Badge variant="brand" size="xs">WIZARD</Badge>
+            </div>
+            <div className="text-body-sm text-fg-tertiary leading-relaxed mb-md">
+              Wizard 4 étapes qui crée une démo en partant de zéro : <strong>fermes → serres → variétés → campagne → plantations</strong>. Parfait juste après un Reset ou un Nuclear.
+            </div>
+            <Button onClick={() => setWizardOpen(true)} variant="primary">
+              <Sparkles size={14} /> Lancer le wizard
+            </Button>
           </div>
         </div>
       </Card>
@@ -1029,6 +1060,20 @@ export default function DemoResetPage() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* ─── Wizard Setup Démo Complète ─── */}
+      {wizardOpen && (
+        <DemoSetupWizard
+          onClose={() => setWizardOpen(false)}
+          onComplete={(campaignId) => {
+            // Après le wizard, recharge la liste + propose direct le générateur
+            load()
+            toast.success('💡 Astuce : enchaîne avec "Générer jeu de récoltes" pour remplir les données', { duration: 5000 })
+            // Auto-pré-sélectionne la nouvelle campagne pour le générateur
+            setTimeout(() => openGenerator(campaignId), 800)
+          }}
+        />
       )}
     </div>
   )
