@@ -98,6 +98,10 @@ export default function DemoResetPage() {
   const [confirmReset, setConfirmReset] = useState('')
   const [confirmNuclear, setConfirmNuclear] = useState('')
 
+  // État des RPC (migration 036)
+  const [rpcStatus, setRpcStatus] = useState<'unknown' | 'ok' | 'missing'>('unknown')
+  const [showMigrationSql, setShowMigrationSql] = useState(false)
+
   // Nouvelle campagne form
   const [newCamp, setNewCamp] = useState({
     code: '', name: '', farm_id: '', preparation_start: '', campaign_end: '',
@@ -140,7 +144,47 @@ export default function DemoResetPage() {
     } catch (e: any) { toast.error(e.message) }
     setLoading(false)
   }
-  useEffect(() => { load() }, [])
+
+  // ─── Vérifie la présence des RPC (migration 036) au mount ──────────────
+  const checkRpcAvailability = async (silent = false) => {
+    try {
+      const { error } = await supabase.rpc('is_admin_caller')
+      if (error) {
+        const isMissing = isRpcMissingError(error)
+        setRpcStatus(isMissing ? 'missing' : 'ok')  // erreur de permission = ok (RPC existe)
+        if (!silent && isMissing) {
+          toast.error('Les RPC d\'admin ne sont pas déployées. Applique la migration 036.', { duration: 5000 })
+        } else if (!silent) {
+          toast.success('✅ Les RPC d\'admin sont opérationnelles')
+        }
+      } else {
+        setRpcStatus('ok')
+        if (!silent) toast.success('✅ Les RPC d\'admin sont opérationnelles')
+      }
+    } catch (e: any) {
+      setRpcStatus('missing')
+      if (!silent) toast.error('Erreur de test : ' + e.message)
+    }
+  }
+
+  useEffect(() => {
+    load()
+    checkRpcAvailability(true)  // check silencieux au mount
+  }, [])
+
+  // Helper : détecte si l'erreur Supabase = RPC manquante
+  const isRpcMissingError = (e: any): boolean => {
+    const msg = (e?.message ?? '').toLowerCase()
+    return (
+      e?.code === 'PGRST202' ||                               // PostgREST : function not found
+      e?.code === '42883' ||                                  // Postgres : undefined_function
+      msg.includes('could not find the function') ||
+      msg.includes('does not exist') ||
+      msg.includes('function admin_') ||
+      msg.includes('function public.admin_') ||
+      msg.includes('function public.is_admin')
+    )
+  }
 
   const campaignToDelete = useMemo(
     () => campaigns.find(c => c.id === deleteCampaignId) ?? null,
@@ -194,10 +238,11 @@ export default function DemoResetPage() {
       setConfirmDelete('')
       load()
     } catch (e: any) {
-      // Erreur d'appel RPC : la migration 036 n'est probablement pas appliquée
-      if (e.message?.includes('admin_delete_campaign') || e.code === '42883') {
-        toast.error('La migration 036_admin_wipe_rpc.sql n\'est pas appliquée sur Supabase. Voir consoles.')
-        console.error('💡 Applique la migration via le SQL Editor du dashboard Supabase')
+      console.error('[admin_delete_campaign]', e)
+      if (isRpcMissingError(e)) {
+        setRpcStatus('missing')
+        setShowMigrationSql(true)
+        toast.error('⚠️ La migration 036_admin_wipe_rpc.sql n\'est pas appliquée. Voir bannière en haut.', { duration: 6000 })
       } else {
         toast.error('Erreur: ' + e.message)
       }
@@ -219,9 +264,11 @@ export default function DemoResetPage() {
       setConfirmReset('')
       load()
     } catch (e: any) {
-      if (e.message?.includes('admin_operational_reset') || e.code === '42883') {
-        toast.error('La migration 036_admin_wipe_rpc.sql n\'est pas appliquée sur Supabase. Voir consoles.')
-        console.error('💡 Applique la migration via le SQL Editor du dashboard Supabase')
+      console.error('[admin_operational_reset]', e)
+      if (isRpcMissingError(e)) {
+        setRpcStatus('missing')
+        setShowMigrationSql(true)
+        toast.error('⚠️ La migration 036_admin_wipe_rpc.sql n\'est pas appliquée. Voir bannière en haut.', { duration: 6000 })
       } else {
         toast.error('Erreur: ' + e.message)
       }
@@ -238,20 +285,94 @@ export default function DemoResetPage() {
     try {
       const { data, error } = await supabase.rpc('admin_nuclear_wipe')
       if (error) throw error
-      toast.success(`☢️ ${(data as any)?.message ?? 'Nuclear wipe terminé'}`)
+      toast.success(`☢️ ${(data as any)?.message ?? 'Nuclear wipe terminé'}`, { duration: 5000 })
       setNuclearOpen(false)
       setConfirmNuclear('')
       load()
     } catch (e: any) {
-      if (e.message?.includes('admin_nuclear_wipe') || e.code === '42883') {
-        toast.error('La migration 036_admin_wipe_rpc.sql n\'est pas appliquée sur Supabase. Voir consoles.')
-        console.error('💡 Applique la migration via le SQL Editor du dashboard Supabase')
+      console.error('[admin_nuclear_wipe]', e)
+      if (isRpcMissingError(e)) {
+        setRpcStatus('missing')
+        setShowMigrationSql(true)
+        toast.error('⚠️ La migration 036_admin_wipe_rpc.sql n\'est pas appliquée. Voir bannière en haut.', { duration: 6000 })
       } else {
         toast.error('Erreur: ' + e.message)
       }
     }
     setSaving(false)
   }
+
+  // ─── Constante : SQL à copier-coller dans Supabase ─────────────────────
+  const MIGRATION_036_SQL = `-- Copier ce bloc dans le SQL Editor de Supabase puis cliquer RUN
+-- Migration 036 : RPC admin_delete_campaign / admin_operational_reset / admin_nuclear_wipe
+
+CREATE OR REPLACE FUNCTION is_admin_caller() RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v BOOLEAN := FALSE;
+BEGIN
+  SELECT COALESCE(r.is_admin, FALSE) INTO v FROM profiles p
+  LEFT JOIN roles r ON r.id = p.role_id WHERE p.id = auth.uid();
+  RETURN v;
+END; $$;
+
+CREATE OR REPLACE FUNCTION admin_nuclear_wipe() RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT is_admin_caller() THEN RAISE EXCEPTION 'Admin requis'; END IF;
+  TRUNCATE TABLE chatbot_messages, harvest_lot_sources, harvest_lots, harvests,
+    production_forecasts, station_prices, recoltes_marche_daily,
+    payments_received, invoices, delivery_notes, sales_order_lines, sales_orders,
+    payments_made, supplier_invoices, purchase_order_lines, purchase_orders,
+    cost_entries, stock_movements, cultural_operations, labor_entries, alerts,
+    budget_lines, amortissements, campaign_plantings, campaigns, market_prices
+    RESTART IDENTITY CASCADE;
+  TRUNCATE TABLE chatbot_users, workers, teams, stock_items, assets,
+    clients, suppliers, markets, varieties, seed_suppliers,
+    greenhouses, farm_zones, farms RESTART IDENTITY CASCADE;
+  RETURN jsonb_build_object('status', 'success', 'message', 'Nuclear wipe ok');
+END; $$;
+
+CREATE OR REPLACE FUNCTION admin_operational_reset() RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT is_admin_caller() THEN RAISE EXCEPTION 'Admin requis'; END IF;
+  TRUNCATE TABLE chatbot_messages, harvest_lot_sources, harvest_lots, harvests,
+    production_forecasts, station_prices, recoltes_marche_daily,
+    payments_received, invoices, delivery_notes, sales_order_lines, sales_orders,
+    payments_made, supplier_invoices, purchase_order_lines, purchase_orders,
+    cost_entries, stock_movements, cultural_operations, labor_entries, alerts,
+    budget_lines, amortissements, campaign_plantings, campaigns, market_prices
+    RESTART IDENTITY CASCADE;
+  RETURN jsonb_build_object('status', 'success', 'message', 'Reset operational ok');
+END; $$;
+
+CREATE OR REPLACE FUNCTION admin_delete_campaign(p_campaign_id UUID) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_count INTEGER; v JSONB := '{}'::jsonb;
+BEGIN
+  IF NOT is_admin_caller() THEN RAISE EXCEPTION 'Admin requis'; END IF;
+  DELETE FROM amortissements WHERE campaign_id = p_campaign_id; GET DIAGNOSTICS v_count = ROW_COUNT;
+  v := jsonb_set(v, '{amortissements}', to_jsonb(v_count));
+  DELETE FROM recoltes_marche_daily WHERE campaign_id = p_campaign_id;
+  DELETE FROM cost_entries WHERE campaign_id = p_campaign_id;
+  DELETE FROM supplier_invoices WHERE campaign_id = p_campaign_id;
+  DELETE FROM purchase_orders WHERE campaign_id = p_campaign_id;
+  DELETE FROM sales_orders WHERE campaign_id = p_campaign_id;
+  DELETE FROM cultural_operations WHERE campaign_id = p_campaign_id;
+  DELETE FROM labor_entries WHERE campaign_id = p_campaign_id;
+  DELETE FROM harvest_lot_sources WHERE harvest_id IN (SELECT h.id FROM harvests h JOIN campaign_plantings cp ON cp.id = h.campaign_planting_id WHERE cp.campaign_id = p_campaign_id);
+  DELETE FROM harvest_lots WHERE harvest_id IN (SELECT h.id FROM harvests h JOIN campaign_plantings cp ON cp.id = h.campaign_planting_id WHERE cp.campaign_id = p_campaign_id);
+  DELETE FROM harvests WHERE campaign_planting_id IN (SELECT id FROM campaign_plantings WHERE campaign_id = p_campaign_id);
+  DELETE FROM production_forecasts WHERE campaign_planting_id IN (SELECT id FROM campaign_plantings WHERE campaign_id = p_campaign_id);
+  DELETE FROM campaigns WHERE id = p_campaign_id; GET DIAGNOSTICS v_count = ROW_COUNT;
+  v := jsonb_set(v, '{campaigns}', to_jsonb(v_count));
+  RETURN v;
+END; $$;
+
+REVOKE ALL ON FUNCTION is_admin_caller() FROM PUBLIC;
+REVOKE ALL ON FUNCTION admin_nuclear_wipe() FROM PUBLIC;
+REVOKE ALL ON FUNCTION admin_operational_reset() FROM PUBLIC;
+REVOKE ALL ON FUNCTION admin_delete_campaign(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION is_admin_caller() TO authenticated;
+GRANT EXECUTE ON FUNCTION admin_nuclear_wipe() TO authenticated;
+GRANT EXECUTE ON FUNCTION admin_operational_reset() TO authenticated;
+GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
 
   // ─── Générateur : charge les plantings de la campagne sélectionnée ─────
   const loadPlantings = async (campaignId: string) => {
@@ -419,12 +540,46 @@ export default function DemoResetPage() {
         </div>
       </Card>
 
-      {/* Bannière info : migration requise */}
-      <Card variant="ghost" className="mb-lg border-info/40 bg-info/5">
+      {/* Bannière statut RPC dynamique */}
+      <Card
+        variant="ghost"
+        className={`mb-lg ${
+          rpcStatus === 'ok' ? 'border-success/40 bg-success/5' :
+          rpcStatus === 'missing' ? 'border-danger/40 bg-danger/5' :
+          'border-info/40 bg-info/5'
+        }`}
+      >
         <div className="flex items-start gap-sm">
-          <Info size={20} className="text-info flex-shrink-0 mt-0.5" />
-          <div className="text-body-sm text-fg-secondary leading-relaxed">
-            <strong className="text-fg-primary">Pré-requis :</strong> les actions destructives utilisent les RPC Postgres définies dans la migration <code className="font-mono text-info">036_admin_wipe_rpc.sql</code>. Si tu obtiens une erreur du type <em>"function admin_xxx does not exist"</em>, applique cette migration via le <strong>SQL Editor du dashboard Supabase</strong> avant d'utiliser cette page.
+          {rpcStatus === 'ok' ? <CheckCircle2 size={20} className="text-success flex-shrink-0 mt-0.5" /> :
+           rpcStatus === 'missing' ? <AlertOctagon size={20} className="text-danger flex-shrink-0 mt-0.5" /> :
+           <Info size={20} className="text-info flex-shrink-0 mt-0.5" />}
+          <div className="flex-1 text-body-sm text-fg-secondary leading-relaxed">
+            {rpcStatus === 'ok' && (
+              <>
+                <strong className="text-success">✅ RPC admin opérationnelles.</strong> La migration <code className="font-mono">036</code> est bien appliquée — toutes les actions de cette page fonctionneront.
+              </>
+            )}
+            {rpcStatus === 'missing' && (
+              <>
+                <strong className="text-danger">🚨 Migration 036 PAS appliquée — c'est pour ça que les fermes ne sont pas supprimées !</strong>
+                <div className="mt-1">Les actions destructives nécessitent les RPC Postgres. Sans elles, les RLS bloquent silencieusement les DELETE sur farms/greenhouses.</div>
+              </>
+            )}
+            {rpcStatus === 'unknown' && (
+              <>
+                <strong className="text-fg-primary">Pré-requis :</strong> les actions destructives utilisent les RPC Postgres définies dans la migration <code className="font-mono text-info">036_admin_wipe_rpc.sql</code>.
+              </>
+            )}
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <Button onClick={() => checkRpcAvailability(false)} variant="secondary" size="xs">
+              Tester
+            </Button>
+            {rpcStatus === 'missing' && (
+              <Button onClick={() => setShowMigrationSql(true)} variant="primary" size="xs">
+                Voir le SQL
+              </Button>
+            )}
           </div>
         </div>
       </Card>
@@ -1074,6 +1229,56 @@ export default function DemoResetPage() {
             setTimeout(() => openGenerator(campaignId), 800)
           }}
         />
+      )}
+
+      {/* ─── Modal : SQL Migration 036 à copier-coller ─── */}
+      {showMigrationSql && (
+        <Modal title="📋 Migration 036 — À appliquer sur Supabase" onClose={() => setShowMigrationSql(false)} size="lg">
+          <div className="space-y-md">
+            <div className="rounded-md bg-warning/10 border border-warning/30 p-md">
+              <div className="flex items-start gap-sm">
+                <AlertTriangle size={18} className="text-warning flex-shrink-0 mt-0.5" />
+                <div className="text-body-sm text-fg-secondary leading-relaxed">
+                  <strong>Procédure (1 minute) :</strong>
+                  <ol className="mt-sm list-decimal list-inside space-y-1">
+                    <li>Va sur <a href="https://supabase.com/dashboard" target="_blank" rel="noopener" className="text-info underline">supabase.com/dashboard</a></li>
+                    <li>Sélectionne ton projet <strong>FramPilot / AgriApp</strong></li>
+                    <li>Menu de gauche → <strong>SQL Editor</strong> → bouton <strong>+ New query</strong></li>
+                    <li>Copie le bloc SQL ci-dessous (bouton <strong>Copier</strong> à droite)</li>
+                    <li>Colle dans l'éditeur SQL → clique <strong>Run</strong> (ou <code>Ctrl+Enter</code>)</li>
+                    <li>Tu dois voir <code className="text-success">"Success. No rows returned"</code></li>
+                    <li>Reviens ici → clique <strong>Tester</strong> pour confirmer ✅</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative">
+              <div className="absolute top-2 right-2 z-10">
+                <Button
+                  onClick={() => {
+                    navigator.clipboard.writeText(MIGRATION_036_SQL)
+                    toast.success('📋 Copié dans le presse-papiers')
+                  }}
+                  variant="primary"
+                  size="xs"
+                >
+                  📋 Copier
+                </Button>
+              </div>
+              <pre className="bg-surface-sunk border border-border rounded-md p-md text-[10px] font-mono text-fg-primary max-h-96 overflow-auto leading-relaxed">
+                {MIGRATION_036_SQL}
+              </pre>
+            </div>
+
+            <div className="flex justify-end gap-sm">
+              <Button onClick={() => setShowMigrationSql(false)} variant="secondary">Fermer</Button>
+              <Button onClick={() => { setShowMigrationSql(false); checkRpcAvailability(false) }} variant="primary">
+                ✅ J'ai appliqué la migration — Tester
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   )
