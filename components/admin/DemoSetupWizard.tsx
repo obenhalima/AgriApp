@@ -81,6 +81,27 @@ function todayPlus(months: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+/**
+ * Récupère une liste de codes existants en DB et renvoie une fonction
+ * qui suffixe un code candidat pour le rendre unique (ex: FS → FS-2 → FS-3).
+ * Maintient un Set interne pour éviter les conflits intra-batch.
+ */
+function makeUniqueCodeResolver(existing: Set<string>) {
+  const used = new Set(existing)
+  return (baseCode: string): string => {
+    const base = baseCode.toUpperCase().trim() || 'F'
+    if (!used.has(base)) {
+      used.add(base)
+      return base
+    }
+    let i = 2
+    while (used.has(`${base}-${i}`)) i++
+    const final = `${base}-${i}`
+    used.add(final)
+    return final
+  }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // COMPOSANT PRINCIPAL
 // ────────────────────────────────────────────────────────────────────────────
@@ -166,11 +187,32 @@ export function DemoSetupWizard({ onClose, onComplete }: {
     setProgress({ step: 'Création des fermes', done: 0, total: 0 })
 
     try {
-      // ─── 1. Insère les fermes ─────────────────────────────────────────
-      const totalSteps = 4 + farms.length + summary.totalGh + varieties.length
+      // ─── 0. Précharge les codes existants (farms + campaigns) ─────────
+      const totalSteps = 5 + farms.length + summary.totalGh + varieties.length
       let stepCount = 0
-      const farmInserts = farms.map(f => ({
-        code: f.code.trim().toUpperCase(),
+      setProgress({ step: 'Vérification codes existants', done: stepCount, total: totalSteps })
+
+      const [existingFarmsRes, existingCampaignsRes] = await Promise.all([
+        supabase.from('farms').select('code'),
+        supabase.from('campaigns').select('code'),
+      ])
+      const existingFarmCodes = new Set((existingFarmsRes.data ?? []).map((f: any) => f.code))
+      const existingCampaignCodes = new Set((existingCampaignsRes.data ?? []).map((c: any) => c.code))
+      const farmCodeResolver = makeUniqueCodeResolver(existingFarmCodes)
+      const campaignCodeResolver = makeUniqueCodeResolver(existingCampaignCodes)
+      stepCount += 1
+      setProgress({ step: 'Codes vérifiés', done: stepCount, total: totalSteps })
+
+      // ─── 1. Insère les fermes (codes auto-résolus si conflit) ─────────
+      // Map ferme draft → code final unique
+      const farmCodeMap = new Map<number, string>()
+      farms.forEach((f, idx) => {
+        const baseCode = (f.code.trim() || `F${idx + 1}`).toUpperCase()
+        farmCodeMap.set(idx, farmCodeResolver(baseCode))
+      })
+
+      const farmInserts = farms.map((f, idx) => ({
+        code: farmCodeMap.get(idx)!,
         name: f.name.trim(),
         city: f.city.trim() || 'Agadir',
         region: REGIONS_MAROC[0],
@@ -182,18 +224,30 @@ export function DemoSetupWizard({ onClose, onComplete }: {
         .from('farms').insert(farmInserts).select('id, code, name')
       if (fErr) throw fErr
       stepCount += farms.length
+
+      // Si on a renommé des codes, le signaler à l'utilisateur
+      const renamed: string[] = []
+      farms.forEach((f, idx) => {
+        const original = (f.code.trim() || `F${idx + 1}`).toUpperCase()
+        const final = farmCodeMap.get(idx)!
+        if (original !== final) renamed.push(`${original} → ${final}`)
+      })
+      if (renamed.length > 0) {
+        toast(`Codes ferme renommés pour éviter conflits : ${renamed.join(', ')}`, { duration: 6000 })
+      }
       setProgress({ step: `${insertedFarms!.length} fermes créées`, done: stepCount, total: totalSteps })
 
       // ─── 2. Crée les serres pour chaque ferme ─────────────────────────
       const greenhouseInserts: any[] = []
       farms.forEach((f, fIdx) => {
-        const farmId = insertedFarms!.find(x => x.code === f.code.trim().toUpperCase())!.id
+        const finalCode = farmCodeMap.get(fIdx)!
+        const farmId = insertedFarms!.find(x => x.code === finalCode)!.id
         for (let i = 1; i <= f.greenhouseCount; i++) {
           const code = `S${String(i).padStart(2, '0')}`
           greenhouseInserts.push({
             farm_id: farmId,
             code,
-            name: `${f.code}-${code}`,
+            name: `${finalCode}-${code}`,
             type: f.ghType,
             status: 'active',
             total_area: f.ghSurfaceM2,
@@ -239,9 +293,15 @@ export function DemoSetupWizard({ onClose, onComplete }: {
       const firstFarmId = insertedFarms![0].id
       const budgetCalculated = campaign.budget_total > 0 ? campaign.budget_total
                                                           : Math.round(summary.totalSurface * 50)  // 50 MAD/m² par défaut
+      // Résout le code campagne pour éviter les conflits
+      const finalCampaignCode = campaignCodeResolver(campaign.code.trim())
+      if (finalCampaignCode !== campaign.code.trim().toUpperCase()) {
+        toast(`Code campagne renommé : ${campaign.code} → ${finalCampaignCode}`, { duration: 5000 })
+      }
+
       const { data: insertedCampaign, error: cErr } = await supabase
         .from('campaigns').insert({
-          code: campaign.code,
+          code: finalCampaignCode,
           name: campaign.name,
           farm_id: firstFarmId,
           status: 'en_cours',
