@@ -20,7 +20,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // ============================================================
 // ═══════ i18n — Traductions multilingues (inline) ══════════
-// Langues : fr (Français) | en (English) | ar (عربية) | darija (Arabizi)
+// Langues : fr (Français) | en (English) | ar (عربية فصحى) | darija (دارجة بالحروف العربية)
 // ============================================================
 
 type Lang = 'fr' | 'en' | 'ar' | 'darija'
@@ -40,85 +40,85 @@ const T: Translations = {
     fr: '👋 Salam ! Je suis le bot du Domaine BENHALIMA.\n\nPour t\'utiliser, tu dois être inscrit. Demande à ton responsable un <b>code d\'invitation</b>, puis envoie :\n\n<code>/start TONCODE</code>',
     en: '👋 Hi! I\'m the Domaine BENHALIMA bot.\n\nTo use me, you need to be enrolled. Ask your manager for an <b>invitation code</b>, then send:\n\n<code>/start YOURCODE</code>',
     ar: '👋 مرحباً! أنا روبوت ضيعة بنحليمة.\n\nلاستعمالي، يجب أن تكون مُسجَّلاً. اطلب من المسؤول <b>رمز الدعوة</b>، ثم أرسل:\n\n<code>/start كود</code>',
-    darija: '👋 Salam ! Ana l-bot dyal Domaine BENHALIMA.\n\nBach tkhdem m\'ana, khassek tkoun mosajjal. Tlob mn responsable dyalek <b>code d\'invitation</b>, w mn b3d sift :\n\n<code>/start CODEDYALEK</code>',
+    darija: '👋 سلام ! أنا البوط ديال ضيعة بنحليمة.\n\nباش تخدم معايا، خاصك تكون مسجل. طلب من المسؤول ديالك <b>كود الدعوة</b>، ومن بعد صيفط :\n\n<code>/start الكودديالك</code>',
   },
   enroll_invalid_code: {
     fr: '❌ Code invalide ou expiré. Contacte ton responsable.',
     en: '❌ Invalid or expired code. Contact your manager.',
     ar: '❌ الرمز غير صالح أو منتهي. تواصل مع المسؤول.',
-    darija: '❌ Code khayb wlla tsala. 3ayyat l-responsable dyalek.',
+    darija: '❌ الكود خايب ولا تسالا. عيط للمسؤول ديالك.',
   },
   welcome_enrolled: {
     fr: '✅ Bienvenue {{name}} !\nTu peux maintenant enregistrer tes récoltes par message.\n\nQue veux-tu faire ?',
     en: '✅ Welcome {{name}}!\nYou can now log your harvests by message.\n\nWhat would you like to do?',
     ar: '✅ مرحباً بك {{name}}!\nيمكنك الآن تسجيل المحاصيل عبر الرسائل.\n\nماذا تريد أن تفعل؟',
-    darija: '✅ Marhba bik {{name}} !\nDaba t9der tsajjel les récoltes dyalek b message.\n\nAch bghiti tdir ?',
+    darija: '✅ مرحبا بيك {{name}} !\nدابا تقدر تسجل المحاصيل ديالك بالمسج.\n\nآش بغيتي تدير ؟',
   },
-  menu_voice_session: { fr: '🎙️ Saisie vocale groupée', en: '🎙️ Grouped voice input', ar: '🎙️ إدخال صوتي جماعي', darija: '🎙️ Sjjel b-sawt 3la marra' },
-  menu_harvest:        { fr: '📦 Nouvelle récolte', en: '📦 New harvest', ar: '📦 محصول جديد', darija: '📦 Récolte jdida' },
-  menu_compose_dispatch: { fr: '🚚 Composer un envoi station', en: '🚚 Compose station dispatch', ar: '🚚 تجهيز إرسال إلى المحطة', darija: '🚚 Sayb sho7na l-station' },
-  menu_tri:            { fr: '🔬 Saisir tri (freinte/écart)', en: '🔬 Enter sorting (loss/discard)', ar: '🔬 إدخال الفرز (الفاقد/الانحراف)', darija: '🔬 Dakhel le tri (freinte/écart)' },
-  menu_confirm_price:  { fr: '💰 Confirmer un prix', en: '💰 Confirm a price', ar: '💰 تأكيد السعر', darija: '💰 Akkad l-prix' },
-  menu_no_harvest:     { fr: '🚨 Journée sans récolte', en: '🚨 Day without harvest', ar: '🚨 يوم بدون محصول', darija: '🚨 Nhar bla récolte' },
-  menu_my_lots:        { fr: '📊 Mes derniers lots', en: '📊 My latest lots', ar: '📊 آخر دفعاتي', darija: '📊 Lots dyali l-akhrayn' },
-  menu_help:           { fr: '❓ Aide', en: '❓ Help', ar: '❓ مساعدة', darija: '❓ Aide' },
-  no_active_planting:  { fr: '❌ Aucune plantation active trouvée. Contacte le responsable.', en: '❌ No active planting found. Contact your manager.', ar: '❌ لم يتم العثور على زراعة نشطة. تواصل مع المسؤول.', darija: '❌ Ma kayna 7etta plantation active. 3ayyat l-responsable.' },
-  pick_planting:       { fr: '📦 Choisis la plantation :', en: '📦 Choose the planting:', ar: '📦 اختر الزراعة:', darija: '📦 Khtar l-plantation :' },
-  planting_not_found:  { fr: '❌ Plantation introuvable.', en: '❌ Planting not found.', ar: '❌ الزراعة غير موجودة.', darija: '❌ Plantation maleknach.' },
-  ask_quantity:        { fr: '🌿 {{label}}\n\nQuelle quantité (en kg) ? Envoie juste le nombre.', en: '🌿 {{label}}\n\nWhat quantity (in kg)? Just send the number.', ar: '🌿 {{label}}\n\nما الكمية (بالكيلو)؟ أرسل الرقم فقط.', darija: '🌿 {{label}}\n\nCh7al d-l-kilo ? Sift ghir l-raqm.' },
-  invalid_quantity:    { fr: '❌ Quantité invalide. Envoie juste un nombre, ex: <code>150</code>', en: '❌ Invalid quantity. Just send a number, e.g.: <code>150</code>', ar: '❌ الكمية غير صحيحة. أرسل رقماً فقط، مثال: <code>150</code>', darija: '❌ L-kemmiya makhdamach. Sift raqm bark, mital : <code>150</code>' },
-  session_lost:        { fr: '❌ Session perdue. Recommence avec /start', en: '❌ Session lost. Restart with /start', ar: '❌ الجلسة ضاعت. ابدأ من جديد بـ /start', darija: '❌ Session twddrat. 3awd b /start' },
-  harvest_saved:       { fr: '✅ <b>Récolte enregistrée</b>\nLot : <code>{{lot}}</code>\nQté : {{qty}} kg\nDate : {{date}}', en: '✅ <b>Harvest saved</b>\nLot: <code>{{lot}}</code>\nQty: {{qty}} kg\nDate: {{date}}', ar: '✅ <b>تم تسجيل المحصول</b>\nالدفعة: <code>{{lot}}</code>\nالكمية: {{qty}} كغ\nالتاريخ: {{date}}', darija: '✅ <b>Récolte tsajjlat</b>\nLot : <code>{{lot}}</code>\nQté : {{qty}} kg\nNhar : {{date}}' },
-  error_with_msg:      { fr: '❌ Erreur : {{msg}}', en: '❌ Error: {{msg}}', ar: '❌ خطأ: {{msg}}', darija: '❌ Mochkil : {{msg}}' },
-  ask_no_harvest_reason: { fr: '🚨 Quelle est la raison ?', en: '🚨 What\'s the reason?', ar: '🚨 ما السبب؟', darija: '🚨 Ach 3lach ?' },
-  reason_panne_irrigation: { fr: '⚙️ Panne d\'irrigation', en: '⚙️ Irrigation breakdown', ar: '⚙️ عطل في السقي', darija: '⚙️ Panne d-l-irrigation' },
-  reason_meteo:        { fr: '🌧️ Météo défavorable', en: '🌧️ Bad weather', ar: '🌧️ طقس سيء', darija: '🌧️ L-jaw makhdamch' },
-  reason_main_oeuvre:  { fr: '👥 Manque de main d\'œuvre', en: '👥 Labor shortage', ar: '👥 نقص في اليد العاملة', darija: '👥 Ma kaynach l-3ommal' },
-  reason_maladie:      { fr: '🦠 Maladie / phytopathologie', en: '🦠 Disease / phytopathology', ar: '🦠 مرض / علم الأمراض النباتية', darija: '🦠 Mradd / maladie' },
-  reason_maintenance:  { fr: '🔧 Maintenance', en: '🔧 Maintenance', ar: '🔧 صيانة', darija: '🔧 Maintenance' },
-  reason_other:        { fr: '❓ Autre (préciser)', en: '❓ Other (specify)', ar: '❓ سبب آخر (حدد)', darija: '❓ Sbab akhor (wddh)' },
-  cancel:              { fr: '✖ Annuler', en: '✖ Cancel', ar: '✖ إلغاء', darija: '✖ Annuler' },
-  no_harvest_saved:    { fr: '✅ <b>Journée sans récolte signalée</b>\nDate : {{date}}\nMotif : {{reason}}{{noteLine}}', en: '✅ <b>No-harvest day reported</b>\nDate: {{date}}\nReason: {{reason}}{{noteLine}}', ar: '✅ <b>تم الإبلاغ عن يوم بدون محصول</b>\nالتاريخ: {{date}}\nالسبب: {{reason}}{{noteLine}}', darija: '✅ <b>Nhar bla récolte tsajjel</b>\nNhar : {{date}}\nSbab : {{reason}}{{noteLine}}' },
-  voice_listening:     { fr: '🎤 J\'écoute…', en: '🎤 Listening…', ar: '🎤 أنا أستمع…', darija: '🎤 Kanesm3…' },
-  voice_transcription_error: { fr: '❌ Erreur transcription : {{msg}}', en: '❌ Transcription error: {{msg}}', ar: '❌ خطأ في النسخ: {{msg}}', darija: '❌ Mochkil f t-transcription : {{msg}}' },
-  voice_qty_unclear:   { fr: '❌ Quantité non comprise. Réessaye en disant un nombre clairement, ou utilise le clavier.', en: '❌ Quantity not understood. Try again saying a number clearly, or use the keyboard.', ar: '❌ لم أفهم الكمية. حاول مرة أخرى بقول رقم واضح، أو استعمل لوحة المفاتيح.', darija: '❌ Mafhmtch l-kemmiya. 3awd 9ol l-raqm bouddou7, wlla khdem b clavier.' },
-  voice_pct_unclear:   { fr: '❌ Pourcentage non compris. Tape un nombre entre 0 et 100, ou utilise les boutons.', en: '❌ Percentage not understood. Type a number between 0 and 100, or use the buttons.', ar: '❌ لم أفهم النسبة. اكتب رقماً بين 0 و 100، أو استعمل الأزرار.', darija: '❌ Mafhmtch l-pourcentage. Kteb raqm bin 0 w 100, wlla khdem b les boutons.' },
-  voice_price_unclear: { fr: '❌ Prix non compris. Réessaye, ex: <code>8.50</code>.', en: '❌ Price not understood. Try again, e.g.: <code>8.50</code>.', ar: '❌ لم أفهم السعر. حاول مرة أخرى، مثال: <code>8.50</code>.', darija: '❌ Mafhmtch l-prix. 3awd, mital : <code>8.50</code>.' },
-  voice_no_planting:   { fr: '❌ Aucune plantation active. Contacte le responsable.', en: '❌ No active planting. Contact your manager.', ar: '❌ لا توجد زراعة نشطة. تواصل مع المسؤول.', darija: '❌ Ma kayna 7etta plantation active. 3ayyat l-responsable.' },
-  voice_recap_title:   { fr: '📋 <b>Récap de la session vocale</b>', en: '📋 <b>Voice session summary</b>', ar: '📋 <b>ملخص الجلسة الصوتية</b>', darija: '📋 <b>Récap dyal session vocale</b>' },
-  voice_recap_total:   { fr: '<b>Total : {{total}} kg</b> sur {{count}} lot(s)\n\nTout est correct ?', en: '<b>Total: {{total}} kg</b> on {{count}} lot(s)\n\nIs everything correct?', ar: '<b>المجموع: {{total}} كغ</b> في {{count}} دفعة\n\nهل كل شيء صحيح؟', darija: '<b>L-mjmou3 : {{total}} kg</b> 3la {{count}} lot(s)\n\nKolchi mzyan ?' },
-  voice_save_all:      { fr: '✅ Tout enregistrer', en: '✅ Save all', ar: '✅ حفظ الكل', darija: '✅ Sajjel kolchi' },
-  voice_continue:      { fr: '🔁 Continuer la dictée', en: '🔁 Continue dictating', ar: '🔁 متابعة الإملاء', darija: '🔁 Kemmel l-dicté' },
-  voice_cancel_session:{ fr: '✗ Annuler la session', en: '✗ Cancel session', ar: '✗ إلغاء الجلسة', darija: '✗ Annuler la session' },
-  voice_extracted_unclear: { fr: '🎤 <i>"{{transcription}}"</i>\n\n❓ Je n\'ai pas pu extraire de récolte exploitable. Réessaye en disant clairement <b>quantité, serre et variété</b>.', en: '🎤 <i>"{{transcription}}"</i>\n\n❓ I couldn\'t extract a usable harvest. Try again saying clearly <b>quantity, greenhouse and variety</b>.', ar: '🎤 <i>"{{transcription}}"</i>\n\n❓ لم أستطع استخراج محصول صالح. حاول مرة أخرى بقول <b>الكمية، البيت والصنف</b> بوضوح.', darija: '🎤 <i>"{{transcription}}"</i>\n\n❓ Ma 9dertch nakhroj récolte mn li gulti. 3awd 9ol bouddou7 <b>l-kemmiya, serre w variété</b>.' },
-  compose_no_harvest_available: { fr: '❌ Aucune récolte récente avec quantité disponible.', en: '❌ No recent harvest with available quantity.', ar: '❌ لا توجد محاصيل حديثة بكمية متوفرة.', darija: '❌ Ma kayna walou récolte jdida 3andha quantité dispo.' },
-  compose_lot_unavailable: { fr: '❌ Lot indisponible.', en: '❌ Lot unavailable.', ar: '❌ الدفعة غير متاحة.', darija: '❌ L-lot ma dispo-ch.' },
-  compose_lot_already_added: { fr: 'Ce lot est déjà ajouté. Annule via /menu pour recommencer.', en: 'This lot is already added. Cancel via /menu to restart.', ar: 'هذه الدفعة مضافة بالفعل. ألغي عبر /menu للبدء من جديد.', darija: 'L-lot dakhel deja. 3awd /menu bach tbda mn jdid.' },
-  compose_qty_invalid_or_all: { fr: '❌ Quantité invalide. Envoie un nombre ou <code>tout</code>.', en: '❌ Invalid quantity. Send a number or <code>all</code>.', ar: '❌ الكمية غير صحيحة. أرسل رقماً أو <code>الكل</code>.', darija: '❌ L-kemmiya makhdamach. Sift raqm wlla <code>kollou</code>.' },
-  compose_qty_exceeds: { fr: '❌ Dépasse le disponible ({{max}}kg max).', en: '❌ Exceeds available ({{max}}kg max).', ar: '❌ تتجاوز المتاح ({{max}}كغ كحد أقصى).', darija: '❌ Akter mn li dispo ({{max}}kg max).' },
-  compose_no_lots:     { fr: '❌ Aucun lot sélectionné.', en: '❌ No lot selected.', ar: '❌ لم يتم اختيار أي دفعة.', darija: '❌ Ma khtariti walou lot.' },
-  compose_no_market:   { fr: '❌ Aucun marché actif.', en: '❌ No active market.', ar: '❌ لا يوجد سوق نشط.', darija: '❌ Ma kayn 7etta marché active.' },
-  help_text:           { fr: '<b>Comment m\'utiliser :</b>\n\n• Envoie un <b>message vocal</b> en disant les récoltes\n• Ou utilise les <b>boutons</b> du menu\n• <code>/menu</code> pour revenir au menu\n• <code>/cancel</code> pour annuler une action\n\n💬 Tu peux écrire en français, arabe, darija ou anglais — je comprends tout.', en: '<b>How to use me:</b>\n\n• Send a <b>voice message</b> saying your harvests\n• Or use the menu <b>buttons</b>\n• <code>/menu</code> to return to the menu\n• <code>/cancel</code> to cancel an action\n\n💬 You can write in French, Arabic, Darija or English — I understand them all.', ar: '<b>كيفية استعمالي:</b>\n\n• أرسل <b>رسالة صوتية</b> تقول فيها المحاصيل\n• أو استعمل <b>أزرار</b> القائمة\n• <code>/menu</code> للعودة إلى القائمة\n• <code>/cancel</code> لإلغاء عملية\n\n💬 يمكنك الكتابة بالفرنسية، العربية، الدارجة أو الإنجليزية — أفهم كل اللغات.', darija: '<b>Kifach tkhdem m\'ana :</b>\n\n• Sift <b>message vocal</b> w 9ol les récoltes\n• Wlla khdem b <b>les boutons</b> dyal l-menu\n• <code>/menu</code> bach trj3 l-menu\n• <code>/cancel</code> bach t-annuli action\n\n💬 T9der tkteb b français, 3arabiya, darija wlla anglais — kanfhem kolchi.' },
-  note_label:          { fr: 'Note', en: 'Note', ar: 'ملاحظة', darija: 'Mola7adha' },
-  compose_session_empty: { fr: '❌ Session vide.', en: '❌ Empty session.', ar: '❌ الجلسة فارغة.', darija: '❌ Session khawya.' },
-  compose_no_variety:  { fr: '❌ Récolte {{lot}} sans variété — annulation.', en: '❌ Harvest {{lot}} has no variety — cancelled.', ar: '❌ المحصول {{lot}} بدون صنف — إلغاء.', darija: '❌ Récolte {{lot}} bla variété — tla8at.' },
-  compose_lot_error:   { fr: '❌ Erreur lot {{idx}} : {{msg}}', en: '❌ Lot {{idx}} error: {{msg}}', ar: '❌ خطأ في الدفعة {{idx}}: {{msg}}', darija: '❌ Mochkil f lot {{idx}} : {{msg}}' },
-  tri_nothing_to_sort: { fr: '✅ Aucun envoi en attente de tri.', en: '✅ No dispatch waiting for sorting.', ar: '✅ لا يوجد إرسال بانتظار الفرز.', darija: '✅ Ma kayn 7etta sho7na kat-stnna le tri.' },
-  tri_pick_dispatch:   { fr: '🔬 Choisis l\'envoi à trier :', en: '🔬 Choose the dispatch to sort:', ar: '🔬 اختر الإرسال للفرز:', darija: '🔬 Khtar sho7na bach t-tri-ha :' },
-  not_found:           { fr: '❌ Introuvable.', en: '❌ Not found.', ar: '❌ غير موجود.', darija: '❌ Maleknach.' },
-  invalid_input_pct:   { fr: '❌ Saisie invalide. Nombre entre 0 et 100.', en: '❌ Invalid input. Number between 0 and 100.', ar: '❌ إدخال غير صحيح. رقم بين 0 و 100.', darija: '❌ Dakhalti khta. Raqm bin 0 w 100.' },
-  price_pick_dispatch: { fr: '💰 Choisis l\'envoi à tarifer :', en: '💰 Choose the dispatch to price:', ar: '💰 اختر الإرسال لتسعيره:', darija: '💰 Khtar sho7na bach t-akkad l-prix :' },
-  price_invalid:       { fr: '❌ Prix invalide. Tape juste un nombre, ex: <code>8.50</code>', en: '❌ Invalid price. Just type a number, e.g.: <code>8.50</code>', ar: '❌ السعر غير صحيح. اكتب رقماً فقط، مثال: <code>8.50</code>', darija: '❌ L-prix makhdamch. Kteb raqm bark, mital : <code>8.50</code>' },
-  my_lots_empty:       { fr: '📊 Aucune récolte sur les 7 derniers jours.', en: '📊 No harvest in the last 7 days.', ar: '📊 لا توجد محاصيل في الأيام السبعة الأخيرة.', darija: '📊 Ma kayna 7etta récolte f 7iyam l-fayta.' },
-  my_lots_title:       { fr: '📊 <b>Derniers lots (7j)</b>', en: '📊 <b>Latest lots (7d)</b>', ar: '📊 <b>آخر الدفعات (7 أيام)</b>', darija: '📊 <b>Lots l-akhrayn (7 iyyam)</b>' },
-  cancelled_what_to_do:{ fr: 'Annulé. Que veux-tu faire ?', en: 'Cancelled. What do you want to do?', ar: 'تم الإلغاء. ماذا تريد أن تفعل؟', darija: 'Tla8at. Ach bghiti tdir ?' },
-  what_to_do:          { fr: 'Que veux-tu faire ?', en: 'What do you want to do?', ar: 'ماذا تريد أن تفعل؟', darija: 'Ach bghiti tdir ?' },
-  voice_continue_dictating: { fr: '🎤 OK, continue à dicter. Dis "fini" quand tu as terminé.', en: '🎤 OK, keep dictating. Say "done" when finished.', ar: '🎤 حسناً، تابع الإملاء. قل "انتهيت" عندما تنتهي.', darija: '🎤 Wakha, kemmel l-dicté. 9ol "khlas" mli tsali.' },
-  specify_reason:      { fr: '✏️ Précise le motif (texte libre) :', en: '✏️ Specify the reason (free text):', ar: '✏️ حدد السبب (نص حر):', darija: '✏️ Wddh sbab (kteb li bghiti) :' },
-  unknown_action:      { fr: 'Action non reconnue.', en: 'Unknown action.', ar: 'إجراء غير معروف.', darija: 'Action ma 3reftha.' },
-  voice_session_saved: { fr: '✅ <b>{{inserted}}/{{total}} récolte(s) enregistrée(s)</b>\nDate : {{date}}\nTotal : {{kg}} kg', en: '✅ <b>{{inserted}}/{{total}} harvest(s) saved</b>\nDate: {{date}}\nTotal: {{kg}} kg', ar: '✅ <b>{{inserted}}/{{total}} محصول تم تسجيله</b>\nالتاريخ: {{date}}\nالمجموع: {{kg}} كغ', darija: '✅ <b>{{inserted}}/{{total}} récolte(s) tsajjlou</b>\nNhar : {{date}}\nL-mjmou3 : {{kg}} kg' },
-  voice_session_open:  { fr: '🎙️ <b>Session vocale ouverte</b>\n\nDicte tes récoltes une par une OU plusieurs dans le même message.\nExemple : <i>"Cent cinquante kilos sur la serre 1 marquise, et deux quintaux sur la serre 3 cherry"</i>\n\nQuand tu as terminé, dis <b>"fini"</b> ou tape sur le bouton.', en: '🎙️ <b>Voice session open</b>\n\nDictate your harvests one by one OR several in the same message.\nExample: <i>"One hundred fifty kilos on greenhouse 1 marquise, and two quintals on greenhouse 3 cherry"</i>\n\nWhen you\'re done, say <b>"done"</b> or tap the button.', ar: '🎙️ <b>الجلسة الصوتية مفتوحة</b>\n\nأملِ محاصيلك واحداً تلو الآخر أو عدة في الرسالة نفسها.\nمثال: <i>"مئة وخمسون كيلو على البيت الأول مركيز، ومئتان على البيت الثالث شيري"</i>\n\nعندما تنتهي، قل <b>"انتهيت"</b> أو اضغط الزر.', darija: '🎙️ <b>Session vocale me7loula</b>\n\n9ol les récoltes dyalek wahda b wahda WLLA b zaaf f message wahed.\nMital : <i>"Miya w khamsin kilo f serre 1 marquise, w miyatayn f serre 3 cherry"</i>\n\nMli tsali, 9ol <b>"khlas"</b> wlla door 3la l-button.' },
-  voice_show_recap:    { fr: '✅ Terminer (afficher récap)', en: '✅ Finish (show summary)', ar: '✅ إنهاء (عرض الملخص)', darija: '✅ Sali (wri-li récap)' },
+  menu_voice_session: { fr: '🎙️ Saisie vocale groupée', en: '🎙️ Grouped voice input', ar: '🎙️ إدخال صوتي جماعي', darija: '🎙️ سجل بالصوت على مرة' },
+  menu_harvest:        { fr: '📦 Nouvelle récolte', en: '📦 New harvest', ar: '📦 محصول جديد', darija: '📦 ركولت جديدة' },
+  menu_compose_dispatch: { fr: '🚚 Composer un envoi station', en: '🚚 Compose station dispatch', ar: '🚚 تجهيز إرسال إلى المحطة', darija: '🚚 صيب شحنة للستاسيون' },
+  menu_tri:            { fr: '🔬 Saisir tri (freinte/écart)', en: '🔬 Enter sorting (loss/discard)', ar: '🔬 إدخال الفرز (الفاقد/الانحراف)', darija: '🔬 دخل التري (فرانت/إيكار)' },
+  menu_confirm_price:  { fr: '💰 Confirmer un prix', en: '💰 Confirm a price', ar: '💰 تأكيد السعر', darija: '💰 أكد التومان' },
+  menu_no_harvest:     { fr: '🚨 Journée sans récolte', en: '🚨 Day without harvest', ar: '🚨 يوم بدون محصول', darija: '🚨 نهار بلا ركولت' },
+  menu_my_lots:        { fr: '📊 Mes derniers lots', en: '📊 My latest lots', ar: '📊 آخر دفعاتي', darija: '📊 اللوطاجات ديالي الأخرين' },
+  menu_help:           { fr: '❓ Aide', en: '❓ Help', ar: '❓ مساعدة', darija: '❓ مساعدة' },
+  no_active_planting:  { fr: '❌ Aucune plantation active trouvée. Contacte le responsable.', en: '❌ No active planting found. Contact your manager.', ar: '❌ لم يتم العثور على زراعة نشطة. تواصل مع المسؤول.', darija: '❌ ما كاينة حتى زراعة خدامة. عيط للمسؤول.' },
+  pick_planting:       { fr: '📦 Choisis la plantation :', en: '📦 Choose the planting:', ar: '📦 اختر الزراعة:', darija: '📦 ختار الزراعة :' },
+  planting_not_found:  { fr: '❌ Plantation introuvable.', en: '❌ Planting not found.', ar: '❌ الزراعة غير موجودة.', darija: '❌ الزراعة ما لقيتهاش.' },
+  ask_quantity:        { fr: '🌿 {{label}}\n\nQuelle quantité (en kg) ? Envoie juste le nombre.', en: '🌿 {{label}}\n\nWhat quantity (in kg)? Just send the number.', ar: '🌿 {{label}}\n\nما الكمية (بالكيلو)؟ أرسل الرقم فقط.', darija: '🌿 {{label}}\n\nشحال د الكيلو ؟ صيفط غير الرقم.' },
+  invalid_quantity:    { fr: '❌ Quantité invalide. Envoie juste un nombre, ex: <code>150</code>', en: '❌ Invalid quantity. Just send a number, e.g.: <code>150</code>', ar: '❌ الكمية غير صحيحة. أرسل رقماً فقط، مثال: <code>150</code>', darija: '❌ الكمية ماخدماش. صيفط رقم برك، مثال : <code>150</code>' },
+  session_lost:        { fr: '❌ Session perdue. Recommence avec /start', en: '❌ Session lost. Restart with /start', ar: '❌ الجلسة ضاعت. ابدأ من جديد بـ /start', darija: '❌ السيسيون توضرات. عاود بـ /start' },
+  harvest_saved:       { fr: '✅ <b>Récolte enregistrée</b>\nLot : <code>{{lot}}</code>\nQté : {{qty}} kg\nDate : {{date}}', en: '✅ <b>Harvest saved</b>\nLot: <code>{{lot}}</code>\nQty: {{qty}} kg\nDate: {{date}}', ar: '✅ <b>تم تسجيل المحصول</b>\nالدفعة: <code>{{lot}}</code>\nالكمية: {{qty}} كغ\nالتاريخ: {{date}}', darija: '✅ <b>الركولت تسجلات</b>\nاللوطاج : <code>{{lot}}</code>\nالكمية : {{qty}} كيلو\nالنهار : {{date}}' },
+  error_with_msg:      { fr: '❌ Erreur : {{msg}}', en: '❌ Error: {{msg}}', ar: '❌ خطأ: {{msg}}', darija: '❌ مشكل : {{msg}}' },
+  ask_no_harvest_reason: { fr: '🚨 Quelle est la raison ?', en: '🚨 What\'s the reason?', ar: '🚨 ما السبب؟', darija: '🚨 آش علاش ؟' },
+  reason_panne_irrigation: { fr: '⚙️ Panne d\'irrigation', en: '⚙️ Irrigation breakdown', ar: '⚙️ عطل في السقي', darija: '⚙️ بان فالسقي' },
+  reason_meteo:        { fr: '🌧️ Météo défavorable', en: '🌧️ Bad weather', ar: '🌧️ طقس سيء', darija: '🌧️ الجو ماخدامش' },
+  reason_main_oeuvre:  { fr: '👥 Manque de main d\'œuvre', en: '👥 Labor shortage', ar: '👥 نقص في اليد العاملة', darija: '👥 ما كايناش العمال' },
+  reason_maladie:      { fr: '🦠 Maladie / phytopathologie', en: '🦠 Disease / phytopathology', ar: '🦠 مرض / علم الأمراض النباتية', darija: '🦠 مرض / فيتوباطولوجي' },
+  reason_maintenance:  { fr: '🔧 Maintenance', en: '🔧 Maintenance', ar: '🔧 صيانة', darija: '🔧 صيانة' },
+  reason_other:        { fr: '❓ Autre (préciser)', en: '❓ Other (specify)', ar: '❓ سبب آخر (حدد)', darija: '❓ سبب آخر (وضح)' },
+  cancel:              { fr: '✖ Annuler', en: '✖ Cancel', ar: '✖ إلغاء', darija: '✖ إلغاء' },
+  no_harvest_saved:    { fr: '✅ <b>Journée sans récolte signalée</b>\nDate : {{date}}\nMotif : {{reason}}{{noteLine}}', en: '✅ <b>No-harvest day reported</b>\nDate: {{date}}\nReason: {{reason}}{{noteLine}}', ar: '✅ <b>تم الإبلاغ عن يوم بدون محصول</b>\nالتاريخ: {{date}}\nالسبب: {{reason}}{{noteLine}}', darija: '✅ <b>نهار بلا ركولت تسجل</b>\nالنهار : {{date}}\nالسبب : {{reason}}{{noteLine}}' },
+  voice_listening:     { fr: '🎤 J\'écoute…', en: '🎤 Listening…', ar: '🎤 أنا أستمع…', darija: '🎤 كانسمع…' },
+  voice_transcription_error: { fr: '❌ Erreur transcription : {{msg}}', en: '❌ Transcription error: {{msg}}', ar: '❌ خطأ في النسخ: {{msg}}', darija: '❌ مشكل فالترانسكريبسيون : {{msg}}' },
+  voice_qty_unclear:   { fr: '❌ Quantité non comprise. Réessaye en disant un nombre clairement, ou utilise le clavier.', en: '❌ Quantity not understood. Try again saying a number clearly, or use the keyboard.', ar: '❌ لم أفهم الكمية. حاول مرة أخرى بقول رقم واضح، أو استعمل لوحة المفاتيح.', darija: '❌ مافهمتش الكمية. عاود قول الرقم بوضوح، ولا خدم بالكلافي.' },
+  voice_pct_unclear:   { fr: '❌ Pourcentage non compris. Tape un nombre entre 0 et 100, ou utilise les boutons.', en: '❌ Percentage not understood. Type a number between 0 and 100, or use the buttons.', ar: '❌ لم أفهم النسبة. اكتب رقماً بين 0 و 100، أو استعمل الأزرار.', darija: '❌ مافهمتش البورسانتاج. كتب رقم بين 0 و 100، ولا خدم بالبوطون.' },
+  voice_price_unclear: { fr: '❌ Prix non compris. Réessaye, ex: <code>8.50</code>.', en: '❌ Price not understood. Try again, e.g.: <code>8.50</code>.', ar: '❌ لم أفهم السعر. حاول مرة أخرى، مثال: <code>8.50</code>.', darija: '❌ مافهمتش التومان. عاود، مثال : <code>8.50</code>.' },
+  voice_no_planting:   { fr: '❌ Aucune plantation active. Contacte le responsable.', en: '❌ No active planting. Contact your manager.', ar: '❌ لا توجد زراعة نشطة. تواصل مع المسؤول.', darija: '❌ ما كاينة حتى زراعة خدامة. عيط للمسؤول.' },
+  voice_recap_title:   { fr: '📋 <b>Récap de la session vocale</b>', en: '📋 <b>Voice session summary</b>', ar: '📋 <b>ملخص الجلسة الصوتية</b>', darija: '📋 <b>ركاب ديال السيسيون فوكال</b>' },
+  voice_recap_total:   { fr: '<b>Total : {{total}} kg</b> sur {{count}} lot(s)\n\nTout est correct ?', en: '<b>Total: {{total}} kg</b> on {{count}} lot(s)\n\nIs everything correct?', ar: '<b>المجموع: {{total}} كغ</b> في {{count}} دفعة\n\nهل كل شيء صحيح؟', darija: '<b>المجموع : {{total}} كيلو</b> على {{count}} لوطاج\n\nكولشي مزيان ؟' },
+  voice_save_all:      { fr: '✅ Tout enregistrer', en: '✅ Save all', ar: '✅ حفظ الكل', darija: '✅ سجل كولشي' },
+  voice_continue:      { fr: '🔁 Continuer la dictée', en: '🔁 Continue dictating', ar: '🔁 متابعة الإملاء', darija: '🔁 كمل الديكتي' },
+  voice_cancel_session:{ fr: '✗ Annuler la session', en: '✗ Cancel session', ar: '✗ إلغاء الجلسة', darija: '✗ إلغاء السيسيون' },
+  voice_extracted_unclear: { fr: '🎤 <i>"{{transcription}}"</i>\n\n❓ Je n\'ai pas pu extraire de récolte exploitable. Réessaye en disant clairement <b>quantité, serre et variété</b>.', en: '🎤 <i>"{{transcription}}"</i>\n\n❓ I couldn\'t extract a usable harvest. Try again saying clearly <b>quantity, greenhouse and variety</b>.', ar: '🎤 <i>"{{transcription}}"</i>\n\n❓ لم أستطع استخراج محصول صالح. حاول مرة أخرى بقول <b>الكمية، البيت والصنف</b> بوضوح.', darija: '🎤 <i>"{{transcription}}"</i>\n\n❓ ما قدرتش نخرج ركولت من لي قلتي. عاود قول بوضوح <b>الكمية، السير والصنف</b>.' },
+  compose_no_harvest_available: { fr: '❌ Aucune récolte récente avec quantité disponible.', en: '❌ No recent harvest with available quantity.', ar: '❌ لا توجد محاصيل حديثة بكمية متوفرة.', darija: '❌ ما كاينة والو ركولت جديدة عندها كمية ديسبو.' },
+  compose_lot_unavailable: { fr: '❌ Lot indisponible.', en: '❌ Lot unavailable.', ar: '❌ الدفعة غير متاحة.', darija: '❌ اللوطاج ما ديسبوش.' },
+  compose_lot_already_added: { fr: 'Ce lot est déjà ajouté. Annule via /menu pour recommencer.', en: 'This lot is already added. Cancel via /menu to restart.', ar: 'هذه الدفعة مضافة بالفعل. ألغي عبر /menu للبدء من جديد.', darija: 'اللوطاج داخل ديجا. عاود /menu باش تبدا من جديد.' },
+  compose_qty_invalid_or_all: { fr: '❌ Quantité invalide. Envoie un nombre ou <code>tout</code>.', en: '❌ Invalid quantity. Send a number or <code>all</code>.', ar: '❌ الكمية غير صحيحة. أرسل رقماً أو <code>الكل</code>.', darija: '❌ الكمية ماخدماش. صيفط رقم ولا <code>كولو</code>.' },
+  compose_qty_exceeds: { fr: '❌ Dépasse le disponible ({{max}}kg max).', en: '❌ Exceeds available ({{max}}kg max).', ar: '❌ تتجاوز المتاح ({{max}}كغ كحد أقصى).', darija: '❌ كتر من لي ديسبو ({{max}} كيلو ماكس).' },
+  compose_no_lots:     { fr: '❌ Aucun lot sélectionné.', en: '❌ No lot selected.', ar: '❌ لم يتم اختيار أي دفعة.', darija: '❌ ما ختاريتي والو لوطاج.' },
+  compose_no_market:   { fr: '❌ Aucun marché actif.', en: '❌ No active market.', ar: '❌ لا يوجد سوق نشط.', darija: '❌ ما كاين حتى مرشي خدام.' },
+  help_text:           { fr: '<b>Comment m\'utiliser :</b>\n\n• Envoie un <b>message vocal</b> en disant les récoltes\n• Ou utilise les <b>boutons</b> du menu\n• <code>/menu</code> pour revenir au menu\n• <code>/cancel</code> pour annuler une action\n\n💬 Tu peux écrire en français, arabe, darija ou anglais — je comprends tout.', en: '<b>How to use me:</b>\n\n• Send a <b>voice message</b> saying your harvests\n• Or use the menu <b>buttons</b>\n• <code>/menu</code> to return to the menu\n• <code>/cancel</code> to cancel an action\n\n💬 You can write in French, Arabic, Darija or English — I understand them all.', ar: '<b>كيفية استعمالي:</b>\n\n• أرسل <b>رسالة صوتية</b> تقول فيها المحاصيل\n• أو استعمل <b>أزرار</b> القائمة\n• <code>/menu</code> للعودة إلى القائمة\n• <code>/cancel</code> لإلغاء عملية\n\n💬 يمكنك الكتابة بالفرنسية، العربية، الدارجة أو الإنجليزية — أفهم كل اللغات.', darija: '<b>كيفاش تخدم معايا :</b>\n\n• صيفط <b>مساج فوكال</b> وقول الركولتات\n• ولا خدم بـ <b>البوطون</b> ديال المنيو\n• <code>/menu</code> باش ترجع للمنيو\n• <code>/cancel</code> باش تلغي أكسيون\n\n💬 تقدر تكتب بالفرنسية، العربية، الدارجة ولا الأنجليزية — كانفهم كولشي.' },
+  note_label:          { fr: 'Note', en: 'Note', ar: 'ملاحظة', darija: 'ملاحظة' },
+  compose_session_empty: { fr: '❌ Session vide.', en: '❌ Empty session.', ar: '❌ الجلسة فارغة.', darija: '❌ السيسيون خاوية.' },
+  compose_no_variety:  { fr: '❌ Récolte {{lot}} sans variété — annulation.', en: '❌ Harvest {{lot}} has no variety — cancelled.', ar: '❌ المحصول {{lot}} بدون صنف — إلغاء.', darija: '❌ الركولت {{lot}} بلا صنف — تلغات.' },
+  compose_lot_error:   { fr: '❌ Erreur lot {{idx}} : {{msg}}', en: '❌ Lot {{idx}} error: {{msg}}', ar: '❌ خطأ في الدفعة {{idx}}: {{msg}}', darija: '❌ مشكل فاللوطاج {{idx}} : {{msg}}' },
+  tri_nothing_to_sort: { fr: '✅ Aucun envoi en attente de tri.', en: '✅ No dispatch waiting for sorting.', ar: '✅ لا يوجد إرسال بانتظار الفرز.', darija: '✅ ما كاين حتى شحنة كاتستنا التري.' },
+  tri_pick_dispatch:   { fr: '🔬 Choisis l\'envoi à trier :', en: '🔬 Choose the dispatch to sort:', ar: '🔬 اختر الإرسال للفرز:', darija: '🔬 ختار الشحنة باش تتريها :' },
+  not_found:           { fr: '❌ Introuvable.', en: '❌ Not found.', ar: '❌ غير موجود.', darija: '❌ ما لقيتوش.' },
+  invalid_input_pct:   { fr: '❌ Saisie invalide. Nombre entre 0 et 100.', en: '❌ Invalid input. Number between 0 and 100.', ar: '❌ إدخال غير صحيح. رقم بين 0 و 100.', darija: '❌ دخلتي خطأ. رقم بين 0 و 100.' },
+  price_pick_dispatch: { fr: '💰 Choisis l\'envoi à tarifer :', en: '💰 Choose the dispatch to price:', ar: '💰 اختر الإرسال لتسعيره:', darija: '💰 ختار الشحنة باش تأكد التومان :' },
+  price_invalid:       { fr: '❌ Prix invalide. Tape juste un nombre, ex: <code>8.50</code>', en: '❌ Invalid price. Just type a number, e.g.: <code>8.50</code>', ar: '❌ السعر غير صحيح. اكتب رقماً فقط، مثال: <code>8.50</code>', darija: '❌ التومان ماخدماش. كتب رقم برك، مثال : <code>8.50</code>' },
+  my_lots_empty:       { fr: '📊 Aucune récolte sur les 7 derniers jours.', en: '📊 No harvest in the last 7 days.', ar: '📊 لا توجد محاصيل في الأيام السبعة الأخيرة.', darija: '📊 ما كاينة حتى ركولت ف 7 إيام لي فايتين.' },
+  my_lots_title:       { fr: '📊 <b>Derniers lots (7j)</b>', en: '📊 <b>Latest lots (7d)</b>', ar: '📊 <b>آخر الدفعات (7 أيام)</b>', darija: '📊 <b>اللوطاجات الأخرين (7 إيام)</b>' },
+  cancelled_what_to_do:{ fr: 'Annulé. Que veux-tu faire ?', en: 'Cancelled. What do you want to do?', ar: 'تم الإلغاء. ماذا تريد أن تفعل؟', darija: 'تلغات. آش بغيتي تدير ؟' },
+  what_to_do:          { fr: 'Que veux-tu faire ?', en: 'What do you want to do?', ar: 'ماذا تريد أن تفعل؟', darija: 'آش بغيتي تدير ؟' },
+  voice_continue_dictating: { fr: '🎤 OK, continue à dicter. Dis "fini" quand tu as terminé.', en: '🎤 OK, keep dictating. Say "done" when finished.', ar: '🎤 حسناً، تابع الإملاء. قل "انتهيت" عندما تنتهي.', darija: '🎤 واخا، كمل الديكتي. قول "خلاص" ملي تسالي.' },
+  specify_reason:      { fr: '✏️ Précise le motif (texte libre) :', en: '✏️ Specify the reason (free text):', ar: '✏️ حدد السبب (نص حر):', darija: '✏️ وضح السبب (كتب لي بغيتي) :' },
+  unknown_action:      { fr: 'Action non reconnue.', en: 'Unknown action.', ar: 'إجراء غير معروف.', darija: 'الأكسيون ما عرفتهاش.' },
+  voice_session_saved: { fr: '✅ <b>{{inserted}}/{{total}} récolte(s) enregistrée(s)</b>\nDate : {{date}}\nTotal : {{kg}} kg', en: '✅ <b>{{inserted}}/{{total}} harvest(s) saved</b>\nDate: {{date}}\nTotal: {{kg}} kg', ar: '✅ <b>{{inserted}}/{{total}} محصول تم تسجيله</b>\nالتاريخ: {{date}}\nالمجموع: {{kg}} كغ', darija: '✅ <b>{{inserted}}/{{total}} ركولت تسجلوا</b>\nالنهار : {{date}}\nالمجموع : {{kg}} كيلو' },
+  voice_session_open:  { fr: '🎙️ <b>Session vocale ouverte</b>\n\nDicte tes récoltes une par une OU plusieurs dans le même message.\nExemple : <i>"Cent cinquante kilos sur la serre 1 marquise, et deux quintaux sur la serre 3 cherry"</i>\n\nQuand tu as terminé, dis <b>"fini"</b> ou tape sur le bouton.', en: '🎙️ <b>Voice session open</b>\n\nDictate your harvests one by one OR several in the same message.\nExample: <i>"One hundred fifty kilos on greenhouse 1 marquise, and two quintals on greenhouse 3 cherry"</i>\n\nWhen you\'re done, say <b>"done"</b> or tap the button.', ar: '🎙️ <b>الجلسة الصوتية مفتوحة</b>\n\nأملِ محاصيلك واحداً تلو الآخر أو عدة في الرسالة نفسها.\nمثال: <i>"مئة وخمسون كيلو على البيت الأول مركيز، ومئتان على البيت الثالث شيري"</i>\n\nعندما تنتهي، قل <b>"انتهيت"</b> أو اضغط الزر.', darija: '🎙️ <b>السيسيون فوكال محلولة</b>\n\nقول الركولتات ديالك وحدة بوحدة ولا بزاف ف مساج واحد.\nمثال : <i>"مية و خمسين كيلو ف السير 1 مركيز، و ميتاين ف السير 3 شيري"</i>\n\nملي تسالي، قول <b>"خلاص"</b> ولا دور على البوطون.' },
+  voice_show_recap:    { fr: '✅ Terminer (afficher récap)', en: '✅ Finish (show summary)', ar: '✅ إنهاء (عرض الملخص)', darija: '✅ سالي (وريلي ركاب)' },
 }
 
 function t(lang: string | null | undefined, key: string, params?: Record<string, string | number>): string {
@@ -137,7 +137,7 @@ function t(lang: string | null | undefined, key: string, params?: Record<string,
 function langInstructionForGemini(lang: string | null | undefined): string {
   const L = normalizeLang(lang)
   switch (L) {
-    case 'darija': return 'IMPORTANT: Reply in Moroccan Darija using Latin script (Arabizi style: "wakha", "safi", "yallah", "ghadi", numbers in Latin). Keep French loanwords for technical terms (lot, station, marché, variété).'
+    case 'darija': return 'IMPORTANT: Reply in Moroccan Darija using ARABIC SCRIPT (NOT Latin/Arabizi). Use natural Moroccan dialect words written in Arabic letters: واخا، صافي، خلاص، باش، ديالك، عيط، بغيتي، شحال، كاين، دابا. Numbers in Arabic-Indic digits (٠١٢٣٤٥٦٧٨٩) OR Western digits both acceptable. Keep technical French loanwords transliterated to Arabic if natural (ستاسيون، لوطاج، فرانت) or in Latin/French if commonly written that way.'
     case 'ar':     return 'IMPORTANT: Reply in Modern Standard Arabic (الفصحى).'
     case 'en':     return 'IMPORTANT: Reply in English.'
     default:       return 'IMPORTANT: Reply in French.'
@@ -211,7 +211,7 @@ async function transcribeAudioOnly(audioB64: string, mime: string): Promise<stri
   const body = {
     contents: [{
       parts: [
-        { text: 'Transcris exactement ce que dit cette personne. Le locuteur peut parler en français, darija marocaine, arabe classique ou anglais. Garde la langue d\'origine. Pour la darija, utilise le script latin (Arabizi : "wakha", "safi", numbers in Latin). Réponds UNIQUEMENT avec la transcription, sans explication ni formattage.' },
+        { text: 'Transcris exactement ce que dit cette personne. Le locuteur peut parler en français, darija marocaine, arabe classique ou anglais. Garde la langue d\'origine. Pour la darija, utilise OBLIGATOIREMENT l\'alphabet arabe (الحروف العربية), pas la translittération latine. Exemples : واخا، صافي، خلاص، باش. Réponds UNIQUEMENT avec la transcription, sans explication ni formattage.' },
         { inline_data: { mime_type: mime, data: audioB64 } },
       ],
     }],
@@ -328,26 +328,26 @@ PLANTATIONS ACTIVES :
 ${plantingsList}
 
 INSTRUCTIONS :
-1. Transcris exactement ce que dit l'ouvrier dans sa langue d'origine. Pour la darija, utilise le script latin (Arabizi). Pour l'arabe classique, utilise le script arabe.
+1. Transcris exactement ce que dit l'ouvrier dans sa langue d'origine. Pour la darija marocaine ET pour l'arabe classique, utilise OBLIGATOIREMENT l'alphabet arabe (الحروف العربية), JAMAIS la translittération latine.
 2. Détermine intent :
    - "harvest" : il annonce 1+ récolte(s) (qty + serre/variété)
    - "no_harvest" : il signale qu'il n'y a pas de récolte (panne, maladie, météo, etc.)
    - "done" : il signale qu'il a terminé sa saisie. Mots clés multilingues :
      · FR : "fini", "c'est tout", "voilà", "termine", "j'ai terminé", "rien d'autre", "non c'est tout"
-     · Darija : "khlas", "safi", "barakallah", "wakha hadak chi", "ghir hadi"
-     · Arabe : "انتهيت", "هذا كل شيء", "خلاص"
+     · Darija (arabe) : "خلاص", "صافي", "بركة الله", "واخا هاداك الشي", "غير هادي"
+     · Arabe classique : "انتهيت", "هذا كل شيء", "خلاص"
      · EN : "done", "that's all", "finished", "nothing else"
    - "unknown" : ambigu ou pas exploitable
 3. Si "harvest" : remplis le tableau "harvests" avec autant d'éléments que de récoltes mentionnées (le message peut en contenir plusieurs : "150 sur S1 marquise et 200 sur S3 cherry").
    - planting_id : matche serre + variété aux plantations actives
    - qty_kg : convertir oralement → nombres :
      · FR : "cent cinquante" = 150, "deux quintaux" = 200, "un quintal et demi" = 150
-     · Darija : "khamsin" = 50, "miya" = 100, "alf" = 1000, "miyatayn" = 200
+     · Darija (arabe) : "خمسين" = 50, "مية" = 100, "ألف" = 1000, "ميتين" = 200
      · Arabe : "خمسون" = 50, "مئة" = 100, "ألف" = 1000
    - notes : observations qualitatives (catégorie, déchets, etc.)
 4. reply_hint : une réponse courte ADAPTÉE À LA LANGUE DE L'UTILISATEUR. Exemples :
    · FR après acquittement : "Noté ! D'autres récoltes ?"
-   · Darija après acquittement : "Wakha ! Récoltes oukhrin ?"
+   · Darija (en lettres arabes) après acquittement : "واخا ! ركولتات أخرين ؟"
    · AR après acquittement : "تم! محاصيل أخرى؟"
    · EN après acquittement : "Got it! Other harvests?"
 5. confidence : ta confiance entre 0 et 1.`

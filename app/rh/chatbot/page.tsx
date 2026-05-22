@@ -221,8 +221,8 @@ export default function ChatbotPage() {
                           title="Langue de réponse du bot pour cet utilisateur"
                         >
                           <option value="fr">🇫🇷 Français</option>
-                          <option value="darija">🇲🇦 Darija</option>
-                          <option value="ar">🇸🇦 العربية</option>
+                          <option value="darija">🇲🇦 الدارجة</option>
+                          <option value="ar">🇸🇦 العربية الفصحى</option>
                           <option value="en">🇬🇧 English</option>
                         </select>
                       </TD>
@@ -374,7 +374,7 @@ export default function ChatbotPage() {
               <Field label="Langue">
                 <TSelect value={form.language} onChange={(e) => setForm(s => ({ ...s, language: e.target.value }))}>
                   <option value="fr">Français</option>
-                  <option value="darija">Darija (Maroc, latin)</option>
+                  <option value="darija">الدارجة المغربية (Darija arabe)</option>
                   <option value="ar">العربية الفصحى</option>
                   <option value="en">English</option>
                 </TSelect>
