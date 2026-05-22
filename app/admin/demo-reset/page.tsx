@@ -170,7 +170,7 @@ export default function DemoResetPage() {
     setSaving(false)
   }
 
-  // ─── Action 2 : Supprimer une campagne (cascade) ───────────────────────
+  // ─── Action 2 : Supprimer une campagne (via RPC) ───────────────────────
   const deleteCampaign = async () => {
     if (!campaignToDelete) return
     if (confirmDelete !== campaignToDelete.code) {
@@ -178,114 +178,74 @@ export default function DemoResetPage() {
     }
     setSaving(true)
     try {
-      // Tables qui référencent la campagne sans CASCADE → wipe manuel
-      const tablesByCampaign = [
-        'amortissements', 'recoltes_marche_daily', 'cost_entries',
-        'supplier_invoices', 'purchase_orders', 'sales_orders',
-        'cultural_operations', 'labor_entries',
-      ]
-
-      // Tables qui référencent les harvests/plantings (cascade via plantings)
-      // → on doit récupérer les IDs et wipe avant
-      const { data: plantings } = await supabase.from('campaign_plantings')
-        .select('id').eq('campaign_id', campaignToDelete.id)
-      const plantingIds = (plantings ?? []).map((p: any) => p.id)
-
-      if (plantingIds.length > 0) {
-        // Récupère les harvests pour wiper les harvest_lot_sources / harvest_lots
-        const { data: hs } = await supabase.from('harvests')
-          .select('id').in('campaign_planting_id', plantingIds)
-        const harvestIds = (hs ?? []).map((h: any) => h.id)
-        if (harvestIds.length > 0) {
-          await supabase.from('harvest_lot_sources').delete().in('harvest_id', harvestIds)
-          await supabase.from('harvest_lots').delete().in('harvest_id', harvestIds)
-        }
-        await supabase.from('harvests').delete().in('campaign_planting_id', plantingIds)
-        await supabase.from('production_forecasts').delete().in('campaign_planting_id', plantingIds)
-      }
-
-      // Wipe tables qui pointent vers la campagne
-      for (const table of tablesByCampaign) {
-        const { error } = await supabase.from(table).delete().eq('campaign_id', campaignToDelete.id)
-        if (error) console.warn(`[wipe ${table}]`, error.message)
-      }
-
-      // Enfin, la campagne (cascade auto : campaign_plantings + budget_lines)
-      const { error } = await supabase.from('campaigns').delete().eq('id', campaignToDelete.id)
+      const { data, error } = await supabase.rpc('admin_delete_campaign', {
+        p_campaign_id: campaignToDelete.id,
+      })
       if (error) throw error
-
-      toast.success(`Campagne "${campaignToDelete.name}" supprimée + toutes ses données liées`)
+      const detailsObj = (data ?? {}) as Record<string, number>
+      const total = Object.values(detailsObj).reduce((s, n) => s + (Number(n) || 0), 0)
+      toast.success(`✅ Campagne "${campaignToDelete.name}" supprimée — ${total} ligne(s) effacées au total`)
+      console.log('[admin_delete_campaign]', detailsObj)
       setDeleteCampaignId(null)
       setConfirmDelete('')
       load()
-    } catch (e: any) { toast.error('Erreur: ' + e.message) }
+    } catch (e: any) {
+      // Erreur d'appel RPC : la migration 036 n'est probablement pas appliquée
+      if (e.message?.includes('admin_delete_campaign') || e.code === '42883') {
+        toast.error('La migration 036_admin_wipe_rpc.sql n\'est pas appliquée sur Supabase. Voir consoles.')
+        console.error('💡 Applique la migration via le SQL Editor du dashboard Supabase')
+      } else {
+        toast.error('Erreur: ' + e.message)
+      }
+    }
     setSaving(false)
   }
 
-  // ─── Action 3 : Reset données opérationnelles (garde master data) ──────
+  // ─── Action 3 : Reset données opérationnelles (via RPC) ────────────────
   const resetOperational = async () => {
     if (confirmReset !== 'RESET') {
       toast.error('Tape "RESET" pour confirmer'); return
     }
     setSaving(true)
     try {
-      let totalDeleted = 0
-      for (const table of OPERATIONAL_TABLES) {
-        try {
-          const { error, count } = await supabase.from(table)
-            .delete({ count: 'exact' })
-            .gte('created_at', '1900-01-01')  // condition truthy pour tout matcher
-          if (error) {
-            // Si pas de colonne created_at, essaie sans condition
-            const { error: err2, count: cnt2 } = await supabase.from(table)
-              .delete({ count: 'exact' })
-              .not('id', 'is', null)
-            if (err2) console.warn(`[wipe ${table}]`, err2.message)
-            else totalDeleted += cnt2 ?? 0
-          } else {
-            totalDeleted += count ?? 0
-          }
-        } catch (e: any) {
-          console.warn(`[wipe ${table}]`, e.message)
-        }
-      }
-      toast.success(`Reset effectué — ${totalDeleted} ligne(s) supprimée(s)`)
+      const { data, error } = await supabase.rpc('admin_operational_reset')
+      if (error) throw error
+      toast.success(`✅ ${(data as any)?.message ?? 'Reset opérationnel effectué'}`)
       setResetOpsOpen(false)
       setConfirmReset('')
       load()
-    } catch (e: any) { toast.error('Erreur: ' + e.message) }
+    } catch (e: any) {
+      if (e.message?.includes('admin_operational_reset') || e.code === '42883') {
+        toast.error('La migration 036_admin_wipe_rpc.sql n\'est pas appliquée sur Supabase. Voir consoles.')
+        console.error('💡 Applique la migration via le SQL Editor du dashboard Supabase')
+      } else {
+        toast.error('Erreur: ' + e.message)
+      }
+    }
     setSaving(false)
   }
 
-  // ─── Action 4 : Nuclear (wipe TOUT sauf auth) ──────────────────────────
+  // ─── Action 4 : Nuclear (via RPC) ──────────────────────────────────────
   const nuclearWipe = async () => {
     if (confirmNuclear !== 'SUPPRIMER TOUT') {
       toast.error('Tape exactement "SUPPRIMER TOUT" pour confirmer'); return
     }
     setSaving(true)
     try {
-      // 1. Wipe operational
-      for (const table of OPERATIONAL_TABLES) {
-        try { await supabase.from(table).delete().not('id', 'is', null) }
-        catch (e: any) { console.warn(`[nuke ${table}]`, e.message) }
-      }
-      // 2. Wipe master data sauf auth/roles
-      const NUCLEAR_MASTER = [
-        'workers', 'teams', 'stock_items', 'assets',
-        'greenhouses', 'farm_zones', 'farms',
-        'varieties', 'seed_suppliers',
-        'markets', 'clients', 'suppliers',
-        'chatbot_users',
-      ]
-      for (const table of NUCLEAR_MASTER) {
-        try { await supabase.from(table).delete().not('id', 'is', null) }
-        catch (e: any) { console.warn(`[nuke ${table}]`, e.message) }
-      }
-      toast.success('☢️ Nuclear wipe terminé — base réinitialisée (auth conservée)')
+      const { data, error } = await supabase.rpc('admin_nuclear_wipe')
+      if (error) throw error
+      toast.success(`☢️ ${(data as any)?.message ?? 'Nuclear wipe terminé'}`)
       setNuclearOpen(false)
       setConfirmNuclear('')
       load()
-    } catch (e: any) { toast.error('Erreur: ' + e.message) }
+    } catch (e: any) {
+      if (e.message?.includes('admin_nuclear_wipe') || e.code === '42883') {
+        toast.error('La migration 036_admin_wipe_rpc.sql n\'est pas appliquée sur Supabase. Voir consoles.')
+        console.error('💡 Applique la migration via le SQL Editor du dashboard Supabase')
+      } else {
+        toast.error('Erreur: ' + e.message)
+      }
+    }
     setSaving(false)
   }
 
@@ -451,6 +411,16 @@ export default function DemoResetPage() {
           <div className="text-body-sm text-fg-secondary leading-relaxed">
             <strong className="text-fg-primary">Zone sensible.</strong> Les suppressions sont <strong>irréversibles</strong>. Les données auth/rôles ne sont jamais affectées.
             Pour un environnement de production, utilise plutôt les snapshots Supabase.
+          </div>
+        </div>
+      </Card>
+
+      {/* Bannière info : migration requise */}
+      <Card variant="ghost" className="mb-lg border-info/40 bg-info/5">
+        <div className="flex items-start gap-sm">
+          <Info size={20} className="text-info flex-shrink-0 mt-0.5" />
+          <div className="text-body-sm text-fg-secondary leading-relaxed">
+            <strong className="text-fg-primary">Pré-requis :</strong> les actions destructives utilisent les RPC Postgres définies dans la migration <code className="font-mono text-info">036_admin_wipe_rpc.sql</code>. Si tu obtiens une erreur du type <em>"function admin_xxx does not exist"</em>, applique cette migration via le <strong>SQL Editor du dashboard Supabase</strong> avant d'utiliser cette page.
           </div>
         </div>
       </Card>
