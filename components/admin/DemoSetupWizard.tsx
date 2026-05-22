@@ -33,7 +33,7 @@ type FarmDraft = {
   city: string
   greenhouseCount: number
   ghSurfaceM2: number  // surface moyenne par serre
-  ghType: 'tunnel' | 'multichapelle' | 'verre' | 'plein_champ'
+  ghType: 'venlo' | 'tunnel' | 'chapelle' | 'multispan' | 'solaire' | 'autre'
 }
 
 type VarietyDraft = {
@@ -91,7 +91,7 @@ export function DemoSetupWizard({ onClose, onComplete }: {
 }) {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [farms, setFarms] = useState<FarmDraft[]>([
-    { name: 'Ferme Sud', code: 'FS', city: 'Agadir', greenhouseCount: 4, ghSurfaceM2: 8000, ghType: 'multichapelle' },
+    { name: 'Ferme Sud', code: 'FS', city: 'Agadir', greenhouseCount: 4, ghSurfaceM2: 8000, ghType: 'multispan' },
   ])
   const [varieties, setVarieties] = useState<VarietyDraft[]>([DEFAULT_VARIETIES[0], DEFAULT_VARIETIES[1]])
   const [campaign, setCampaign] = useState<CampaignDraft>({
@@ -133,7 +133,7 @@ export function DemoSetupWizard({ onClose, onComplete }: {
     const i = farms.length + 1
     setFarms([...farms, {
       name: `Ferme ${i}`, code: `F${i}`, city: 'Agadir',
-      greenhouseCount: 4, ghSurfaceM2: 8000, ghType: 'multichapelle',
+      greenhouseCount: 4, ghSurfaceM2: 8000, ghType: 'multispan',
     }])
   }
   const removeFarm = (i: number) => {
@@ -202,7 +202,7 @@ export function DemoSetupWizard({ onClose, onComplete }: {
             width:  Math.round(Math.sqrt(f.ghSurfaceM2) * 0.77 * 10) / 10,
             height: 4.5,
             irrigation_type: 'goutte_a_goutte',
-            climate_control: f.ghType !== 'tunnel' && f.ghType !== 'plein_champ',
+            climate_control: f.ghType === 'venlo' || f.ghType === 'multispan',
           })
         }
       })
@@ -412,10 +412,12 @@ export function DemoSetupWizard({ onClose, onComplete }: {
                   <div className="col-span-5">
                     <Field label="Type de serre">
                       <TSelect value={f.ghType} onChange={(e) => updateFarm(i, { ghType: e.target.value as any })}>
+                        <option value="multispan">Multispan</option>
+                        <option value="chapelle">Chapelle</option>
                         <option value="tunnel">Tunnel</option>
-                        <option value="multichapelle">Multichapelle</option>
-                        <option value="verre">Verre</option>
-                        <option value="plein_champ">Plein champ</option>
+                        <option value="venlo">Venlo (verre)</option>
+                        <option value="solaire">Solaire</option>
+                        <option value="autre">Autre</option>
                       </TSelect>
                     </Field>
                   </div>
