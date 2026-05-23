@@ -176,32 +176,66 @@ export function GenerateSalesBudgetModal(props: {
             </strong></div>
           </div>
 
-          {/* Warnings regroupés */}
-          {(salesReport.issues.length + chargesReport.issues.length) > 0 && (
-            <details style={{ marginBottom: 12 }}>
-              <summary style={{ cursor: 'pointer', fontSize: 12, color: 'var(--amber)', marginBottom: 6 }}>
-                ⚠ {salesReport.issues.length + chargesReport.issues.length} warning(s) / erreur(s)
-              </summary>
-              <div style={{ maxHeight: 130, overflowY: 'auto', border: '1px solid var(--bd-1)', borderRadius: 6, marginTop: 6 }}>
-                <table className="tbl" style={{ width: '100%' }}>
-                  <tbody>
-                    {salesReport.issues.map((i, idx) => (
-                      <tr key={`s${idx}`}>
-                        <td style={{ width: 70 }}><span style={{ background: i.severity === 'error' ? 'var(--red-dim)' : 'color-mix(in srgb, var(--amber) 15%, transparent)', color: i.severity === 'error' ? 'var(--red)' : 'var(--amber)', padding: '1px 6px', borderRadius: 4, fontSize: 9, fontFamily: 'var(--font-mono)' }}>{i.severity === 'error' ? 'ERR' : 'WARN'}</span></td>
-                        <td style={{ fontSize: 11 }}>[CA] {i.message}</td>
-                      </tr>
-                    ))}
-                    {chargesReport.issues.map((i, idx) => (
-                      <tr key={`c${idx}`}>
-                        <td style={{ width: 70 }}><span style={{ background: i.severity === 'error' ? 'var(--red-dim)' : 'color-mix(in srgb, var(--amber) 15%, transparent)', color: i.severity === 'error' ? 'var(--red)' : 'var(--amber)', padding: '1px 6px', borderRadius: 4, fontSize: 9, fontFamily: 'var(--font-mono)' }}>{i.severity === 'error' ? 'ERR' : 'WARN'}</span></td>
-                        <td style={{ fontSize: 11 }}>[Charge] {i.message}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </details>
-          )}
+          {/* Warnings — visibles d'office si rien à générer */}
+          {(salesReport.issues.length + chargesReport.issues.length) > 0 && (() => {
+            // Ouvert d'office si pas de lignes générées (= raison d'être)
+            const noCALines = salesReport.lines.length === 0
+            const noChargeLines = chargesReport.lines.length === 0
+            const expandByDefault = noCALines || noChargeLines
+
+            return (
+              <details open={expandByDefault} style={{ marginBottom: 12 }}>
+                <summary style={{
+                  cursor: 'pointer', fontSize: 13,
+                  color: expandByDefault ? 'var(--red)' : 'var(--amber)',
+                  fontWeight: expandByDefault ? 700 : 500,
+                  marginBottom: 6, padding: 8,
+                  background: expandByDefault ? 'var(--red-dim)' : 'color-mix(in srgb, var(--amber) 8%, transparent)',
+                  border: `1px solid ${expandByDefault ? 'color-mix(in srgb, var(--red) 30%, transparent)' : 'color-mix(in srgb, var(--amber) 30%, transparent)'}`,
+                  borderRadius: 6,
+                }}>
+                  {expandByDefault
+                    ? `🚨 Rien à générer — ${salesReport.issues.length + chargesReport.issues.length} problème(s) détecté(s) (cliquer pour voir)`
+                    : `⚠ ${salesReport.issues.length + chargesReport.issues.length} warning(s) / erreur(s)`}
+                </summary>
+
+                {/* Guide rapide quand il n'y a rien */}
+                {expandByDefault && (
+                  <div style={{ padding: 10, marginTop: 6, background: 'var(--bg-deep)', border: '1px solid var(--bd-1)', borderRadius: 6, fontSize: 11.5, color: 'var(--tx-2)', lineHeight: 1.6 }}>
+                    <strong style={{ color: 'var(--tx-1)' }}>Pour que le budget se génère, chaque plantation a besoin de :</strong>
+                    <ul style={{ margin: '6px 0 0', paddingLeft: 20 }}>
+                      <li><strong>Dates de récolte</strong> renseignées (Début + Fin) — édite la plantation dans <code>/production</code></li>
+                      <li><strong>Surface × Rendement &gt; 0</strong> (sinon volume total = 0)</li>
+                      <li><strong>Prix Export</strong> sur la variété (EUR/kg) si <code>export_share_pct &gt; 0</code></li>
+                      <li><strong>Prix Local</strong> sur la variété (MAD/kg) si <code>export_share_pct &lt; 100</code></li>
+                    </ul>
+                    <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--bd-1)', fontSize: 11, color: 'var(--tx-3)' }}>
+                      💡 <strong>Astuce :</strong> va dans <code>/admin/demo-reset</code> et clique <strong>« 🔧 Réparer ma démo »</strong> pour patcher automatiquement.
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--bd-1)', borderRadius: 6, marginTop: 6 }}>
+                  <table className="tbl" style={{ width: '100%' }}>
+                    <tbody>
+                      {salesReport.issues.map((i, idx) => (
+                        <tr key={`s${idx}`}>
+                          <td style={{ width: 70 }}><span style={{ background: i.severity === 'error' ? 'var(--red-dim)' : 'color-mix(in srgb, var(--amber) 15%, transparent)', color: i.severity === 'error' ? 'var(--red)' : 'var(--amber)', padding: '1px 6px', borderRadius: 4, fontSize: 9, fontFamily: 'var(--font-mono)' }}>{i.severity === 'error' ? 'ERR' : 'WARN'}</span></td>
+                          <td style={{ fontSize: 11 }}>[CA] {i.message}</td>
+                        </tr>
+                      ))}
+                      {chargesReport.issues.map((i, idx) => (
+                        <tr key={`c${idx}`}>
+                          <td style={{ width: 70 }}><span style={{ background: i.severity === 'error' ? 'var(--red-dim)' : 'color-mix(in srgb, var(--amber) 15%, transparent)', color: i.severity === 'error' ? 'var(--red)' : 'var(--amber)', padding: '1px 6px', borderRadius: 4, fontSize: 9, fontFamily: 'var(--font-mono)' }}>{i.severity === 'error' ? 'ERR' : 'WARN'}</span></td>
+                          <td style={{ fontSize: 11 }}>[Charge] {i.message}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            )
+          })()}
 
           {/* Pivot CA */}
           {(section === 'both' || section === 'revenue') && salesPivot.length > 0 && (

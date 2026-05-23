@@ -393,38 +393,64 @@ export default function DemoResetPage() {
   const repairDemoData = async () => {
     setRepairing(true)
     const toastId = toast.loading('🔧 Réparation en cours…')
-    let summary = { plantings: 0, varieties: 0, costs: 0, errors: 0 }
+    let summary = { plantings: 0, plantingsYield: 0, varieties: 0, costs: 0, errors: 0 }
     try {
-      // ─── 1. Plantations : copie first/last_harvest → harvest_start/end_date ───
-      const { data: badPlantings } = await supabase
+      // ─── 1. Charge campaigns pour fallback dates ─────────────────────
+      const { data: allCampaigns } = await supabase
+        .from('campaigns')
+        .select('id, harvest_start, harvest_end, preparation_start, campaign_end')
+      const campaignMap = new Map(((allCampaigns ?? []) as any[]).map(c => [c.id, c]))
+
+      // ─── 2. Plantations : patch dates récolte + export_share_pct + yield ───
+      const { data: allPlantings } = await supabase
         .from('campaign_plantings')
-        .select('id, first_harvest_date, last_harvest_date, harvest_start_date, harvest_end_date, export_share_pct')
-        .or('harvest_start_date.is.null,harvest_end_date.is.null')
+        .select('id, campaign_id, planted_area, target_yield_per_m2, target_total_production, first_harvest_date, last_harvest_date, harvest_start_date, harvest_end_date, export_share_pct')
 
-      const plantingPatches = (badPlantings ?? []).map((p: any) => ({
-        id: p.id,
-        harvest_start_date: p.harvest_start_date ?? p.first_harvest_date,
-        harvest_end_date:   p.harvest_end_date   ?? p.last_harvest_date,
-        export_share_pct:   p.export_share_pct ?? 70,
-      })).filter(p => p.harvest_start_date && p.harvest_end_date)
+      for (const p of (allPlantings ?? []) as any[]) {
+        const patch: any = {}
+        const camp = campaignMap.get(p.campaign_id)
 
-      for (const p of plantingPatches) {
-        const { error } = await supabase.from('campaign_plantings').update({
-          harvest_start_date: p.harvest_start_date,
-          harvest_end_date: p.harvest_end_date,
-          export_share_pct: p.export_share_pct,
-        }).eq('id', p.id)
+        // Dates : essaie first/last_harvest_date, puis fallback campagne
+        if (!p.harvest_start_date) {
+          patch.harvest_start_date = p.first_harvest_date ?? camp?.harvest_start ?? camp?.preparation_start ?? null
+        }
+        if (!p.harvest_end_date) {
+          patch.harvest_end_date = p.last_harvest_date ?? camp?.harvest_end ?? camp?.campaign_end ?? null
+        }
+
+        // export_share_pct : défaut 70%
+        if (p.export_share_pct == null) {
+          patch.export_share_pct = 70
+        }
+
+        // target_yield_per_m2 : si NULL ou 0, set 20 kg/m² (moyenne tomate)
+        if (!p.target_yield_per_m2 || Number(p.target_yield_per_m2) <= 0) {
+          patch.target_yield_per_m2 = 20
+          // Recalcule target_total_production aussi
+          if (p.planted_area) {
+            patch.target_total_production = Number(p.planted_area) * 20
+          }
+          summary.plantingsYield++
+        } else if (!p.target_total_production || Number(p.target_total_production) <= 0) {
+          // yield présent mais total_production manquant → recalcule
+          if (p.planted_area) {
+            patch.target_total_production = Number(p.planted_area) * Number(p.target_yield_per_m2)
+          }
+        }
+
+        if (Object.keys(patch).length === 0) continue
+
+        const { error } = await supabase.from('campaign_plantings').update(patch).eq('id', p.id)
         if (error) summary.errors++
         else summary.plantings++
       }
 
-      // ─── 2. Variétés : set avg_price_export si NULL ───
-      const { data: varietiesNoExport } = await supabase
+      // ─── 3. Variétés : set avg_price_export ET avg_price_local si NULL ───
+      const { data: varietiesNoPrice } = await supabase
         .from('varieties')
         .select('id, code, commercial_name, avg_price_export, avg_price_local')
-        .is('avg_price_export', null)
+        .or('avg_price_export.is.null,avg_price_local.is.null')
 
-      // Mapping prix EUR/kg par défaut selon type ou nom
       const defaultExportEur = (v: any): number => {
         const name = (v.commercial_name ?? '').toLowerCase()
         const code = (v.code ?? '').toLowerCase()
@@ -432,16 +458,25 @@ export default function DemoResetPage() {
         if (name.includes('cocktail') || code.includes('cock')) return 2.0
         if (name.includes('roma') || code.includes('roma')) return 0.9
         if (name.includes('grappe') || code.includes('grap')) return 1.4
-        // défaut : approximé via 8% du prix local en EUR (1 EUR ≈ 10 MAD)
         const local = Number(v.avg_price_local) || 8
         return Math.round((local / 10) * 1.4 * 100) / 100
       }
+      const defaultLocalMad = (v: any): number => {
+        const name = (v.commercial_name ?? '').toLowerCase()
+        const code = (v.code ?? '').toLowerCase()
+        if (name.includes('cherry') || code.includes('chry')) return 14
+        if (name.includes('cocktail') || code.includes('cock')) return 12
+        if (name.includes('roma') || code.includes('roma')) return 7
+        if (name.includes('grappe') || code.includes('grap')) return 9.5
+        return 8
+      }
 
-      for (const v of (varietiesNoExport ?? [])) {
-        const eur = defaultExportEur(v)
-        const { error } = await supabase.from('varieties').update({
-          avg_price_export: eur,
-        }).eq('id', (v as any).id)
+      for (const v of (varietiesNoPrice ?? []) as any[]) {
+        const patch: any = {}
+        if (v.avg_price_export == null) patch.avg_price_export = defaultExportEur(v)
+        if (v.avg_price_local  == null) patch.avg_price_local  = defaultLocalMad(v)
+        if (Object.keys(patch).length === 0) continue
+        const { error } = await supabase.from('varieties').update(patch).eq('id', v.id)
         if (error) summary.errors++
         else summary.varieties++
       }
@@ -529,8 +564,9 @@ export default function DemoResetPage() {
 
       toast.dismiss(toastId)
       const parts: string[] = []
-      if (summary.plantings > 0) parts.push(`${summary.plantings} plantations patchées`)
-      if (summary.varieties > 0) parts.push(`${summary.varieties} variétés enrichies (prix export)`)
+      if (summary.plantings > 0) parts.push(`${summary.plantings} plantations patchées (dates/export)`)
+      if (summary.plantingsYield > 0) parts.push(`${summary.plantingsYield} plantations : yield défaut 20 kg/m²`)
+      if (summary.varieties > 0) parts.push(`${summary.varieties} variétés enrichies (prix export/local)`)
       if (summary.costs > 0) parts.push(`${summary.costs} coûts prévisionnels générés`)
       if (summary.errors > 0) parts.push(`⚠ ${summary.errors} erreurs`)
       if (parts.length === 0) {
