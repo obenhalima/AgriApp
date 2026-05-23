@@ -55,6 +55,7 @@ type HarvestRow = {
 type PlantingRow = {
   id: string; greenhouse_id: string | null; variety_id: string | null
   planted_area: number | null; target_yield_per_m2: number | null; target_total_production: number | null
+  price_per_kg_export?: number | null; price_per_kg_local?: number | null
 }
 type GreenhouseRow = { id: string; code: string | null; name: string | null; total_area: number | null; exploitable_area: number | null }
 type InvoiceRow = { status: string | null; total_amount: number | null; paid_amount: number | null; invoice_date: string | null; due_date: string | null; clients?: { name: string | null } | null }
@@ -64,7 +65,7 @@ type CampaignRow = { id: string; name: string; status: string | null; production
 type DispatchRow = { id: string; quantity_kg: number | null; notes: string | null; created_at: string }
 type AlertRow = { id: string; type: string | null; level: string | null; message: string | null; created_at: string }
 type StockItem = { id: string; name: string; current_qty: number | null; min_qty: number | null; unit: string | null }
-type VarietyRow = { id: string; commercial_name: string | null }
+type VarietyRow = { id: string; commercial_name: string | null; avg_price_export?: number | null; avg_price_local?: number | null }
 
 type DashboardData = {
   harvests: HarvestRow[]
@@ -143,9 +144,9 @@ export default function DashboardPage() {
           .gte('harvest_date', fromStart)
           .order('harvest_date', { ascending: false }).limit(300),
         supabase.from('campaign_plantings')
-          .select('id, greenhouse_id, variety_id, planted_area, target_yield_per_m2, target_total_production'),
+          .select('id, greenhouse_id, variety_id, planted_area, target_yield_per_m2, target_total_production, price_per_kg_export, price_per_kg_local'),
         supabase.from('greenhouses').select('id, code, name, total_area, exploitable_area'),
-        supabase.from('varieties').select('id, commercial_name').eq('is_active', true),
+        supabase.from('varieties').select('id, commercial_name, avg_price_export, avg_price_local').eq('is_active', true),
         supabase.from('invoices')
           .select('status, total_amount, paid_amount, invoice_date, due_date, clients(name)')
           .gte('invoice_date', fromStart)
@@ -234,10 +235,47 @@ export default function DashboardPage() {
     const yieldRatio = targetYield > 0 ? (yieldKgM2 / targetYield) * 100 : 0
 
     // ─── COMMERCE ──────────────────────────────────────────────────
-    // CA confirmé (dispatches avec ca_amount dans notes)
+    // CA RÉEL — valorisé depuis les récoltes × prix variété (même logique
+    // que /admin/compte-exploitation et /marges) :
+    //   CA = Σ qty_category_1 × prix_export + Σ (qty_cat_2 + qty_cat_3) × prix_local
+    // Prix utilisé : prix sur la plantation si défini, sinon avg_price_* de la variété.
+    // Le déchet ne génère aucun CA.
+    const plantingMap_ca = new Map(data.plantings.map(p => [p.id, p]))
+    const varietyMap_ca = new Map(data.varieties.map(v => [v.id, v]))
+
+    const computeHarvestCA = (h: HarvestRow): { caExport: number; caLocal: number } => {
+      if (!h.campaign_planting_id) return { caExport: 0, caLocal: 0 }
+      const p = plantingMap_ca.get(h.campaign_planting_id)
+      if (!p) return { caExport: 0, caLocal: 0 }
+      const v = p.variety_id ? varietyMap_ca.get(p.variety_id) : undefined
+      // Prix : plantation override → fallback variété
+      const priceExport = toNumber(p.price_per_kg_export) || toNumber(v?.avg_price_export)
+      const priceLocal  = toNumber(p.price_per_kg_local)  || toNumber(v?.avg_price_local)
+      const qtyExport = toNumber(h.qty_category_1)
+      const qtyLocal  = toNumber(h.qty_category_2) + toNumber(h.qty_category_3)
+      return {
+        caExport: qtyExport * priceExport,
+        caLocal:  qtyLocal  * priceLocal,
+      }
+    }
+
+    let caExportAll = 0, caLocalAll = 0
+    let caExportMonth = 0, caLocalMonth = 0
+    for (const h of data.harvests) {
+      const { caExport, caLocal } = computeHarvestCA(h)
+      caExportAll += caExport
+      caLocalAll  += caLocal
+      if (isInRange(h.harvest_date, monthStart, monthEnd)) {
+        caExportMonth += caExport
+        caLocalMonth  += caLocal
+      }
+    }
+    const caHarvests = caExportAll + caLocalAll
+    const caMonth = caExportMonth + caLocalMonth
+
+    // Legacy : dispatches (envois station) — secondaire, utilisé pour les alertes
     const dispatchesMonth = data.dispatches.filter(d => isInRange(d.created_at?.slice(0, 10) ?? null, monthStart, monthEnd))
     const caDispatches = data.dispatches.reduce((s, d) => s + toNumber(parseMeta(d.notes).ca_amount), 0)
-    const caMonth = dispatchesMonth.reduce((s, d) => s + toNumber(parseMeta(d.notes).ca_amount), 0)
     const dispatchesNoPriceCount = data.dispatches.filter(d => {
       const meta = parseMeta(d.notes)
       return !meta.ca_amount && toNumber(d.quantity_kg) > 0
@@ -288,8 +326,10 @@ export default function DashboardPage() {
     const cashPosition = totalCollected - totalPaidOut
 
     // ─── MARGE BRUTE ───────────────────────────────────────────────
-    // CA = invoices facturées + dispatches confirmés (préférence dispatches pour le réel terrain)
-    const caTotal = totalInvoiced + caDispatches
+    // CA = valorisation des récoltes × prix variété (source officielle, alignée
+    // avec /admin/compte-exploitation). On utilise invoices uniquement pour
+    // les KPI de créances/encaissement, pas pour le CA total.
+    const caTotal = caHarvests
     const margeBrute = caTotal - totalCostsAll
     const margePct = caTotal > 0 ? (margeBrute / caTotal) * 100 : 0
 
@@ -475,17 +515,15 @@ export default function DashboardPage() {
       }
       return null
     }
+    // Production + CA depuis les récoltes (CA = qté × prix variété, même logique
+    // que /admin/compte-exploitation pour assurer la cohérence).
     data.harvests.forEach(h => {
       const d = normalizeDate(h.harvest_date); if (!d) return
       const k = findBucket(d); if (!k) return
       const b = trendMap.get(k); if (!b) return
       b.production += toNumber(h.total_qty)
-    })
-    data.dispatches.forEach(dp => {
-      const d = normalizeDate(dp.created_at); if (!d) return
-      const k = findBucket(d); if (!k) return
-      const b = trendMap.get(k); if (!b) return
-      b.ca += toNumber(parseMeta(dp.notes).ca_amount)
+      const { caExport, caLocal } = computeHarvestCA(h)
+      b.ca += caExport + caLocal
     })
     data.costEntries.filter(c => !c.is_planned).forEach(c => {
       const d = normalizeDate(c.entry_date); if (!d) return
@@ -524,6 +562,7 @@ export default function DashboardPage() {
       allHarvests, totalTargetProd,
       // Commerce
       caDispatches, caMonth, caTotal, dispatchesNoPriceCount,
+      caHarvests, caExportAll, caLocalAll, caExportMonth, caLocalMonth,
       totalInvoiced, totalCollected, totalReceivable, overdueAmount, overdueInvoices,
       topReceivables,
       // Coûts
@@ -693,8 +732,8 @@ export default function DashboardPage() {
         <PerformersCard kind="top" items={metrics.topGh} />
         <PerformersCard kind="flop" items={metrics.flopGh} />
         <RevenueStructureCard
-          dispatchesCA={metrics.caDispatches}
-          invoicedCA={metrics.totalInvoiced - metrics.caDispatches}
+          exportCA={metrics.caExportAll}
+          localCA={metrics.caLocalAll}
           margeBrute={metrics.margeBrute}
           totalCostsAll={metrics.totalCostsAll}
         />
@@ -1003,11 +1042,11 @@ function PerformersCard({ kind, items }: { kind: 'top' | 'flop'; items: any[] })
 }
 
 // ─── Structure du CA ─────────────────────────────────────────────────
-function RevenueStructureCard({ dispatchesCA, invoicedCA, margeBrute, totalCostsAll }: any) {
-  const ca = dispatchesCA + invoicedCA
+function RevenueStructureCard({ exportCA, localCA, margeBrute, totalCostsAll }: any) {
+  const ca = exportCA + localCA
   const data = ca > 0 ? [
-    { name: 'CA Dispatches', value: dispatchesCA, color: '#10b981' },
-    { name: 'CA Factures', value: Math.max(invoicedCA, 0), color: '#3b82f6' },
+    { name: 'CA Export',  value: exportCA, color: '#10b981' },
+    { name: 'CA Local',   value: Math.max(localCA, 0), color: '#3b82f6' },
   ] : []
 
   return (

@@ -34,6 +34,7 @@ import {
   type PlantingInput, type GeneratorOptions, type GenerationPreview,
   type VarianceLevel, type QualityPreset, type HarvestFrequency,
 } from '@/lib/testDataGenerator'
+import { generateCommerceForCampaign, type CommerceGenReport } from '@/lib/testCommerceGenerator'
 import { DemoSetupWizard } from '@/components/admin/DemoSetupWizard'
 
 type Campaign = {
@@ -104,6 +105,11 @@ export default function DemoResetPage() {
 
   // Etat repair
   const [repairing, setRepairing] = useState(false)
+
+  // Etat générateur commerce (dispatches + tri + prix + factures)
+  const [commerceRunning, setCommerceRunning] = useState(false)
+  const [commerceCampaignId, setCommerceCampaignId] = useState<string>('')
+  const [commerceGenerateInvoices, setCommerceGenerateInvoices] = useState(true)
 
   // Nouvelle campagne form
   const [newCamp, setNewCamp] = useState({
@@ -342,6 +348,43 @@ export default function DemoResetPage() {
       }
     }
     setSaving(false)
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // GÉNÉRATEUR COMMERCE : dispatches + tri + prix + factures
+  // ════════════════════════════════════════════════════════════════════
+  const runCommerceGenerator = async () => {
+    const cid = commerceCampaignId || campaigns[0]?.id
+    if (!cid) {
+      toast.error('Sélectionne une campagne d\'abord')
+      return
+    }
+    setCommerceRunning(true)
+    const toastId = toast.loading('🚚 Génération dispatches, tri, prix' + (commerceGenerateInvoices ? ' et factures' : '') + '…')
+    try {
+      const report: CommerceGenReport = await generateCommerceForCampaign(cid, {
+        generateInvoices: commerceGenerateInvoices,
+        onlyPast: true,
+      })
+      console.log('[commerce-gen]', report)
+      toast.dismiss(toastId)
+      const parts: string[] = []
+      if (report.dispatchesCreated > 0) parts.push(`${report.dispatchesCreated} dispatches (tri + prix)`)
+      if (report.invoicesCreated > 0) parts.push(`${report.invoicesCreated} factures`)
+      if (report.paymentsRecorded > 0) parts.push(`${report.paymentsRecorded} paiements`)
+      if (report.totalCA > 0) parts.push(`CA généré ${Math.round(report.totalCA).toLocaleString('fr-FR')} MAD`)
+      if (parts.length === 0) {
+        toast(`⚠ Rien généré. Vérifie : variétés avec prix, marchés/clients en DB, récoltes existantes.${report.errors.length > 0 ? ` ${report.errors.length} erreurs en console.` : ''}`, { duration: 8000 })
+      } else {
+        toast.success(`✅ Commerce généré : ${parts.join(' · ')}`, { duration: 8000 })
+      }
+      load()
+    } catch (e: any) {
+      toast.dismiss(toastId)
+      toast.error('Erreur : ' + e.message)
+      console.error('[commerce-gen]', e)
+    }
+    setCommerceRunning(false)
   }
 
   // ════════════════════════════════════════════════════════════════════
@@ -919,6 +962,51 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
               </div>
               <Button onClick={() => openGenerator()} variant="primary" size="sm">
                 <Dices size={13} /> Ouvrir le générateur
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        {/* ─── 2.6 Générateur Commerce (dispatches + tri + prix + factures) ─── */}
+        <Card animate className="border-l-[3px] border-l-success">
+          <div className="flex items-start gap-md">
+            <div className="rounded-md flex items-center justify-center flex-shrink-0"
+              style={{ width: 40, height: 40, background: 'color-mix(in srgb, #10b981 15%, transparent)', color: '#10b981' }}>
+              <Sparkles size={20} strokeWidth={2.4} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-display text-body font-bold text-fg-primary mb-1 flex items-center gap-2">
+                Générer chaîne commerciale
+                <Badge variant="success" size="xs">PHASE 2</Badge>
+              </div>
+              <div className="text-caption text-fg-tertiary leading-relaxed mb-md">
+                Depuis les récoltes existantes, génère <strong>dispatches station</strong> (1/semaine/variété) + <strong>tri</strong> (freinte/écart) + <strong>prix saisonniers</strong> (Export EUR / Local MAD) + <strong>factures clients</strong> avec paiements partiels. Indispensable pour remplir les modules Dispatches, Tri, Factures et Marges.
+              </div>
+
+              <div className="grid grid-cols-2 gap-md mb-md">
+                <Field label="Campagne">
+                  <TSelect value={commerceCampaignId} onChange={(e) => setCommerceCampaignId(e.target.value)}>
+                    <option value="">— Auto : 1ère active —</option>
+                    {campaigns.map(c => (
+                      <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
+                    ))}
+                  </TSelect>
+                </Field>
+                <div className="flex items-end">
+                  <label className="flex items-center gap-2 cursor-pointer text-body-sm text-fg-secondary">
+                    <input
+                      type="checkbox"
+                      checked={commerceGenerateInvoices}
+                      onChange={(e) => setCommerceGenerateInvoices(e.target.checked)}
+                      className="w-4 h-4 accent-success"
+                    />
+                    <span>Générer aussi les factures clients</span>
+                  </label>
+                </div>
+              </div>
+
+              <Button onClick={runCommerceGenerator} variant="primary" size="sm" loading={commerceRunning} disabled={commerceRunning}>
+                <Sparkles size={13} /> {commerceRunning ? 'Génération…' : 'Générer commerce'}
               </Button>
             </div>
           </div>
