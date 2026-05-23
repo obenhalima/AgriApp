@@ -102,6 +102,9 @@ export default function DemoResetPage() {
   const [rpcStatus, setRpcStatus] = useState<'unknown' | 'ok' | 'missing'>('unknown')
   const [showMigrationSql, setShowMigrationSql] = useState(false)
 
+  // Etat repair
+  const [repairing, setRepairing] = useState(false)
+
   // Nouvelle campagne form
   const [newCamp, setNewCamp] = useState({
     code: '', name: '', farm_id: '', preparation_start: '', campaign_end: '',
@@ -339,6 +342,167 @@ export default function DemoResetPage() {
       }
     }
     setSaving(false)
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // RÉPARATEUR : patche les données existantes pour rendre Générer Budget opérationnel
+  // ════════════════════════════════════════════════════════════════════
+  const repairDemoData = async () => {
+    setRepairing(true)
+    const toastId = toast.loading('🔧 Réparation en cours…')
+    let summary = { plantings: 0, varieties: 0, costs: 0, errors: 0 }
+    try {
+      // ─── 1. Plantations : copie first/last_harvest → harvest_start/end_date ───
+      const { data: badPlantings } = await supabase
+        .from('campaign_plantings')
+        .select('id, first_harvest_date, last_harvest_date, harvest_start_date, harvest_end_date, export_share_pct')
+        .or('harvest_start_date.is.null,harvest_end_date.is.null')
+
+      const plantingPatches = (badPlantings ?? []).map((p: any) => ({
+        id: p.id,
+        harvest_start_date: p.harvest_start_date ?? p.first_harvest_date,
+        harvest_end_date:   p.harvest_end_date   ?? p.last_harvest_date,
+        export_share_pct:   p.export_share_pct ?? 70,
+      })).filter(p => p.harvest_start_date && p.harvest_end_date)
+
+      for (const p of plantingPatches) {
+        const { error } = await supabase.from('campaign_plantings').update({
+          harvest_start_date: p.harvest_start_date,
+          harvest_end_date: p.harvest_end_date,
+          export_share_pct: p.export_share_pct,
+        }).eq('id', p.id)
+        if (error) summary.errors++
+        else summary.plantings++
+      }
+
+      // ─── 2. Variétés : set avg_price_export si NULL ───
+      const { data: varietiesNoExport } = await supabase
+        .from('varieties')
+        .select('id, code, commercial_name, avg_price_export, avg_price_local')
+        .is('avg_price_export', null)
+
+      // Mapping prix EUR/kg par défaut selon type ou nom
+      const defaultExportEur = (v: any): number => {
+        const name = (v.commercial_name ?? '').toLowerCase()
+        const code = (v.code ?? '').toLowerCase()
+        if (name.includes('cherry') || code.includes('chry')) return 2.5
+        if (name.includes('cocktail') || code.includes('cock')) return 2.0
+        if (name.includes('roma') || code.includes('roma')) return 0.9
+        if (name.includes('grappe') || code.includes('grap')) return 1.4
+        // défaut : approximé via 8% du prix local en EUR (1 EUR ≈ 10 MAD)
+        const local = Number(v.avg_price_local) || 8
+        return Math.round((local / 10) * 1.4 * 100) / 100
+      }
+
+      for (const v of (varietiesNoExport ?? [])) {
+        const eur = defaultExportEur(v)
+        const { error } = await supabase.from('varieties').update({
+          avg_price_export: eur,
+        }).eq('id', (v as any).id)
+        if (error) summary.errors++
+        else summary.varieties++
+      }
+
+      // ─── 3. Si aucun cost_entries planned pour la campagne en cours, génère ───
+      const { data: activeCampaigns } = await supabase
+        .from('campaigns')
+        .select('id, name, code, budget_total, preparation_start, campaign_end, harvest_start, harvest_end')
+        .order('preparation_start', { ascending: false, nullsFirst: false })
+        .limit(5)
+
+      for (const c of (activeCampaigns ?? [])) {
+        const { count: existingCosts } = await supabase.from('cost_entries')
+          .select('id', { count: 'exact', head: true })
+          .eq('campaign_id', (c as any).id)
+          .eq('is_planned', true)
+
+        if ((existingCosts ?? 0) > 0) continue
+        const budget = Number((c as any).budget_total) || 0
+        if (budget <= 0) continue
+
+        // Récupère les catégories nécessaires
+        const COST_RATIOS: Array<{ code: string; ratio: number }> = [
+          { code: 'SEMENCES', ratio: 0.03 }, { code: 'PLANTS', ratio: 0.04 },
+          { code: 'ENGRAIS', ratio: 0.10 }, { code: 'PHYTOS', ratio: 0.06 },
+          { code: 'INSECTES_AUX', ratio: 0.02 },
+          { code: 'ELECTRICITE', ratio: 0.06 }, { code: 'EAU', ratio: 0.05 },
+          { code: 'TRANSPORT_VENTES', ratio: 0.08 },
+          { code: 'AUTRES_FOURNI', ratio: 0.06 },
+          { code: 'MOD', ratio: 0.28 }, { code: 'MO_ADMIN', ratio: 0.05 },
+          { code: 'LOYER_FERMES', ratio: 0.04 }, { code: 'ENTRETIEN', ratio: 0.06 },
+          { code: 'PRESTATIONS', ratio: 0.03 }, { code: 'AUTRES_FG', ratio: 0.04 },
+        ]
+        const { data: cats } = await supabase
+          .from('account_categories')
+          .select('id, code')
+          .in('code', COST_RATIOS.map(r => r.code))
+        const catMap = new Map(((cats ?? []) as any[]).map(c => [c.code, c.id]))
+
+        // Distribue sur les mois de la campagne
+        const startISO = (c as any).preparation_start ?? (c as any).harvest_start
+        const endISO = (c as any).campaign_end ?? (c as any).harvest_end
+        if (!startISO || !endISO) continue
+        const start = new Date(startISO + 'T00:00:00')
+        const end = new Date(endISO + 'T00:00:00')
+        const months: Array<{ year: number; month: number; date: string }> = []
+        const cur = new Date(start.getFullYear(), start.getMonth(), 1)
+        while (cur <= end) {
+          const lastDay = new Date(cur.getFullYear(), cur.getMonth() + 1, 0)
+          const mid = new Date(cur.getFullYear(), cur.getMonth(), Math.min(15, lastDay.getDate()))
+          months.push({ year: cur.getFullYear(), month: cur.getMonth() + 1, date: mid.toISOString().slice(0, 10) })
+          cur.setMonth(cur.getMonth() + 1)
+        }
+        if (months.length === 0) continue
+
+        const costInserts: any[] = []
+        for (const ratio of COST_RATIOS) {
+          const catId = catMap.get(ratio.code)
+          if (!catId) continue
+          const totalForCategory = budget * ratio.ratio
+          const perMonth = totalForCategory / months.length
+          for (const m of months) {
+            const jitter = 1 + (Math.random() - 0.5) * 0.2
+            costInserts.push({
+              campaign_id: (c as any).id,
+              greenhouse_id: null,
+              account_category_id: catId,
+              cost_category: ratio.code.toLowerCase(),
+              amount: Math.round(perMonth * jitter),
+              entry_date: m.date,
+              is_planned: true,
+              description: `Prévisionnel auto-réparé — ${ratio.code}`,
+            })
+          }
+        }
+
+        const BATCH = 100
+        for (let i = 0; i < costInserts.length; i += BATCH) {
+          const slice = costInserts.slice(i, i + BATCH)
+          const { error } = await supabase.from('cost_entries').insert(slice)
+          if (error) summary.errors++
+          else summary.costs += slice.length
+        }
+      }
+
+      toast.dismiss(toastId)
+      const parts: string[] = []
+      if (summary.plantings > 0) parts.push(`${summary.plantings} plantations patchées`)
+      if (summary.varieties > 0) parts.push(`${summary.varieties} variétés enrichies (prix export)`)
+      if (summary.costs > 0) parts.push(`${summary.costs} coûts prévisionnels générés`)
+      if (summary.errors > 0) parts.push(`⚠ ${summary.errors} erreurs`)
+      if (parts.length === 0) {
+        toast.success('✅ Tout est déjà conforme — rien à réparer')
+      } else {
+        toast.success(`🔧 Réparation OK : ${parts.join(' · ')}`, { duration: 8000 })
+      }
+      console.log('[repair]', summary)
+      load()
+    } catch (e: any) {
+      toast.dismiss(toastId)
+      toast.error('Erreur réparation : ' + e.message)
+      console.error('[repair]', e)
+    }
+    setRepairing(false)
   }
 
   // ─── Constante : SQL à copier-coller dans Supabase (V2 défensive) ──────
@@ -653,6 +817,31 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
             </div>
             <Button onClick={() => setWizardOpen(true)} variant="primary">
               <Sparkles size={14} /> Lancer le wizard
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* ─── Réparer ma démo (patche les données existantes pour "Générer budget") ─── */}
+      <Card animate className="mb-md border-l-[3px] border-l-warning">
+        <div className="flex items-start gap-md">
+          <div className="rounded-md flex items-center justify-center flex-shrink-0"
+            style={{ width: 40, height: 40, background: 'color-mix(in srgb, #f59e0b 15%, transparent)', color: '#f59e0b' }}>
+            <RotateCcw size={20} strokeWidth={2.4} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-display text-body font-bold text-fg-primary mb-1">
+              🔧 Réparer ma démo (Générer budget = 0)
+            </div>
+            <div className="text-caption text-fg-tertiary leading-relaxed mb-md">
+              Patche les données existantes pour que <strong>"Générer budget"</strong> fonctionne :
+              copie <code>first_harvest_date → harvest_start_date</code>, met <code>export_share_pct = 70</code> aux plantations,
+              ajoute <code>avg_price_export</code> aux variétés sans prix export, et génère les <code>cost_entries</code> prévisionnels si aucun n'existe.
+              <br/>
+              <em>À utiliser si tu as déjà créé une démo avant le fix d'aujourd'hui — au lieu de refaire le wizard.</em>
+            </div>
+            <Button onClick={repairDemoData} variant="primary" size="sm" loading={repairing} disabled={repairing}>
+              <RotateCcw size={13} /> {repairing ? 'Réparation…' : 'Réparer ma démo'}
             </Button>
           </div>
         </div>
