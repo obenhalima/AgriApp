@@ -27,6 +27,36 @@ import { MoneyDisplay } from '@/components/display'
 
 const TYPES = ['grossiste', 'exportateur', 'grande_surface', 'detail', 'industrie', 'institutionnel', 'autre']
 
+// ─── Formulaire partagé New/Edit (HORS du composant parent pour éviter
+//     le remount à chaque keystroke qui faisait perdre le focus) ───
+function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e: any) => void }) {
+  return (
+    <div className="space-y-md">
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Code"><TInput value={vals.code} onChange={onChange('code')} /></Field>
+        <Field label="Nom" required><TInput value={vals.name} onChange={onChange('name')} placeholder="Société" autoFocus /></Field>
+      </div>
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Type">
+          <TSelect value={vals.type} onChange={onChange('type')}>
+            {TYPES.map(t => <option key={t}>{t}</option>)}
+          </TSelect>
+        </Field>
+        <Field label="Pays"><TInput value={vals.country} onChange={onChange('country')} /></Field>
+      </div>
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Ville"><TInput value={vals.city} onChange={onChange('city')} placeholder="Agadir" /></Field>
+        <Field label="Téléphone"><TInput value={vals.phone} onChange={onChange('phone')} placeholder="+212..." /></Field>
+      </div>
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Email"><TInput type="email" value={vals.email} onChange={onChange('email')} /></Field>
+        <Field label="Délai paiement (jours)"><TInput type="number" value={vals.payment_terms_days} onChange={onChange('payment_terms_days')} /></Field>
+      </div>
+      <Field label="Plafond crédit (MAD)" hint="Optionnel"><TInput type="number" value={vals.credit_limit} onChange={onChange('credit_limit')} /></Field>
+    </div>
+  )
+}
+
 const TYPE_VARIANT: Record<string, 'success' | 'warning' | 'info' | 'brand' | 'default'> = {
   exportateur: 'warning',
   grossiste: 'success',
@@ -139,32 +169,6 @@ export default function ClientsPage() {
       toast.success(`Client désactivé`)
     } catch (e: any) { toast.error('Erreur : ' + e.message) }
   }
-
-  const FormBlock = ({ vals, onChange }: any) => (
-    <div className="space-y-md">
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Code"><TInput value={vals.code} onChange={onChange('code')} /></Field>
-        <Field label="Nom" required><TInput value={vals.name} onChange={onChange('name')} placeholder="Société" autoFocus /></Field>
-      </div>
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Type">
-          <TSelect value={vals.type} onChange={onChange('type')}>
-            {TYPES.map(t => <option key={t}>{t}</option>)}
-          </TSelect>
-        </Field>
-        <Field label="Pays"><TInput value={vals.country} onChange={onChange('country')} /></Field>
-      </div>
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Ville"><TInput value={vals.city} onChange={onChange('city')} placeholder="Agadir" /></Field>
-        <Field label="Téléphone"><TInput value={vals.phone} onChange={onChange('phone')} placeholder="+212..." /></Field>
-      </div>
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Email"><TInput type="email" value={vals.email} onChange={onChange('email')} /></Field>
-        <Field label="Délai paiement (jours)"><TInput type="number" value={vals.payment_terms_days} onChange={onChange('payment_terms_days')} /></Field>
-      </div>
-      <Field label="Plafond crédit (MAD)" hint="Optionnel"><TInput type="number" value={vals.credit_limit} onChange={onChange('credit_limit')} /></Field>
-    </div>
-  )
 
   return (
     <div>

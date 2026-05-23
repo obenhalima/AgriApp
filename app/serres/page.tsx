@@ -37,6 +37,57 @@ const STATUS_COLOR: Record<string, string> = {
   renovation:     '#3b82f6',
 }
 
+// ─── Formulaire partagé New/Edit (HORS du composant parent pour éviter
+//     le remount à chaque keystroke qui faisait perdre le focus) ───
+function FormBlock({
+  vals, onChange, isNew = true, farms,
+}: {
+  vals: any
+  onChange: (k: string) => (e: any) => void
+  isNew?: boolean
+  farms: any[]
+}) {
+  return (
+    <div className="space-y-md">
+      {isNew && (
+        <Field label="Ferme" required>
+          {farms.length === 0 ? (
+            <div className="flex items-center gap-2 px-md py-2 rounded-md border border-danger/30 bg-danger/10 text-danger text-body-sm">
+              <AlertCircle size={14} /> Aucune ferme — crée d'abord une ferme
+            </div>
+          ) : (
+            <TSelect value={vals.farm_id} onChange={onChange('farm_id')}>
+              <option value="">— Sélectionner —</option>
+              {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </TSelect>
+          )}
+        </Field>
+      )}
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Code"><TInput value={vals.code} onChange={onChange('code')} /></Field>
+        <Field label="Nom" required><TInput value={vals.name} onChange={onChange('name')} placeholder="Serre Nord A" autoFocus /></Field>
+      </div>
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Type">
+          <TSelect value={vals.type} onChange={onChange('type')}>
+            {TYPE_OPTS.map(t => <option key={t}>{t}</option>)}
+          </TSelect>
+        </Field>
+        <Field label="Statut">
+          <TSelect value={vals.status} onChange={onChange('status')}>
+            {STATUS_OPTS.map(t => <option key={t}>{t.replace('_', ' ')}</option>)}
+          </TSelect>
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Superficie totale (m²)" required><TInput type="number" value={vals.total_area} onChange={onChange('total_area')} placeholder="5000" /></Field>
+        <Field label="Exploitable (m²)" hint="= totale si vide"><TInput type="number" value={vals.exploitable_area} onChange={onChange('exploitable_area')} /></Field>
+      </div>
+      <Field label="Notes"><Textarea rows={2} value={vals.notes} onChange={onChange('notes')} /></Field>
+    </div>
+  )
+}
+
 export default function SerresPage() {
   const [serres, setSerres] = useState<any[]>([])
   const [farms, setFarms]   = useState<any[]>([])
@@ -161,47 +212,6 @@ export default function SerresPage() {
     } catch (e: any) { toast.error('Erreur : ' + e.message) }
   }
 
-  // ─── Formulaire partagé New/Edit ───
-  const FormBlock = ({ vals, onChange, isNew = true }: { vals: any; onChange: (k: string) => (e: any) => void; isNew?: boolean }) => (
-    <div className="space-y-md">
-      {isNew && (
-        <Field label="Ferme" required>
-          {farms.length === 0 ? (
-            <div className="flex items-center gap-2 px-md py-2 rounded-md border border-danger/30 bg-danger/10 text-danger text-body-sm">
-              <AlertCircle size={14} /> Aucune ferme — crée d'abord une ferme
-            </div>
-          ) : (
-            <TSelect value={vals.farm_id} onChange={onChange('farm_id')}>
-              <option value="">— Sélectionner —</option>
-              {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </TSelect>
-          )}
-        </Field>
-      )}
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Code"><TInput value={vals.code} onChange={onChange('code')} /></Field>
-        <Field label="Nom" required><TInput value={vals.name} onChange={onChange('name')} placeholder="Serre Nord A" autoFocus /></Field>
-      </div>
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Type">
-          <TSelect value={vals.type} onChange={onChange('type')}>
-            {TYPE_OPTS.map(t => <option key={t}>{t}</option>)}
-          </TSelect>
-        </Field>
-        <Field label="Statut">
-          <TSelect value={vals.status} onChange={onChange('status')}>
-            {STATUS_OPTS.map(t => <option key={t}>{t.replace('_', ' ')}</option>)}
-          </TSelect>
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Superficie totale (m²)" required><TInput type="number" value={vals.total_area} onChange={onChange('total_area')} placeholder="5000" /></Field>
-        <Field label="Exploitable (m²)" hint="= totale si vide"><TInput type="number" value={vals.exploitable_area} onChange={onChange('exploitable_area')} /></Field>
-      </div>
-      <Field label="Notes"><Textarea rows={2} value={vals.notes} onChange={onChange('notes')} /></Field>
-    </div>
-  )
-
   return (
     <div>
       {/* ─── Modals ─── */}
@@ -209,7 +219,7 @@ export default function SerresPage() {
         <Modal title="NOUVELLE SERRE" onClose={() => { setModalNew(false); setDone(false) }}>
           {done ? <SuccessMessage message="Serre créée !" /> : (
             <>
-              <FormBlock vals={form} onChange={upd} isNew />
+              <FormBlock vals={form} onChange={upd} isNew farms={farms} />
               <ModalFooter onCancel={() => setModalNew(false)} onSave={save} loading={saving} disabled={!form.farm_id || !form.name || !form.total_area} saveLabel="CRÉER" />
             </>
           )}
@@ -219,7 +229,7 @@ export default function SerresPage() {
         <Modal title={`MODIFIER — ${modalEdit.name}`} onClose={() => { setModalEdit(null); setDone(false) }}>
           {done ? <SuccessMessage message="Serre modifiée !" /> : (
             <>
-              <FormBlock vals={formE} onChange={updE} isNew={false} />
+              <FormBlock vals={formE} onChange={updE} isNew={false} farms={farms} />
               <ModalFooter onCancel={() => setModalEdit(null)} onSave={saveEdit} loading={saving} disabled={!formE.name} saveLabel="ENREGISTRER" />
             </>
           )}

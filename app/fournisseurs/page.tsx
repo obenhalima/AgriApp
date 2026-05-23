@@ -16,6 +16,30 @@ import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 
 const CATS = ['semences', 'engrais', 'phytosanitaires', 'irrigation', 'emballage', 'transport', 'energie', 'services', 'equipement', 'autre']
 
+// ─── Formulaire partagé (HORS du composant parent pour éviter remount/focus loss) ───
+function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e: any) => void }) {
+  return (
+    <div className="space-y-md">
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Code"><TInput value={vals.code} onChange={onChange('code')} /></Field>
+        <Field label="Nom" required><TInput value={vals.name} onChange={onChange('name')} placeholder="Société" autoFocus /></Field>
+      </div>
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Catégorie">
+          <TSelect value={vals.category} onChange={onChange('category')}>{CATS.map(c => <option key={c}>{c}</option>)}</TSelect>
+        </Field>
+        <Field label="Ville"><TInput value={vals.city} onChange={onChange('city')} placeholder="Casablanca" /></Field>
+      </div>
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Email"><TInput type="email" value={vals.email} onChange={onChange('email')} /></Field>
+        <Field label="Téléphone"><TInput value={vals.phone} onChange={onChange('phone')} /></Field>
+      </div>
+      <Field label="Délai paiement (jours)"><TInput type="number" value={vals.payment_terms_days} onChange={onChange('payment_terms_days')} /></Field>
+      <Field label="Notes"><Textarea rows={2} value={vals.notes} onChange={onChange('notes')} /></Field>
+    </div>
+  )
+}
+
 export default function FournisseursPage() {
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -89,27 +113,6 @@ export default function FournisseursPage() {
       toast.success('Fournisseur désactivé')
     } catch (e: any) { toast.error('Erreur : ' + e.message) }
   }
-
-  const FormBlock = ({ vals, onChange }: any) => (
-    <div className="space-y-md">
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Code"><TInput value={vals.code} onChange={onChange('code')} /></Field>
-        <Field label="Nom" required><TInput value={vals.name} onChange={onChange('name')} placeholder="Société" autoFocus /></Field>
-      </div>
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Catégorie">
-          <TSelect value={vals.category} onChange={onChange('category')}>{CATS.map(c => <option key={c}>{c}</option>)}</TSelect>
-        </Field>
-        <Field label="Ville"><TInput value={vals.city} onChange={onChange('city')} placeholder="Casablanca" /></Field>
-      </div>
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Email"><TInput type="email" value={vals.email} onChange={onChange('email')} /></Field>
-        <Field label="Téléphone"><TInput value={vals.phone} onChange={onChange('phone')} /></Field>
-      </div>
-      <Field label="Délai paiement (jours)"><TInput type="number" value={vals.payment_terms_days} onChange={onChange('payment_terms_days')} /></Field>
-      <Field label="Notes"><Textarea rows={2} value={vals.notes} onChange={onChange('notes')} /></Field>
-    </div>
-  )
 
   return (
     <div>

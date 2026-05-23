@@ -27,6 +27,42 @@ import { NumberDisplay, MoneyDisplay } from '@/components/display'
 const TYPES = ['ronde', 'grappe', 'cerise', 'allongee', 'cocktail', 'beef', 'olivette', 'autre']
 const DESTINATIONS = ['mixte', 'export', 'local', 'grande_distribution', 'industrie']
 
+// ─── Formulaire partagé (HORS du composant parent pour éviter remount/focus loss) ───
+function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e: any) => void }) {
+  return (
+    <div className="space-y-md">
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Code"><TInput value={vals.code} onChange={onChange('code')} /></Field>
+        <Field label="Nom commercial" required><TInput value={vals.commercial_name} onChange={onChange('commercial_name')} placeholder="Vitalia" autoFocus /></Field>
+      </div>
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Type">
+          <TSelect value={vals.type} onChange={onChange('type')}>
+            {TYPES.map(t => <option key={t}>{t}</option>)}
+          </TSelect>
+        </Field>
+        <Field label="Destination">
+          <TSelect value={vals.destination} onChange={onChange('destination')}>
+            {DESTINATIONS.map(d => <option key={d}>{d}</option>)}
+          </TSelect>
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Rendement th. (kg/m²)"><TInput type="number" value={vals.theoretical_yield_per_m2} onChange={onChange('theoretical_yield_per_m2')} placeholder="45" /></Field>
+        <Field label="Coût th. (MAD/m²)"><TInput type="number" value={vals.theoretical_cost_per_m2} onChange={onChange('theoretical_cost_per_m2')} placeholder="120" /></Field>
+      </div>
+      <div className="grid grid-cols-2 gap-md">
+        <Field label="Prix local (MAD/kg)"><TInput type="number" value={vals.avg_price_local} onChange={onChange('avg_price_local')} placeholder="3.50" /></Field>
+        <Field label="Prix export (EUR/kg)"><TInput type="number" value={vals.avg_price_export} onChange={onChange('avg_price_export')} placeholder="0.60" /></Field>
+      </div>
+      <Field label="Cycle estimé (jours)" hint="Plantation → fin récolte">
+        <TInput type="number" value={vals.estimated_cycle_days} onChange={onChange('estimated_cycle_days')} placeholder="200" />
+      </Field>
+      <Field label="Notes techniques"><Textarea rows={2} value={vals.technical_notes} onChange={onChange('technical_notes')} /></Field>
+    </div>
+  )
+}
+
 const DEST_VARIANT: Record<string, 'success' | 'warning' | 'info' | 'brand' | 'default'> = {
   export: 'warning',
   local: 'success',
@@ -142,39 +178,6 @@ export default function VarietesPage() {
       toast.success(`Variété archivée`)
     } catch (e: any) { toast.error('Erreur : ' + e.message) }
   }
-
-  const FormBlock = ({ vals, onChange }: any) => (
-    <div className="space-y-md">
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Code"><TInput value={vals.code} onChange={onChange('code')} /></Field>
-        <Field label="Nom commercial" required><TInput value={vals.commercial_name} onChange={onChange('commercial_name')} placeholder="Vitalia" autoFocus /></Field>
-      </div>
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Type">
-          <TSelect value={vals.type} onChange={onChange('type')}>
-            {TYPES.map(t => <option key={t}>{t}</option>)}
-          </TSelect>
-        </Field>
-        <Field label="Destination">
-          <TSelect value={vals.destination} onChange={onChange('destination')}>
-            {DESTINATIONS.map(d => <option key={d}>{d}</option>)}
-          </TSelect>
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Rendement th. (kg/m²)"><TInput type="number" value={vals.theoretical_yield_per_m2} onChange={onChange('theoretical_yield_per_m2')} placeholder="45" /></Field>
-        <Field label="Coût th. (MAD/m²)"><TInput type="number" value={vals.theoretical_cost_per_m2} onChange={onChange('theoretical_cost_per_m2')} placeholder="120" /></Field>
-      </div>
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Prix local (MAD/kg)"><TInput type="number" value={vals.avg_price_local} onChange={onChange('avg_price_local')} placeholder="3.50" /></Field>
-        <Field label="Prix export (EUR/kg)"><TInput type="number" value={vals.avg_price_export} onChange={onChange('avg_price_export')} placeholder="0.60" /></Field>
-      </div>
-      <Field label="Cycle estimé (jours)" hint="Plantation → fin récolte">
-        <TInput type="number" value={vals.estimated_cycle_days} onChange={onChange('estimated_cycle_days')} placeholder="200" />
-      </Field>
-      <Field label="Notes techniques"><Textarea rows={2} value={vals.technical_notes} onChange={onChange('technical_notes')} /></Field>
-    </div>
-  )
 
   return (
     <div>
