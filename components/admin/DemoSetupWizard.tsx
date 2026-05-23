@@ -40,9 +40,11 @@ type VarietyDraft = {
   code: string
   name: string
   type: 'ronde' | 'grappe' | 'cerise' | 'allongee' | 'cocktail' | 'beef' | 'olivette'
-  yieldPerM2: number  // kg/m²
+  yieldPerM2: number      // kg/m²
   cyclesDays: number
-  pricePerKg: number
+  pricePerKg: number       // prix marché local (MAD/kg)
+  priceExportEur?: number  // prix export (EUR/kg)
+  exportSharePct?: number  // % export (vs local)
 }
 
 type CampaignDraft = {
@@ -54,14 +56,37 @@ type CampaignDraft = {
   harvest_end: string
   campaign_end: string
   budget_total: number
+  generatePlannedCosts: boolean  // génère aussi les cost_entries prévisionnels
 }
 
+// Répartition typique d'un budget de ferme tomate (somme = 100%)
+const COST_RATIOS: Array<{ code: string; ratio: number; type: 'variable' | 'fixe' }> = [
+  // Charges variables (50% total)
+  { code: 'SEMENCES',          ratio: 0.03, type: 'variable' },
+  { code: 'PLANTS',            ratio: 0.04, type: 'variable' },
+  { code: 'ENGRAIS',           ratio: 0.10, type: 'variable' },
+  { code: 'PHYTOS',            ratio: 0.06, type: 'variable' },
+  { code: 'INSECTES_AUX',      ratio: 0.02, type: 'variable' },
+  { code: 'ELECTRICITE',       ratio: 0.06, type: 'variable' },
+  { code: 'EAU',               ratio: 0.05, type: 'variable' },
+  { code: 'TRANSPORT_VENTES',  ratio: 0.08, type: 'variable' },
+  { code: 'AUTRES_FOURNI',     ratio: 0.06, type: 'variable' },
+  // Charges fixes (50% total)
+  { code: 'MOD',               ratio: 0.28, type: 'fixe' },
+  { code: 'MO_ADMIN',          ratio: 0.05, type: 'fixe' },
+  { code: 'LOYER_FERMES',      ratio: 0.04, type: 'fixe' },
+  { code: 'ENTRETIEN',         ratio: 0.06, type: 'fixe' },
+  { code: 'PRESTATIONS',       ratio: 0.03, type: 'fixe' },
+  { code: 'AUTRES_FG',         ratio: 0.04, type: 'fixe' },
+]
+
+// prix MAD/kg local + EUR/kg export · % export typique des fermes au Maroc
 const DEFAULT_VARIETIES: VarietyDraft[] = [
-  { code: 'MARQ',  name: 'Marquise',  type: 'ronde',   yieldPerM2: 25, cyclesDays: 280, pricePerKg: 8.5 },
-  { code: 'CHRY',  name: 'Cherry F1', type: 'cerise',  yieldPerM2: 22, cyclesDays: 270, pricePerKg: 14.0 },
-  { code: 'ROMA',  name: 'Roma',      type: 'allongee',yieldPerM2: 28, cyclesDays: 290, pricePerKg: 7.0 },
-  { code: 'COCK',  name: 'Cocktail',  type: 'cocktail',yieldPerM2: 20, cyclesDays: 260, pricePerKg: 12.0 },
-  { code: 'GRAP',  name: 'Grappe',    type: 'grappe',  yieldPerM2: 26, cyclesDays: 285, pricePerKg: 9.5 },
+  { code: 'MARQ', name: 'Marquise',  type: 'ronde',    yieldPerM2: 25, cyclesDays: 280, pricePerKg:  8.5, priceExportEur: 1.2, exportSharePct: 70 },
+  { code: 'CHRY', name: 'Cherry F1', type: 'cerise',   yieldPerM2: 22, cyclesDays: 270, pricePerKg: 14.0, priceExportEur: 2.5, exportSharePct: 80 },
+  { code: 'ROMA', name: 'Roma',      type: 'allongee', yieldPerM2: 28, cyclesDays: 290, pricePerKg:  7.0, priceExportEur: 0.9, exportSharePct: 60 },
+  { code: 'COCK', name: 'Cocktail',  type: 'cocktail', yieldPerM2: 20, cyclesDays: 260, pricePerKg: 12.0, priceExportEur: 2.0, exportSharePct: 75 },
+  { code: 'GRAP', name: 'Grappe',    type: 'grappe',   yieldPerM2: 26, cyclesDays: 285, pricePerKg:  9.5, priceExportEur: 1.4, exportSharePct: 70 },
 ]
 
 const REGIONS_MAROC = ['Souss-Massa', 'Casablanca-Settat', 'Marrakech-Safi', 'Tanger-Tétouan-Al Hoceima', 'Rabat-Salé-Kénitra']
@@ -124,6 +149,7 @@ export function DemoSetupWizard({ onClose, onComplete }: {
     harvest_end: todayPlus(8),
     campaign_end: todayPlus(9),
     budget_total: 0,
+    generatePlannedCosts: true,
   })
 
   const [generating, setGenerating] = useState(false)
@@ -275,7 +301,8 @@ export function DemoSetupWizard({ onClose, onComplete }: {
         destination: 'mixte',
         estimated_cycle_days: v.cyclesDays,
         theoretical_yield_per_m2: v.yieldPerM2,
-        avg_price_local: v.pricePerKg,
+        avg_price_local: v.pricePerKg,                  // MAD/kg
+        avg_price_export: v.priceExportEur ?? 1.2,      // EUR/kg
         avg_fruit_weight: 150,
         brix_degree: 5.2,
         planting_density: 2.5,
@@ -333,8 +360,13 @@ export function DemoSetupWizard({ onClose, onComplete }: {
           plant_count: Math.round(surface * 2.5),
           actual_density: 2.5,
           planting_date: campaign.planting_start || null,
+          // Anciennes colonnes (initial schema)
           first_harvest_date: campaign.harvest_start || null,
           last_harvest_date: campaign.harvest_end || null,
+          // Nouvelles colonnes (migration 013) — utilisées par v_planting_forecasts
+          harvest_start_date: campaign.harvest_start || null,
+          harvest_end_date: campaign.harvest_end || null,
+          export_share_pct: varSpec.exportSharePct ?? 70,
           target_yield_per_m2: varSpec.yieldPerM2,
           target_total_production: surface * varSpec.yieldPerM2,
           status: 'en_cours',
@@ -344,9 +376,88 @@ export function DemoSetupWizard({ onClose, onComplete }: {
         .from('campaign_plantings').insert(plantingInserts).select('id')
       if (pErr) throw pErr
       stepCount += 3
-      setProgress({ step: `${insertedPlantings!.length} plantations créées`, done: totalSteps, total: totalSteps })
+      setProgress({ step: `${insertedPlantings!.length} plantations créées`, done: stepCount, total: totalSteps })
 
-      toast.success(`✅ Démo créée ! ${farms.length} fermes · ${summary.totalGh} serres · ${insertedPlantings!.length} plantations`)
+      // ─── 6. (Optionnel) Génère les cost_entries prévisionnels ─────────
+      let insertedCosts = 0
+      if (campaign.generatePlannedCosts && budgetCalculated > 0) {
+        setProgress({ step: 'Génération des coûts prévisionnels', done: stepCount, total: totalSteps })
+        try {
+          // Récupère les catégories feuilles (level 3) ou (level 2) pertinentes
+          const { data: cats, error: catErr } = await supabase
+            .from('account_categories')
+            .select('id, code')
+            .in('code', COST_RATIOS.map(r => r.code))
+          if (catErr) throw catErr
+          const catMap = new Map((cats ?? []).map((c: any) => [c.code, c.id]))
+
+          // Distribue le budget total sur les mois de la campagne
+          const startDate = new Date((campaign.preparation_start || campaign.harvest_start) + 'T00:00:00')
+          const endDate   = new Date((campaign.campaign_end       || campaign.harvest_end)  + 'T00:00:00')
+          const months: Array<{ year: number; month: number; date: string }> = []
+          const cur = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
+          while (cur <= endDate) {
+            const lastDay = new Date(cur.getFullYear(), cur.getMonth() + 1, 0)
+            const mid = new Date(cur.getFullYear(), cur.getMonth(), Math.min(15, lastDay.getDate()))
+            months.push({
+              year: cur.getFullYear(),
+              month: cur.getMonth() + 1,
+              date: mid.toISOString().slice(0, 10),
+            })
+            cur.setMonth(cur.getMonth() + 1)
+          }
+
+          if (months.length === 0) months.push({
+            year: new Date().getFullYear(), month: new Date().getMonth() + 1,
+            date: new Date().toISOString().slice(0, 10),
+          })
+
+          // Génère 1 cost_entry par (catégorie × mois) au niveau campagne (greenhouse_id = null)
+          const costInserts: any[] = []
+          for (const ratio of COST_RATIOS) {
+            const catId = catMap.get(ratio.code)
+            if (!catId) continue
+            const totalForCategory = budgetCalculated * ratio.ratio
+            const perMonth = totalForCategory / months.length
+            for (const m of months) {
+              // Variance ±10% par mois pour réalisme
+              const jitter = 1 + (Math.random() - 0.5) * 0.2
+              costInserts.push({
+                campaign_id: insertedCampaign!.id,
+                greenhouse_id: null,  // au niveau campagne (sera ventilé par budgetFromCosts)
+                account_category_id: catId,
+                cost_category: ratio.code.toLowerCase(),  // legacy field
+                amount: Math.round(perMonth * jitter),
+                entry_date: m.date,
+                is_planned: true,
+                description: `Prévisionnel auto-généré — ${ratio.code}`,
+              })
+            }
+          }
+
+          // Insertion par batches
+          const BATCH = 100
+          for (let i = 0; i < costInserts.length; i += BATCH) {
+            const slice = costInserts.slice(i, i + BATCH)
+            const { error } = await supabase.from('cost_entries').insert(slice)
+            if (error) throw error
+            insertedCosts += slice.length
+          }
+        } catch (e: any) {
+          console.warn('[wizard] erreur génération cost_entries:', e)
+          toast(`⚠ Coûts non générés : ${e.message}`)
+        }
+      }
+
+      setProgress({ step: 'Terminé', done: totalSteps, total: totalSteps })
+
+      const summaryMsg = [
+        `${farms.length} ferme(s)`,
+        `${summary.totalGh} serre(s)`,
+        `${insertedPlantings!.length} plantation(s)`,
+        insertedCosts > 0 ? `${insertedCosts} coût(s) prévisionnel(s)` : null,
+      ].filter(Boolean).join(' · ')
+      toast.success(`✅ Démo créée : ${summaryMsg}`, { duration: 6000 })
       onComplete?.(insertedCampaign!.id)
       onClose()
     } catch (e: any) {
@@ -564,6 +675,26 @@ export function DemoSetupWizard({ onClose, onComplete }: {
                   onChange={(e) => setCampaign(c => ({ ...c, budget_total: Number(e.target.value) || 0 }))}
                   placeholder={`Auto : ${Math.round(summary.totalSurface * 50).toLocaleString('fr-FR')}`} />
               </Field>
+            </div>
+
+            {/* Toggle génération coûts prévisionnels */}
+            <div className="mt-md rounded-md border border-border bg-surface-sunk p-md">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={campaign.generatePlannedCosts}
+                  onChange={(e) => setCampaign(c => ({ ...c, generatePlannedCosts: e.target.checked }))}
+                  className="w-4 h-4 accent-brand mt-0.5"
+                />
+                <div className="flex-1">
+                  <div className="font-display font-bold text-body-sm text-fg-primary">
+                    💰 Générer aussi les coûts prévisionnels (recommandé)
+                  </div>
+                  <div className="text-caption text-fg-tertiary leading-relaxed mt-1">
+                    Crée automatiquement des <code>cost_entries</code> mensuels en distribuant le budget total sur les catégories réalistes (intrants, énergie, main d'œuvre, entretien…). Indispensable pour que <strong>"Générer budget"</strong> produise des charges en plus du CA.
+                  </div>
+                </div>
+              </label>
             </div>
           </div>
         </div>
