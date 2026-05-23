@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter } from '@/components/ui/Modal'
 import {
@@ -93,7 +94,7 @@ export default function BudgetsAdminPage() {
         if (c.data && c.data.length > 0) setCampaignId(c.data[0].id)
         if (f.data && f.data.length > 0) setFarmId(f.data[0].id)
       } catch (e: any) {
-        alert('Erreur chargement référentiels : ' + e.message)
+        toast.error('Erreur chargement référentiels : ' + e.message)
       } finally { setLoadingRefs(false) }
     })()
   }, [])
@@ -131,7 +132,7 @@ export default function BudgetsAdminPage() {
           fetched = await listBudgetLines({ versionId })
         }
         setLines(fetched)
-      } catch (e: any) { alert('Erreur chargement lignes : ' + e.message) }
+      } catch (e: any) { toast.error('Erreur chargement lignes : ' + e.message) }
       finally { setLinesLoading(false) }
     })()
   }, [versionId, farmId, level, greenhouseId])
@@ -218,18 +219,31 @@ export default function BudgetsAdminPage() {
         }
         return prev
       })
-    } catch (e: any) { alert('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error('Erreur : ' + e.message) }
   }
 
   const createVersion = async () => {
-    if (!campaignId || !newVersion.code.trim() || !newVersion.name.trim()) return
+    console.log('[createVersion] click', { campaignId, newVersion })
+    if (!campaignId) {
+      toast.error('Sélectionne une campagne d\'abord')
+      return
+    }
+    if (!newVersion.code.trim() || !newVersion.name.trim()) {
+      toast.error('Code et nom sont requis')
+      return
+    }
     try {
       const v = await createBudgetVersion({ campaign_id: campaignId, code: newVersion.code, name: newVersion.name })
+      console.log('[createVersion] created:', v)
       setVersions(prev => [v, ...prev])
       setVersionId(v.id)
       setVersionModal(false)
       setNewVersion({ code: '', name: '' })
-    } catch (e: any) { alert('Erreur : ' + e.message) }
+      toast.success(`✅ Version "${v.code} — ${v.name}" créée`)
+    } catch (e: any) {
+      console.error('[createVersion] error:', e)
+      toast.error('Erreur : ' + (e?.message ?? 'inconnue'))
+    }
   }
 
   const changeStatus = async (to: 'brouillon' | 'valide' | 'fige') => {
@@ -242,7 +256,7 @@ export default function BudgetsAdminPage() {
     try {
       const u = await setBudgetVersionStatus(version.id, to)
       setVersions(prev => prev.map(v => v.id === u.id ? u : v))
-    } catch (e: any) { alert('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error('Erreur : ' + e.message) }
   }
 
   const duplicate = async () => {
@@ -255,13 +269,13 @@ export default function BudgetsAdminPage() {
       const v = await duplicateBudgetVersion(version.id, { code, name })
       setVersions(prev => [v, ...prev])
       setVersionId(v.id)
-    } catch (e: any) { alert('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error('Erreur : ' + e.message) }
   }
 
   // ── EXPORT EXCEL MULTI-ONGLETS (Index + Domaine + Fermes + Serres) ──
   const exportBudgetToExcel = async (levelChoice: 'domain' | 'domain_farms' | 'all' = 'all') => {
-    if (!versionId || !version) { alert('Sélectionnez une version d\'abord'); return }
-    if (categories.length === 0 || months.length === 0) { alert('Données insuffisantes'); return }
+    if (!versionId || !version) { toast.error('Sélectionnez une version d\'abord'); return }
+    if (categories.length === 0 || months.length === 0) { toast.error('Données insuffisantes'); return }
     setExporting(true)
 
     const campName = campaign?.name ?? 'Campagne'
@@ -685,6 +699,20 @@ export default function BudgetsAdminPage() {
         </div>
       </div>
 
+      {/* Bannière : aucune campagne disponible */}
+      {!loadingRefs && campaigns.length === 0 && (
+        <div className="card" style={{
+          padding: 14, marginBottom: 14,
+          background: 'color-mix(in srgb, var(--amber) 8%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--amber) 40%, transparent)',
+          color: 'var(--tx-1)', fontSize: 13,
+        }}>
+          ⚠ <strong>Aucune campagne en base.</strong> Crée d'abord une campagne :
+          {' '}<a href="/admin/demo-reset" style={{ color: 'var(--neon)', fontWeight: 600 }}>via le wizard /admin/demo-reset</a>
+          {' '}ou <a href="/campagnes" style={{ color: 'var(--neon)', fontWeight: 600 }}>manuellement dans /campagnes</a>.
+        </div>
+      )}
+
       {/* Filtres globaux */}
       <div className="card" style={{ padding: 14, marginBottom: 14, display: 'grid', gridTemplateColumns: '1.3fr 1.5fr 1fr auto 1.3fr', gap: 10, alignItems: 'end' }}>
         <div>
@@ -709,7 +737,19 @@ export default function BudgetsAdminPage() {
                 </option>
               ))}
             </select>
-            <button onClick={() => setVersionModal(true)} disabled={!campaignId}
+            <button
+              onClick={() => {
+                console.log('[+ NOUVELLE] click', { campaignId, campaigns: campaigns.length })
+                if (!campaignId) {
+                  if (campaigns.length === 0) {
+                    toast.error('Aucune campagne disponible. Crée d\'abord une campagne via /admin/demo-reset ou /campagnes.')
+                  } else {
+                    toast.error('Sélectionne une campagne dans le filtre à gauche.')
+                  }
+                  return
+                }
+                setVersionModal(true)
+              }}
               title={campaignId ? 'Créer une nouvelle version' : 'Sélectionnez une campagne d\'abord'}
               style={{
                 padding: '0 12px',
@@ -717,7 +757,7 @@ export default function BudgetsAdminPage() {
                 border: `1px solid ${campaignId ? 'color-mix(in srgb, var(--neon) 40%, transparent)' : 'var(--bd-1)'}`,
                 color: campaignId ? 'var(--neon)' : 'var(--tx-3)',
                 borderRadius: 6,
-                cursor: campaignId ? 'pointer' : 'not-allowed',
+                cursor: 'pointer',
                 fontSize: 12,
                 fontFamily: 'var(--font-mono)',
                 whiteSpace: 'nowrap',
