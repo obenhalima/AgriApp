@@ -44,7 +44,7 @@ export default function BudgetsAdminPage() {
   const [campaignId, setCampaignId] = useState<string>('')
   const [versionId, setVersionId] = useState<string>('')
   const [farmId, setFarmId] = useState<string>('')
-  const [level, setLevel] = useState<'farm' | 'greenhouse' | 'consolidated' | 'domain'>('farm')
+  const [level, setLevel] = useState<'farm' | 'greenhouse' | 'consolidated' | 'multi_farm' | 'domain'>('farm')
   const [greenhouseId, setGreenhouseId] = useState<string>('')
 
   const [versions, setVersions] = useState<BudgetVersion[]>([])
@@ -113,6 +113,7 @@ export default function BudgetsAdminPage() {
   //   farm         = uniquement lignes niveau ferme (greenhouse_id IS NULL) de la ferme courante → éditable
   //   greenhouse   = uniquement lignes de la serre sélectionnée                                   → éditable
   //   consolidated = TOUTES les lignes de la ferme (niveau ferme + toutes les serres)             → lecture seule
+  //   multi_farm   = TOUTES les lignes du domaine, regroupées par ferme avec sous-totaux         → lecture seule
   //   domain       = TOUTES les lignes de la version (toutes fermes, tous niveaux)                → lecture seule
   useEffect(() => {
     if (!versionId) { setLines([]); return }
@@ -128,7 +129,7 @@ export default function BudgetsAdminPage() {
         } else if (level === 'consolidated') {
           fetched = await listBudgetLines({ versionId, farmId })  // pas de filtre greenhouse
         } else {
-          // domain : toutes fermes
+          // domain ou multi_farm : toutes fermes
           fetched = await listBudgetLines({ versionId })
         }
         setLines(fetched)
@@ -157,6 +158,36 @@ export default function BudgetsAdminPage() {
 
   const tree = useMemo(() => buildTree(categories.filter(c => c.is_active)), [categories])
   const grid = useMemo(() => computeGrid(lines, months), [lines, months])
+
+  // Récap par ferme : utile pour la vue Multi-fermes
+  const totalsByFarm = useMemo(() => {
+    type FT = { farmId: string; farmName: string; produit: number; charge_variable: number; charge_fixe: number; amortissement: number; ebitda: number; resultat: number; total: number }
+    const m = new Map<string, FT>()
+    const catTypeMap = new Map(categories.map(c => [c.id, c.type]))
+    for (const l of lines) {
+      const fId = l.farm_id ?? '__no_farm__'
+      const f = farms.find(x => x.id === fId)
+      const ft = m.get(fId) ?? {
+        farmId: fId,
+        farmName: f?.name ?? '— sans ferme —',
+        produit: 0, charge_variable: 0, charge_fixe: 0, amortissement: 0,
+        ebitda: 0, resultat: 0, total: 0,
+      }
+      const type = catTypeMap.get(l.account_category_id) as keyof Pick<FT, 'produit' | 'charge_variable' | 'charge_fixe' | 'amortissement'> | undefined
+      const amount = Number(l.amount || 0)
+      if (type && (type in ft)) ft[type] += amount
+      ft.total += amount
+      m.set(fId, ft)
+    }
+    // Calcule ebitda + résultat par ferme
+    return Array.from(m.values())
+      .map(ft => ({
+        ...ft,
+        ebitda: ft.produit - ft.charge_variable - ft.charge_fixe,
+        resultat: ft.produit - ft.charge_variable - ft.charge_fixe - ft.amortissement,
+      }))
+      .sort((a, b) => b.produit - a.produit)
+  }, [lines, farms, categories])
 
   // Map rapide : category_id → type
   const categoryTypeById = useMemo(() => {
@@ -768,8 +799,8 @@ export default function BudgetsAdminPage() {
         </div>
         <div>
           <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>FERME</div>
-          <select value={farmId} onChange={e => setFarmId(e.target.value)} disabled={level === 'domain'}
-            style={{ width: '100%', padding: 8, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 6, opacity: level === 'domain' ? 0.4 : 1 }}>
+          <select value={farmId} onChange={e => setFarmId(e.target.value)} disabled={level === 'domain' || level === 'multi_farm'}
+            style={{ width: '100%', padding: 8, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 6, opacity: (level === 'domain' || level === 'multi_farm') ? 0.4 : 1 }}>
             {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
         </div>
@@ -777,10 +808,11 @@ export default function BudgetsAdminPage() {
           <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>VUE</div>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {([
-              { k: 'farm',         l: 'Ferme',       title: 'Saisie au niveau ferme (coûts communs, loyers...)' },
-              { k: 'greenhouse',   l: 'Serre',       title: 'Saisie pour une serre précise' },
-              { k: 'consolidated', l: 'Consolidé',   title: 'Lecture : total ferme + toutes les serres (non éditable)' },
-              { k: 'domain',       l: 'Domaine',     title: 'Lecture : total toutes fermes confondues (non éditable)' },
+              { k: 'farm',         l: 'Ferme (saisie)',    title: 'Saisie au niveau ferme (loyers, MOD, frais communs) — éditable' },
+              { k: 'greenhouse',   l: 'Serre',             title: 'Saisie pour une serre précise (CA, intrants...) — éditable' },
+              { k: 'consolidated', l: 'Ferme (consolidé)', title: 'Total ferme : lignes ferme + toutes les serres agrégées — lecture seule' },
+              { k: 'multi_farm',   l: 'Multi-fermes',      title: 'Détail par ferme côte à côte — sections avec sous-totaux par ferme' },
+              { k: 'domain',       l: 'Domaine',           title: 'Total domaine : toutes fermes confondues (sans détail) — lecture seule' },
             ] as const).map(v => (
               <button key={v.k} onClick={() => setLevel(v.k)} title={v.title}
                 style={{
@@ -886,6 +918,62 @@ export default function BudgetsAdminPage() {
           </button>
         </div>
       ) : (
+        <>
+          {/* Récap par ferme — visible en vue Multi-fermes */}
+          {level === 'multi_farm' && totalsByFarm.length > 0 && (
+            <div className="card" style={{ padding: 14, marginBottom: 12 }}>
+              <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 8, fontWeight: 700 }}>
+                🏭 DÉTAIL PAR FERME ({totalsByFarm.length} fermes · trié par CA décroissant)
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="tbl" style={{ width: '100%', minWidth: 800 }}>
+                  <thead>
+                    <tr>
+                      <th>Ferme</th>
+                      <th style={{ textAlign: 'right' }}>CA Produits</th>
+                      <th style={{ textAlign: 'right' }}>Ch. Variables</th>
+                      <th style={{ textAlign: 'right' }}>Ch. Fixes</th>
+                      <th style={{ textAlign: 'right' }}>EBITDA</th>
+                      <th style={{ textAlign: 'right' }}>Amort.</th>
+                      <th style={{ textAlign: 'right', borderLeft: '2px solid var(--bd-1)' }}>Résultat</th>
+                      <th style={{ textAlign: 'right', fontSize: 9 }}>% CA</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {totalsByFarm.map(ft => (
+                      <tr key={ft.farmId}>
+                        <td style={{ fontWeight: 600 }}>{ft.farmName}</td>
+                        <td style={{ textAlign: 'right', color: 'var(--neon)', fontFamily: 'var(--font-mono)' }}>{fmt(ft.produit)}</td>
+                        <td style={{ textAlign: 'right', color: 'var(--amber)', fontFamily: 'var(--font-mono)' }}>{fmt(ft.charge_variable)}</td>
+                        <td style={{ textAlign: 'right', color: 'var(--blue)', fontFamily: 'var(--font-mono)' }}>{fmt(ft.charge_fixe)}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'var(--font-mono)', color: ft.ebitda >= 0 ? 'var(--tx-1)' : 'var(--red)' }}>{fmt(ft.ebitda)}</td>
+                        <td style={{ textAlign: 'right', color: 'var(--purple)', fontFamily: 'var(--font-mono)' }}>{fmt(ft.amortissement)}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 800, fontFamily: 'var(--font-mono)', borderLeft: '2px solid var(--bd-1)', color: ft.resultat >= 0 ? 'var(--neon)' : 'var(--red)' }}>{fmt(ft.resultat)}</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--tx-3)' }}>
+                          {ft.produit > 0 ? `${(ft.resultat / ft.produit * 100).toFixed(1)}%` : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                    {/* Ligne totale */}
+                    <tr style={{ borderTop: '2px solid var(--neon)', background: 'color-mix(in srgb, var(--neon) 8%, transparent)' }}>
+                      <td style={{ fontWeight: 800 }}>TOTAL DOMAINE</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--neon)', fontFamily: 'var(--font-mono)' }}>{fmt(totalsByFarm.reduce((s, ft) => s + ft.produit, 0))}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--amber)', fontFamily: 'var(--font-mono)' }}>{fmt(totalsByFarm.reduce((s, ft) => s + ft.charge_variable, 0))}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--blue)', fontFamily: 'var(--font-mono)' }}>{fmt(totalsByFarm.reduce((s, ft) => s + ft.charge_fixe, 0))}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--tx-1)' }}>{fmt(totalsByFarm.reduce((s, ft) => s + ft.ebitda, 0))}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--purple)', fontFamily: 'var(--font-mono)' }}>{fmt(totalsByFarm.reduce((s, ft) => s + ft.amortissement, 0))}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 800, fontFamily: 'var(--font-mono)', borderLeft: '2px solid var(--bd-1)', color: 'var(--neon)' }}>{fmt(totalsByFarm.reduce((s, ft) => s + ft.resultat, 0))}</td>
+                      <td></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--tx-3)', marginTop: 8 }}>
+                💡 Ce tableau résume par ferme. La grille détaillée ci-dessous montre toutes les catégories agrégées sur le domaine.
+              </div>
+            </div>
+          )}
+
         <div className="card" style={{ padding: 0, overflow: 'auto', maxHeight: 'calc(100vh - 360px)' }}>
           {linesLoading && <div style={{ padding: 20, color: 'var(--tx-3)' }}>Chargement des lignes...</div>}
           <table className="tbl" style={{ minWidth: 1400 }}>
@@ -998,6 +1086,7 @@ export default function BudgetsAdminPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {/* Modal création version */}
