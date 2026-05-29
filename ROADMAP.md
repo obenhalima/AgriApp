@@ -9,37 +9,39 @@
 
 ## 📦 MODULE TRI / DISPATCHES / RÉCOLTES
 
-### 🔥 P1 — Destination du rejet (freinte / écart)
+### ✅ P1 — Destination du rejet (freinte / écart) — **LIVRÉ V1 mai 2026**
 
-**Contexte** : actuellement, quand l'opérateur saisit le tri à la station
-(freinte % + écart %), les kg rejetés sont implicitement considérés
-comme perdus. En réalité, une partie peut être :
+Implémenté dans le sprint mai 2026. **V1 livrée** :
 
-- **Détruite** (perte sèche, vraie freinte sanitaire)
-- **Retournée au stock** pour ré-envoi vers un autre marché (souk local,
-  industrie, transformation)
+- [x] Migration 038 : colonne `destination_rejet` sur `harvest_lots`
+  - 4 valeurs : `destruction` | `retour_stock` | `vente_industrie` | `dons`
+- [x] Colonnes `rejet_qty_kg` et `parent_dispatch_id` pour audit
+- [x] **Page Web `/recoltes`** — modal Tri étendu :
+  - Affiche le détail Rejet (Brute − Acceptée)
+  - Sélecteur visuel 4 cartes (icône + description)
+  - Si `retour_stock` : message d'info qui prévient de la création du lot enfant
+- [x] **Création automatique du `harvest_lot` enfant** `category='stock_retour'`
+  - Numéro de lot `{ORIGINAL}-RETOUR`
+  - `parent_dispatch_id` pointe vers le dispatch d'origine
+  - `tri_status='pending'` (disponible pour ré-envoi)
+- [x] **Nouvel onglet "🔄 Stock retour"** sur `/recoltes`
+  - Liste des lots de retour disponibles
+  - Boutons "✅ Renvoyé" et "🗑️ Détruit" pour marquer la consommation
+- [x] **Bot Telegram** — étape après écart% :
+  - Nouvelle étape `ask_destination_rejet` avec 4 boutons inline
+  - i18n en 4 langues (FR / EN / AR classique / Darija arabe)
+  - Création auto du stock_retour identique à la version Web
+  - Message de confirmation enrichi avec mention du lot enfant créé
 
-**À faire** :
+**V2 (à venir)** :
 
-- [ ] Ajouter pour chaque ligne de tri un champ `destination_rejet` :
-  - `destruction` (défaut)
-  - `retour_stock` → nouvelle qty disponible pour un nouvel envoi
-  - `vente_industrie` → vendu direct à prix réduit
-  - `dons` (banque alimentaire, etc.)
-- [ ] Si `retour_stock` : créer automatiquement un `harvest_lot` enfant
-  catégorie `'stock_retour'` avec `quantity_kg = ecart_kg`
-- [ ] Ce nouveau lot devient disponible dans le flow "Composer un envoi"
-  pour un marché alternatif
-- [ ] Mettre à jour le calcul du CA : pas seulement
-  `qty_acceptee × prix_principal`, mais aussi
-  `qty_rejet × prix_marche_secondaire` quand applicable
-- [ ] Traçabilité : `harvest_lot_sources` lier le retour-stock au dispatch
-  d'origine pour audit complet
-- [ ] UI tri (Telegram + Web) : ajouter le sélecteur de destination juste
-  après la saisie du % rejet
+- [ ] Composition directe d'un nouvel envoi station depuis un lot stock_retour
+- [ ] Mettre à jour le calcul du CA : `qty_rejet × prix_marche_secondaire`
+  quand le retour est ré-envoyé
+- [ ] Stats périodiques : "% rejets valorisés" comme KPI Dashboard CEO
 
-**Impact** : permet de récupérer 5-15% du CA en valorisant les rejets
-au lieu de les jeter. Aligne aussi sur la réalité opérationnelle.
+**Impact estimé V1** : visibilité totale sur la destination du rejet,
+audit trail complet. **Impact estimé V2** : +5-15% CA récupéré.
 
 ---
 

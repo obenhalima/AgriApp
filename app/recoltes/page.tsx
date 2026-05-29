@@ -8,7 +8,7 @@ import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, Succes
 // Onglets : Récoltes | À envoyer | À trier | À tarifer | Confirmés | Alertes
 // ============================================================
 
-type Tab = 'liste' | 'a_envoyer' | 'a_trier' | 'a_tarifer' | 'confirmes' | 'alertes'
+type Tab = 'liste' | 'a_envoyer' | 'a_trier' | 'a_tarifer' | 'confirmes' | 'stock_retour' | 'alertes'
 
 const fmt = (n: number) => Math.round(n).toLocaleString('fr-FR')
 const fmt2 = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -27,6 +27,7 @@ function computeUsed(harvestId: string, sources: any[], legacyDirect: any[]): nu
 export default function RecoltesPage() {
   const [tab, setTab] = useState<Tab>('liste')
   const [harvests, setHarvests] = useState<any[]>([])
+  const [stockRetour, setStockRetour] = useState<any[]>([])
   const [dispatches, setDispatches] = useState<any[]>([])
   const [sources, setSources] = useState<any[]>([])
   const [plantings, setPlantings] = useState<any[]>([])
@@ -57,13 +58,13 @@ export default function RecoltesPage() {
     try {
       const since14 = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10)
       const since30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
-      const [hRes, dRes, sRes, pRes, mRes, alRes] = await Promise.all([
+      const [hRes, dRes, sRes, pRes, mRes, alRes, srRes] = await Promise.all([
         supabase.from('harvests')
           .select('id, lot_number, harvest_date, total_qty, notes, campaign_planting_id, campaign_plantings(*, greenhouses(code, name), varieties(commercial_name, code), campaigns(name))')
           .order('harvest_date', { ascending: false })
           .limit(300),
         supabase.from('harvest_lots')
-          .select('id, lot_number, harvest_id, harvest_date, quantity_kg, market_id, markets(name, currency), variety_id, varieties(code, commercial_name), tri_status, freinte_pct, ecart_pct, qty_nette_kg, qty_acceptee_kg, price_per_kg, ca_amount, station_ref, certificate_number, notes')
+          .select('id, lot_number, harvest_id, harvest_date, quantity_kg, market_id, markets(name, currency), variety_id, varieties(code, commercial_name), tri_status, freinte_pct, ecart_pct, qty_nette_kg, qty_acceptee_kg, price_per_kg, ca_amount, station_ref, certificate_number, notes, destination_rejet, rejet_qty_kg, parent_dispatch_id, campaign_planting_id, greenhouse_id, category')
           .eq('category', 'station_dispatch')
           .gte('harvest_date', since30)
           .order('harvest_date', { ascending: false }),
@@ -72,6 +73,12 @@ export default function RecoltesPage() {
         supabase.from('campaign_plantings').select('id, variety_id, greenhouse_id, greenhouses(code, name), varieties(commercial_name, code), campaigns(name)'),
         supabase.from('markets').select('id, code, name, currency, type').eq('is_active', true).order('name'),
         supabase.from('alerts').select('*').eq('type', 'no_harvest').order('created_at', { ascending: false }).limit(100),
+        // Stock de retour : lots créés via tri (destination = retour_stock) pas encore consommés
+        supabase.from('harvest_lots')
+          .select('id, lot_number, harvest_date, quantity_kg, variety_id, varieties(code, commercial_name), greenhouse_id, parent_dispatch_id, tri_status, notes')
+          .eq('category', 'stock_retour')
+          .eq('tri_status', 'pending')
+          .order('harvest_date', { ascending: false }),
       ])
       if (hRes.error) throw hRes.error
       setHarvests(hRes.data ?? [])
@@ -80,6 +87,7 @@ export default function RecoltesPage() {
       setPlantings(pRes.data ?? [])
       setMarkets(mRes.data ?? [])
       setAlertes(alRes.data ?? [])
+      setStockRetour(srRes.data ?? [])
     } catch (e: any) { setError(e.message || String(e)) }
     setLoading(false)
   }, [])
@@ -303,6 +311,7 @@ export default function RecoltesPage() {
           ['a_trier', '📦 À trier', aTrier.length],
           ['a_tarifer', '🔬 À tarifer', aTarifer.length],
           ['confirmes', '✅ Confirmés', confirmes.length],
+          ['stock_retour', '🔄 Stock retour', stockRetour.length],
           ['alertes', '⚠ Alertes', alertesActives.length],
         ] as [Tab, string, number][]).map(([k, l, c]) => (
           <button key={k} onClick={() => setTab(k)}
@@ -324,6 +333,7 @@ export default function RecoltesPage() {
       {tab === 'a_trier' && <ATrierTab dispatches={aTrier} onPick={d => setModalTri(d)} loading={loading} />}
       {tab === 'a_tarifer' && <ATariferTab dispatches={aTarifer} onPick={d => setModalPrice(d)} onOpenPeriod={() => setModalPeriodPrice(true)} loading={loading} />}
       {tab === 'confirmes' && <ConfirmesTab dispatches={confirmes} loading={loading} />}
+      {tab === 'stock_retour' && <StockRetourTab lots={stockRetour} onReload={load} loading={loading} />}
       {tab === 'alertes' && <AlertesTab alertes={alertesActives} onResolve={resolveAlerte} loading={loading} />}
 
       {/* Modals */}
@@ -510,6 +520,102 @@ function ConfirmesTab({ dispatches, loading }: { dispatches: any[]; loading: boo
             <td style={tdNum}>{(d.price_per_kg ?? 0).toFixed(2)}</td>
             <td style={{ ...tdNum, color: 'var(--neon)', fontWeight: 700 }}>{fmt(d.ca_amount ?? 0)} MAD</td>
             <td style={{ ...td, fontSize: 11, color: 'var(--text-sub)' }}>{d.station_ref ?? '—'}</td>
+          </tr>
+        )}
+      </Table>
+    </div>
+  )
+}
+
+function StockRetourTab({ lots, onReload, loading }: { lots: any[]; onReload: () => void; loading: boolean }) {
+  const [acting, setActing] = useState<string>('')
+
+  const markConsumed = async (lotId: string, lotNumber: string) => {
+    if (!confirm(`Marquer le lot ${lotNumber} comme consommé (envoyé vers un autre marché) ?`)) return
+    setActing(lotId)
+    try {
+      const { error } = await supabase.from('harvest_lots').update({
+        tri_status: 'priced',  // marqué consommé
+        notes: `Stock retour consommé manuellement le ${new Date().toISOString().slice(0, 10)}`,
+      }).eq('id', lotId)
+      if (error) throw error
+      onReload()
+    } catch (e: any) {
+      alert('Erreur : ' + e.message)
+    }
+    setActing('')
+  }
+
+  const markDestroyed = async (lotId: string, lotNumber: string) => {
+    if (!confirm(`Marquer le lot ${lotNumber} comme finalement détruit (perte) ?`)) return
+    setActing(lotId)
+    try {
+      const { error } = await supabase.from('harvest_lots').update({
+        tri_status: 'priced',
+        notes: `Stock retour finalement détruit le ${new Date().toISOString().slice(0, 10)}`,
+      }).eq('id', lotId)
+      if (error) throw error
+      onReload()
+    } catch (e: any) {
+      alert('Erreur : ' + e.message)
+    }
+    setActing('')
+  }
+
+  const total = lots.reduce((s, l) => s + Number(l.quantity_kg ?? 0), 0)
+
+  return (
+    <div>
+      <div style={{ marginBottom: 10, padding: 12, background: 'color-mix(in srgb, var(--neon) 6%, transparent)', border: '1px solid color-mix(in srgb, var(--neon) 30%, transparent)', borderRadius: 7, fontSize: 12.5, color: 'var(--text-main)' }}>
+        🔄 <strong>Stock de retour</strong> — lots créés à partir des rejets de tri (destination = "retour stock"),
+        disponibles pour <strong>ré-envoi vers un autre marché</strong> (souk local, industrie, etc.).
+        <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-sub)' }}>
+          💡 V1 : marque les lots comme consommés (envoyés vers un autre canal) ou détruits si finalement perdus.
+          V2 (à venir) : composition directe d'un nouvel envoi station depuis ces lots.
+        </div>
+        <div style={{ marginTop: 6, fontSize: 12, color: 'var(--neon)', fontWeight: 600 }}>
+          Total disponible : {fmt(total)} kg sur {lots.length} lot(s)
+        </div>
+      </div>
+
+      <Table headers={['Lot retour', 'Date', 'Variété', 'Qté (kg)', 'Origine', 'Actions']} loading={loading} empty="Aucun stock de retour en attente ✨" rows={lots}>
+        {(l: any) => (
+          <tr key={l.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
+            <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{l.lot_number}</td>
+            <td style={td}>{l.harvest_date}</td>
+            <td style={{ ...td, fontSize: 11 }}>
+              <span style={{ color: '#a855f7' }}>{l.varieties?.code ?? '—'}</span> {l.varieties?.commercial_name ? `· ${l.varieties.commercial_name}` : ''}
+            </td>
+            <td style={{ ...tdNum, color: 'var(--neon)', fontWeight: 600 }}>{fmt(l.quantity_kg)}</td>
+            <td style={{ ...td, fontSize: 10.5, color: 'var(--text-sub)' }}>
+              {l.parent_dispatch_id ? <span style={{ fontFamily: 'var(--font-mono)' }}>{String(l.parent_dispatch_id).slice(0, 8)}…</span> : '—'}
+            </td>
+            <td style={td}>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  onClick={() => markConsumed(l.id, l.lot_number)}
+                  disabled={acting === l.id}
+                  style={{
+                    padding: '4px 10px', fontSize: 11,
+                    background: 'var(--neon-dim)', color: 'var(--neon)',
+                    border: '1px solid color-mix(in srgb, var(--neon) 40%, transparent)',
+                    borderRadius: 5, cursor: acting === l.id ? 'wait' : 'pointer',
+                  }}>
+                  ✅ Renvoyé
+                </button>
+                <button
+                  onClick={() => markDestroyed(l.id, l.lot_number)}
+                  disabled={acting === l.id}
+                  style={{
+                    padding: '4px 10px', fontSize: 11,
+                    background: 'var(--red-dim)', color: 'var(--red)',
+                    border: '1px solid color-mix(in srgb, var(--red) 40%, transparent)',
+                    borderRadius: 5, cursor: acting === l.id ? 'wait' : 'pointer',
+                  }}>
+                  🗑️ Détruit
+                </button>
+              </div>
+            </td>
           </tr>
         )}
       </Table>
@@ -753,6 +859,9 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
 function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () => void; onDone: () => void }) {
   const [freinte, setFreinte] = useState(String(dispatch.freinte_pct ?? '0'))
   const [ecart, setEcart] = useState(String(dispatch.ecart_pct ?? '0'))
+  const [destination, setDestination] = useState<'destruction' | 'retour_stock' | 'vente_industrie' | 'dons'>(
+    (dispatch.destination_rejet ?? 'destruction') as any
+  )
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
   const fr = Number(freinte) || 0
@@ -760,6 +869,14 @@ function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () =>
   const qtyB = Number(dispatch.quantity_kg)
   const qtyN = Math.round(qtyB * (1 - fr / 100) * 100) / 100
   const qtyA = Math.round(qtyN * (1 - ec / 100) * 100) / 100
+  const qtyRejet = Math.round((qtyB - qtyA) * 100) / 100  // freinte + écart en kg
+
+  const destinationLabel: Record<string, { label: string; desc: string; color: string; icon: string }> = {
+    destruction:     { label: 'Destruction',      desc: 'Perte sèche — produit non récupérable', color: 'var(--red)',    icon: '🗑️' },
+    retour_stock:    { label: 'Retour au stock',  desc: 'Ré-envoi possible vers un autre marché (souk local, etc.)', color: 'var(--neon)',  icon: '🔄' },
+    vente_industrie: { label: 'Vente industrie',  desc: 'Vendu direct prix réduit (transformation, jus, conserve)', color: 'var(--amber)', icon: '🏭' },
+    dons:            { label: 'Dons',             desc: 'Banque alimentaire, associations', color: '#a855f7',  icon: '🤝' },
+  }
 
   const save = async () => {
     setErr('')
@@ -767,10 +884,37 @@ function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () =>
     if (fr + ec >= 100) { setErr('Freinte + écart ≥ 100% (rien d\'accepté).'); return }
     setSaving(true)
     try {
+      // 1. Update le dispatch original
       const { error } = await supabase.from('harvest_lots').update({
-        freinte_pct: fr, ecart_pct: ec, qty_nette_kg: qtyN, qty_acceptee_kg: qtyA, tri_status: 'tried',
+        freinte_pct: fr, ecart_pct: ec, qty_nette_kg: qtyN, qty_acceptee_kg: qtyA,
+        rejet_qty_kg: qtyRejet, destination_rejet: destination,
+        tri_status: 'tried',
       }).eq('id', dispatch.id)
       if (error) throw error
+
+      // 2. Si retour_stock : créer le harvest_lot enfant disponible pour ré-envoi
+      if (destination === 'retour_stock' && qtyRejet > 0) {
+        const childLotNumber = `${dispatch.lot_number}-RETOUR`
+        const { error: childErr } = await supabase.from('harvest_lots').insert({
+          lot_number: childLotNumber,
+          harvest_id: dispatch.harvest_id ?? null,
+          campaign_planting_id: dispatch.campaign_planting_id ?? null,
+          harvest_date: dispatch.harvest_date ?? new Date().toISOString().slice(0, 10),
+          quantity_kg: qtyRejet,
+          variety_id: dispatch.variety_id ?? null,
+          greenhouse_id: dispatch.greenhouse_id ?? null,
+          category: 'stock_retour',
+          parent_dispatch_id: dispatch.id,
+          tri_status: 'pending',
+          destination_rejet: null,  // pas applicable pour stock_retour lui-même
+          notes: `Retour stock issu du dispatch ${dispatch.lot_number} (${qtyRejet} kg rejetés au tri)`,
+        })
+        if (childErr) {
+          console.warn('[tri] Création lot stock_retour échouée :', childErr)
+          // On continue : l'erreur ne doit pas bloquer la sauvegarde du tri principal
+        }
+      }
+
       onDone()
     } catch (e: any) { setErr(e.message) }
     setSaving(false)
@@ -789,9 +933,47 @@ function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () =>
         <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 6 }}>Calcul automatique</div>
         <div style={{ fontSize: 12.5, color: 'var(--text-main)', lineHeight: 1.7 }}>
           Brute × (1 − {fr}%) = <strong>Nette {fmt(qtyN)} kg</strong><br/>
-          Nette × (1 − {ec}%) = <strong style={{ color: 'var(--neon)' }}>Acceptée {fmt(qtyA)} kg</strong>
+          Nette × (1 − {ec}%) = <strong style={{ color: 'var(--neon)' }}>Acceptée {fmt(qtyA)} kg</strong><br/>
+          Brute − Acceptée = <strong style={{ color: 'var(--amber)' }}>Rejet {fmt(qtyRejet)} kg</strong>
         </div>
       </div>
+
+      {/* Sélecteur destination du rejet */}
+      {qtyRejet > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 8, fontWeight: 700 }}>
+            🎯 Destination du rejet ({fmt(qtyRejet)} kg)
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+            {(Object.keys(destinationLabel) as Array<keyof typeof destinationLabel>).map(k => {
+              const opt = destinationLabel[k]
+              const selected = destination === k
+              return (
+                <button key={k} type="button" onClick={() => setDestination(k as any)}
+                  style={{
+                    textAlign: 'left', padding: 10, borderRadius: 7,
+                    background: selected ? `color-mix(in srgb, ${opt.color} 12%, transparent)` : 'transparent',
+                    border: `1.5px solid ${selected ? opt.color : 'var(--bd-1)'}`,
+                    color: 'var(--text-main)', cursor: 'pointer',
+                  }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 3 }}>
+                    {opt.icon} {opt.label}
+                  </div>
+                  <div style={{ fontSize: 10.5, color: 'var(--text-sub)', lineHeight: 1.4 }}>
+                    {opt.desc}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+          {destination === 'retour_stock' && (
+            <div style={{ marginTop: 8, padding: 8, background: 'color-mix(in srgb, var(--neon) 8%, transparent)', borderRadius: 6, fontSize: 11, color: 'var(--text-sub)' }}>
+              💡 Un nouveau lot <code>{dispatch.lot_number}-RETOUR</code> sera créé avec <strong>{fmt(qtyRejet)} kg</strong>, disponible pour un nouvel envoi vers un autre marché.
+            </div>
+          )}
+        </div>
+      )}
+
       {err && <ErrorBox msg={err} />}
       <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel="ENREGISTRER LE TRI" />
     </Modal>

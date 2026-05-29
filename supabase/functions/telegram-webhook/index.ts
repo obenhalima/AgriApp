@@ -116,6 +116,11 @@ const T: Translations = {
   voice_continue_dictating: { fr: '🎤 OK, continue à dicter. Dis "fini" quand tu as terminé.', en: '🎤 OK, keep dictating. Say "done" when finished.', ar: '🎤 حسناً، تابع الإملاء. قل "انتهيت" عندما تنتهي.', darija: '🎤 واخا، كمل الديكتي. قول "خلاص" ملي تسالي.' },
   specify_reason:      { fr: '✏️ Précise le motif (texte libre) :', en: '✏️ Specify the reason (free text):', ar: '✏️ حدد السبب (نص حر):', darija: '✏️ وضح السبب (كتب لي بغيتي) :' },
   unknown_action:      { fr: 'Action non reconnue.', en: 'Unknown action.', ar: 'إجراء غير معروف.', darija: 'الأكسيون ما عرفتهاش.' },
+  ask_destination_rejet: { fr: 'Que faire de ce rejet ?', en: 'What to do with this reject?', ar: 'ماذا نفعل بهذا الفاقد؟', darija: 'آش ندير بهاد الرجاي ?' },
+  dest_destruction:    { fr: 'Destruction (perte)', en: 'Destroyed (loss)', ar: 'إتلاف (خسارة)', darija: 'كحلتو (خسارة)' },
+  dest_retour_stock:   { fr: 'Retour stock (autre marché)', en: 'Return to stock (other market)', ar: 'إرجاع للمخزون (سوق آخر)', darija: 'رجعو للستوك (مرشي آخور)' },
+  dest_vente_industrie:{ fr: 'Vente industrie (prix réduit)', en: 'Industrial sale (reduced price)', ar: 'بيع للصناعة (سعر مخفض)', darija: 'بيعو ل-industrie (تومان قليل)' },
+  dest_dons:           { fr: 'Dons / banque alimentaire', en: 'Donation / food bank', ar: 'تبرع / بنك الغذاء', darija: 'تبرع / بنك الماكلة' },
   voice_session_saved: { fr: '✅ <b>{{inserted}}/{{total}} récolte(s) enregistrée(s)</b>\nDate : {{date}}\nTotal : {{kg}} kg', en: '✅ <b>{{inserted}}/{{total}} harvest(s) saved</b>\nDate: {{date}}\nTotal: {{kg}} kg', ar: '✅ <b>{{inserted}}/{{total}} محصول تم تسجيله</b>\nالتاريخ: {{date}}\nالمجموع: {{kg}} كغ', darija: '✅ <b>{{inserted}}/{{total}} ركولت تسجلوا</b>\nالنهار : {{date}}\nالمجموع : {{kg}} كيلو' },
   voice_session_open:  { fr: '🎙️ <b>Session vocale ouverte</b>\n\nDicte tes récoltes une par une OU plusieurs dans le même message.\nExemple : <i>"Cent cinquante kilos sur la serre 1 marquise, et deux quintaux sur la serre 3 cherry"</i>\n\nQuand tu as terminé, dis <b>"fini"</b> ou tape sur le bouton.', en: '🎙️ <b>Voice session open</b>\n\nDictate your harvests one by one OR several in the same message.\nExample: <i>"One hundred fifty kilos on greenhouse 1 marquise, and two quintals on greenhouse 3 cherry"</i>\n\nWhen you\'re done, say <b>"done"</b> or tap the button.', ar: '🎙️ <b>الجلسة الصوتية مفتوحة</b>\n\nأملِ محاصيلك واحداً تلو الآخر أو عدة في الرسالة نفسها.\nمثال: <i>"مئة وخمسون كيلو على البيت الأول مركيز، ومئتان على البيت الثالث شيري"</i>\n\nعندما تنتهي، قل <b>"انتهيت"</b> أو اضغط الزر.', darija: '🎙️ <b>السيسيون فوكال محلولة</b>\n\nقول الركولتات ديالك وحدة بوحدة ولا بزاف ف مساج واحد.\nمثال : <i>"مية و خمسين كيلو ف السير 1 مركيز، و ميتاين ف السير 3 شيري"</i>\n\nملي تسالي، قول <b>"خلاص"</b> ولا دور على البوطون.' },
   voice_show_recap:    { fr: '✅ Terminer (afficher récap)', en: '✅ Finish (show summary)', ar: '✅ إنهاء (عرض الملخص)', darija: '✅ سالي (وريلي ركاب)' },
@@ -1315,27 +1320,104 @@ async function continueTriFinalize(user: any, ecart: number) {
   const fr = Number(state.freinte_pct) || 0
   const qtyN = Math.round(qtyB * (1 - fr / 100) * 100) / 100
   const qtyA = Math.round(qtyN * (1 - ecart / 100) * 100) / 100
+  const qtyRejet = Math.round((qtyB - qtyA) * 100) / 100
+
+  // Si pas de rejet, on saute l'étape destination
+  if (qtyRejet <= 0) {
+    return await saveTriWithDestination(user, fr, ecart, qtyN, qtyA, qtyRejet, 'destruction')
+  }
+
+  // Étape supplémentaire : demander destination du rejet
+  await updateSession(user.id, {
+    ...state, step: 'ask_destination_rejet',
+    freinte_pct: fr, ecart_pct: ecart, qty_nette: qtyN, qty_acceptee: qtyA, qty_rejet: qtyRejet,
+  })
+
+  const lang = user.language
+  await sendMessage(user.channel_user_id,
+    `Freinte ${fr}% + Écart ${ecart}% = <b>${qtyRejet} kg</b> rejet.\n\n` +
+    `🎯 ${t(lang, 'ask_destination_rejet') || 'Que faire de ce rejet ?'}`,
+    { inline_keyboard: [
+      [{ text: '🗑️ ' + (t(lang, 'dest_destruction')     || 'Destruction (perte)'),  callback_data: 'tri:dest:destruction' }],
+      [{ text: '🔄 ' + (t(lang, 'dest_retour_stock')    || 'Retour stock (autre marché)'), callback_data: 'tri:dest:retour_stock' }],
+      [{ text: '🏭 ' + (t(lang, 'dest_vente_industrie') || 'Vente industrie (prix réduit)'), callback_data: 'tri:dest:vente_industrie' }],
+      [{ text: '🤝 ' + (t(lang, 'dest_dons')            || 'Dons / banque alimentaire'), callback_data: 'tri:dest:dons' }],
+      [{ text: t(lang, 'cancel'), callback_data: 'cancel' }],
+    ]}
+  )
+}
+
+async function saveTriWithDestination(
+  user: any, fr: number, ec: number, qtyN: number, qtyA: number, qtyRejet: number,
+  destination: 'destruction' | 'retour_stock' | 'vente_industrie' | 'dons',
+) {
+  const state = (user.session_state ?? {}) as any
+  // 1. Update du dispatch principal
   const { error } = await supabase.from('harvest_lots').update({
     freinte_pct: fr,
-    ecart_pct: ecart,
+    ecart_pct: ec,
     qty_nette_kg: qtyN,
     qty_acceptee_kg: qtyA,
+    rejet_qty_kg: qtyRejet,
+    destination_rejet: destination,
     tri_status: 'tried',
   }).eq('id', state.dispatch_id)
   if (error) {
     await sendMessage(user.channel_user_id, t(user.language, 'error_with_msg', { msg: error.message }))
     return
   }
+
+  // 2. Si retour_stock : créer le harvest_lot enfant
+  let stockRetourCreated = false
+  if (destination === 'retour_stock' && qtyRejet > 0) {
+    // Récupère les infos du dispatch parent pour le lot enfant
+    const { data: parentLot } = await supabase.from('harvest_lots')
+      .select('lot_number, harvest_id, campaign_planting_id, harvest_date, variety_id, greenhouse_id')
+      .eq('id', state.dispatch_id).maybeSingle()
+    if (parentLot) {
+      const childLotNumber = `${parentLot.lot_number}-RETOUR`
+      const { error: cErr } = await supabase.from('harvest_lots').insert({
+        lot_number: childLotNumber,
+        harvest_id: parentLot.harvest_id ?? null,
+        campaign_planting_id: parentLot.campaign_planting_id ?? null,
+        harvest_date: parentLot.harvest_date ?? new Date().toISOString().slice(0, 10),
+        quantity_kg: qtyRejet,
+        variety_id: parentLot.variety_id ?? null,
+        greenhouse_id: parentLot.greenhouse_id ?? null,
+        category: 'stock_retour',
+        parent_dispatch_id: state.dispatch_id,
+        tri_status: 'pending',
+        destination_rejet: null,
+        notes: `Retour stock issu de ${parentLot.lot_number} (saisi via Telegram)`,
+      })
+      if (!cErr) stockRetourCreated = true
+      else console.warn('[tri telegram] échec création stock_retour:', cErr)
+    }
+  }
+
   await updateSession(user.id, {})
-  await sendMessage(user.channel_user_id,
-    `✅ <b>Tri enregistré</b>\n` +
+
+  const qtyB = qtyN / (1 - fr / 100)  // recalcul brute pour affichage
+  const destLabel: Record<string, string> = {
+    destruction: '🗑️ Destruction',
+    retour_stock: '🔄 Retour stock',
+    vente_industrie: '🏭 Vente industrie',
+    dons: '🤝 Dons',
+  }
+
+  let msg = `✅ <b>Tri enregistré</b>\n` +
     `${state.dispatch_lot}\n` +
-    `Brute : ${qtyB} kg\n` +
-    `Freinte : ${fr}% → Nette : ${qtyN} kg\n` +
-    `Écart : ${ecart}% → <b>Acceptée : ${qtyA} kg</b>\n\n` +
-    `📌 Prochaine étape : <b>💰 Confirmer prix</b>.`,
-    mainMenuKeyboard
-  )
+    `Brute : ${Math.round(qtyB)} kg\n` +
+    `Freinte : ${fr}% · Écart : ${ec}%\n` +
+    `Acceptée : <b>${qtyA} kg</b>\n` +
+    `Rejet : ${qtyRejet} kg → ${destLabel[destination]}`
+
+  if (stockRetourCreated) {
+    msg += `\n\n💡 Un lot <code>${state.dispatch_lot}-RETOUR</code> a été créé (${qtyRejet} kg).\nDisponible pour ré-envoi.`
+  }
+  msg += `\n\n📌 Prochaine étape : <b>💰 Confirmer prix</b>.`
+
+  await sendMessage(user.channel_user_id, msg, buildMainMenu(user.language))
 }
 
 // ─── CONFIRM PRICE FLOW (sans freinte/écart, déjà saisis au tri) ──
@@ -1584,6 +1666,17 @@ Deno.serve(async (req) => {
       if (callbackData.startsWith('tri:ecart:')) {
         const v = Number(callbackData.split(':')[2]) || 0
         await continueTriFinalize(user, v)
+        return new Response('OK', { status: 200 })
+      }
+      if (callbackData.startsWith('tri:dest:')) {
+        const dest = callbackData.split(':')[2] as 'destruction' | 'retour_stock' | 'vente_industrie' | 'dons'
+        const state = (user.session_state ?? {}) as any
+        const fr = Number(state.freinte_pct) || 0
+        const ec = Number(state.ecart_pct) || 0
+        const qtyN = Number(state.qty_nette) || 0
+        const qtyA = Number(state.qty_acceptee) || 0
+        const qtyRejet = Number(state.qty_rejet) || 0
+        await saveTriWithDestination(user, fr, ec, qtyN, qtyA, qtyRejet, dest)
         return new Response('OK', { status: 200 })
       }
       // Confirmer prix (sans freinte/écart, déjà saisis au tri)
