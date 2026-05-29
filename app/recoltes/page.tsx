@@ -466,7 +466,7 @@ function ListeTab({ harvests, onEdit, onDelete, onBulkDelete, loading }: { harve
           <input key="sa" type="checkbox" checked={allSelected} onChange={toggleAll}
             style={{ cursor: 'pointer', width: 16, height: 16 }} title="Tout sélectionner" />,
           'Lot', 'Date', 'Serre / Variété', 'Total', 'Engagé', 'Restant', 'Actions',
-        ] as any}
+        ]}
         loading={loading}
         empty="Aucune récolte. Cliquer + Saisir récolte."
         rows={harvests}>
@@ -475,9 +475,9 @@ function ListeTab({ harvests, onEdit, onDelete, onBulkDelete, loading }: { harve
             borderBottom: '1px solid var(--bd-1)',
             background: selected.has(h.id) ? 'color-mix(in srgb, var(--red) 5%, transparent)' : undefined,
           }}>
-            <td style={{ ...td, width: 32 }}>
+            <td style={{ ...td, width: 36, textAlign: 'center' }}>
               <input type="checkbox" checked={selected.has(h.id)} onChange={() => toggle(h.id)}
-                style={{ cursor: 'pointer', width: 16, height: 16 }} />
+                style={{ cursor: 'pointer', width: 18, height: 18, accentColor: 'var(--red)' }} />
             </td>
             <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{h.lot_number}</td>
             <td style={td}>{h.harvest_date}</td>
@@ -557,9 +557,9 @@ function AEnvoyerTab({ harvests, onBulkDelete, loading }: { harvests: any[]; onB
       <Table
         headers={[
           <input key="sa" type="checkbox" checked={allSelected} onChange={toggleAll}
-            style={{ cursor: 'pointer', width: 16, height: 16 }} title="Tout sélectionner" />,
+            style={{ cursor: 'pointer', width: 18, height: 18 }} title="Tout sélectionner" />,
           'Lot récolte', 'Date', 'Serre / Variété', 'Total', 'Engagé', 'Disponible',
-        ] as any}
+        ]}
         loading={loading}
         empty="Toutes les récoltes sont engagées dans un envoi ✓"
         rows={harvests}>
@@ -568,9 +568,9 @@ function AEnvoyerTab({ harvests, onBulkDelete, loading }: { harvests: any[]; onB
             borderBottom: '1px solid var(--bd-1)',
             background: selected.has(h.id) ? 'color-mix(in srgb, var(--red) 5%, transparent)' : undefined,
           }}>
-            <td style={{ ...td, width: 32 }}>
+            <td style={{ ...td, width: 36, textAlign: 'center' }}>
               <input type="checkbox" checked={selected.has(h.id)} onChange={() => toggle(h.id)}
-                style={{ cursor: 'pointer', width: 16, height: 16 }} />
+                style={{ cursor: 'pointer', width: 18, height: 18, accentColor: 'var(--red)' }} />
             </td>
             <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{h.lot_number}</td>
             <td style={td}>{h.harvest_date}</td>
@@ -1435,12 +1435,12 @@ function AlerteModal({ form, setForm, saving, done, error, onClose, onSave }: an
 // HELPERS UI
 // ============================================================
 
-function Table({ headers, rows, children, loading, empty }: { headers: string[]; rows: any[]; children: (r: any) => any; loading: boolean; empty: string }) {
+function Table({ headers, rows, children, loading, empty }: { headers: React.ReactNode[]; rows: any[]; children: (r: any) => any; loading: boolean; empty: string }) {
   return (
     <div style={{ border: '1px solid var(--bd-1)', borderRadius: 8, overflow: 'auto', background: 'var(--bg-1)' }}>
       <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
         <thead style={{ background: 'var(--bg-2)' }}>
-          <tr>{headers.map(h => <th key={h} style={th}>{h}</th>)}</tr>
+          <tr>{headers.map((h, idx) => <th key={idx} style={th}>{h}</th>)}</tr>
         </thead>
         <tbody>
           {loading && <tr><td colSpan={headers.length} style={{ padding: 14, textAlign: 'center', color: 'var(--text-sub)' }}>Chargement…</td></tr>}
