@@ -77,31 +77,81 @@ export default function FournisseursPage() {
   }
 
   const save = async () => {
-    if (!form.name) return
+    console.log('[fournisseurs.save] click', form)
+    if (!form.name?.trim()) {
+      toast.error('Le nom est requis')
+      return
+    }
+    if (!form.code?.trim()) {
+      toast.error('Le code est requis')
+      return
+    }
     setSaving(true)
     try {
-      const n = await createFournisseur({ ...form, payment_terms_days: Number(form.payment_terms_days) || 30 })
-      setItems(p => [n, ...p]); setDone(true)
-      toast.success(`Fournisseur "${n.name}" créé`)
+      const payload = {
+        ...form,
+        code: form.code.trim(),
+        name: form.name.trim(),
+        city: form.city?.trim() || undefined,
+        email: form.email?.trim() || undefined,
+        phone: form.phone?.trim() || undefined,
+        notes: form.notes?.trim() || undefined,
+        payment_terms_days: Number(form.payment_terms_days) || 30,
+      }
+      console.log('[fournisseurs.save] payload', payload)
+      const n = await createFournisseur(payload)
+      console.log('[fournisseurs.save] created', n)
+      setItems(p => [n, ...p])
+      setDone(true)
+      toast.success(`✅ Fournisseur "${n.name}" créé`)
       setTimeout(() => { setModalNew(false); setDone(false) }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) {
+      console.error('[fournisseurs.save] error', e)
+      // Codes Postgres typiques
+      const msg = e?.message ?? 'inconnue'
+      if (e?.code === '23505') {
+        toast.error(`❌ Code "${form.code}" déjà utilisé. Choisis un autre code.`)
+      } else if (e?.code === '23502') {
+        toast.error('❌ Un champ obligatoire est manquant : ' + msg)
+      } else if (e?.code === '42501' || msg.includes('row-level security')) {
+        toast.error('❌ RLS bloque l\'insertion. Vérifie que tu es bien admin.', { duration: 8000 })
+      } else if (e?.code === '22P02') {
+        toast.error(`❌ Catégorie invalide : "${form.category}". Doit être dans la liste.`)
+      } else {
+        toast.error('❌ Erreur : ' + msg, { duration: 8000 })
+      }
+    }
     setSaving(false)
   }
 
   const saveEdit = async () => {
-    if (!modalEdit || !formE.name) return
+    if (!modalEdit) { toast.error('Aucun fournisseur sélectionné'); return }
+    if (!formE.name?.trim()) { toast.error('Le nom est requis'); return }
     setSaving(true)
     try {
-      const { error } = await supabase.from('suppliers').update({
-        code: formE.code, name: formE.name, category: formE.category, city: formE.city || null,
-        email: formE.email || null, phone: formE.phone || null,
-        payment_terms_days: Number(formE.payment_terms_days) || 30, notes: formE.notes || null,
-      }).eq('id', modalEdit.id)
+      const payload = {
+        code: formE.code?.trim(),
+        name: formE.name.trim(),
+        category: formE.category,
+        city: formE.city?.trim() || null,
+        email: formE.email?.trim() || null,
+        phone: formE.phone?.trim() || null,
+        payment_terms_days: Number(formE.payment_terms_days) || 30,
+        notes: formE.notes?.trim() || null,
+      }
+      console.log('[fournisseurs.saveEdit] payload', payload)
+      const { error } = await supabase.from('suppliers').update(payload).eq('id', modalEdit.id)
       if (error) throw error
       setDone(true)
-      toast.success('Fournisseur modifié')
+      toast.success('✅ Fournisseur modifié')
       setTimeout(() => { setModalEdit(null); setDone(false); load() }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) {
+      console.error('[fournisseurs.saveEdit] error', e)
+      const msg = e?.message ?? 'inconnue'
+      if (e?.code === '23505') toast.error(`❌ Code "${formE.code}" déjà utilisé`)
+      else if (e?.code === '42501' || msg.includes('row-level security')) toast.error('❌ RLS bloque la modification', { duration: 8000 })
+      else toast.error('❌ Erreur : ' + msg, { duration: 8000 })
+    }
     setSaving(false)
   }
 
