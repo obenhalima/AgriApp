@@ -218,6 +218,32 @@ export default function RecoltesPage() {
     } catch (e: any) { alert('Erreur : ' + e.message) }
   }
 
+  // ─── Suppression en masse ───
+  const bulkDeleteRecoltes = async (ids: string[]) => {
+    if (ids.length === 0) return
+    if (!confirm(`Supprimer ${ids.length} récolte(s) ? Les envois associés (si applicable) seront aussi supprimés. Cette action est irréversible.`)) return
+    let okCount = 0
+    let errCount = 0
+    for (const id of ids) {
+      try {
+        await supabase.from('harvest_lot_sources').delete().eq('harvest_id', id)
+        await supabase.from('harvest_lots').delete().eq('harvest_id', id)
+        const { error } = await supabase.from('harvests').delete().eq('id', id)
+        if (error) errCount++
+        else okCount++
+      } catch (e) {
+        console.error('[bulkDelete] harvest', id, e)
+        errCount++
+      }
+    }
+    if (errCount === 0) {
+      alert(`✅ ${okCount} récolte(s) supprimée(s)`)
+    } else {
+      alert(`${okCount} supprimée(s), ${errCount} erreur(s) — voir console`)
+    }
+    load()
+  }
+
   // ─── Alerte journée sans récolte ───
   const saveAlerte = async () => {
     if (!formAlerte.date) return
@@ -328,8 +354,8 @@ export default function RecoltesPage() {
       </div>
 
       {/* Tab contents */}
-      {tab === 'liste' && <ListeTab harvests={harvestsEnriched} onEdit={openEdit} onDelete={deleteRecolte} loading={loading} />}
-      {tab === 'a_envoyer' && <AEnvoyerTab harvests={aEnvoyer} loading={loading} />}
+      {tab === 'liste' && <ListeTab harvests={harvestsEnriched} onEdit={openEdit} onDelete={deleteRecolte} onBulkDelete={bulkDeleteRecoltes} loading={loading} />}
+      {tab === 'a_envoyer' && <AEnvoyerTab harvests={aEnvoyer} onBulkDelete={bulkDeleteRecoltes} loading={loading} />}
       {tab === 'a_trier' && <ATrierTab dispatches={aTrier} onPick={d => setModalTri(d)} loading={loading} />}
       {tab === 'a_tarifer' && <ATariferTab dispatches={aTarifer} onPick={d => setModalPrice(d)} onOpenPeriod={() => setModalPeriodPrice(true)} loading={loading} />}
       {tab === 'confirmes' && <ConfirmesTab dispatches={confirmes} loading={loading} />}
@@ -384,39 +410,168 @@ export default function RecoltesPage() {
 // TABS
 // ============================================================
 
-function ListeTab({ harvests, onEdit, onDelete, loading }: { harvests: any[]; onEdit: (h: any) => void; onDelete: (h: any) => void; loading: boolean }) {
+function ListeTab({ harvests, onEdit, onDelete, onBulkDelete, loading }: { harvests: any[]; onEdit: (h: any) => void; onDelete: (h: any) => void; onBulkDelete: (ids: string[]) => void; loading: boolean }) {
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const allSelected = harvests.length > 0 && harvests.every(h => selected.has(h.id))
+  const someSelected = selected.size > 0
+
+  const toggle = (id: string) => {
+    const next = new Set(selected)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    setSelected(next)
+  }
+  const toggleAll = () => {
+    if (allSelected) setSelected(new Set())
+    else setSelected(new Set(harvests.map(h => h.id)))
+  }
+
   return (
-    <Table headers={['Lot', 'Date', 'Serre / Variété', 'Total', 'Engagé', 'Restant', 'Actions']} loading={loading} empty="Aucune récolte. Cliquer + Saisir récolte." rows={harvests}>
-      {(h: any) => (
-        <tr key={h.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
-          <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{h.lot_number}</td>
-          <td style={td}>{h.harvest_date}</td>
-          <td style={td}>{h.campaign_plantings?.greenhouses?.code} / {h.campaign_plantings?.varieties?.code}</td>
-          <td style={tdNum}>{fmt(h.total_qty)}</td>
-          <td style={{ ...tdNum, color: 'var(--text-sub)' }}>{fmt(h.used_kg)}</td>
-          <td style={{ ...tdNum, color: h.remaining_kg > 0 ? 'var(--neon)' : 'var(--text-muted)', fontWeight: h.remaining_kg > 0 ? 700 : 400 }}>
-            {fmt(h.remaining_kg)}
-          </td>
-          <td style={{ ...td, whiteSpace: 'nowrap' }}>
-            <button onClick={() => onEdit(h)} className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px', marginRight: 4 }}>Éditer</button>
-            <button onClick={() => onDelete(h)} className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px', color: 'var(--red)' }}>Supprimer</button>
-          </td>
-        </tr>
+    <div>
+      {/* Barre d'action sticky */}
+      {someSelected && (
+        <div style={{
+          position: 'sticky', top: 0, zIndex: 5,
+          marginBottom: 10, padding: '10px 14px',
+          background: 'color-mix(in srgb, var(--red) 10%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--red) 40%, transparent)',
+          borderRadius: 7,
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <span style={{ fontSize: 13, color: 'var(--text-main)', fontWeight: 600 }}>
+            ☑️ {selected.size} récolte(s) sélectionnée(s)
+          </span>
+          <button
+            onClick={() => { onBulkDelete(Array.from(selected)); setSelected(new Set()) }}
+            style={{
+              padding: '6px 14px', borderRadius: 6,
+              background: 'var(--red)', color: 'white', border: 'none',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            }}>
+            🗑️ Supprimer la sélection
+          </button>
+          <button
+            onClick={() => setSelected(new Set())}
+            style={{
+              padding: '6px 14px', borderRadius: 6,
+              background: 'transparent', color: 'var(--text-sub)',
+              border: '1px solid var(--bd-1)', fontSize: 12, cursor: 'pointer',
+            }}>
+            Désélectionner
+          </button>
+        </div>
       )}
-    </Table>
+
+      <Table
+        headers={[
+          <input key="sa" type="checkbox" checked={allSelected} onChange={toggleAll}
+            style={{ cursor: 'pointer', width: 16, height: 16 }} title="Tout sélectionner" />,
+          'Lot', 'Date', 'Serre / Variété', 'Total', 'Engagé', 'Restant', 'Actions',
+        ] as any}
+        loading={loading}
+        empty="Aucune récolte. Cliquer + Saisir récolte."
+        rows={harvests}>
+        {(h: any) => (
+          <tr key={h.id} style={{
+            borderBottom: '1px solid var(--bd-1)',
+            background: selected.has(h.id) ? 'color-mix(in srgb, var(--red) 5%, transparent)' : undefined,
+          }}>
+            <td style={{ ...td, width: 32 }}>
+              <input type="checkbox" checked={selected.has(h.id)} onChange={() => toggle(h.id)}
+                style={{ cursor: 'pointer', width: 16, height: 16 }} />
+            </td>
+            <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{h.lot_number}</td>
+            <td style={td}>{h.harvest_date}</td>
+            <td style={td}>{h.campaign_plantings?.greenhouses?.code} / {h.campaign_plantings?.varieties?.code}</td>
+            <td style={tdNum}>{fmt(h.total_qty)}</td>
+            <td style={{ ...tdNum, color: 'var(--text-sub)' }}>{fmt(h.used_kg)}</td>
+            <td style={{ ...tdNum, color: h.remaining_kg > 0 ? 'var(--neon)' : 'var(--text-muted)', fontWeight: h.remaining_kg > 0 ? 700 : 400 }}>
+              {fmt(h.remaining_kg)}
+            </td>
+            <td style={{ ...td, whiteSpace: 'nowrap' }}>
+              <button onClick={() => onEdit(h)} className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px', marginRight: 4 }}>Éditer</button>
+              <button onClick={() => onDelete(h)} className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px', color: 'var(--red)' }}>Supprimer</button>
+            </td>
+          </tr>
+        )}
+      </Table>
+    </div>
   )
 }
 
-function AEnvoyerTab({ harvests, loading }: { harvests: any[]; loading: boolean }) {
+function AEnvoyerTab({ harvests, onBulkDelete, loading }: { harvests: any[]; onBulkDelete: (ids: string[]) => void; loading: boolean }) {
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const allSelected = harvests.length > 0 && harvests.every(h => selected.has(h.id))
+  const someSelected = selected.size > 0
+
+  const toggle = (id: string) => {
+    const next = new Set(selected)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    setSelected(next)
+  }
+  const toggleAll = () => {
+    if (allSelected) setSelected(new Set())
+    else setSelected(new Set(harvests.map(h => h.id)))
+  }
+
   return (
     <div>
       <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--text-sub)' }}>
         Récoltes ayant encore une quantité <strong>disponible</strong> à inclure dans un envoi station.
         Cliquer sur <strong>📦 COMPOSER UN ENVOI</strong> en haut pour créer un envoi multi-récoltes.
       </div>
-      <Table headers={['Lot récolte', 'Date', 'Serre / Variété', 'Total', 'Engagé', 'Disponible']} loading={loading} empty="Toutes les récoltes sont engagées dans un envoi ✓" rows={harvests}>
+
+      {/* Barre d'action sticky quand des lignes sont sélectionnées */}
+      {someSelected && (
+        <div style={{
+          position: 'sticky', top: 0, zIndex: 5,
+          marginBottom: 10, padding: '10px 14px',
+          background: 'color-mix(in srgb, var(--red) 10%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--red) 40%, transparent)',
+          borderRadius: 7,
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <span style={{ fontSize: 13, color: 'var(--text-main)', fontWeight: 600 }}>
+            ☑️ {selected.size} récolte(s) sélectionnée(s)
+          </span>
+          <button
+            onClick={() => { onBulkDelete(Array.from(selected)); setSelected(new Set()) }}
+            style={{
+              padding: '6px 14px', borderRadius: 6,
+              background: 'var(--red)', color: 'white', border: 'none',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            }}>
+            🗑️ Supprimer la sélection
+          </button>
+          <button
+            onClick={() => setSelected(new Set())}
+            style={{
+              padding: '6px 14px', borderRadius: 6,
+              background: 'transparent', color: 'var(--text-sub)',
+              border: '1px solid var(--bd-1)', fontSize: 12, cursor: 'pointer',
+            }}>
+            Désélectionner
+          </button>
+        </div>
+      )}
+
+      <Table
+        headers={[
+          <input key="sa" type="checkbox" checked={allSelected} onChange={toggleAll}
+            style={{ cursor: 'pointer', width: 16, height: 16 }} title="Tout sélectionner" />,
+          'Lot récolte', 'Date', 'Serre / Variété', 'Total', 'Engagé', 'Disponible',
+        ] as any}
+        loading={loading}
+        empty="Toutes les récoltes sont engagées dans un envoi ✓"
+        rows={harvests}>
         {(h: any) => (
-          <tr key={h.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
+          <tr key={h.id} style={{
+            borderBottom: '1px solid var(--bd-1)',
+            background: selected.has(h.id) ? 'color-mix(in srgb, var(--red) 5%, transparent)' : undefined,
+          }}>
+            <td style={{ ...td, width: 32 }}>
+              <input type="checkbox" checked={selected.has(h.id)} onChange={() => toggle(h.id)}
+                style={{ cursor: 'pointer', width: 16, height: 16 }} />
+            </td>
             <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{h.lot_number}</td>
             <td style={td}>{h.harvest_date}</td>
             <td style={td}>{h.campaign_plantings?.greenhouses?.code} / {h.campaign_plantings?.varieties?.code}</td>
