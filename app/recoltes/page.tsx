@@ -218,30 +218,30 @@ export default function RecoltesPage() {
     } catch (e: any) { alert('Erreur : ' + e.message) }
   }
 
-  // ─── Suppression en masse ───
+  // ─── Suppression en masse (via RPC pour bypasser RLS) ───
   const bulkDeleteRecoltes = async (ids: string[]) => {
     if (ids.length === 0) return
     if (!confirm(`Supprimer ${ids.length} récolte(s) ? Les envois associés (si applicable) seront aussi supprimés. Cette action est irréversible.`)) return
-    let okCount = 0
-    let errCount = 0
-    for (const id of ids) {
-      try {
-        await supabase.from('harvest_lot_sources').delete().eq('harvest_id', id)
-        await supabase.from('harvest_lots').delete().eq('harvest_id', id)
-        const { error } = await supabase.from('harvests').delete().eq('id', id)
-        if (error) errCount++
-        else okCount++
-      } catch (e) {
-        console.error('[bulkDelete] harvest', id, e)
-        errCount++
+    try {
+      const { data, error } = await supabase.rpc('admin_bulk_delete_harvests', { p_harvest_ids: ids })
+      if (error) {
+        const msg = (error.message ?? '').toLowerCase()
+        if (msg.includes('could not find the function') || msg.includes('does not exist') || error.code === 'PGRST202') {
+          alert('⚠️ La RPC admin_bulk_delete_harvests n\'existe pas en DB.\n\nApplique la migration 039_admin_bulk_delete_harvests.sql via le SQL Editor de Supabase.')
+        } else {
+          alert('Erreur : ' + error.message)
+        }
+        console.error('[bulkDelete] RPC error:', error)
+        return
       }
+      const result = data as any
+      console.log('[bulkDelete] result:', result)
+      alert(`✅ ${result?.message ?? `${ids.length} récolte(s) supprimée(s)`}`)
+      load()
+    } catch (e: any) {
+      console.error('[bulkDelete] catch:', e)
+      alert('Erreur : ' + (e?.message ?? 'inconnue'))
     }
-    if (errCount === 0) {
-      alert(`✅ ${okCount} récolte(s) supprimée(s)`)
-    } else {
-      alert(`${okCount} supprimée(s), ${errCount} erreur(s) — voir console`)
-    }
-    load()
   }
 
   // ─── Alerte journée sans récolte ───
