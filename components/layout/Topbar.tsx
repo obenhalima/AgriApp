@@ -9,7 +9,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, Sun, Moon, LogOut, ChevronRight, HelpCircle, Plus, Activity,
-  ChevronDown, RefreshCw,
+  ChevronDown, RefreshCw, AlertCircle,
 } from 'lucide-react'
 
 import { getTheme, setTheme } from '@/lib/theme'
@@ -23,7 +23,7 @@ import { Badge } from '@/components/ui/Badge'
 export function Topbar() {
   const pathname = usePathname()
   const router = useRouter()
-  const { profile, role, signOut } = useAuth()
+  const { user, profile, role, signOut } = useAuth()
 
   const [out, setOut] = useState(false)
   const [theme, setThemeState] = useState<'dark' | 'light'>('light')
@@ -244,6 +244,33 @@ export function Topbar() {
             )}
           </AnimatePresence>
         </button>
+
+        {/* User menu (fallback : user existe mais profile manquant) */}
+        {user && !profile && (
+          <div className="flex items-center gap-sm">
+            <div className="hidden sm:flex items-center gap-2 px-md py-1.5 rounded-md border border-warning/40 bg-warning/10 text-warning text-caption font-mono"
+                 title="Profil manquant — contacte un admin ou exécute le SQL de récupération">
+              <AlertCircle size={12} strokeWidth={2.4} />
+              <span>Profil manquant</span>
+            </div>
+            <button
+              onClick={logout}
+              disabled={out}
+              className={cn(
+                'flex items-center gap-sm h-8 px-md rounded-md',
+                'border border-danger/40 bg-danger/10 text-danger',
+                'hover:bg-danger/20 hover:border-danger transition-all duration-150',
+                'disabled:opacity-50',
+              )}
+              title="Se déconnecter (le profil est manquant — Nuclear l'a peut-être supprimé)"
+            >
+              <LogOut size={14} strokeWidth={2.4} />
+              <span className="text-caption font-semibold hidden sm:inline">
+                {out ? 'Déconnexion…' : 'Déconnexion'}
+              </span>
+            </button>
+          </div>
+        )}
 
         {/* User menu */}
         {profile && (
