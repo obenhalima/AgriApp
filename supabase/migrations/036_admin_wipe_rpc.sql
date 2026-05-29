@@ -6,6 +6,18 @@
 -- continue. Aucun TRUNCATE en bloc qui fail-all.
 --
 -- Retourne un rapport JSONB détaillé par table (ok/skipped/error).
+--
+-- TABLES JAMAIS TRUNCATÉES (même par Nuclear) :
+--   - profiles, users, roles, user_permissions, role_permissions
+--     → Authentification (Supabase auth)
+--   - account_categories
+--     → Plan comptable seed (toujours nécessaire)
+--   - workflow_definitions, workflow_states, workflow_transitions
+--     → Définitions de workflows (seed migrations 006-008)
+--   - workflow_history (audit trail) — vide naturellement quand
+--     les entités liées disparaissent (entity_id pointe vers
+--     sales_orders/purchase_orders qui sont truncated, mais
+--     workflow_history N'EST PAS lui-même truncated par nous)
 -- ============================================================
 
 -- Helper : admin check

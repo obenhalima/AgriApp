@@ -105,6 +105,7 @@ export default function DemoResetPage() {
 
   // Etat repair
   const [repairing, setRepairing] = useState(false)
+  const [reseedingWorkflows, setReseedingWorkflows] = useState(false)
 
   // Etat générateur commerce (dispatches + tri + prix + factures)
   const [commerceRunning, setCommerceRunning] = useState(false)
@@ -348,6 +349,35 @@ export default function DemoResetPage() {
       }
     }
     setSaving(false)
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // RESEED WORKFLOWS : restaure les workflows sales_order + purchase_order
+  // ════════════════════════════════════════════════════════════════════
+  const reseedWorkflows = async () => {
+    setReseedingWorkflows(true)
+    const toastId = toast.loading('🔄 Reseed des workflows…')
+    try {
+      const { data, error } = await rpcWithTimeout(
+        supabase.rpc('admin_reseed_workflows'),
+        30000,
+        'admin_reseed_workflows'
+      )
+      if (error) throw error
+      const result = data as any
+      toast.dismiss(toastId)
+      console.log('[admin_reseed_workflows]', result)
+      toast.success(`✅ ${result?.message ?? 'Workflows restaurés'}`, { duration: 6000 })
+    } catch (e: any) {
+      toast.dismiss(toastId)
+      console.error('[admin_reseed_workflows]', e)
+      if (isRpcMissingError(e)) {
+        toast.error('La RPC admin_reseed_workflows n\'existe pas. Applique la migration 037 sur Supabase.', { duration: 8000 })
+      } else {
+        toast.error('Erreur : ' + e.message)
+      }
+    }
+    setReseedingWorkflows(false)
   }
 
   // ════════════════════════════════════════════════════════════════════
@@ -921,6 +951,33 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
             </div>
             <Button onClick={repairDemoData} variant="primary" size="sm" loading={repairing} disabled={repairing}>
               <RotateCcw size={13} /> {repairing ? 'Réparation…' : 'Réparer ma démo'}
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* ─── Reseed workflows (sales_order + purchase_order) ─── */}
+      <Card animate className="mb-md border-l-[3px] border-l-info">
+        <div className="flex items-start gap-md">
+          <div className="rounded-md flex items-center justify-center flex-shrink-0"
+            style={{ width: 40, height: 40, background: 'color-mix(in srgb, #3b82f6 15%, transparent)', color: '#3b82f6' }}>
+            <RotateCcw size={20} strokeWidth={2.4} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-display text-body font-bold text-fg-primary mb-1">
+              🔄 Restaurer les workflows (sales_order + purchase_order)
+            </div>
+            <div className="text-caption text-fg-tertiary leading-relaxed mb-md">
+              Si tu as perdu les définitions de workflow (par exemple après un Nuclear avant la protection 036),
+              ce bouton restaure les workflows par défaut <strong>commandes clients</strong> et <strong>bons d'achat</strong>
+              tels que définis dans les migrations 006 et 008.
+              <br/>
+              <em>Idempotent : ne fait rien si les workflows sont déjà présents.</em>
+              <br/>
+              <strong className="text-warning">Pré-requis :</strong> appliquer la migration <code>037_admin_reseed_workflows.sql</code> via Supabase SQL Editor.
+            </div>
+            <Button onClick={reseedWorkflows} variant="primary" size="sm" loading={reseedingWorkflows} disabled={reseedingWorkflows}>
+              <RotateCcw size={13} /> {reseedingWorkflows ? 'Reseed…' : 'Restaurer les workflows'}
             </Button>
           </div>
         </div>
