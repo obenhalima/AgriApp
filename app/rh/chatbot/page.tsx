@@ -36,7 +36,9 @@ export default function ChatbotPage() {
   const [tab, setTab] = useState<'users' | 'messages' | 'recap'>('users')
 
   const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<{ worker_id: string; language: string }>({ worker_id: '', language: 'darija' })
+  const [form, setForm] = useState<{ worker_id: string; language: string; nom_libre: string }>({
+    worker_id: '', language: 'darija', nom_libre: '',
+  })
   const [generated, setGenerated] = useState<{ code: string; expires: string } | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -62,29 +64,49 @@ export default function ChatbotPage() {
   useEffect(() => { load() }, [])
 
   const generateInvitation = async () => {
-    if (!form.worker_id) { toast.error('Sélectionne un employé'); return }
+    // Au moins l'un des deux : worker existant OU nom libre
+    if (!form.worker_id && !form.nom_libre.trim()) {
+      toast.error('Sélectionne un employé OU saisis un nom libre')
+      return
+    }
     setSaving(true)
     try {
-      const existing = users.find(u => u.worker_id === form.worker_id && u.is_active && u.enrolled_at)
-      if (existing && !confirm("Cet employé a déjà un compte chatbot actif. Régénérer un nouveau code ?")) {
-        setSaving(false); return
+      // Si worker existant, on check si déjà actif
+      if (form.worker_id) {
+        const existing = users.find(u => u.worker_id === form.worker_id && u.is_active && u.enrolled_at)
+        if (existing && !confirm("Cet employé a déjà un compte chatbot actif. Régénérer un nouveau code ?")) {
+          setSaving(false); return
+        }
       }
       const code = generateCode()
       const expires = new Date(Date.now() + 7 * 86400000).toISOString()
       const tmpId = `pending_${code}`
-      const { error } = await supabase.from('chatbot_users').upsert({
-        worker_id: form.worker_id, channel: 'telegram', channel_user_id: tmpId,
-        language: form.language, enrollment_code: code, enrollment_code_expires_at: expires, is_active: true,
-      }, { onConflict: 'channel,channel_user_id' })
+      const payload: any = {
+        worker_id: form.worker_id || null,
+        channel: 'telegram',
+        channel_user_id: tmpId,
+        channel_username: form.nom_libre.trim() || null,  // utilise nom_libre comme username affiché
+        language: form.language,
+        enrollment_code: code,
+        enrollment_code_expires_at: expires,
+        is_active: true,
+      }
+      const { error } = await supabase.from('chatbot_users').upsert(payload, { onConflict: 'channel,channel_user_id' })
       if (error) throw error
       setGenerated({ code, expires })
       toast.success('Code généré')
       load()
-    } catch (e: any) { toast.error(e.message) }
+    } catch (e: any) {
+      console.error('[generateInvitation]', e)
+      toast.error(e.message ?? 'Erreur création')
+    }
     setSaving(false)
   }
 
-  const closeModal = () => { setModalOpen(false); setGenerated(null); setForm({ worker_id: '', language: 'fr' }) }
+  const closeModal = () => {
+    setModalOpen(false); setGenerated(null)
+    setForm({ worker_id: '', language: 'darija', nom_libre: '' })
+  }
 
   const deactivate = async (id: string) => {
     if (!confirm('Désactiver ce compte chatbot ?')) return
@@ -204,7 +226,9 @@ export default function ChatbotPage() {
                   return (
                     <TR key={u.id} animate delay={0.04 + i * 0.02} className={!u.is_active ? 'opacity-50' : ''}>
                       <TD>
-                        <div className="font-display font-semibold text-fg-primary">{w ? `${w.last_name} ${w.first_name}` : '—'}</div>
+                        <div className="font-display font-semibold text-fg-primary">
+                          {w ? `${w.last_name} ${w.first_name}` : (u.channel_username || '— Sans employé —')}
+                        </div>
                         {w?.matricule && <div className="font-mono text-[10px] text-fg-tertiary">{w.matricule}</div>}
                       </TD>
                       <TD className="text-caption">📱 {u.channel}{u.channel_username && <span className="text-fg-tertiary ml-1">@{u.channel_username}</span>}</TD>
@@ -264,7 +288,9 @@ export default function ChatbotPage() {
                   return (
                     <TR key={m.id} animate delay={0.02 + i * 0.01}>
                       <TD mono className="text-caption text-fg-tertiary whitespace-nowrap">{new Date(m.created_at).toLocaleString('fr-FR')}</TD>
-                      <TD className="text-caption">{w ? `${w.last_name} ${w.first_name}` : <span className="text-fg-tertiary">—</span>}</TD>
+                      <TD className="text-caption">
+                        {w ? `${w.last_name} ${w.first_name}` : (u?.channel_username || <span className="text-fg-tertiary">—</span>)}
+                      </TD>
                       <TD><Badge variant={m.direction === 'in' ? 'info' : 'default'} size="xs">{m.direction === 'in' ? '← IN' : '→ OUT'}</Badge></TD>
                       <TD mono className="text-caption text-fg-tertiary">{m.intent ?? '—'}</TD>
                       <TD className="text-caption max-w-[400px] whitespace-normal">{m.content}</TD>
@@ -365,12 +391,36 @@ export default function ChatbotPage() {
             </div>
           ) : (
             <div className="space-y-md">
-              <Field label="Employé" required>
-                <TSelect value={form.worker_id} onChange={(e) => setForm(s => ({ ...s, worker_id: e.target.value }))}>
-                  <option value="">— Sélectionner —</option>
-                  {workers.map(w => <option key={w.id} value={w.id}>{w.last_name} {w.first_name} {w.matricule ? `(${w.matricule})` : ''}</option>)}
-                </TSelect>
+              {/* Employé (préféré) */}
+              <Field label="Employé">
+                {workers.length === 0 ? (
+                  <div className="rounded-md bg-warning/10 border border-warning/30 p-sm text-caption text-fg-secondary">
+                    ⚠ Aucun employé actif en base. Tu peux soit :
+                    <ol className="list-decimal list-inside mt-1 space-y-0.5">
+                      <li>Créer un employé d'abord dans <a href="/rh/employes" className="text-brand underline">/rh/employes</a></li>
+                      <li>Ou bien saisir directement un <strong>nom libre</strong> ci-dessous (pas obligatoire d'avoir un employé en base)</li>
+                    </ol>
+                  </div>
+                ) : (
+                  <TSelect value={form.worker_id} onChange={(e) => setForm(s => ({ ...s, worker_id: e.target.value }))}>
+                    <option value="">— Aucun (utiliser le nom libre) —</option>
+                    {workers.map(w => <option key={w.id} value={w.id}>{w.last_name} {w.first_name} {w.matricule ? `(${w.matricule})` : ''}</option>)}
+                  </TSelect>
+                )}
               </Field>
+
+              {/* Nom libre (alternative si pas d'employé en base) */}
+              <Field
+                label={form.worker_id ? "Nom à afficher (optionnel)" : "Nom de la personne"}
+                required={!form.worker_id}
+              >
+                <TInput
+                  value={form.nom_libre}
+                  onChange={(e) => setForm(s => ({ ...s, nom_libre: e.target.value }))}
+                  placeholder={form.worker_id ? "Laisser vide pour utiliser le nom de l'employé" : "Ex: Hassan Alami"}
+                />
+              </Field>
+
               <Field label="Langue">
                 <TSelect value={form.language} onChange={(e) => setForm(s => ({ ...s, language: e.target.value }))}>
                   <option value="fr">Français</option>
@@ -379,10 +429,20 @@ export default function ChatbotPage() {
                   <option value="en">English</option>
                 </TSelect>
               </Field>
+
               <div className="rounded-md bg-surface-sunk border border-border p-md text-body-sm text-fg-tertiary">
-                Un code unique sera généré (valable 7 jours). Transmets-le à l'employé qui l'enverra au bot via <code className="text-brand">/start CODE</code>.
+                Un code unique sera généré (valable 7 jours). Transmets-le à la personne qui l'enverra au bot via <code className="text-brand">/start CODE</code>.
+                <br/><br/>
+                <strong className="text-fg-secondary">💡 Astuce :</strong> tu peux inviter quelqu'un même sans avoir d'employé en base — il suffit de saisir son nom dans "Nom de la personne".
               </div>
-              <ModalFooter onCancel={closeModal} onSave={generateInvitation} loading={saving} saveLabel="GÉNÉRER LE CODE" disabled={!form.worker_id} />
+
+              <ModalFooter
+                onCancel={closeModal}
+                onSave={generateInvitation}
+                loading={saving}
+                saveLabel="GÉNÉRER LE CODE"
+                disabled={!form.worker_id && !form.nom_libre.trim()}
+              />
             </div>
           )}
         </Modal>
