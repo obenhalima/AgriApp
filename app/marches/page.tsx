@@ -36,28 +36,42 @@ export default function MarchesPage() {
   const upd = (k: string) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }))
   const [clients, setClients] = useState<any[]>([])
 
+  const [loadDebug, setLoadDebug] = useState<{ activeCount: number; totalCount: number; lastError?: string } | null>(null)
+
   const load = async () => {
     setLoading(true)
     try {
-      // 1) Charge les marches avec join clients (si FK client_id existe = migration 047 deployee)
-      let marketsData: any[] = []
-      const withJoin = await supabase.from('markets').select('*, clients(name)').eq('is_active', true).order('name')
+      // ESSAI 1 : SELECT * + jointure clients(name) — sans filtre is_active pour voir tout
+      let marketsAll: any[] = []
+      let lastError: string | undefined
+
+      const withJoin = await supabase.from('markets').select('*, clients(name)').order('name')
       if (withJoin.error) {
-        // Fallback : si la jointure echoue (migration 047 pas deployee), on essaie sans join
-        console.warn('[marches] join clients(name) impossible, fallback sans join. Appliquez migration 047.', withJoin.error.message)
-        const noJoin = await supabase.from('markets').select('*').eq('is_active', true).order('name')
+        console.warn('[marches] join clients(name) impossible, fallback sans join.', withJoin.error.message)
+        lastError = withJoin.error.message
+        const noJoin = await supabase.from('markets').select('*').order('name')
         if (noJoin.error) {
-          console.error('[marches] load failed even without join:', noJoin.error)
-          toast.error('Chargement marches echoue : ' + noJoin.error.message)
+          console.error('[marches] load failed:', noJoin.error)
+          lastError = noJoin.error.message
+          toast.error('Chargement marches : ' + noJoin.error.message)
         } else {
-          marketsData = noJoin.data ?? []
+          marketsAll = noJoin.data ?? []
         }
       } else {
-        marketsData = withJoin.data ?? []
+        marketsAll = withJoin.data ?? []
       }
-      setItems(marketsData)
 
-      // 2) Clients pour la dropdown (optionnel, plante pas la page si pas dispo)
+      // Filtre is_active=true cote client (au lieu du .eq qui pouvait planter)
+      // → on garde aussi le count total pour diagnostic
+      const activeOnly = marketsAll.filter(m => m.is_active !== false)
+      setItems(activeOnly)
+      setLoadDebug({
+        activeCount: activeOnly.length,
+        totalCount: marketsAll.length,
+        lastError,
+      })
+
+      // Clients (optionnel)
       const c = await supabase.from('clients').select('id, name').eq('is_active', true).order('name')
       setClients(c.data ?? [])
     } finally {
@@ -275,10 +289,43 @@ export default function MarchesPage() {
         </Card>
       )}
 
+      {/* Bandeau diagnostic visible si erreur de chargement ou markets desactives */}
+      {!loading && loadDebug && (loadDebug.lastError || loadDebug.totalCount !== loadDebug.activeCount) && (
+        <Card animate delay={0.1} className="mb-md" style={{ borderColor: loadDebug.lastError ? '#ef4444' : '#f59e0b' }}>
+          <div className="text-body-sm">
+            <strong className="text-fg-primary">Diagnostic chargement</strong>
+            <div className="text-fg-secondary mt-1">
+              Total en base : <strong>{loadDebug.totalCount}</strong> marche(s) ·{' '}
+              Actifs : <strong>{loadDebug.activeCount}</strong> · Inactifs : <strong>{loadDebug.totalCount - loadDebug.activeCount}</strong>
+            </div>
+            {loadDebug.lastError && (
+              <div className="text-danger mt-1 font-mono text-caption">Erreur : {loadDebug.lastError}</div>
+            )}
+            {loadDebug.totalCount > 0 && loadDebug.activeCount === 0 && (
+              <div className="text-warning mt-1">
+                Tous les marches sont desactives (is_active=false). Pour les reactiver, lance dans Supabase SQL :
+                <code className="block mt-1 p-2 bg-surface-sunk rounded font-mono text-caption">UPDATE markets SET is_active = true;</code>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-48" />)}</div>
       ) : items.length === 0 ? (
-        <EmptyState icon={Globe} title="Aucun marché" description="Crée tes marchés pour piloter la commercialisation." action={<Button onClick={openModal}><Plus size={14} strokeWidth={2.5} /> Nouveau</Button>} />
+        <EmptyState
+          icon={Globe}
+          title={loadDebug?.totalCount === 0 ? 'Aucun marché en base' : `${loadDebug?.totalCount ?? 0} marché(s) en base mais tous désactivés (is_active=false)`}
+          description={
+            loadDebug?.lastError
+              ? `Erreur de chargement : ${loadDebug.lastError}`
+              : (loadDebug?.totalCount === 0
+                ? 'Crée ton premier marché pour piloter la commercialisation.'
+                : `Active ces marchés via SQL : UPDATE markets SET is_active=true ; ou crée-en un nouveau.`)
+          }
+          action={<Button onClick={openModal}><Plus size={14} strokeWidth={2.5} /> Nouveau marché</Button>}
+        />
       ) : filtered.length === 0 ? (
         <EmptyState icon={Search} title="Aucun résultat" action={<Button variant="ghost" onClick={() => { setSearch(''); setTypeFilter('all') }}>Réinitialiser</Button>} />
       ) : (
