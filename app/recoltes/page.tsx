@@ -65,7 +65,7 @@ export default function RecoltesPage() {
           .order('harvest_date', { ascending: false })
           .limit(300),
         supabase.from('harvest_lots')
-          .select('id, lot_number, harvest_id, harvest_date, quantity_kg, market_id, markets(name, currency), variety_id, varieties(code, commercial_name), tri_status, freinte_pct, ecart_pct, qty_nette_kg, qty_acceptee_kg, price_per_kg, ca_amount, station_ref, certificate_number, notes, destination_rejet, rejet_qty_kg, parent_dispatch_id, campaign_planting_id, greenhouse_id, category')
+          .select('id, lot_number, harvest_id, harvest_date, quantity_kg, market_id, markets(name, currency), variety_id, varieties(code, commercial_name), tri_status, freinte_pct, ecart_pct, qty_nette_kg, qty_acceptee_kg, qty_priced_kg, price_per_kg, ca_amount, station_ref, certificate_number, notes, destination_rejet, rejet_qty_kg, parent_dispatch_id, campaign_planting_id, greenhouse_id, greenhouses(farm_id, farms(name)), category')
           .eq('category', 'station_dispatch')
           .gte('harvest_date', since30)
           .order('harvest_date', { ascending: false }),
@@ -150,6 +150,74 @@ export default function RecoltesPage() {
   const aTarifer = useMemo(() => dispatchesEnriched.filter(d => d.tri_status === 'tried'), [dispatchesEnriched])
   const confirmes = useMemo(() => dispatchesEnriched.filter(d => d.tri_status === 'priced'), [dispatchesEnriched])
   const alertesActives = useMemo(() => alertes.filter(a => !a.is_resolved), [alertes])
+
+  // ─── Dispo à tarifer par Marché × Variété × Ferme ───
+  // Pour chaque dispatch trié non encore tarifé OU partiellement tarifé :
+  //   remaining = qty_acceptee_kg - qty_priced_kg
+  // Affiché regroupé sous l'onglet "À tarifer" pour visualiser ce qu'il reste
+  // à mettre dans un bordereau station.
+  type UnpricedRow = {
+    key: string
+    market_id: string
+    market_name: string
+    variety_id: string
+    variety_code: string
+    variety_name: string
+    farm_id: string | null
+    farm_name: string | null
+    remaining_kg: number
+    partial_kg: number     // qty deja partiellement tarifee (qty_priced_kg > 0)
+    accepted_kg: number    // qty_acceptee_kg total
+    lots_count: number
+    partial_lots: number   // lots avec qty_priced_kg > 0 et < qty_acceptee_kg
+  }
+  const unpricedByMarketVariety: UnpricedRow[] = useMemo(() => {
+    const buckets = new Map<string, UnpricedRow>()
+    for (const d of dispatchesEnriched) {
+      // On garde 'tried' (rien tarifé) ET 'priced' partiel (qty_priced < qty_acceptee)
+      const accepted = Number(d.qty_acceptee_kg ?? 0)
+      const priced = Number(d.qty_priced_kg ?? 0)
+      const remaining = accepted - priced
+      if (remaining <= 0.01) continue
+      if (d.tri_status !== 'tried' && d.tri_status !== 'priced') continue
+
+      const farmId: string | null = d.greenhouses?.farm_id ?? null
+      const farmName: string | null = d.greenhouses?.farms?.name ?? null
+      const key = `${d.market_id ?? 'null'}::${d.variety_id ?? 'null'}::${farmId ?? 'null'}`
+
+      const existing = buckets.get(key)
+      if (existing) {
+        existing.remaining_kg += remaining
+        existing.accepted_kg += accepted
+        existing.partial_kg += priced
+        existing.lots_count += 1
+        if (priced > 0) existing.partial_lots += 1
+      } else {
+        buckets.set(key, {
+          key,
+          market_id: d.market_id ?? '',
+          market_name: d.markets?.name ?? '(marché ?)',
+          variety_id: d.variety_id ?? '',
+          variety_code: d.varieties?.code ?? '',
+          variety_name: d.varieties?.commercial_name ?? '(variété ?)',
+          farm_id: farmId,
+          farm_name: farmName,
+          remaining_kg: remaining,
+          partial_kg: priced,
+          accepted_kg: accepted,
+          lots_count: 1,
+          partial_lots: priced > 0 ? 1 : 0,
+        })
+      }
+    }
+    return Array.from(buckets.values()).sort((a, b) => {
+      const c1 = a.market_name.localeCompare(b.market_name)
+      if (c1 !== 0) return c1
+      const c2 = a.variety_name.localeCompare(b.variety_name)
+      if (c2 !== 0) return c2
+      return (a.farm_name ?? '').localeCompare(b.farm_name ?? '')
+    })
+  }, [dispatchesEnriched])
 
   // KPIs globaux
   const kpis = useMemo(() => {
@@ -372,7 +440,7 @@ export default function RecoltesPage() {
       {tab === 'liste' && <ListeTab harvests={harvestsEnriched} onEdit={openEdit} onDelete={deleteRecolte} onBulkDelete={bulkDeleteRecoltes} loading={loading} />}
       {tab === 'a_envoyer' && <AEnvoyerTab harvests={aEnvoyer} onBulkDelete={bulkDeleteRecoltes} loading={loading} />}
       {tab === 'a_trier' && <ATrierTab dispatches={aTrier} onPick={d => setModalTri(d)} loading={loading} />}
-      {tab === 'a_tarifer' && <ATariferTab dispatches={aTarifer} onPick={d => setModalPrice(d)} onOpenPeriod={() => setModalPeriodPrice(true)} loading={loading} />}
+      {tab === 'a_tarifer' && <ATariferTab dispatches={aTarifer} summary={unpricedByMarketVariety} onPick={d => setModalPrice(d)} onOpenPeriod={() => setModalPeriodPrice(true)} loading={loading} />}
       {tab === 'confirmes' && <ConfirmesTab dispatches={confirmes} loading={loading} />}
       {tab === 'stock_retour' && <StockRetourTab lots={stockRetour} onReload={load} loading={loading} />}
       {tab === 'alertes' && <AlertesTab alertes={alertesActives} onResolve={resolveAlerte} loading={loading} />}
@@ -633,7 +701,15 @@ function ATrierTab({ dispatches, onPick, loading }: { dispatches: any[]; onPick:
   )
 }
 
-function ATariferTab({ dispatches, onPick, onOpenPeriod, loading }: { dispatches: any[]; onPick: (d: any) => void; onOpenPeriod: () => void; loading: boolean }) {
+function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, loading }: { dispatches: any[]; summary: any[]; onPick: (d: any) => void; onOpenPeriod: () => void; loading: boolean }) {
+  const summaryTotals = useMemo(() => ({
+    remaining: summary.reduce((s, r) => s + r.remaining_kg, 0),
+    accepted: summary.reduce((s, r) => s + r.accepted_kg, 0),
+    partial: summary.reduce((s, r) => s + r.partial_kg, 0),
+    lots: summary.reduce((s, r) => s + r.lots_count, 0),
+    partialLots: summary.reduce((s, r) => s + r.partial_lots, 0),
+  }), [summary])
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
@@ -677,6 +753,92 @@ function ATariferTab({ dispatches, onPick, onOpenPeriod, loading }: { dispatches
             {' '}<Link href="/factures?tab=bordereaux" style={{ color: '#8b5cf6', fontWeight: 600 }}>les bordereaux station</Link>{' '}
             pour saisir le prix de la semaine entière (allocation FIFO automatique).
           </span>
+        </div>
+      )}
+
+      {/* ─── Synthèse Dispo à tarifer par Marché × Variété × Ferme ─── */}
+      {summary.length > 0 && (
+        <div style={{
+          marginBottom: 14,
+          border: '1px solid var(--bd-1)',
+          borderRadius: 8,
+          overflow: 'hidden',
+          background: 'var(--bg-2)',
+        }}>
+          <div style={{
+            padding: '8px 12px',
+            background: 'color-mix(in srgb, #3b82f6 10%, transparent)',
+            borderBottom: '1px solid var(--bd-1)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14 }}>📊</span>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-main)' }}>
+                Dispo à tarifer · par marché × variété × ferme
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-sub)', display: 'flex', gap: 16 }}>
+              <span><strong style={{ color: '#3b82f6', fontSize: 13 }}>{fmt(summaryTotals.remaining)} kg</strong> à tarifer</span>
+              <span><strong>{summaryTotals.lots}</strong> lot(s) · dont <strong>{summaryTotals.partialLots}</strong> partiel(s)</span>
+            </div>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--bd-1)', background: 'var(--bg-1)' }}>
+                <th style={{ ...th, textAlign: 'left' }}>Marché</th>
+                <th style={{ ...th, textAlign: 'left' }}>Variété</th>
+                <th style={{ ...th, textAlign: 'left' }}>Ferme</th>
+                <th style={{ ...th, textAlign: 'right' }}>Acceptée</th>
+                <th style={{ ...th, textAlign: 'right' }}>Déjà tarifée</th>
+                <th style={{ ...th, textAlign: 'right' }}>Restant à tarifer</th>
+                <th style={{ ...th, textAlign: 'right' }}>Lots</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summary.map((r: any) => {
+                const isPartial = r.partial_kg > 0
+                return (
+                  <tr key={r.key} style={{ borderBottom: '1px solid var(--bd-1)' }}>
+                    <td style={td}>{r.market_name}</td>
+                    <td style={td}>
+                      {r.variety_code && (
+                        <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,.15)', color: '#a855f7', fontWeight: 600, marginRight: 6 }}>
+                          {r.variety_code}
+                        </span>
+                      )}
+                      <span style={{ color: 'var(--text-sub)' }}>{r.variety_name}</span>
+                    </td>
+                    <td style={{ ...td, color: r.farm_name ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                      {r.farm_name ?? '—'}
+                    </td>
+                    <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{fmt(r.accepted_kg)}</td>
+                    <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-mono)', color: isPartial ? '#f59e0b' : 'var(--text-muted)' }}>
+                      {isPartial ? fmt(r.partial_kg) : '—'}
+                    </td>
+                    <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-mono)', color: '#3b82f6', fontWeight: 700 }}>
+                      {fmt(r.remaining_kg)}
+                      {isPartial && (
+                        <span title="Cette ligne est partiellement tarifée (un bordereau l'a déjà payée en partie)" style={{ marginLeft: 4, fontSize: 9, padding: '1px 4px', borderRadius: 3, background: 'rgba(245,158,11,.15)', color: '#f59e0b' }}>
+                          PARTIEL
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ ...td, textAlign: 'right', color: 'var(--text-sub)' }}>
+                      {r.lots_count}
+                      {r.partial_lots > 0 && <span style={{ color: '#f59e0b' }}> ({r.partial_lots}p)</span>}
+                    </td>
+                  </tr>
+                )
+              })}
+              <tr style={{ background: 'var(--bg-1)', fontWeight: 700 }}>
+                <td style={td} colSpan={3}>TOTAL</td>
+                <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{fmt(summaryTotals.accepted)}</td>
+                <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-mono)', color: '#f59e0b' }}>{fmt(summaryTotals.partial)}</td>
+                <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-mono)', color: '#3b82f6' }}>{fmt(summaryTotals.remaining)}</td>
+                <td style={{ ...td, textAlign: 'right' }}>{summaryTotals.lots}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       )}
       <Table headers={['Lot', 'Date', 'Marché', 'Variété', 'Brute', 'Freinte', 'Écart', 'Acceptée', 'Action']} loading={loading} empty="Aucun envoi en attente de prix." rows={dispatches}>
