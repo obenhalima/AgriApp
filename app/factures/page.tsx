@@ -110,11 +110,14 @@ export default function FacturesPage() {
   const searchParams = useSearchParams()
 
   const load = useCallback(() =>
-    Promise.all([
+    // Promise.allSettled : si une requete echoue, les autres aboutissent quand meme
+    // (avant : une requete echouee effacait TOUTES les factures de l'UI)
+    Promise.allSettled([
       getFactures(), getFacturesFournisseurs(), getClients(), getFournisseurs(), getCampagnes(), getSerres(),
       // Charge les POs réceptionnés (entièrement ou partiellement) qui n'ont pas encore de facture
+      // NOTE : la colonne est po_number, pas code (regression du schema initial)
       supabase.from('purchase_orders')
-        .select('id, code, supplier_id, total_amount, currency, status, order_date, campaign_id, greenhouse_id, suppliers(name)')
+        .select('id, po_number, supplier_id, total_amount, currency, status, order_date, campaign_id, greenhouse_id, suppliers(name)')
         .in('status', ['recu', 'partiellement_recu', 'envoye'])
         .order('order_date', { ascending: false })
         .limit(100),
@@ -122,7 +125,22 @@ export default function FacturesPage() {
       // sur les jointures qui retourneraient null (ex: client Station désactivé)
       supabase.from('clients').select('id, name, is_active').order('name'),
     ])
-      .then(([fc, ff, cd, sd, cad, srd, pos, allCl]) => {
+      .then((results) => {
+        // Helper : recupere la valeur si fulfilled, sinon valeur par defaut + log d'erreur
+        const get = <T,>(idx: number, fallback: T, label: string): T => {
+          const r = results[idx]
+          if (r.status === 'fulfilled') return r.value as T
+          console.error(`[factures] ${label} failed:`, (r as any).reason)
+          return fallback
+        }
+        const fc = get<any[]>(0, [], 'getFactures')
+        const ff = get<any[]>(1, [], 'getFacturesFournisseurs')
+        const cd = get<any[]>(2, [], 'getClients')
+        const sd = get<any[]>(3, [], 'getFournisseurs')
+        const cad = get<any[]>(4, [], 'getCampagnes')
+        const srd = get<any[]>(5, [], 'getSerres')
+        const pos = get<any>(6, { data: [] }, 'purchase_orders')
+        const allCl = get<any>(7, { data: [] }, 'all clients')
         // Enrichit chaque facture : si la jointure clients(name) retourne null,
         // on retombe sur le map allClients pour avoir le nom quand même
         const clientNameById = new Map<string, string>()
@@ -227,7 +245,7 @@ export default function FacturesPage() {
       invoice_date: today,
       due_date: due.toISOString().slice(0, 10),
       subtotal: String(po.total_amount ?? ''),
-      notes: `Facture liée au bon d'achat ${po.code}`,
+      notes: `Facture liée au bon d'achat ${po.po_number}`,
     })
     setTab('fournisseurs')
     setModal('facture_fournisseur')
@@ -427,7 +445,7 @@ export default function FacturesPage() {
       campaign_id: po.campaign_id ?? f.campaign_id,
       greenhouse_id: po.greenhouse_id ?? f.greenhouse_id,
       subtotal: String(po.total_amount ?? f.subtotal),
-      notes: f.notes || `Facture liée au bon d'achat ${po.code}`,
+      notes: f.notes || `Facture liée au bon d'achat ${po.po_number}`,
     }))
   }
 
@@ -501,7 +519,7 @@ export default function FacturesPage() {
                     .filter(po => !supplierForm.supplier_id || po.supplier_id === supplierForm.supplier_id)
                     .map(po => (
                       <option key={po.id} value={po.id}>
-                        {po.code} · {po.suppliers?.name ?? '?'} · {Number(po.total_amount ?? 0).toLocaleString('fr-FR')} MAD · {po.status}
+                        {po.po_number} · {po.suppliers?.name ?? '?'} · {Number(po.total_amount ?? 0).toLocaleString('fr-FR')} MAD · {po.status}
                       </option>
                     ))}
                 </TSelect>
