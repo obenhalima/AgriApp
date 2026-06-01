@@ -1233,8 +1233,8 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
 function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () => void; onDone: () => void }) {
   const [freinte, setFreinte] = useState(String(dispatch.freinte_pct ?? '0'))
   const [ecart, setEcart] = useState(String(dispatch.ecart_pct ?? '0'))
-  const [destination, setDestination] = useState<'destruction' | 'retour_stock' | 'vente_industrie' | 'dons'>(
-    (dispatch.destination_rejet ?? 'destruction') as any
+  const [destination, setDestination] = useState<'destruction' | 'retour_stock' | 'vente_industrie' | 'dons' | 'vente_ecart'>(
+    (dispatch.destination_rejet ?? 'vente_ecart') as any
   )
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
@@ -1242,14 +1242,20 @@ function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () =>
   const ec = Number(ecart) || 0
   const qtyB = Number(dispatch.quantity_kg)
   const qtyN = Math.round(qtyB * (1 - fr / 100) * 100) / 100
-  const qtyA = Math.round(qtyN * (1 - ec / 100) * 100) / 100
-  const qtyRejet = Math.round((qtyB - qtyA) * 100) / 100  // freinte + écart en kg
+  // FREINTE = pertes physiques détruites (à ignorer dans la qty restante)
+  // ÉCART = pieces hors-cat1 → vendables au client écart
+  const qtyAfterFreinte = qtyN  // après destruction des pertes physiques
+  const qtyA = Math.round(qtyN * (1 - ec / 100) * 100) / 100  // qté de 1ère cat
+  const qtyEcart = Math.round((qtyN - qtyA) * 100) / 100  // écart en kg (vendable)
+  const qtyFreinte = Math.round((qtyB - qtyN) * 100) / 100  // freinte en kg (détruite)
+  const qtyRejet = qtyEcart  // pour compat avec le code existant : rejet = écart
 
   const destinationLabel: Record<string, { label: string; desc: string; color: string; icon: string }> = {
+    vente_ecart:     { label: 'Vente client écart', desc: 'Le client écart configuré passe récupérer (recommandé)', color: '#3b82f6',  icon: '🤝' },
     destruction:     { label: 'Destruction',      desc: 'Perte sèche — produit non récupérable', color: 'var(--red)',    icon: '🗑️' },
-    retour_stock:    { label: 'Retour au stock',  desc: 'Ré-envoi possible vers un autre marché (souk local, etc.)', color: 'var(--neon)',  icon: '🔄' },
-    vente_industrie: { label: 'Vente industrie',  desc: 'Vendu direct prix réduit (transformation, jus, conserve)', color: 'var(--amber)', icon: '🏭' },
-    dons:            { label: 'Dons',             desc: 'Banque alimentaire, associations', color: '#a855f7',  icon: '🤝' },
+    retour_stock:    { label: 'Retour au stock',  desc: 'Ré-envoi possible vers un autre marché', color: 'var(--neon)',  icon: '🔄' },
+    vente_industrie: { label: 'Vente industrie',  desc: 'Vendu direct prix réduit (transformation, jus)', color: 'var(--amber)', icon: '🏭' },
+    dons:            { label: 'Dons',             desc: 'Banque alimentaire, associations', color: '#a855f7',  icon: '🎁' },
   }
 
   const save = async () => {
@@ -1259,33 +1265,55 @@ function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () =>
     setSaving(true)
     try {
       // 1. Update le dispatch original
+      // Note : rejet_qty_kg = ecart seulement (la freinte est detruite physiquement,
+      // elle n'apparait pas comme "rejet recuperable")
       const { error } = await supabase.from('harvest_lots').update({
         freinte_pct: fr, ecart_pct: ec, qty_nette_kg: qtyN, qty_acceptee_kg: qtyA,
-        rejet_qty_kg: qtyRejet, destination_rejet: destination,
+        rejet_qty_kg: qtyEcart, destination_rejet: destination,
         tri_status: 'tried',
       }).eq('id', dispatch.id)
       if (error) throw error
 
-      // 2. Si retour_stock : créer le harvest_lot enfant disponible pour ré-envoi
-      if (destination === 'retour_stock' && qtyRejet > 0) {
+      // 2a. Si vente_ecart : appeler la RPC pour creer le dispatch enfant vers le marche ecart
+      if (destination === 'vente_ecart' && qtyEcart > 0) {
+        const { error: ecartErr } = await supabase.rpc('create_ecart_dispatch', {
+          p_parent_lot_id: dispatch.id,
+          p_ecart_qty_kg: qtyEcart,
+        })
+        if (ecartErr) {
+          // Si la RPC n'est pas deployee ou config manque -> on log mais on continue
+          if (/PGRST202|does not exist/i.test(ecartErr.message ?? '')) {
+            const { toast } = await import('sonner')
+            toast.warning('RPC create_ecart_dispatch non deployee (migration 048 a appliquer). Tri sauve sans creation dispatch ecart.', { duration: 8000 })
+          } else {
+            const { toast } = await import('sonner')
+            toast.error('Dispatch ecart non cree : ' + ecartErr.message, { duration: 8000 })
+          }
+        } else {
+          const { toast } = await import('sonner')
+          toast.success(`Dispatch ecart cree (${fmt(qtyEcart)} kg) vers le marche ecart`, { duration: 5000 })
+        }
+      }
+
+      // 2b. Si retour_stock : créer le harvest_lot enfant disponible pour ré-envoi
+      if (destination === 'retour_stock' && qtyEcart > 0) {
         const childLotNumber = `${dispatch.lot_number}-RETOUR`
         const { error: childErr } = await supabase.from('harvest_lots').insert({
           lot_number: childLotNumber,
           harvest_id: dispatch.harvest_id ?? null,
           campaign_planting_id: dispatch.campaign_planting_id ?? null,
           harvest_date: dispatch.harvest_date ?? new Date().toISOString().slice(0, 10),
-          quantity_kg: qtyRejet,
+          quantity_kg: qtyEcart,
           variety_id: dispatch.variety_id ?? null,
           greenhouse_id: dispatch.greenhouse_id ?? null,
           category: 'stock_retour',
           parent_dispatch_id: dispatch.id,
           tri_status: 'pending',
-          destination_rejet: null,  // pas applicable pour stock_retour lui-même
-          notes: `Retour stock issu du dispatch ${dispatch.lot_number} (${qtyRejet} kg rejetés au tri)`,
+          destination_rejet: null,
+          notes: `Retour stock issu du dispatch ${dispatch.lot_number} (${qtyEcart} kg rejetés au tri)`,
         })
         if (childErr) {
           console.warn('[tri] Création lot stock_retour échouée :', childErr)
-          // On continue : l'erreur ne doit pas bloquer la sauvegarde du tri principal
         }
       }
 
@@ -1306,17 +1334,19 @@ function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () =>
       <div style={{ marginTop: 10, padding: 12, background: 'var(--neon-dim)', border: '1px solid var(--neon)', borderRadius: 8 }}>
         <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 6 }}>Calcul automatique</div>
         <div style={{ fontSize: 12.5, color: 'var(--text-main)', lineHeight: 1.7 }}>
-          Brute × (1 − {fr}%) = <strong>Nette {fmt(qtyN)} kg</strong><br/>
-          Nette × (1 − {ec}%) = <strong style={{ color: 'var(--neon)' }}>Acceptée {fmt(qtyA)} kg</strong><br/>
-          Brute − Acceptée = <strong style={{ color: 'var(--amber)' }}>Rejet {fmt(qtyRejet)} kg</strong>
+          Brute = <strong>{fmt(qtyB)} kg</strong><br/>
+          ↓ Freinte {fr}% = <strong style={{ color: 'var(--red)' }}>{fmt(qtyFreinte)} kg DÉTRUITS (pertes physiques)</strong><br/>
+          Nette = <strong>{fmt(qtyN)} kg</strong><br/>
+          ↓ Écart {ec}% = <strong style={{ color: '#3b82f6' }}>{fmt(qtyEcart)} kg VENDABLES (écart commercial)</strong><br/>
+          Acceptée = <strong style={{ color: 'var(--neon)' }}>{fmt(qtyA)} kg (1ère cat → vente normale)</strong>
         </div>
       </div>
 
-      {/* Sélecteur destination du rejet */}
-      {qtyRejet > 0 && (
+      {/* Sélecteur destination du rejet (uniquement pour l'écart, pas la freinte) */}
+      {qtyEcart > 0 && (
         <div style={{ marginTop: 14 }}>
           <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 8, fontWeight: 700 }}>
-            🎯 Destination du rejet ({fmt(qtyRejet)} kg)
+            🎯 Destination de l'écart ({fmt(qtyEcart)} kg)
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
             {(Object.keys(destinationLabel) as Array<keyof typeof destinationLabel>).map(k => {

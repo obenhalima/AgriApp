@@ -31,9 +31,10 @@ export default function MarchesPage() {
   const [form, setForm] = useState({
     code: '', name: '', type: 'local', country: 'Maroc', currency: 'MAD',
     avg_price_per_kg: '', avg_logistics_cost_per_kg: '', export_fees_per_kg: '',
-    payment_terms: '', payment_terms_days: '30', client_id: '', requirements: '', notes: '',
-  })
-  const upd = (k: string) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }))
+    payment_terms: '', payment_terms_days: '30', client_id: '',
+    is_ecart_market: false, requirements: '', notes: '',
+  } as any)
+  const upd = (k: string) => (e: any) => setForm((f: any) => ({ ...f, [k]: e.target.value }))
   const [clients, setClients] = useState<any[]>([])
 
   const [loadDebug, setLoadDebug] = useState<{ activeCount: number; totalCount: number; lastError?: string } | null>(null)
@@ -99,8 +100,9 @@ export default function MarchesPage() {
       code: genCode('MKT', items.map(i => i.code)), name: '', type: 'local',
       country: 'Maroc', currency: 'MAD',
       avg_price_per_kg: '', avg_logistics_cost_per_kg: '', export_fees_per_kg: '',
-      payment_terms: '', payment_terms_days: '30', client_id: '', requirements: '', notes: '',
-    })
+      payment_terms: '', payment_terms_days: '30', client_id: '',
+      is_ecart_market: false, requirements: '', notes: '',
+    } as any)
     setModal(true)
   }
 
@@ -118,9 +120,10 @@ export default function MarchesPage() {
       payment_terms: m.payment_terms ?? '',
       payment_terms_days: m.payment_terms_days != null ? String(m.payment_terms_days) : '30',
       client_id: m.client_id ?? '',
+      is_ecart_market: !!m.is_ecart_market,
       requirements: m.requirements ?? '',
       notes: m.notes ?? '',
-    })
+    } as any)
     setModal(true)
   }
 
@@ -137,6 +140,7 @@ export default function MarchesPage() {
         payment_terms: form.payment_terms || null,
         payment_terms_days: form.payment_terms_days ? Number(form.payment_terms_days) : 30,
         client_id: form.client_id || null,
+        is_ecart_market: !!(form as any).is_ecart_market,
         requirements: form.requirements || null,
         notes: form.notes || null,
       }
@@ -166,6 +170,11 @@ export default function MarchesPage() {
       if (resp.error && /payment_terms_days.*schema cache|payment_terms_days.*does not exist/i.test(resp.error.message)) {
         toast.warning('Colonne payment_terms_days absente (migration 044 a appliquer). Sauvegarde sans delai.', { duration: 6000 })
         resp = await retryWithout('payment_terms_days')
+      }
+      // Retry sans is_ecart_market si pas applique (migration 048)
+      if (resp.error && /is_ecart_market.*schema cache|is_ecart_market.*does not exist/i.test(resp.error.message)) {
+        toast.warning('Colonne is_ecart_market absente (migration 048 a appliquer).', { duration: 6000 })
+        resp = await retryWithout('is_ecart_market')
       }
       if (resp.error) throw resp.error
 
@@ -253,6 +262,24 @@ export default function MarchesPage() {
                   </div>
                 )}
               </Field>
+              <div className="rounded-md border border-warning/30 bg-warning/5 p-md">
+                <label className="flex items-start gap-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={(form as any).is_ecart_market ?? false}
+                    onChange={(e) => setForm((f: any) => ({ ...f, is_ecart_market: e.target.checked }))}
+                    className="mt-0.5 w-4 h-4 accent-warning"
+                  />
+                  <div className="flex-1 text-body-sm">
+                    <strong className="text-fg-primary">Marché écart</strong>
+                    <div className="text-fg-secondary mt-0.5">
+                      Ce marché reçoit les écarts du tri (revendus à un client spécifique).
+                      Un seul marché écart actif à la fois. Lie-le au client marqué
+                      <code className="mx-1 px-1 bg-surface-sunk rounded">is_ecart_buyer</code>.
+                    </div>
+                  </div>
+                </label>
+              </div>
               <Field label="Certifications requises"><TInput value={form.requirements} onChange={upd('requirements')} placeholder="GlobalGAP, BRC..." /></Field>
               <Field label="Notes"><Textarea rows={2} value={form.notes} onChange={upd('notes')} /></Field>
               <ModalFooter onCancel={() => { setModal(false); setEditId(null) }} onSave={save} loading={saving} disabled={!form.name} saveLabel={editId ? 'METTRE À JOUR' : 'CRÉER'} />

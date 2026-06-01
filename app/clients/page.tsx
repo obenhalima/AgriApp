@@ -53,6 +53,24 @@ function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e:
         <Field label="Délai paiement (jours)"><TInput type="number" value={vals.payment_terms_days} onChange={onChange('payment_terms_days')} /></Field>
       </div>
       <Field label="Plafond crédit (MAD)" hint="Optionnel"><TInput type="number" value={vals.credit_limit} onChange={onChange('credit_limit')} /></Field>
+      <div className="rounded-md border border-warning/30 bg-warning/5 p-md">
+        <label className="flex items-start gap-sm cursor-pointer">
+          <input
+            type="checkbox"
+            checked={vals.is_ecart_buyer ?? false}
+            onChange={(e) => onChange('is_ecart_buyer')({ target: { value: e.target.checked } })}
+            className="mt-0.5 w-4 h-4 accent-warning"
+          />
+          <div className="flex-1 text-body-sm">
+            <strong className="text-fg-primary">Acheteur d'écart</strong>
+            <div className="text-fg-secondary mt-0.5">
+              Ce client passe à la station récupérer les écarts du tri pour les revendre.
+              Un seul client peut être désigné à la fois.
+              Pense à créer un marché dédié (case "Marché écart" dans /marches).
+            </div>
+          </div>
+        </label>
+      </div>
     </div>
   )
 }
@@ -113,7 +131,8 @@ export default function ClientsPage() {
       code: genCode('CL', items.map(i => i.code)),
       name: '', type: 'grossiste', city: '', country: 'Maroc',
       email: '', phone: '', payment_terms_days: '30', credit_limit: '',
-    })
+      is_ecart_buyer: false,
+    } as any)
     setModalNew(true)
   }
 
@@ -122,6 +141,7 @@ export default function ClientsPage() {
       code: c.code, name: c.name, type: c.type, city: c.city || '', country: c.country || 'Maroc',
       email: c.email || '', phone: c.phone || '',
       payment_terms_days: String(c.payment_terms_days || 30), credit_limit: String(c.credit_limit || ''),
+      is_ecart_buyer: !!c.is_ecart_buyer,
     })
     setModalEdit(c)
   }
@@ -130,11 +150,23 @@ export default function ClientsPage() {
     if (!form.name) return
     setSaving(true)
     try {
+      // 1) Cree le client basique via le helper
       const n = await createClient_({
         ...form,
         payment_terms_days: Number(form.payment_terms_days) || 30,
         credit_limit: Number(form.credit_limit) || undefined,
       })
+      // 2) Si is_ecart_buyer coche, on met a jour separement (colonne ajoutee migration 048)
+      if ((form as any).is_ecart_buyer) {
+        const r = await supabase.from('clients').update({ is_ecart_buyer: true }).eq('id', n.id)
+        if (r.error) {
+          if (/is_ecart_buyer.*schema cache|is_ecart_buyer.*does not exist/i.test(r.error.message)) {
+            toast.warning('Colonne is_ecart_buyer absente (migration 048 a appliquer)', { duration: 6000 })
+          } else {
+            console.warn('[clients] is_ecart_buyer update:', r.error)
+          }
+        }
+      }
       setItems(p => [n, ...p]); setDone(true)
       toast.success(`Client "${n.name}" créé`)
       setTimeout(() => { setModalNew(false); setDone(false) }, 1200)
@@ -146,13 +178,22 @@ export default function ClientsPage() {
     if (!modalEdit || !formE.name) return
     setSaving(true)
     try {
-      const { error } = await supabase.from('clients').update({
+      const payload: any = {
         code: formE.code, name: formE.name, type: formE.type,
         city: formE.city || null, country: formE.country || 'Maroc',
         email: formE.email || null, phone: formE.phone || null,
         payment_terms_days: Number(formE.payment_terms_days) || 30,
         credit_limit: formE.credit_limit ? Number(formE.credit_limit) : null,
-      }).eq('id', modalEdit.id)
+        is_ecart_buyer: !!formE.is_ecart_buyer,
+      }
+      let { error } = await supabase.from('clients').update(payload).eq('id', modalEdit.id)
+      // Retry sans is_ecart_buyer si migration 048 pas appliquee
+      if (error && /is_ecart_buyer.*schema cache|is_ecart_buyer.*does not exist/i.test(error.message)) {
+        toast.warning('Colonne is_ecart_buyer absente (migration 048). Sauvegarde sans ce champ.', { duration: 6000 })
+        delete payload.is_ecart_buyer
+        const retry = await supabase.from('clients').update(payload).eq('id', modalEdit.id)
+        error = retry.error ?? undefined as any
+      }
       if (error) throw error
       setDone(true)
       toast.success('Client modifié')
