@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 import {
   Receipt, Plus, AlertCircle, Search, X, Calendar, ChevronLeft, ChevronRight,
   TrendingUp, TrendingDown, Wallet, AlertTriangle, ArrowDownCircle, ArrowUpCircle,
-  Banknote, FileBarChart, BadgeDollarSign, Truck,
+  Banknote, FileBarChart, BadgeDollarSign, Truck, Printer,
 } from 'lucide-react'
 
 import { BordereauxSection } from './BordereauxSection'
@@ -99,6 +99,8 @@ export default function FacturesPage() {
     invoice_date: '', due_date: '', subtotal: '', notes: '',
   })
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([])
+  // Map invoice_id → settlement_id pour bouton "Imprimer PDF" sur chaque facture bordereau
+  const [settlementByInvoiceId, setSettlementByInvoiceId] = useState<Map<string, string>>(new Map())
   const [supplierPaymentForm, setSupplierPaymentForm] = useState({ amount: '', payment_method: 'virement', reference: '' })
 
   const [clientFilter, setClientFilter] = useState('all')
@@ -124,6 +126,8 @@ export default function FacturesPage() {
       // Charge tous les clients (y compris inactifs) pour le mapping de fallback
       // sur les jointures qui retourneraient null (ex: client Station désactivé)
       supabase.from('clients').select('id, name, is_active').order('name'),
+      // Bordereaux avec invoice_id : pour bouton "Imprimer PDF" sur les lignes facture
+      supabase.from('station_settlements').select('id, invoice_id').not('invoice_id', 'is', null),
     ])
       .then((results) => {
         // Helper : recupere la valeur si fulfilled, sinon valeur par defaut + log d'erreur
@@ -141,6 +145,13 @@ export default function FacturesPage() {
         const srd = get<any[]>(5, [], 'getSerres')
         const pos = get<any>(6, { data: [] }, 'purchase_orders')
         const allCl = get<any>(7, { data: [] }, 'all clients')
+        const settlementsRes = get<any>(8, { data: [] }, 'settlements_for_invoice_map')
+        // Build map invoice_id -> settlement_id
+        const sMap = new Map<string, string>()
+        for (const s of (settlementsRes.data ?? []) as any[]) {
+          if (s.invoice_id) sMap.set(s.invoice_id, s.id)
+        }
+        setSettlementByInvoiceId(sMap)
         // Enrichit chaque facture : si la jointure clients(name) retourne null,
         // on retombe sur le map allClients pour avoir le nom quand même
         const clientNameById = new Map<string, string>()
@@ -1009,22 +1020,35 @@ export default function FacturesPage() {
                     <TD right mono><MoneyDisplay value={remaining} compact="auto" className={remaining > 0 ? 'text-warning font-bold' : 'text-fg-tertiary'} /></TD>
                     <TD><Badge variant={st.variant} size="sm">{st.label}</Badge></TD>
                     <TD right>
-                      {item.effectiveStatus !== 'paye' && (
-                        <Button
-                          onClick={() => {
-                            setPaymentError('')
-                            if (tab === 'clients') {
-                              setSelectedClientInvoice(item); setModal('paiement_client')
-                            } else {
-                              setSelectedSupplierInvoice(item); setModal('paiement_fournisseur')
-                            }
-                          }}
-                          variant={tab === 'clients' ? 'primary' : 'secondary'}
-                          size="xs"
-                        >
-                          {tab === 'clients' ? 'Encaisser' : 'Régler'}
-                        </Button>
-                      )}
+                      <div className="flex gap-1 justify-end">
+                        {/* Bouton PDF : disponible pour les factures bordereau (FB-*) */}
+                        {tab === 'clients' && settlementByInvoiceId.has(item.id) && (
+                          <Button
+                            onClick={() => window.open(`/factures/bordereau/${settlementByInvoiceId.get(item.id)}/print`, '_blank')}
+                            variant="ghost"
+                            size="xs"
+                            title="Ouvrir la vue imprimable du bordereau lié"
+                          >
+                            <Printer size={12} /> PDF
+                          </Button>
+                        )}
+                        {item.effectiveStatus !== 'paye' && (
+                          <Button
+                            onClick={() => {
+                              setPaymentError('')
+                              if (tab === 'clients') {
+                                setSelectedClientInvoice(item); setModal('paiement_client')
+                              } else {
+                                setSelectedSupplierInvoice(item); setModal('paiement_fournisseur')
+                              }
+                            }}
+                            variant={tab === 'clients' ? 'primary' : 'secondary'}
+                            size="xs"
+                          >
+                            {tab === 'clients' ? 'Encaisser' : 'Régler'}
+                          </Button>
+                        )}
+                      </div>
                     </TD>
                   </TR>
                 )
