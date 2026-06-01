@@ -162,8 +162,9 @@ export async function generateCommerceForCampaign(
     varietyId: string
     variety: any
     greenhouseId: string
+    campaignPlantingId: string  // FK requise sur harvest_lots — DOIT etre present
     farmId: string | null
-    harvests: Array<{ id: string; qty_cat1: number; qty_cat2: number; qty_cat3: number; date: string; lot: string }>
+    harvests: Array<{ id: string; qty_cat1: number; qty_cat2: number; qty_cat3: number; date: string; lot: string; campaign_planting_id: string }>
     totalCat1: number
     totalCat2: number
     totalCat3: number
@@ -177,6 +178,11 @@ export async function generateCommerceForCampaign(
     const cp = h.campaign_plantings
     if (!cp?.variety_id || !cp?.greenhouse_id) continue
     if (!h.harvest_date) continue
+    if (!h.campaign_planting_id) {
+      // Sans campaign_planting_id, impossible de creer un dispatch (FK NOT NULL)
+      report.errors.push(`Recolte ${h.lot_number ?? h.id} sans campaign_planting_id — ignoree`)
+      continue
+    }
     const date = new Date(h.harvest_date + 'T00:00:00')
     if (onlyPast && date > new Date()) continue
 
@@ -189,6 +195,7 @@ export async function generateCommerceForCampaign(
         varietyId: cp.variety_id,
         variety: v,
         greenhouseId: cp.greenhouse_id,
+        campaignPlantingId: h.campaign_planting_id,
         farmId: cp.greenhouses?.farm_id ?? null,
         harvests: [],
         totalCat1: 0, totalCat2: 0, totalCat3: 0,
@@ -205,6 +212,7 @@ export async function generateCommerceForCampaign(
       qty_cat3: toNum(h.qty_category_3),
       date: h.harvest_date,
       lot: h.lot_number,
+      campaign_planting_id: h.campaign_planting_id,
     })
     g.totalCat1 += toNum(h.qty_category_1)
     g.totalCat2 += toNum(h.qty_category_2)
@@ -243,8 +251,12 @@ export async function generateCommerceForCampaign(
       try {
         const { data: lot, error } = await supabase.from('harvest_lots').insert({
           lot_number: lotNumber,
-          campaign_planting_id: g.harvests[0]?.id ? undefined : undefined,
-          // Note : harvest_id NULL pour les composites (cf migration 024)
+          // FK NOT NULL : on prend le campaign_planting_id du groupe (toutes les
+          // recoltes du groupe ont le meme planting puisque grouped par variete x semaine)
+          campaign_planting_id: g.campaignPlantingId,
+          // harvest_id : pour les composites on prend la 1ere recolte du groupe
+          // (post-migration 024, harvest_id peut etre NULL mais on prefere le remplir)
+          harvest_id: g.harvests[0]?.id ?? null,
           harvest_date: g.midDate,
           receipt_date: g.midDate,
           quantity_kg: g.totalCat1,
@@ -265,36 +277,7 @@ export async function generateCommerceForCampaign(
           tri_status: 'priced',
           certificate_number: `CERT-EXP-${g.weekKey}`,
         }).select('id').single()
-        // harvest_id NOT NULL pre-024 — pour les anciens schémas, on prend la 1ère récolte
-        if (error?.message?.includes('harvest_id')) {
-          // Retry avec harvest_id de la 1ère récolte du groupe
-          await supabase.from('harvest_lots').insert({
-            lot_number: lotNumber,
-            harvest_id: g.harvests[0].id,
-            campaign_planting_id: harvests.find((h: any) => h.id === g.harvests[0].id)?.campaign_planting_id,
-            harvest_date: g.midDate,
-            receipt_date: g.midDate,
-            quantity_kg: g.totalCat1,
-            qty_nette_kg: qtyNette,
-            qty_acceptee_kg: qtyAcceptee,
-            category: 'station_dispatch',
-            variety_id: g.varietyId,
-            greenhouse_id: g.greenhouseId,
-            market_id: marketId ?? null,
-            client_id: clientId ?? null,
-            freinte_pct: fPct,
-            ecart_pct: ePct,
-            price_per_kg: priceMAD,
-            ca_amount: ca,
-            station_ref: `STA-${g.weekKey}`,
-            periode_debut: g.midDate,
-            periode_fin: g.midDate,
-            tri_status: 'priced',
-            certificate_number: `CERT-EXP-${g.weekKey}`,
-          })
-        } else if (error) {
-          throw error
-        }
+        if (error) throw error
 
         if (lot?.id) {
           // Liens sources (N harvests → 1 lot)
@@ -354,8 +337,9 @@ export async function generateCommerceForCampaign(
       try {
         const { data: lot, error } = await supabase.from('harvest_lots').insert({
           lot_number: lotNumber,
-          harvest_id: g.harvests[0].id,  // fallback NOT NULL
-          campaign_planting_id: harvests.find((h: any) => h.id === g.harvests[0].id)?.campaign_planting_id,
+          harvest_id: g.harvests[0]?.id ?? null,
+          // FK NOT NULL : pris depuis le groupe (assigne lors du grouping)
+          campaign_planting_id: g.campaignPlantingId,
           harvest_date: g.midDate,
           receipt_date: g.midDate,
           quantity_kg: totalLocal,
