@@ -19,7 +19,7 @@ import { toast } from 'sonner'
 import {
   RotateCcw, Trash2, AlertTriangle, Plus, Calendar, Sprout, AlertOctagon,
   ShieldAlert, Database, Skull, CheckCircle2, Loader2, Info, Dices,
-  TrendingUp, Eye, Sparkles,
+  TrendingUp, Eye, Sparkles, AlertCircle,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
@@ -111,6 +111,9 @@ export default function DemoResetPage() {
   const [commerceRunning, setCommerceRunning] = useState(false)
   const [commerceCampaignId, setCommerceCampaignId] = useState<string>('')
   const [commerceGenerateInvoices, setCommerceGenerateInvoices] = useState(true)
+  // Dernières erreurs du generator pour affichage dans l'UI
+  const [commerceErrors, setCommerceErrors] = useState<string[]>([])
+  const [commerceReport, setCommerceReport] = useState<any>(null)
 
   // Nouvelle campagne form
   const [newCamp, setNewCamp] = useState({
@@ -390,6 +393,8 @@ export default function DemoResetPage() {
       return
     }
     setCommerceRunning(true)
+    setCommerceErrors([])
+    setCommerceReport(null)
     const toastId = toast.loading('🚚 Génération dispatches, tri, prix' + (commerceGenerateInvoices ? ' et factures' : '') + '…')
     try {
       const report: CommerceGenReport = await generateCommerceForCampaign(cid, {
@@ -397,6 +402,8 @@ export default function DemoResetPage() {
         onlyPast: true,
       })
       console.log('[commerce-gen]', report)
+      setCommerceReport(report)
+      setCommerceErrors(report.errors ?? [])
       toast.dismiss(toastId)
       const parts: string[] = []
       if (report.dispatchesCreated > 0) parts.push(`${report.dispatchesCreated} dispatches (tri + prix)`)
@@ -404,15 +411,16 @@ export default function DemoResetPage() {
       if (report.paymentsRecorded > 0) parts.push(`${report.paymentsRecorded} paiements`)
       if (report.totalCA > 0) parts.push(`CA généré ${Math.round(report.totalCA).toLocaleString('fr-FR')} MAD`)
       if (parts.length === 0) {
-        toast(`⚠ Rien généré. Vérifie : variétés avec prix, marchés/clients en DB, récoltes existantes.${report.errors.length > 0 ? ` ${report.errors.length} erreurs en console.` : ''}`, { duration: 8000 })
+        toast(`⚠ Rien généré (${report.errors.length} erreurs). Détails affichés ci-dessous.`, { duration: 8000 })
       } else {
-        toast.success(`✅ Commerce généré : ${parts.join(' · ')}`, { duration: 8000 })
+        toast.success(`✅ Commerce généré : ${parts.join(' · ')}${report.errors.length > 0 ? ` (avec ${report.errors.length} erreurs)` : ''}`, { duration: 8000 })
       }
       load()
     } catch (e: any) {
       toast.dismiss(toastId)
       toast.error('Erreur : ' + e.message)
       console.error('[commerce-gen]', e)
+      setCommerceErrors([e.message ?? String(e)])
     }
     setCommerceRunning(false)
   }
@@ -1101,6 +1109,34 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
               <Button onClick={runCommerceGenerator} variant="primary" size="sm" loading={commerceRunning} disabled={commerceRunning}>
                 <Sparkles size={13} /> {commerceRunning ? 'Génération…' : 'Générer commerce'}
               </Button>
+
+              {/* ─── Affichage des erreurs et rapport ─── */}
+              {commerceReport && (
+                <div className="mt-md rounded-md border border-border bg-surface-sunk p-sm space-y-1 text-body-sm">
+                  <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-semibold mb-1">Rapport du dernier run</div>
+                  <div>📦 Dispatches : <strong>{commerceReport.dispatchesCreated}</strong></div>
+                  <div>📄 Factures : <strong>{commerceReport.invoicesCreated}</strong></div>
+                  <div>💰 Paiements : <strong>{commerceReport.paymentsRecorded}</strong></div>
+                  <div>💵 CA total : <strong>{Math.round(commerceReport.totalCA ?? 0).toLocaleString('fr-FR')} MAD</strong></div>
+                </div>
+              )}
+
+              {commerceErrors.length > 0 && (
+                <div className="mt-sm rounded-md border border-danger bg-danger/10 p-sm">
+                  <div className="flex items-center gap-sm mb-sm">
+                    <AlertCircle size={14} className="text-danger" />
+                    <strong className="text-fg-primary">{commerceErrors.length} erreur(s) lors de la génération</strong>
+                  </div>
+                  <ul className="space-y-1 text-caption text-fg-secondary max-h-48 overflow-auto pl-4 list-disc">
+                    {commerceErrors.slice(0, 30).map((err, i) => (
+                      <li key={i} className="font-mono text-[11px] break-words">{err}</li>
+                    ))}
+                    {commerceErrors.length > 30 && (
+                      <li className="text-fg-tertiary italic">… et {commerceErrors.length - 30} autres erreurs (voir console F12)</li>
+                    )}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         </Card>
