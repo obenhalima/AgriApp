@@ -903,6 +903,34 @@ export default function FacturesPage() {
         </Card>
       )}
 
+      {/* ─── Bandeau diagnostic : factures cachées par un filtre ─── */}
+      {tab !== 'bordereaux' && !loading && (() => {
+        const totalRaw = tab === 'clients' ? clientInvoices.length : supplierInvoices.length
+        const totalShown = tab === 'clients' ? filteredClient.length : filteredSupplier.length
+        const hiddenCount = totalRaw - totalShown
+        if (hiddenCount > 0 && (clientFilter !== 'all' || supplierFilter !== 'all' || statusFilter !== 'all' || search)) {
+          return (
+            <div className="mb-md rounded-md border border-warning bg-warning/10 px-md py-sm flex items-center justify-between gap-md">
+              <div className="text-body-sm text-fg-primary">
+                <AlertCircle size={14} className="inline mr-1 text-warning" />
+                <strong>{hiddenCount}</strong> facture(s) cachée(s) par les filtres actifs
+                {search && <span className="font-mono text-xs ml-2">[recherche: "{search}"]</span>}
+                {clientFilter !== 'all' && tab === 'clients' && <span className="font-mono text-xs ml-2">[client filtré]</span>}
+                {statusFilter !== 'all' && <span className="font-mono text-xs ml-2">[statut: {statusFilter}]</span>}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setSearch(''); setClientFilter('all'); setSupplierFilter('all'); setStatusFilter('all') }}
+              >
+                <X size={12} /> Réinitialiser
+              </Button>
+            </div>
+          )
+        }
+        return null
+      })()}
+
       {/* ─── Table principale ─── */}
       {tab !== 'bordereaux' && (
       <Card animate delay={0.5} padding="none" className="overflow-hidden">
