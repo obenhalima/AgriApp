@@ -135,6 +135,14 @@ export default function FacturesPage() {
     { channelName: 'factures-page' },
   )
 
+  // ─── Onglet actif depuis ?tab=bordereaux|clients|fournisseurs ─────────
+  useEffect(() => {
+    const tabParam = searchParams?.get('tab')
+    if (tabParam === 'bordereaux' || tabParam === 'clients' || tabParam === 'fournisseurs') {
+      setTab(tabParam)
+    }
+  }, [searchParams])
+
   // ─── Pré-remplir depuis ?po=<id> (lien depuis page achat) ──────────────
   useEffect(() => {
     const poId = searchParams?.get('po')

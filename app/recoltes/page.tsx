@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState, useCallback } from 'react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 
@@ -298,6 +299,20 @@ export default function RecoltesPage() {
           <button onClick={manualRefresh} title={`Dernier refresh : ${lastRefresh.toLocaleTimeString('fr-FR')}`} className="btn-ghost" style={{ fontSize: 11, padding: '6px 10px' }}>
             ↻ Rafraîchir
           </button>
+          <Link
+            href="/factures?tab=bordereaux"
+            className="btn-ghost"
+            style={{
+              fontSize: 11, padding: '6px 10px',
+              color: '#8b5cf6',
+              borderColor: 'color-mix(in srgb,#8b5cf6 30%,transparent)',
+              textDecoration: 'none',
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+            }}
+            title="Saisir le bordereau hebdomadaire de la station"
+          >
+            🚚 BORDEREAUX STATION
+          </Link>
           <button onClick={() => setModalAlerte(true)} className="btn-ghost" style={{ fontSize: 11, color: 'var(--red)', borderColor: 'color-mix(in srgb,var(--red) 25%,transparent)' }}>
             ⚠ SANS RÉCOLTE
           </button>
@@ -621,14 +636,49 @@ function ATrierTab({ dispatches, onPick, loading }: { dispatches: any[]; onPick:
 function ATariferTab({ dispatches, onPick, onOpenPeriod, loading }: { dispatches: any[]; onPick: (d: any) => void; onOpenPeriod: () => void; loading: boolean }) {
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 12.5, color: 'var(--text-sub)' }}>
           Envois <strong>triés</strong>, en attente du <strong>prix /kg</strong> pour confirmer le CA.
         </div>
-        <button onClick={onOpenPeriod} disabled={dispatches.length === 0} className="btn-ghost" style={{ fontSize: 11.5, padding: '6px 12px', color: '#a855f7', borderColor: 'color-mix(in srgb,#a855f7 30%,transparent)' }}>
-          📅 TARIF PAR PÉRIODE
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link
+            href="/factures?tab=bordereaux"
+            className="btn-primary"
+            style={{
+              fontSize: 11.5, padding: '6px 12px',
+              background: '#8b5cf6', borderColor: '#8b5cf6',
+              textDecoration: 'none',
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+            }}
+            title="Saisir le bordereau hebdomadaire envoyé par la station (méthode recommandée)"
+          >
+            🚚 BORDEREAU STATION
+          </Link>
+          <button onClick={onOpenPeriod} disabled={dispatches.length === 0} className="btn-ghost" style={{ fontSize: 11.5, padding: '6px 12px', color: '#a855f7', borderColor: 'color-mix(in srgb,#a855f7 30%,transparent)' }}>
+            📅 TARIF PAR PÉRIODE
+          </button>
+        </div>
       </div>
+
+      {dispatches.length > 0 && (
+        <div style={{
+          padding: '8px 12px',
+          marginBottom: 10,
+          background: 'color-mix(in srgb, #8b5cf6 8%, transparent)',
+          border: '1px solid color-mix(in srgb, #8b5cf6 25%, transparent)',
+          borderRadius: 6,
+          fontSize: 11.5,
+          color: 'var(--text-sub)',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 14 }}>💡</span>
+          <span>
+            <strong>Tip :</strong> au lieu de tarifer dispatch par dispatch, utilisez
+            {' '}<Link href="/factures?tab=bordereaux" style={{ color: '#8b5cf6', fontWeight: 600 }}>les bordereaux station</Link>{' '}
+            pour saisir le prix de la semaine entière (allocation FIFO automatique).
+          </span>
+        </div>
+      )}
       <Table headers={['Lot', 'Date', 'Marché', 'Variété', 'Brute', 'Freinte', 'Écart', 'Acceptée', 'Action']} loading={loading} empty="Aucun envoi en attente de prix." rows={dispatches}>
         {(d: any) => (
           <tr key={d.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
