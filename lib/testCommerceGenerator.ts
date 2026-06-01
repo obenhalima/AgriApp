@@ -132,26 +132,35 @@ export async function generateCommerceForCampaign(
     return report
   }
 
-  // ─── 2. Récupérer les marchés / clients si pas fournis ─────────────────
-  // On charge AUSSI client_id pour pre-check : si aucun marche n'a de client,
-  // on saura qu'aucune facture ne pourra etre generee.
+  // ─── 2. Récupérer les marchés (avec type, prix, devise) ─────────────
+  // Le prix utilise dans le simulateur vient en PRIORITE de markets.avg_price_per_kg
+  // (le prix specifique negocie avec ce marche), puis fallback variete.
   let exportMarketIds = options.exportMarketIds ?? []
   let localMarketIds = options.localMarketIds ?? []
-  const marketsWithoutClient = new Set<string>()  // ids des markets utilises sans client_id
+  const marketsWithoutClient = new Set<string>()
   const marketNamesById = new Map<string, string>()
+  // Cache des infos par marche : avg_price_per_kg, currency
+  const marketPriceById = new Map<string, { price: number; currency: string }>()
 
   if (exportMarketIds.length === 0 && localMarketIds.length === 0) {
-    const { data: markets } = await supabase.from('markets').select('id, code, name, client_id')
+    const { data: markets } = await supabase
+      .from('markets')
+      .select('id, code, name, type, currency, avg_price_per_kg, client_id')
     const all = (markets ?? []) as any[]
     for (const m of all) {
       marketNamesById.set(m.id, m.name)
+      marketPriceById.set(m.id, {
+        price: toNum(m.avg_price_per_kg),
+        currency: m.currency ?? 'MAD',
+      })
       if (!m.client_id) marketsWithoutClient.add(m.id)
     }
     if (all.length > 0) {
-      // Heuristique : code/name contient "export" → export, sinon local
+      // Classification PROPRE basee sur markets.type (au lieu de heuristique sur le nom)
+      // 'export' → exportMarketIds, autres ('local', 'grande_distribution', 'grossiste'...) → localMarketIds
       for (const m of all) {
-        const label = `${m.code ?? ''} ${m.name ?? ''}`.toLowerCase()
-        if (label.includes('export') || label.includes('eu') || label.includes('rungis')) {
+        const type = (m.type ?? '').toLowerCase()
+        if (type === 'export') {
           exportMarketIds.push(m.id)
         } else {
           localMarketIds.push(m.id)
@@ -161,6 +170,20 @@ export async function generateCommerceForCampaign(
       if (exportMarketIds.length === 0 && all.length > 0) exportMarketIds = [all[0].id]
       if (localMarketIds.length === 0 && all.length > 0) localMarketIds = [all[all.length - 1].id]
     }
+  }
+
+  // Helper : calcule le prix MAD pour un marche donne, fallback sur variete
+  function resolveMarketPrice(marketId: string, isExport: boolean, fallbackExportEUR: number, fallbackLocalMAD: number): number {
+    const m = marketPriceById.get(marketId)
+    if (m && m.price > 0) {
+      // Si devise EUR/USD → conversion en MAD
+      const rate = m.currency === 'EUR' ? 11.0 : m.currency === 'USD' ? 10.0 : 1.0
+      return m.price * rate
+    }
+    // Fallback : prix de la variete
+    if (isExport && fallbackExportEUR > 0) return fallbackExportEUR * 11.0  // EUR → MAD
+    if (!isExport && fallbackLocalMAD > 0) return fallbackLocalMAD
+    return 0
   }
 
   let clientIds = options.clientIds ?? []
@@ -324,10 +347,12 @@ export async function generateCommerceForCampaign(
       const monthNum = parseInt(g.midDate.slice(5, 7))
       const coeff = seasonCoeff(monthNum)
       const variance = 1 + (Math.random() - 0.5) * 2 * priceVariance
-      const priceEUR = g.priceExport * coeff * variance
-      const priceMAD = priceEUR * 11.0
       const marketId = pickRandom(exportMarketIds)
       if (!marketId) { skippedNoMarket++; continue }
+      // Prix : prioritise markets.avg_price_per_kg du marche choisi,
+      // fallback varieties.avg_price_export (EUR converti × 11)
+      const basePriceMAD = resolveMarketPrice(marketId, true, g.priceExport, g.priceLocal)
+      const priceMAD = basePriceMAD * coeff * variance
       const lotNumber = `DISP-EXP-${g.weekKey}-${(g.variety?.code ?? 'V').slice(0, 4)}`
 
       try {
@@ -371,9 +396,11 @@ export async function generateCommerceForCampaign(
       const monthNum = parseInt(g.midDate.slice(5, 7))
       const coeff = seasonCoeff(monthNum)
       const variance = 1 + (Math.random() - 0.5) * 2 * priceVariance
-      const priceMAD = g.priceLocal * coeff * variance
       const marketId = pickRandom(localMarketIds)
       if (!marketId) { skippedNoMarket++; continue }
+      // Prix : prioritise markets.avg_price_per_kg, fallback varieties.avg_price_local
+      const basePriceMAD = resolveMarketPrice(marketId, false, g.priceExport, g.priceLocal)
+      const priceMAD = basePriceMAD * coeff * variance
       const lotNumber = `DISP-LOC-${g.weekKey}-${(g.variety?.code ?? 'V').slice(0, 4)}`
 
       try {
