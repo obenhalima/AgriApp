@@ -36,14 +36,34 @@ export default function MarchesPage() {
   const upd = (k: string) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }))
   const [clients, setClients] = useState<any[]>([])
 
-  const load = () => Promise.all([
-    supabase.from('markets').select('*, clients(name)').eq('is_active', true).order('name'),
-    supabase.from('clients').select('id, name').eq('is_active', true).order('name'),
-  ]).then(([m, c]) => {
-    setItems(m.data || [])
-    setClients(c.data || [])
-    setLoading(false)
-  })
+  const load = async () => {
+    setLoading(true)
+    try {
+      // 1) Charge les marches avec join clients (si FK client_id existe = migration 047 deployee)
+      let marketsData: any[] = []
+      const withJoin = await supabase.from('markets').select('*, clients(name)').eq('is_active', true).order('name')
+      if (withJoin.error) {
+        // Fallback : si la jointure echoue (migration 047 pas deployee), on essaie sans join
+        console.warn('[marches] join clients(name) impossible, fallback sans join. Appliquez migration 047.', withJoin.error.message)
+        const noJoin = await supabase.from('markets').select('*').eq('is_active', true).order('name')
+        if (noJoin.error) {
+          console.error('[marches] load failed even without join:', noJoin.error)
+          toast.error('Chargement marches echoue : ' + noJoin.error.message)
+        } else {
+          marketsData = noJoin.data ?? []
+        }
+      } else {
+        marketsData = withJoin.data ?? []
+      }
+      setItems(marketsData)
+
+      // 2) Clients pour la dropdown (optionnel, plante pas la page si pas dispo)
+      const c = await supabase.from('clients').select('id, name').eq('is_active', true).order('name')
+      setClients(c.data ?? [])
+    } finally {
+      setLoading(false)
+    }
+  }
   useEffect(() => { load() }, [])
 
   const filtered = useMemo(() => items.filter(m => {
@@ -94,7 +114,7 @@ export default function MarchesPage() {
     if (!form.name) return
     setSaving(true)
     try {
-      const payload = {
+      const payload: any = {
         code: form.code, name: form.name, type: form.type,
         country: form.country || null, currency: form.currency || 'MAD',
         avg_price_per_kg: form.avg_price_per_kg ? Number(form.avg_price_per_kg) : null,
@@ -107,24 +127,40 @@ export default function MarchesPage() {
         notes: form.notes || null,
       }
 
+      // Helper : retire les colonnes manquantes en BD pour retry (migration partielle)
+      const retryWithout = async (col: string) => {
+        const fallbackPayload = { ...payload }
+        delete fallbackPayload[col]
+        return editId
+          ? await supabase.from('markets').update(fallbackPayload).eq('id', editId).select().single()
+          : await supabase.from('markets').insert({ ...fallbackPayload, is_active: true }).select().single()
+      }
+
+      let resp
       if (editId) {
-        const { data, error } = await supabase
-          .from('markets')
-          .update(payload)
-          .eq('id', editId)
-          .select()
-          .single()
-        if (error) throw error
+        resp = await supabase.from('markets').update(payload).eq('id', editId).select().single()
+      } else {
+        resp = await supabase.from('markets').insert({ ...payload, is_active: true }).select().single()
+      }
+
+      // Retry sans client_id si la colonne n'existe pas (migration 047 pas appliquee)
+      if (resp.error && /client_id.*schema cache|client_id.*does not exist/i.test(resp.error.message)) {
+        toast.warning('Colonne client_id absente (migration 047 a appliquer). Sauvegarde sans client.', { duration: 6000 })
+        resp = await retryWithout('client_id')
+      }
+      // Retry sans payment_terms_days si pas applique (migration 044)
+      if (resp.error && /payment_terms_days.*schema cache|payment_terms_days.*does not exist/i.test(resp.error.message)) {
+        toast.warning('Colonne payment_terms_days absente (migration 044 a appliquer). Sauvegarde sans delai.', { duration: 6000 })
+        resp = await retryWithout('payment_terms_days')
+      }
+      if (resp.error) throw resp.error
+
+      const data = resp.data
+      if (editId) {
         setItems(p => p.map(m => m.id === editId ? data : m))
         setDone(true)
         toast.success(`Marché "${data.name}" mis à jour`)
       } else {
-        const { data, error } = await supabase
-          .from('markets')
-          .insert({ ...payload, is_active: true })
-          .select()
-          .single()
-        if (error) throw error
         setItems(p => [data, ...p])
         setDone(true)
         toast.success(`Marché "${data.name}" créé`)
