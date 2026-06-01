@@ -53,7 +53,7 @@ function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e:
       </div>
       <div className="grid grid-cols-2 gap-md">
         <Field label="Prix local (MAD/kg)"><TInput type="number" value={vals.avg_price_local} onChange={onChange('avg_price_local')} placeholder="3.50" /></Field>
-        <Field label="Prix export (EUR/kg)"><TInput type="number" value={vals.avg_price_export} onChange={onChange('avg_price_export')} placeholder="0.60" /></Field>
+        <Field label="Prix export (MAD/kg)" hint="Saisir en MAD. Pour utiliser EUR/USD, configure la devise sur le marché concerné."><TInput type="number" value={vals.avg_price_export} onChange={onChange('avg_price_export')} placeholder="7.00" /></Field>
       </div>
       <Field label="Cycle estimé (jours)" hint="Plantation → fin récolte">
         <TInput type="number" value={vals.estimated_cycle_days} onChange={onChange('estimated_cycle_days')} placeholder="200" />
@@ -276,8 +276,8 @@ export default function VarietesPage() {
                 <TH>Destination</TH>
                 <TH right>Rdt th.</TH>
                 <TH right>Coût/m²</TH>
-                <TH right>Prix Local</TH>
-                <TH right>Prix Export</TH>
+                <TH right>Prix Local (MAD)</TH>
+                <TH right>Prix Export (MAD)</TH>
                 <TH right>Cycle</TH>
                 <TH right>Actions</TH>
               </TR>

@@ -172,17 +172,25 @@ export async function generateCommerceForCampaign(
     }
   }
 
-  // Helper : calcule le prix MAD pour un marche donne, fallback sur variete
-  function resolveMarketPrice(marketId: string, isExport: boolean, fallbackExportEUR: number, fallbackLocalMAD: number): number {
+  // Helper : calcule le prix en MAD pour un marche donne.
+  // Convention : MAD est la devise par defaut. Les prix sont toujours retournes en MAD.
+  // - markets.avg_price_per_kg : prioritaire. Si markets.currency != MAD, conversion auto.
+  // - varieties.avg_price_export / avg_price_local : fallback. Suppose MAD par defaut.
+  function resolveMarketPrice(marketId: string, isExport: boolean, fallbackVarExport: number, fallbackVarLocal: number): number {
     const m = marketPriceById.get(marketId)
     if (m && m.price > 0) {
-      // Si devise EUR/USD → conversion en MAD
-      const rate = m.currency === 'EUR' ? 11.0 : m.currency === 'USD' ? 10.0 : 1.0
+      // Conversion vers MAD selon devise du marche (taux fixes simplifies)
+      const rate = m.currency === 'EUR' ? 11.0
+                 : m.currency === 'USD' ? 10.0
+                 : m.currency === 'GBP' ? 12.5
+                 : 1.0  // MAD ou autre → pas de conversion
       return m.price * rate
     }
-    // Fallback : prix de la variete
-    if (isExport && fallbackExportEUR > 0) return fallbackExportEUR * 11.0  // EUR → MAD
-    if (!isExport && fallbackLocalMAD > 0) return fallbackLocalMAD
+    // Fallback variete : on suppose MAD (par convention).
+    // Si l'utilisateur a vraiment saisi des prix en EUR, ils doivent le mettre
+    // dans markets.avg_price_per_kg + markets.currency='EUR' pour conversion auto.
+    if (isExport && fallbackVarExport > 0) return fallbackVarExport
+    if (!isExport && fallbackVarLocal > 0) return fallbackVarLocal
     return 0
   }
 
