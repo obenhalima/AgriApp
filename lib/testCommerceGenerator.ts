@@ -133,11 +133,20 @@ export async function generateCommerceForCampaign(
   }
 
   // ─── 2. Récupérer les marchés / clients si pas fournis ─────────────────
+  // On charge AUSSI client_id pour pre-check : si aucun marche n'a de client,
+  // on saura qu'aucune facture ne pourra etre generee.
   let exportMarketIds = options.exportMarketIds ?? []
   let localMarketIds = options.localMarketIds ?? []
+  const marketsWithoutClient = new Set<string>()  // ids des markets utilises sans client_id
+  const marketNamesById = new Map<string, string>()
+
   if (exportMarketIds.length === 0 && localMarketIds.length === 0) {
-    const { data: markets } = await supabase.from('markets').select('id, code, name')
+    const { data: markets } = await supabase.from('markets').select('id, code, name, client_id')
     const all = (markets ?? []) as any[]
+    for (const m of all) {
+      marketNamesById.set(m.id, m.name)
+      if (!m.client_id) marketsWithoutClient.add(m.id)
+    }
     if (all.length > 0) {
       // Heuristique : code/name contient "export" → export, sinon local
       for (const m of all) {
@@ -294,7 +303,23 @@ export async function generateCommerceForCampaign(
       qtyForLocal = totalAll
     }
 
-    // ─── PHASE A : Envoi (insert harvest_lots tri_status='pending') ───
+    // Pre-check global : warning si des markets utilises n'ont pas de client_id
+  // (la generation continue mais les factures concernees seront skip)
+  if (options.generateInvoices !== false && marketsWithoutClient.size > 0) {
+    const allUsedMarkets = new Set([...exportMarketIds, ...localMarketIds])
+    const missingNames = Array.from(marketsWithoutClient)
+      .filter(id => allUsedMarkets.has(id))
+      .map(id => marketNamesById.get(id) ?? id.slice(0, 8))
+    if (missingNames.length > 0) {
+      report.errors.push(
+        `⚠ ${missingNames.length} marche(s) sans client_id : ${missingNames.join(', ')}. ` +
+        `Aucune facture ne sera generee pour ces marches. Configurez le 'Client par defaut' ` +
+        `dans /marches pour activer la facturation auto.`
+      )
+    }
+  }
+
+  // ─── PHASE A : Envoi (insert harvest_lots tri_status='pending') ───
     if (qtyForExport > 0) {
       const monthNum = parseInt(g.midDate.slice(5, 7))
       const coeff = seasonCoeff(monthNum)
@@ -436,21 +461,41 @@ export async function generateCommerceForCampaign(
     const sunday = new Date(monday); sunday.setUTCDate(monday.getUTCDate() + 6)
 
     let settlementId: string | null = null
+    let settlementIsValidated = false
     try {
-      const { data: s, error: sErr } = await supabase
+      // IDEMPOTENT : verifie d'abord si un bordereau existe deja pour cette semaine
+      const { data: existing } = await supabase
         .from('station_settlements')
-        .insert({
-          period_start: fromDate(monday),
-          period_end: fromDate(sunday),
-          received_date: fromDate(sunday),
-          status: 'brouillon',
-          notes: `Bordereau auto-genere (demo) - semaine ${weekKey}`,
-        })
-        .select('id, code')
-        .single()
-      if (sErr) throw sErr
-      settlementId = s.id
-      report.settlementsCreated++
+        .select('id, code, status, invoice_id')
+        .eq('period_start', fromDate(monday))
+        .eq('period_end', fromDate(sunday))
+        .maybeSingle()
+
+      if (existing) {
+        settlementId = existing.id
+        settlementIsValidated = existing.status === 'valide'
+        // Si deja valide ET deja facture → on skip ce bordereau (rien a refaire)
+        if (settlementIsValidated && existing.invoice_id) {
+          continue
+        }
+        // Sinon, on continue avec l'existant (peut etre brouillon a finir, ou valide sans facture)
+      } else {
+        // Pas d'existant → on cree
+        const { data: s, error: sErr } = await supabase
+          .from('station_settlements')
+          .insert({
+            period_start: fromDate(monday),
+            period_end: fromDate(sunday),
+            received_date: fromDate(sunday),
+            status: 'brouillon',
+            notes: `Bordereau auto-genere (demo) - semaine ${weekKey}`,
+          })
+          .select('id, code')
+          .single()
+        if (sErr) throw sErr
+        settlementId = s.id
+        report.settlementsCreated++
+      }
 
       // Aggregate dispatches into lines (market × variety × farm)
       const lineMap = new Map<string, { market_id: string; variety_id: string; farm_id: string | null; qty_kg: number; price_per_kg: number }>()
@@ -464,33 +509,49 @@ export async function generateCommerceForCampaign(
         lineMap.set(key, cur)
       }
 
-      const linesToInsert = Array.from(lineMap.values()).map(l => ({
-        settlement_id: settlementId,
-        market_id: l.market_id,
-        variety_id: l.variety_id,
-        farm_id: l.farm_id,
-        qty_kg: l.qty_kg,
-        price_per_kg: l.price_per_kg,
-      }))
-      if (linesToInsert.length > 0) {
-        const { error: lErr } = await supabase.from('station_settlement_lines').insert(linesToInsert)
-        if (lErr) throw lErr
+      // Ne re-insere les lignes que si le bordereau est encore en brouillon
+      // (sinon les lignes existent deja et l'INSERT aurait un conflit UNIQUE)
+      if (!settlementIsValidated) {
+        // Supprime les eventuelles anciennes lignes pour repartir propre
+        await supabase.from('station_settlement_lines').delete().eq('settlement_id', settlementId)
+
+        const linesToInsert = Array.from(lineMap.values()).map(l => ({
+          settlement_id: settlementId,
+          market_id: l.market_id,
+          variety_id: l.variety_id,
+          farm_id: l.farm_id,
+          qty_kg: l.qty_kg,
+          price_per_kg: l.price_per_kg,
+        }))
+        if (linesToInsert.length > 0) {
+          const { error: lErr } = await supabase.from('station_settlement_lines').insert(linesToInsert)
+          if (lErr) throw lErr
+        }
+
+        // Validation FIFO via RPC -> alloue + bascule lots en 'priced'
+        const { error: vErr } = await supabase.rpc('admin_validate_station_settlement', { p_settlement_id: settlementId })
+        if (vErr) throw vErr
+        report.settlementsValidated++
       }
 
-      // Validation FIFO via RPC -> alloue + bascule lots en 'priced'
-      const { error: vErr } = await supabase.rpc('admin_validate_station_settlement', { p_settlement_id: settlementId })
-      if (vErr) throw vErr
-      report.settlementsValidated++
-
       // Generation factures (1 par marche dans le bordereau si markets.client_id configure)
+      // Pre-check : si un des marches de ce bordereau n'a pas de client_id, on skip
+      // les factures pour eviter le 400 RPC repete.
       if (options.generateInvoices !== false) {
-        const { data: invRes, error: invErr } = await supabase.rpc('admin_generate_settlement_invoice', { p_settlement_id: settlementId })
-        if (invErr) {
-          report.errors.push(`Facture bordereau S${weekKey} : ${invErr.message}`)
-        } else if (invRes) {
-          const n = (invRes as any).invoices_created ?? 0
-          report.invoicesCreated += n
-          report.totalCA += (invRes as any).total_amount ?? 0
+        const marketsInBordereau = new Set(dispatches.map(d => d.marketId))
+        const missingClient = Array.from(marketsInBordereau).filter(mid => marketsWithoutClient.has(mid))
+        if (missingClient.length > 0) {
+          const names = missingClient.map(id => marketNamesById.get(id) ?? id.slice(0, 8)).join(', ')
+          report.errors.push(`Facture bordereau S${weekKey} skip : marche(s) sans client_id : ${names}. Configure dans /marches.`)
+        } else {
+          const { data: invRes, error: invErr } = await supabase.rpc('admin_generate_settlement_invoice', { p_settlement_id: settlementId })
+          if (invErr) {
+            report.errors.push(`Facture bordereau S${weekKey} : ${invErr.message}`)
+          } else if (invRes) {
+            const n = (invRes as any).invoices_created ?? 0
+            report.invoicesCreated += n
+            report.totalCA += (invRes as any).total_amount ?? 0
+          }
         }
       }
 
@@ -521,15 +582,19 @@ export async function generateCommerceForCampaign(
       report.totalCA += ca
 
       // Facture pour ce dispatch (via RPC, utilise markets.client_id)
+      // Pre-check : skip si le marche n'a pas de client_id
       if (options.generateInvoices !== false) {
-        const { data: invRes, error: invErr } = await supabase.rpc('admin_generate_dispatch_invoice', { p_lot_id: d.lotId })
-        if (invErr) {
-          // Erreur non bloquante : on note dans errors mais on continue
-          if (!/PGRST202|does not exist/i.test(invErr.message ?? '')) {
-            report.errors.push(`Facture LOCAL ${d.lotNumber} : ${invErr.message}`)
+        if (marketsWithoutClient.has(d.marketId)) {
+          // Already logged at the global level — silent skip
+        } else {
+          const { data: invRes, error: invErr } = await supabase.rpc('admin_generate_dispatch_invoice', { p_lot_id: d.lotId })
+          if (invErr) {
+            if (!/PGRST202|does not exist/i.test(invErr.message ?? '')) {
+              report.errors.push(`Facture LOCAL ${d.lotNumber} : ${invErr.message}`)
+            }
+          } else if (invRes && (invRes as any).created) {
+            report.invoicesCreated++
           }
-        } else if (invRes && (invRes as any).created) {
-          report.invoicesCreated++
         }
       }
     } catch (e: any) {
