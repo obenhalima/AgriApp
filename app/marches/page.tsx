@@ -43,28 +43,29 @@ export default function MarchesPage() {
   const load = async () => {
     setLoading(true)
     try {
-      // ESSAI 1 : SELECT * + jointure clients(name) — sans filtre is_active pour voir tout
       let marketsAll: any[] = []
       let lastError: string | undefined
 
-      const withJoin = await supabase.from('markets').select('*, clients(name)').order('name')
-      if (withJoin.error) {
-        console.warn('[marches] join clients(name) impossible, fallback sans join.', withJoin.error.message)
-        lastError = withJoin.error.message
-        const noJoin = await supabase.from('markets').select('*').order('name')
-        if (noJoin.error) {
-          console.error('[marches] load failed:', noJoin.error)
-          lastError = noJoin.error.message
-          toast.error('Chargement marches : ' + noJoin.error.message)
-        } else {
-          marketsAll = noJoin.data ?? []
-        }
+      // Charge TOUS les clients d'abord pour mapping local (evite PostgREST embed ambigu)
+      const clientsRes = await supabase.from('clients').select('id, name, is_active').order('name')
+      const allClients = (clientsRes.data ?? []) as any[]
+      const clientById = new Map(allClients.map(c => [c.id, c]))
+      setClients(allClients.filter(c => c.is_active !== false))
+
+      // Charge les marches SANS embed clients (evite l'erreur 'more than one relationship')
+      const res = await supabase.from('markets').select('*').order('name')
+      if (res.error) {
+        console.error('[marches] load failed:', res.error)
+        lastError = res.error.message
+        toast.error('Chargement marches : ' + res.error.message)
       } else {
-        marketsAll = withJoin.data ?? []
+        // Enrichit chaque marche avec son client (jointure cote client)
+        marketsAll = (res.data ?? []).map((m: any) => ({
+          ...m,
+          clients: m.client_id ? { name: clientById.get(m.client_id)?.name ?? null } : null,
+        }))
       }
 
-      // Filtre is_active=true cote client (au lieu du .eq qui pouvait planter)
-      // → on garde aussi le count total pour diagnostic
       const activeOnly = marketsAll.filter(m => m.is_active !== false)
       setItems(activeOnly)
       setLoadDebug({
@@ -72,10 +73,6 @@ export default function MarchesPage() {
         totalCount: marketsAll.length,
         lastError,
       })
-
-      // Clients (optionnel)
-      const c = await supabase.from('clients').select('id, name').eq('is_active', true).order('name')
-      setClients(c.data ?? [])
     } finally {
       setLoading(false)
     }
