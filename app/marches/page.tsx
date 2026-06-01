@@ -32,6 +32,7 @@ export default function MarchesPage() {
     code: '', name: '', type: 'local', country: 'Maroc', currency: 'MAD',
     avg_price_per_kg: '', avg_logistics_cost_per_kg: '', export_fees_per_kg: '',
     payment_terms: '', payment_terms_days: '30', client_id: '',
+    bordereau_frequency: 'monthly',
     is_ecart_market: false, requirements: '', notes: '',
   } as any)
   const upd = (k: string) => (e: any) => setForm((f: any) => ({ ...f, [k]: e.target.value }))
@@ -101,6 +102,7 @@ export default function MarchesPage() {
       country: 'Maroc', currency: 'MAD',
       avg_price_per_kg: '', avg_logistics_cost_per_kg: '', export_fees_per_kg: '',
       payment_terms: '', payment_terms_days: '30', client_id: '',
+      bordereau_frequency: 'monthly',
       is_ecart_market: false, requirements: '', notes: '',
     } as any)
     setModal(true)
@@ -108,6 +110,8 @@ export default function MarchesPage() {
 
   const openEdit = (m: any) => {
     setEditId(m.id)
+    // Frequency par defaut selon type : export=weekly, local=monthly
+    const defaultFreq = m.type === 'export' ? 'weekly' : 'monthly'
     setForm({
       code: m.code ?? '',
       name: m.name ?? '',
@@ -120,6 +124,7 @@ export default function MarchesPage() {
       payment_terms: m.payment_terms ?? '',
       payment_terms_days: m.payment_terms_days != null ? String(m.payment_terms_days) : '30',
       client_id: m.client_id ?? '',
+      bordereau_frequency: m.bordereau_frequency ?? defaultFreq,
       is_ecart_market: !!m.is_ecart_market,
       requirements: m.requirements ?? '',
       notes: m.notes ?? '',
@@ -140,6 +145,7 @@ export default function MarchesPage() {
         payment_terms: form.payment_terms || null,
         payment_terms_days: form.payment_terms_days ? Number(form.payment_terms_days) : 30,
         client_id: form.client_id || null,
+        bordereau_frequency: (form as any).bordereau_frequency || 'monthly',
         is_ecart_market: !!(form as any).is_ecart_market,
         requirements: form.requirements || null,
         notes: form.notes || null,
@@ -175,6 +181,11 @@ export default function MarchesPage() {
       if (resp.error && /is_ecart_market.*schema cache|is_ecart_market.*does not exist/i.test(resp.error.message)) {
         toast.warning('Colonne is_ecart_market absente (migration 048 a appliquer).', { duration: 6000 })
         resp = await retryWithout('is_ecart_market')
+      }
+      // Retry sans bordereau_frequency si pas applique (migration 049)
+      if (resp.error && /bordereau_frequency.*schema cache|bordereau_frequency.*does not exist/i.test(resp.error.message)) {
+        toast.warning('Colonne bordereau_frequency absente (migration 049 a appliquer).', { duration: 6000 })
+        resp = await retryWithout('bordereau_frequency')
       }
       if (resp.error) throw resp.error
 
@@ -261,6 +272,13 @@ export default function MarchesPage() {
                     ⚠ Sans client, les ventes vers ce marché ne pourront pas être facturées
                   </div>
                 )}
+              </Field>
+              <Field label="Cadence du bordereau" hint="Période de regroupement des dispatches pour facturation">
+                <TSelect value={(form as any).bordereau_frequency ?? 'monthly'} onChange={upd('bordereau_frequency')}>
+                  <option value="weekly">Hebdomadaire (lundi → dimanche) — recommandé pour Export</option>
+                  <option value="monthly">Mensuel (1er → fin du mois) — recommandé pour Local</option>
+                  <option value="none">Aucun (facture par dispatch direct, sans regroupement)</option>
+                </TSelect>
               </Field>
               <div className="rounded-md border border-warning/30 bg-warning/5 p-md">
                 <label className="flex items-start gap-sm cursor-pointer">

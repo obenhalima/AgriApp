@@ -142,10 +142,13 @@ export async function generateCommerceForCampaign(
   // Cache des infos par marche : avg_price_per_kg, currency
   const marketPriceById = new Map<string, { price: number; currency: string }>()
 
+  // Map : marketId → bordereau_frequency ('weekly' | 'monthly' | 'none')
+  const marketFrequencyById = new Map<string, 'weekly' | 'monthly' | 'none'>()
+
   if (exportMarketIds.length === 0 && localMarketIds.length === 0) {
     const { data: markets } = await supabase
       .from('markets')
-      .select('id, code, name, type, currency, avg_price_per_kg, client_id')
+      .select('id, code, name, type, currency, avg_price_per_kg, client_id, bordereau_frequency')
     const all = (markets ?? []) as any[]
     for (const m of all) {
       marketNamesById.set(m.id, m.name)
@@ -153,11 +156,13 @@ export async function generateCommerceForCampaign(
         price: toNum(m.avg_price_per_kg),
         currency: m.currency ?? 'MAD',
       })
+      // Fréquence : valeur explicite OU défaut selon type (export=weekly, autre=monthly)
+      const freq = m.bordereau_frequency ?? (m.type === 'export' ? 'weekly' : 'monthly')
+      marketFrequencyById.set(m.id, freq as any)
       if (!m.client_id) marketsWithoutClient.add(m.id)
     }
     if (all.length > 0) {
-      // Classification PROPRE basee sur markets.type (au lieu de heuristique sur le nom)
-      // 'export' → exportMarketIds, autres ('local', 'grande_distribution', 'grossiste'...) → localMarketIds
+      // Classification basee sur markets.type
       for (const m of all) {
         const type = (m.type ?? '').toLowerCase()
         if (type === 'export') {
@@ -166,7 +171,6 @@ export async function generateCommerceForCampaign(
           localMarketIds.push(m.id)
         }
       }
-      // Fallback : si rien classifié, prendre n'importe quel marché
       if (exportMarketIds.length === 0 && all.length > 0) exportMarketIds = [all[0].id]
       if (localMarketIds.length === 0 && all.length > 0) localMarketIds = [all[all.length - 1].id]
     }
@@ -475,55 +479,41 @@ export async function generateCommerceForCampaign(
     }
   }
 
-  // ─── PHASE C : Bordereaux station pour les dispatches EXPORT (1 par semaine ISO) ───
-  // Groupe par semaine -> 1 bordereau par semaine ISO contenant toutes les lignes
-  // (market × variety × farm). Validation FIFO via RPC + generation factures.
-  const exportByWeek = new Map<string, PendingDispatch[]>()
-  for (const d of pendingDispatches.filter(x => x.isExport && x.qtyAcceptee > 0)) {
-    const arr = exportByWeek.get(d.weekKey) ?? []
-    arr.push(d)
-    exportByWeek.set(d.weekKey, arr)
-  }
+  // ─── PHASE C : Bordereaux station selon la frequence par marche ───
+  // Trois cas selon markets.bordereau_frequency :
+  //   - 'weekly'  : 1 bordereau par semaine ISO (lundi → dimanche)
+  //   - 'monthly' : 1 bordereau par mois calendaire (1er → fin du mois)
+  //   - 'none'    : pas de bordereau, tarif direct (traite en PHASE D)
 
-  for (const [weekKey, dispatches] of exportByWeek) {
-    // Lundi/dimanche de la semaine ISO
-    const [yyyy, ww] = weekKey.split('-W')
-    const year = parseInt(yyyy); const week = parseInt(ww)
-    const jan4 = new Date(Date.UTC(year, 0, 4))
-    const dayOfJan4 = jan4.getUTCDay() || 7
-    const week1Mon = new Date(jan4); week1Mon.setUTCDate(jan4.getUTCDate() - (dayOfJan4 - 1))
-    const monday = new Date(week1Mon); monday.setUTCDate(week1Mon.getUTCDate() + (week - 1) * 7)
-    const sunday = new Date(monday); sunday.setUTCDate(monday.getUTCDate() + 6)
+  type SettlementKey = { periodKey: string; periodType: 'weekly' | 'monthly'; periodStart: Date; periodEnd: Date }
 
+  // Helper : crée/valide/facture un bordereau a partir d'un groupe de dispatches
+  async function buildBordereauForGroup(key: SettlementKey, dispatches: PendingDispatch[]) {
     let settlementId: string | null = null
     let settlementIsValidated = false
     try {
-      // IDEMPOTENT : verifie d'abord si un bordereau existe deja pour cette semaine
       const { data: existing } = await supabase
         .from('station_settlements')
-        .select('id, code, status, invoice_id')
-        .eq('period_start', fromDate(monday))
-        .eq('period_end', fromDate(sunday))
+        .select('id, code, status, invoice_id, period_type')
+        .eq('period_start', fromDate(key.periodStart))
+        .eq('period_end', fromDate(key.periodEnd))
+        .eq('period_type', key.periodType)
         .maybeSingle()
 
       if (existing) {
         settlementId = existing.id
         settlementIsValidated = existing.status === 'valide'
-        // Si deja valide ET deja facture → on skip ce bordereau (rien a refaire)
-        if (settlementIsValidated && existing.invoice_id) {
-          continue
-        }
-        // Sinon, on continue avec l'existant (peut etre brouillon a finir, ou valide sans facture)
+        if (settlementIsValidated && existing.invoice_id) return
       } else {
-        // Pas d'existant → on cree
         const { data: s, error: sErr } = await supabase
           .from('station_settlements')
           .insert({
-            period_start: fromDate(monday),
-            period_end: fromDate(sunday),
-            received_date: fromDate(sunday),
+            period_start: fromDate(key.periodStart),
+            period_end: fromDate(key.periodEnd),
+            received_date: fromDate(key.periodEnd),
             status: 'brouillon',
-            notes: `Bordereau auto-genere (demo) - semaine ${weekKey}`,
+            period_type: key.periodType,
+            notes: `Bordereau auto-genere (demo) - ${key.periodType === 'weekly' ? 'semaine' : 'mois'} ${key.periodKey}`,
           })
           .select('id, code')
           .single()
@@ -532,78 +522,119 @@ export async function generateCommerceForCampaign(
         report.settlementsCreated++
       }
 
-      // Aggregate dispatches into lines (market × variety × farm)
+      // Aggregate dispatches (market × variety × farm)
       const lineMap = new Map<string, { market_id: string; variety_id: string; farm_id: string | null; qty_kg: number; price_per_kg: number }>()
       for (const d of dispatches) {
-        const key = `${d.marketId}|${d.varietyId}|${d.farmId ?? 'null'}`
-        const cur = lineMap.get(key) ?? {
+        const k = `${d.marketId}|${d.varietyId}|${d.farmId ?? 'null'}`
+        const cur = lineMap.get(k) ?? {
           market_id: d.marketId, variety_id: d.varietyId, farm_id: d.farmId,
           qty_kg: 0, price_per_kg: d.priceMAD,
         }
         cur.qty_kg += d.qtyAcceptee
-        lineMap.set(key, cur)
+        lineMap.set(k, cur)
       }
 
-      // Ne re-insere les lignes que si le bordereau est encore en brouillon
-      // (sinon les lignes existent deja et l'INSERT aurait un conflit UNIQUE)
       if (!settlementIsValidated) {
-        // Supprime les eventuelles anciennes lignes pour repartir propre
         await supabase.from('station_settlement_lines').delete().eq('settlement_id', settlementId)
-
         const linesToInsert = Array.from(lineMap.values()).map(l => ({
           settlement_id: settlementId,
-          market_id: l.market_id,
-          variety_id: l.variety_id,
-          farm_id: l.farm_id,
-          qty_kg: l.qty_kg,
-          price_per_kg: l.price_per_kg,
+          market_id: l.market_id, variety_id: l.variety_id, farm_id: l.farm_id,
+          qty_kg: l.qty_kg, price_per_kg: l.price_per_kg,
         }))
         if (linesToInsert.length > 0) {
           const { error: lErr } = await supabase.from('station_settlement_lines').insert(linesToInsert)
           if (lErr) throw lErr
         }
-
-        // Validation FIFO via RPC -> alloue + bascule lots en 'priced'
         const { error: vErr } = await supabase.rpc('admin_validate_station_settlement', { p_settlement_id: settlementId })
         if (vErr) throw vErr
         report.settlementsValidated++
       }
 
-      // Generation factures (1 par marche dans le bordereau si markets.client_id configure)
-      // Pre-check : si un des marches de ce bordereau n'a pas de client_id, on skip
-      // les factures pour eviter le 400 RPC repete.
+      // Facturation
       if (options.generateInvoices !== false) {
         const marketsInBordereau = new Set(dispatches.map(d => d.marketId))
         const missingClient = Array.from(marketsInBordereau).filter(mid => marketsWithoutClient.has(mid))
         if (missingClient.length > 0) {
           const names = missingClient.map(id => marketNamesById.get(id) ?? id.slice(0, 8)).join(', ')
-          report.errors.push(`Facture bordereau S${weekKey} skip : marche(s) sans client_id : ${names}. Configure dans /marches.`)
+          report.errors.push(`Facture ${key.periodKey} skip : marche(s) sans client_id : ${names}.`)
         } else {
           const { data: invRes, error: invErr } = await supabase.rpc('admin_generate_settlement_invoice', { p_settlement_id: settlementId })
           if (invErr) {
-            report.errors.push(`Facture bordereau S${weekKey} : ${invErr.message}`)
+            report.errors.push(`Facture bordereau ${key.periodKey} : ${invErr.message}`)
           } else if (invRes) {
-            const n = (invRes as any).invoices_created ?? 0
-            report.invoicesCreated += n
+            report.invoicesCreated += (invRes as any).invoices_created ?? 0
             report.totalCA += (invRes as any).total_amount ?? 0
           }
         }
       }
 
-      // Cumul CA (meme si pas de facture generee)
       for (const d of dispatches) {
-        if (!(options.generateInvoices !== false)) {
-          report.totalCA += d.qtyAcceptee * d.priceMAD
-        }
+        if (!(options.generateInvoices !== false)) report.totalCA += d.qtyAcceptee * d.priceMAD
         report.pricedSet++
       }
     } catch (e: any) {
-      report.errors.push(`Bordereau S${weekKey}${settlementId ? ` (${settlementId.slice(0,8)})` : ''} : ${e.message}`)
+      report.errors.push(`Bordereau ${key.periodKey}${settlementId ? ` (${settlementId.slice(0,8)})` : ''} : ${e.message}`)
     }
   }
 
-  // ─── PHASE D : Tarif direct pour LOCAL (pas de bordereau, vente immediate) ───
-  for (const d of pendingDispatches.filter(x => !x.isExport && x.qtyAcceptee > 0)) {
+  // Helper : compute weekly/monthly period dates from a YYYY-Wnn or YYYY-MM key
+  function isoWeekToDates(weekKey: string): { start: Date; end: Date } {
+    const [yyyy, ww] = weekKey.split('-W')
+    const year = parseInt(yyyy); const week = parseInt(ww)
+    const jan4 = new Date(Date.UTC(year, 0, 4))
+    const dayOfJan4 = jan4.getUTCDay() || 7
+    const week1Mon = new Date(jan4); week1Mon.setUTCDate(jan4.getUTCDate() - (dayOfJan4 - 1))
+    const monday = new Date(week1Mon); monday.setUTCDate(week1Mon.getUTCDate() + (week - 1) * 7)
+    const sunday = new Date(monday); sunday.setUTCDate(monday.getUTCDate() + 6)
+    return { start: monday, end: sunday }
+  }
+  function monthlyToDates(yyyyMm: string): { start: Date; end: Date } {
+    const [yyyy, mm] = yyyyMm.split('-')
+    const year = parseInt(yyyy); const month = parseInt(mm)
+    const start = new Date(Date.UTC(year, month - 1, 1))
+    const end = new Date(Date.UTC(year, month, 0))  // dernier jour du mois
+    return { start, end }
+  }
+
+  // Groupe les dispatches selon la frequence de LEUR marche
+  const weeklyByKey = new Map<string, PendingDispatch[]>()    // key = weekKey
+  const monthlyByKey = new Map<string, PendingDispatch[]>()   // key = YYYY-MM
+  const noBordereauDispatches: PendingDispatch[] = []         // tarif direct
+
+  for (const d of pendingDispatches.filter(x => x.qtyAcceptee > 0)) {
+    const freq = marketFrequencyById.get(d.marketId) ?? (d.isExport ? 'weekly' : 'monthly')
+    if (freq === 'weekly') {
+      const arr = weeklyByKey.get(d.weekKey) ?? []
+      arr.push(d); weeklyByKey.set(d.weekKey, arr)
+    } else if (freq === 'monthly') {
+      const monthKey = d.midDate.slice(0, 7)  // YYYY-MM
+      const arr = monthlyByKey.get(monthKey) ?? []
+      arr.push(d); monthlyByKey.set(monthKey, arr)
+    } else {
+      noBordereauDispatches.push(d)
+    }
+  }
+
+  // C-1 : Bordereaux hebdo (typiquement Export)
+  for (const [weekKey, dispatches] of weeklyByKey) {
+    const { start, end } = isoWeekToDates(weekKey)
+    await buildBordereauForGroup(
+      { periodKey: weekKey, periodType: 'weekly', periodStart: start, periodEnd: end },
+      dispatches,
+    )
+  }
+
+  // C-2 : Bordereaux mensuels (typiquement Local)
+  for (const [monthKey, dispatches] of monthlyByKey) {
+    const { start, end } = monthlyToDates(monthKey)
+    await buildBordereauForGroup(
+      { periodKey: monthKey, periodType: 'monthly', periodStart: start, periodEnd: end },
+      dispatches,
+    )
+  }
+
+  // ─── PHASE D : Tarif direct pour markets frequency='none' (pas de bordereau) ───
+  for (const d of noBordereauDispatches) {
     const ca = d.qtyAcceptee * d.priceMAD
     try {
       const { error } = await supabase.from('harvest_lots').update({
