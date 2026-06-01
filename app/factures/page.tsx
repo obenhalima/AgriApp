@@ -118,13 +118,37 @@ export default function FacturesPage() {
         .in('status', ['recu', 'partiellement_recu', 'envoye'])
         .order('order_date', { ascending: false })
         .limit(100),
+      // Charge tous les clients (y compris inactifs) pour le mapping de fallback
+      // sur les jointures qui retourneraient null (ex: client Station désactivé)
+      supabase.from('clients').select('id, name, is_active').order('name'),
     ])
-      .then(([fc, ff, cd, sd, cad, srd, pos]) => {
-        setClientInvoices(fc); setSupplierInvoices(ff); setClients(cd); setSuppliers(sd); setCampagnes(cad); setSerres(srd)
+      .then(([fc, ff, cd, sd, cad, srd, pos, allCl]) => {
+        // Enrichit chaque facture : si la jointure clients(name) retourne null,
+        // on retombe sur le map allClients pour avoir le nom quand même
+        const clientNameById = new Map<string, string>()
+        for (const c of (allCl.data ?? []) as any[]) {
+          clientNameById.set(c.id, c.name)
+        }
+        const enriched = fc.map((inv: any) => ({
+          ...inv,
+          clients: inv.clients ?? (inv.client_id && clientNameById.has(inv.client_id)
+            ? { name: clientNameById.get(inv.client_id) }
+            : { name: '(client inconnu)' }),
+        }))
+        setClientInvoices(enriched)
+        setSupplierInvoices(ff); setClients(cd); setSuppliers(sd); setCampagnes(cad); setSerres(srd)
         setPurchaseOrders((pos.data ?? []) as any[])
+        // Diagnostic console : aide à identifier si des factures sont chargées
+        // mais cachees par un filtre. Visible en dev.
+        if (typeof console !== 'undefined') {
+          console.log(`[factures] loaded ${enriched.length} client invoices (${enriched.filter((i: any) => i.invoice_number?.startsWith('FB-')).length} bordereau)`)
+        }
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch((e) => {
+        console.error('[factures] load error:', e)
+        setLoading(false)
+      })
   , [])
   useEffect(() => { load() }, [load])
 
@@ -150,6 +174,32 @@ export default function FacturesPage() {
     }, 600)
     return () => clearTimeout(t)
   }, [focusInvoiceId, clientInvoices.length])
+
+  // Fallback : si on cherche une facture spécifique mais elle n'est pas dans la liste,
+  // on la fetch directement et on l'injecte (cas RLS ou limit(100) qui l'exclurait)
+  useEffect(() => {
+    if (!focusInvoiceId || loading) return
+    const exists = clientInvoices.some((i) => i.id === focusInvoiceId)
+    if (exists) return
+    console.warn(`[factures] facture ${focusInvoiceId} demandee mais absente de la liste, fetch direct…`)
+    supabase
+      .from('invoices')
+      .select('*, clients(name)')
+      .eq('id', focusInvoiceId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) { console.error('[factures] fetch direct error:', error); return }
+        if (!data) { console.warn(`[factures] facture ${focusInvoiceId} introuvable en DB`); return }
+        // Resoudre le client name si null
+        const enriched: any = { ...data }
+        if (!enriched.clients?.name && enriched.client_id) {
+          const local = clients.find((c) => c.id === enriched.client_id)
+          enriched.clients = { name: local?.name ?? '(client inconnu)' }
+        }
+        toast.info(`Facture ${enriched.invoice_number} chargée (n'apparaissait pas via la requête principale)`)
+        setClientInvoices((prev) => [enriched, ...prev])
+      })
+  }, [focusInvoiceId, clientInvoices, loading, clients])
 
   // ─── Onglet actif depuis ?tab=bordereaux|clients|fournisseurs ─────────
   useEffect(() => {
