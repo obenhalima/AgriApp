@@ -226,9 +226,50 @@ export async function generateCommerceForCampaign(
     clientId: string; month: string; ca: number; varieties: string[]
   }>()
 
+  // Diagnostic : skip count par raison
+  let skippedNoQty = 0
+  let skippedNoPriceExport = 0
+  let skippedNoPriceLocal = 0
+  let skippedNoMarket = 0
+
   for (const g of groups.values()) {
-    // Dispatch EXPORT (depuis Cat 1)
-    if (g.totalCat1 > 0 && g.priceExport > 0 && exportMarketIds.length > 0) {
+    // ─── Allocation intelligente Cat1 vs Cat2+3 → Export vs Local ───
+    // Strategy :
+    //   • Si Cat1>0 et prix Export et marché Export → Cat1 va en Export
+    //   • Si Cat2+3>0 et prix Local et marché Local → Cat2+3 va en Local
+    //   • Si Cat1 mais pas de prix Export, on bascule Cat1 en Local
+    //   • Si Cat2+3 mais pas de prix Local, on bascule en Export
+    //   • Si Cat2+3 = 0 mais Cat1 > 0 et 2 marchés/prix dispo, on split 70/30
+    const totalAll = g.totalCat1 + g.totalCat2 + g.totalCat3
+    let qtyForExport = 0
+    let qtyForLocal = 0
+
+    const canExport = g.priceExport > 0 && exportMarketIds.length > 0
+    const canLocal = g.priceLocal > 0 && localMarketIds.length > 0
+
+    if (totalAll <= 0) { skippedNoQty++; continue }
+    if (!canExport && !canLocal) {
+      if (!canExport) skippedNoPriceExport++
+      if (!canLocal) skippedNoPriceLocal++
+      continue
+    }
+
+    if (canExport && canLocal) {
+      qtyForExport = g.totalCat1
+      qtyForLocal = g.totalCat2 + g.totalCat3
+      // Si tout est en Cat1 (cas saisie manuelle simple) → on garde 70% Export, 30% Local
+      if (qtyForLocal === 0 && qtyForExport > 0) {
+        qtyForLocal = qtyForExport * 0.30
+        qtyForExport = qtyForExport * 0.70
+      }
+    } else if (canExport) {
+      qtyForExport = totalAll
+    } else if (canLocal) {
+      qtyForLocal = totalAll
+    }
+
+    // Dispatch EXPORT
+    if (qtyForExport > 0) {
       const lotNumber = `DISP-EXP-${g.weekKey}-${(g.variety?.code ?? 'V').slice(0, 4)}`
       const month = g.midDate.slice(0, 7)
       const monthNum = parseInt(month.split('-')[1])
@@ -241,7 +282,7 @@ export async function generateCommerceForCampaign(
       const ecart = gaussian(3.5, 1.0)
       const fPct = Math.max(0.5, Math.min(5, freinte))
       const ePct = Math.max(1, Math.min(8, ecart))
-      const qtyNette = g.totalCat1 * (1 - fPct / 100)
+      const qtyNette = qtyForExport * (1 - fPct / 100)
       const qtyAcceptee = qtyNette * (1 - ePct / 100)
       const ca = qtyAcceptee * priceMAD
 
@@ -259,7 +300,7 @@ export async function generateCommerceForCampaign(
           harvest_id: g.harvests[0]?.id ?? null,
           harvest_date: g.midDate,
           receipt_date: g.midDate,
-          quantity_kg: g.totalCat1,
+          quantity_kg: qtyForExport,
           qty_nette_kg: qtyNette,
           qty_acceptee_kg: qtyAcceptee,
           category: 'station_dispatch',
@@ -313,9 +354,9 @@ export async function generateCommerceForCampaign(
       }
     }
 
-    // Dispatch LOCAL (depuis Cat 2 + Cat 3)
-    const totalLocal = g.totalCat2 + g.totalCat3
-    if (totalLocal > 0 && g.priceLocal > 0 && localMarketIds.length > 0) {
+    // Dispatch LOCAL (Cat 2+3 ou fallback depuis Cat 1 si pas d'Export)
+    if (qtyForLocal > 0) {
+      const totalLocal = qtyForLocal
       const lotNumber = `DISP-LOC-${g.weekKey}-${(g.variety?.code ?? 'V').slice(0, 4)}`
       const month = g.midDate.slice(0, 7)
       const monthNum = parseInt(month.split('-')[1])
@@ -447,6 +488,28 @@ export async function generateCommerceForCampaign(
         report.errors.push(`Facture ${g.clientId}/${g.month} : ${e.message}`)
       }
     }
+  }
+
+  // Si 0 dispatches generes, on ajoute un diagnostic explicite
+  if (report.dispatchesCreated === 0) {
+    const diag: string[] = []
+    diag.push(`Diagnostic : ${groups.size} groupes (variete x semaine) analyses`)
+    if (skippedNoQty > 0) diag.push(`${skippedNoQty} groupes sans qty (qty_category_1/2/3 = 0)`)
+    if (skippedNoPriceExport > 0 && skippedNoPriceLocal > 0) {
+      diag.push(`Aucun prix configure : verifier varieties.avg_price_export et avg_price_local`)
+    } else if (skippedNoPriceExport > 0) {
+      diag.push(`Pas de prix Export : varieties.avg_price_export NULL ou 0`)
+    } else if (skippedNoPriceLocal > 0) {
+      diag.push(`Pas de prix Local : varieties.avg_price_local NULL ou 0`)
+    }
+    if (skippedNoMarket > 0) diag.push(`Aucun marche actif`)
+    if (exportMarketIds.length === 0 && localMarketIds.length === 0) {
+      diag.push(`Aucun marche en DB. Cree au moins 1 marche dans /marches.`)
+    }
+    if (clientIds.length === 0) {
+      diag.push(`Aucun client en DB. Cree au moins 1 client dans /clients.`)
+    }
+    for (const d of diag) report.errors.push(d)
   }
 
   return report
