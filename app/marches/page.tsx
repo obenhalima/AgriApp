@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useMemo } from 'react'
 import { toast } from 'sonner'
-import { Globe, Plus, Trash2, Search, X, MapPin, DollarSign, ShieldCheck } from 'lucide-react'
+import { Globe, Plus, Trash2, Search, X, MapPin, DollarSign, ShieldCheck, Pencil, Calendar } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { genCode } from '@/lib/utils'
 import { Card } from '@/components/ui/Card'
@@ -22,6 +22,7 @@ export default function MarchesPage() {
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)  // null = création, sinon = édition
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
   const [search, setSearch] = useState('')
@@ -30,7 +31,7 @@ export default function MarchesPage() {
   const [form, setForm] = useState({
     code: '', name: '', type: 'local', country: 'Maroc', currency: 'MAD',
     avg_price_per_kg: '', avg_logistics_cost_per_kg: '', export_fees_per_kg: '',
-    payment_terms: '', requirements: '', notes: '',
+    payment_terms: '', payment_terms_days: '30', requirements: '', notes: '',
   })
   const upd = (k: string) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }))
 
@@ -50,27 +51,84 @@ export default function MarchesPage() {
     exportMarkets: items.filter(m => m.type === 'export').length,
   }), [items])
 
-  const openModal = () => { setForm(f => ({ ...f, code: genCode('MKT', items.map(i => i.code)) })); setModal(true) }
+  const openModal = () => {
+    setEditId(null)
+    setForm({
+      code: genCode('MKT', items.map(i => i.code)), name: '', type: 'local',
+      country: 'Maroc', currency: 'MAD',
+      avg_price_per_kg: '', avg_logistics_cost_per_kg: '', export_fees_per_kg: '',
+      payment_terms: '', payment_terms_days: '30', requirements: '', notes: '',
+    })
+    setModal(true)
+  }
+
+  const openEdit = (m: any) => {
+    setEditId(m.id)
+    setForm({
+      code: m.code ?? '',
+      name: m.name ?? '',
+      type: m.type ?? 'local',
+      country: m.country ?? '',
+      currency: m.currency ?? 'MAD',
+      avg_price_per_kg: m.avg_price_per_kg != null ? String(m.avg_price_per_kg) : '',
+      avg_logistics_cost_per_kg: m.avg_logistics_cost_per_kg != null ? String(m.avg_logistics_cost_per_kg) : '',
+      export_fees_per_kg: m.export_fees_per_kg != null ? String(m.export_fees_per_kg) : '',
+      payment_terms: m.payment_terms ?? '',
+      payment_terms_days: m.payment_terms_days != null ? String(m.payment_terms_days) : '30',
+      requirements: m.requirements ?? '',
+      notes: m.notes ?? '',
+    })
+    setModal(true)
+  }
 
   const save = async () => {
     if (!form.name) return
     setSaving(true)
     try {
-      const { data, error } = await supabase.from('markets').insert({
+      const payload = {
         code: form.code, name: form.name, type: form.type,
         country: form.country || null, currency: form.currency || 'MAD',
         avg_price_per_kg: form.avg_price_per_kg ? Number(form.avg_price_per_kg) : null,
         avg_logistics_cost_per_kg: form.avg_logistics_cost_per_kg ? Number(form.avg_logistics_cost_per_kg) : null,
         export_fees_per_kg: form.export_fees_per_kg ? Number(form.export_fees_per_kg) : null,
         payment_terms: form.payment_terms || null,
+        payment_terms_days: form.payment_terms_days ? Number(form.payment_terms_days) : 30,
         requirements: form.requirements || null,
-        notes: form.notes || null, is_active: true,
-      }).select().single()
-      if (error) throw error
-      setItems(p => [data, ...p]); setDone(true)
-      toast.success(`Marché "${data.name}" créé`)
-      setTimeout(() => { setModal(false); setDone(false) }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+        notes: form.notes || null,
+      }
+
+      if (editId) {
+        const { data, error } = await supabase
+          .from('markets')
+          .update(payload)
+          .eq('id', editId)
+          .select()
+          .single()
+        if (error) throw error
+        setItems(p => p.map(m => m.id === editId ? data : m))
+        setDone(true)
+        toast.success(`Marché "${data.name}" mis à jour`)
+      } else {
+        const { data, error } = await supabase
+          .from('markets')
+          .insert({ ...payload, is_active: true })
+          .select()
+          .single()
+        if (error) throw error
+        setItems(p => [data, ...p])
+        setDone(true)
+        toast.success(`Marché "${data.name}" créé`)
+      }
+      setTimeout(() => { setModal(false); setDone(false); setEditId(null) }, 1200)
+    } catch (e: any) {
+      const msg = e?.message ?? String(e)
+      // Détection : colonne payment_terms_days inconnue → migration 044 pas déployée
+      if (/payment_terms_days/i.test(msg) && /column/i.test(msg)) {
+        toast.error("La colonne payment_terms_days n'existe pas. Appliquez la migration 044_bordereau_payment_invoice.sql sur Supabase.", { duration: 10000 })
+      } else {
+        toast.error('Erreur : ' + msg)
+      }
+    }
     setSaving(false)
   }
 
@@ -86,11 +144,11 @@ export default function MarchesPage() {
   return (
     <div>
       {modal && (
-        <Modal title="NOUVEAU MARCHÉ" onClose={() => { setModal(false); setDone(false) }}>
-          {done ? <SuccessMessage message="Marché créé !" /> : (
+        <Modal title={editId ? 'MODIFIER LE MARCHÉ' : 'NOUVEAU MARCHÉ'} onClose={() => { setModal(false); setDone(false); setEditId(null) }}>
+          {done ? <SuccessMessage message={editId ? 'Marché mis à jour !' : 'Marché créé !'} /> : (
             <div className="space-y-md">
               <div className="grid grid-cols-2 gap-md">
-                <Field label="Code (auto)"><TInput value={form.code} onChange={upd('code')} /></Field>
+                <Field label="Code (auto)"><TInput value={form.code} onChange={upd('code')} disabled={!!editId} /></Field>
                 <Field label="Nom du marché" required><TInput value={form.name} onChange={upd('name')} placeholder="Export France" autoFocus /></Field>
               </div>
               <div className="grid grid-cols-2 gap-md">
@@ -109,10 +167,24 @@ export default function MarchesPage() {
                 <Field label="Coût logistique (/kg)"><TInput type="number" value={form.avg_logistics_cost_per_kg} onChange={upd('avg_logistics_cost_per_kg')} placeholder="0.18" /></Field>
                 <Field label="Frais export (/kg)"><TInput type="number" value={form.export_fees_per_kg} onChange={upd('export_fees_per_kg')} placeholder="0.05" /></Field>
               </div>
-              <Field label="Conditions de paiement"><TInput value={form.payment_terms} onChange={upd('payment_terms')} placeholder="30 jours net" /></Field>
+              <div className="grid grid-cols-2 gap-md">
+                <Field label="Conditions de paiement (texte)">
+                  <TInput value={form.payment_terms} onChange={upd('payment_terms')} placeholder="30 jours net" />
+                </Field>
+                <Field label="Délai paiement (jours) — bordereau station">
+                  <TInput
+                    type="number"
+                    min={0}
+                    max={365}
+                    value={form.payment_terms_days}
+                    onChange={upd('payment_terms_days')}
+                    placeholder="30"
+                  />
+                </Field>
+              </div>
               <Field label="Certifications requises"><TInput value={form.requirements} onChange={upd('requirements')} placeholder="GlobalGAP, BRC..." /></Field>
               <Field label="Notes"><Textarea rows={2} value={form.notes} onChange={upd('notes')} /></Field>
-              <ModalFooter onCancel={() => setModal(false)} onSave={save} loading={saving} disabled={!form.name} saveLabel="CRÉER" />
+              <ModalFooter onCancel={() => { setModal(false); setEditId(null) }} onSave={save} loading={saving} disabled={!form.name} saveLabel={editId ? 'METTRE À JOUR' : 'CRÉER'} />
             </div>
           )}
         </Modal>
@@ -180,12 +252,25 @@ export default function MarchesPage() {
                     </div>
                   ))}
                 </div>
-                {m.requirements && (
-                  <div className="mt-md flex items-center gap-1 text-caption text-fg-tertiary"><ShieldCheck size={10} />{m.requirements}</div>
+                {/* Délai paiement (utilisé pour les bordereaux station) */}
+                {m.payment_terms_days != null && (
+                  <div className="mt-sm flex items-center gap-1 text-caption text-fg-tertiary">
+                    <Calendar size={10} />
+                    Délai paiement : <strong className="text-fg-secondary">{m.payment_terms_days} j</strong>
+                    {m.payment_terms && <span className="text-fg-muted">— {m.payment_terms}</span>}
+                  </div>
                 )}
-                <Button onClick={() => del(m.id, m.name)} variant="destructive" size="sm" className="mt-md w-full">
-                  <Trash2 size={12} strokeWidth={2.2} /> Désactiver
-                </Button>
+                {m.requirements && (
+                  <div className="mt-sm flex items-center gap-1 text-caption text-fg-tertiary"><ShieldCheck size={10} />{m.requirements}</div>
+                )}
+                <div className="mt-md grid grid-cols-2 gap-sm">
+                  <Button onClick={() => openEdit(m)} variant="secondary" size="sm">
+                    <Pencil size={12} strokeWidth={2.2} /> Modifier
+                  </Button>
+                  <Button onClick={() => del(m.id, m.name)} variant="destructive" size="sm">
+                    <Trash2 size={12} strokeWidth={2.2} /> Désactiver
+                  </Button>
+                </div>
               </div>
             </Card>
           ))}
