@@ -94,6 +94,48 @@ export function formatDateOnly(d: Date): string {
 }
 
 /**
+ * Convertit une chaîne ISO week 'YYYY-Www' (format de `<input type="week">`)
+ * vers le lundi et dimanche correspondants.
+ *
+ * Exemple : '2026-W23' → { monday: 2026-06-01, sunday: 2026-06-07, year: 2026, week: 23 }
+ */
+export function isoWeekStringToRange(isoWeek: string): {
+  monday: Date
+  sunday: Date
+  year: number
+  week: number
+} | null {
+  const m = /^(\d{4})-W(\d{1,2})$/.exec(isoWeek.trim())
+  if (!m) return null
+  const year = parseInt(m[1], 10)
+  const week = parseInt(m[2], 10)
+  if (week < 1 || week > 53) return null
+
+  // ISO 8601 : la semaine 1 est celle qui contient le 4 janvier.
+  // Donc le lundi de la semaine N = lundi de la semaine du 4 jan + (N-1)*7 jours
+  const jan4 = new Date(Date.UTC(year, 0, 4))
+  const jan4Day = jan4.getUTCDay() || 7  // dim=0 → 7
+  const week1Monday = new Date(jan4)
+  week1Monday.setUTCDate(jan4.getUTCDate() - (jan4Day - 1))
+
+  const monday = new Date(week1Monday)
+  monday.setUTCDate(week1Monday.getUTCDate() + (week - 1) * 7)
+
+  const sunday = new Date(monday)
+  sunday.setUTCDate(monday.getUTCDate() + 6)
+
+  return { monday, sunday, year, week }
+}
+
+/**
+ * Format inverse : Date → 'YYYY-Www' (compatible avec <input type="week">)
+ */
+export function dateToIsoWeekString(date: Date): string {
+  const { year, week } = getIsoWeekNumber(date)
+  return `${year}-W${String(week).padStart(2, '0')}`
+}
+
+/**
  * Numéro de semaine ISO (1-53)
  */
 export function getIsoWeekNumber(date: Date): { year: number; week: number } {
@@ -240,15 +282,31 @@ export async function createSettlement(params: {
 }
 
 /**
- * Crée le bordereau de la semaine courante (lundi → dimanche), idempotent :
+ * Crée le bordereau d'une semaine ISO arbitraire (lundi → dimanche), idempotent :
  * si un bordereau existe déjà pour cette semaine, le retourne directement.
+ *
+ * Accepte soit une chaîne ISO 'YYYY-Www', soit une Date quelconque
+ * (sera arrondie au lundi de sa semaine ISO).
  */
-export async function createCurrentWeekSettlement(): Promise<Settlement> {
-  const { monday, sunday } = getIsoWeekRange()
+export async function createSettlementForWeek(input: string | Date): Promise<Settlement> {
+  let monday: Date
+  let sunday: Date
+
+  if (typeof input === 'string') {
+    const r = isoWeekStringToRange(input)
+    if (!r) throw new Error(`Semaine invalide : "${input}" — attendu format YYYY-Www`)
+    monday = r.monday
+    sunday = r.sunday
+  } else {
+    const r = getIsoWeekRange(input)
+    monday = r.monday
+    sunday = r.sunday
+  }
+
   const ps = formatDateOnly(monday)
   const pe = formatDateOnly(sunday)
 
-  // Cherche un existant
+  // Cherche un existant pour cette semaine
   const { data: existing } = await supabase
     .from('station_settlements')
     .select('*')
@@ -259,6 +317,13 @@ export async function createCurrentWeekSettlement(): Promise<Settlement> {
   if (existing) return existing as Settlement
 
   return createSettlement({ period_start: ps, period_end: pe })
+}
+
+/**
+ * Raccourci pour la semaine courante.
+ */
+export async function createCurrentWeekSettlement(): Promise<Settlement> {
+  return createSettlementForWeek(new Date())
 }
 
 export interface LineInput {

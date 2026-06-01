@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import {
   FileBarChart, Plus, CheckCircle2, RotateCcw, Trash2, AlertTriangle, Pencil, X, Info,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react'
 
 import { Card } from '@/components/ui/Card'
@@ -31,13 +32,15 @@ import {
   type Settlement,
   type MatrixRow,
   listSettlements,
-  createCurrentWeekSettlement,
+  createSettlementForWeek,
   buildMatrix,
   saveSettlementLines,
   validateSettlement,
   unvalidateSettlement,
   deleteSettlement,
   getIsoWeekNumber,
+  isoWeekStringToRange,
+  dateToIsoWeekString,
 } from '@/lib/stationSettlements'
 
 // ────────────────────────────────────────────────────────────
@@ -47,6 +50,8 @@ export function BordereauxSection() {
   const [creating, setCreating] = useState(false)
   const [settlements, setSettlements] = useState<Settlement[]>([])
   const [editTarget, setEditTarget] = useState<Settlement | null>(null)
+  // Sélecteur de période (input HTML5 type=week, format 'YYYY-Www')
+  const [selectedWeek, setSelectedWeek] = useState<string>(() => dateToIsoWeekString(new Date()))
 
   const load = async () => {
     setLoading(true)
@@ -62,11 +67,39 @@ export function BordereauxSection() {
 
   useEffect(() => { load() }, [])
 
-  const handleCreateCurrent = async () => {
+  // Aperçu de la période sélectionnée (lundi → dimanche + numéro S)
+  const weekPreview = useMemo(() => {
+    const r = isoWeekStringToRange(selectedWeek)
+    if (!r) return null
+    return {
+      label: `S${String(r.week).padStart(2, '0')}`,
+      year: r.year,
+      monday: r.monday,
+      sunday: r.sunday,
+    }
+  }, [selectedWeek])
+
+  // Bordereau existant pour la semaine sélectionnée (pour le badge "déjà créé")
+  const existingForSelected = useMemo(() => {
+    if (!weekPreview) return null
+    const ps = weekPreview.monday.toISOString().slice(0, 10)
+    return settlements.find((s) => s.period_start === ps) ?? null
+  }, [weekPreview, settlements])
+
+  const handleCreate = async () => {
+    if (!weekPreview) {
+      toast.error('Sélectionnez une semaine valide')
+      return
+    }
+    // Si déjà existant, on l'ouvre direct sans appel API
+    if (existingForSelected) {
+      setEditTarget(existingForSelected)
+      return
+    }
     setCreating(true)
     try {
-      const s = await createCurrentWeekSettlement()
-      toast.success(`Bordereau ${s.code} prêt à être rempli`)
+      const s = await createSettlementForWeek(selectedWeek)
+      toast.success(`Bordereau ${s.code} créé pour ${weekPreview.label}`)
       await load()
       setEditTarget(s)
     } catch (e: any) {
@@ -74,6 +107,13 @@ export function BordereauxSection() {
     } finally {
       setCreating(false)
     }
+  }
+
+  const shiftWeek = (delta: number) => {
+    if (!weekPreview) return
+    const next = new Date(weekPreview.monday)
+    next.setUTCDate(next.getUTCDate() + delta * 7)
+    setSelectedWeek(dateToIsoWeekString(next))
   }
 
   const handleDelete = async (s: Settlement) => {
@@ -102,24 +142,93 @@ export function BordereauxSection() {
 
   return (
     <div>
-      {/* En-tête + CTA */}
+      {/* En-tête + Sélecteur de période */}
       <Card animate delay={0.1} className="mb-md">
-        <div className="flex flex-wrap items-start gap-md justify-between">
+        <div className="flex flex-col gap-md">
+          {/* Titre + description */}
           <div>
             <div className="flex items-center gap-sm mb-1">
               <FileBarChart size={16} className="text-warning" strokeWidth={2.5} />
               <h2 className="font-display text-heading-sm font-bold text-fg-primary">Bordereaux station</h2>
             </div>
             <p className="text-body-sm text-fg-secondary max-w-2xl">
-              Saisissez chaque semaine le bordereau envoyé par la station de conditionnement.
+              Saisissez le bordereau hebdomadaire envoyé par la station de conditionnement.
               À la validation, le système alloue FIFO les paiements sur les dispatches non encore tarifés.
             </p>
           </div>
-          <div className="flex gap-sm">
-            <Button onClick={handleCreateCurrent} variant="primary" disabled={creating}>
-              <Plus size={14} strokeWidth={2.5} />
-              {creating ? 'Création…' : 'Bordereau semaine en cours'}
-            </Button>
+
+          {/* Sélecteur de période */}
+          <div className="rounded-md border border-border bg-surface-sunk p-md">
+            <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-semibold mb-sm">
+              Choisir la période du bordereau
+            </div>
+            <div className="flex flex-wrap items-end gap-md">
+              {/* Navigation rapide */}
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" onClick={() => shiftWeek(-1)} title="Semaine précédente">
+                  <ChevronLeft size={14} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedWeek(dateToIsoWeekString(new Date()))}
+                  title="Revenir à la semaine en cours"
+                >
+                  Aujourd'hui
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => shiftWeek(1)} title="Semaine suivante">
+                  <ChevronRight size={14} />
+                </Button>
+              </div>
+
+              {/* Input semaine */}
+              <Field label="Semaine ISO">
+                <input
+                  type="week"
+                  value={selectedWeek}
+                  onChange={(e) => setSelectedWeek(e.target.value)}
+                  className="form-input"
+                  style={{ minWidth: 180 }}
+                />
+              </Field>
+
+              {/* Aperçu */}
+              {weekPreview && (
+                <div className="flex-1 min-w-[280px]">
+                  <div className="flex items-center gap-sm mb-1">
+                    <span
+                      className="inline-flex items-center px-sm py-1 rounded font-mono text-body-sm font-bold"
+                      style={{ background: '#8b5cf615', color: '#8b5cf6', border: '1px solid #8b5cf640' }}
+                    >
+                      {weekPreview.label} · {weekPreview.year}
+                    </span>
+                    {existingForSelected && (
+                      <Badge variant={existingForSelected.status === 'valide' ? 'success' : 'warning'} size="xs">
+                        {existingForSelected.status === 'valide' ? 'Déjà validé' : 'Déjà en brouillon'}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="text-body-sm text-fg-secondary">
+                    Du <strong className="text-fg-primary">
+                      {weekPreview.monday.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    </strong>{' '}
+                    au <strong className="text-fg-primary">
+                      {weekPreview.sunday.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                    </strong>
+                  </div>
+                </div>
+              )}
+
+              {/* Action */}
+              <Button onClick={handleCreate} variant="primary" disabled={creating || !weekPreview}>
+                <Plus size={14} strokeWidth={2.5} />
+                {creating
+                  ? 'Création…'
+                  : existingForSelected
+                    ? 'Ouvrir'
+                    : 'Créer le bordereau'}
+              </Button>
+            </div>
           </div>
         </div>
       </Card>
@@ -167,12 +276,7 @@ export function BordereauxSection() {
           <EmptyState
             icon={FileBarChart}
             title="Aucun bordereau"
-            description="Créez le bordereau de la semaine en cours pour commencer à saisir les prix de la station."
-            action={
-              <Button onClick={handleCreateCurrent} variant="primary">
-                <Plus size={14} strokeWidth={2.5} /> Créer maintenant
-              </Button>
-            }
+            description="Choisissez une semaine ci-dessus et créez le premier bordereau pour commencer."
           />
         ) : (
           <DataTable minWidth={900}>
@@ -194,7 +298,7 @@ export function BordereauxSection() {
                   <TR key={s.id}>
                     <TD>
                       <div className="font-mono text-body-sm font-semibold">{s.code}</div>
-                      <div className="font-mono text-[10px] text-fg-tertiary">Semaine {week}</div>
+                      <div className="font-mono text-[10px] text-fg-tertiary">S{String(week).padStart(2, '0')}</div>
                     </TD>
                     <TD>
                       <div className="text-body-sm">
