@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useMemo, useState, Fragment } from 'react'
+import { useCallback, useEffect, useMemo, useState, Fragment } from 'react'
+import { useRealtimeReload } from '@/lib/useRealtimeReload'
 import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { AccountCategory, listAccountCategories, TYPE_LABELS, TYPE_COLORS } from '@/lib/accountCategories'
@@ -107,7 +108,7 @@ export default function CoutsPage() {
   const s = (k: string) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   // ── Chargement initial ──
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const [entries, camps, flist, ghs, cats] = await Promise.all([
         listCostEntries({ limit: 300 }),
@@ -123,8 +124,15 @@ export default function CoutsPage() {
       setCategories(cats)
     } catch (e: any) { console.error(e) }
     setLoading(false)
-  }
-  useEffect(() => { load() }, [])
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  // Realtime : coûts créés par génération budget ou bot
+  useRealtimeReload(
+    ['cost_entries', 'campaigns'],
+    load,
+    { channelName: 'couts-page' },
+  )
 
   // ── Helpers hiérarchie 3 niveaux ──
   // L1 = type (charge_variable / charge_fixe / amortissement)

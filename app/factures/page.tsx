@@ -3,7 +3,8 @@
  * /factures — Refonte avec design system.
  * Conserve toute la logique (calendrier, échéances, paiements) — refait l'UI.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRealtimeReload } from '@/lib/useRealtimeReload'
 import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -107,7 +108,7 @@ export default function FacturesPage() {
 
   const searchParams = useSearchParams()
 
-  const load = () =>
+  const load = useCallback(() =>
     Promise.all([
       getFactures(), getFacturesFournisseurs(), getClients(), getFournisseurs(), getCampagnes(), getSerres(),
       // Charge les POs réceptionnés (entièrement ou partiellement) qui n'ont pas encore de facture
@@ -123,7 +124,16 @@ export default function FacturesPage() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  useEffect(() => { load() }, [])
+  , [])
+  useEffect(() => { load() }, [load])
+
+  // Realtime : synchro auto factures + paiements + bordereaux + achats
+  useRealtimeReload(
+    ['invoices', 'supplier_invoices', 'payments_received', 'payments_made',
+     'station_settlements', 'station_settlement_lines', 'purchase_orders'],
+    load,
+    { channelName: 'factures-page' },
+  )
 
   // ─── Pré-remplir depuis ?po=<id> (lien depuis page achat) ──────────────
   useEffect(() => {

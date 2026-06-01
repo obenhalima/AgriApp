@@ -15,7 +15,8 @@
  * regarde en premier le matin), avec toggle pour basculer en semaine ou personnalisé.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRealtimeReload } from '@/lib/useRealtimeReload'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
@@ -117,6 +118,17 @@ export default function DashboardPage() {
   const { ready: authReady } = useAuthReady()
   const [reloadKey, setReloadKey] = useState(0)
   useRefreshOnEvent(() => setReloadKey(k => k + 1))
+
+  // Realtime : re-déclenche le chargement via bump de reloadKey
+  // sur les tables clés du dashboard CEO
+  const bumpReload = useCallback(() => setReloadKey(k => k + 1), [])
+  useRealtimeReload(
+    ['harvests', 'harvest_lots', 'invoices', 'supplier_invoices',
+     'payments_received', 'payments_made', 'cost_entries', 'alerts',
+     'station_settlements'],
+    bumpReload,
+    { channelName: 'dashboard-ceo', debounceMs: 1500 },
+  )
 
   // Horloge live
   useEffect(() => {

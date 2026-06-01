@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRealtimeReload } from '@/lib/useRealtimeReload'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { ShoppingCart, Plus, Zap, Package, History, ArrowRight, AlertCircle, Search, X } from 'lucide-react'
@@ -71,7 +72,7 @@ export default function AchatsPage() {
     setStockItems((data ?? []) as StockItemLite[])
   }
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const [o, sup, c, ser, def] = await Promise.all([
       supabase.from('purchase_orders').select('*, suppliers(name,category), campaigns(name)').order('order_date', { ascending: false }).limit(100),
       supabase.from('suppliers').select('id,name,category').eq('is_active', true).order('name'),
@@ -90,8 +91,15 @@ export default function AchatsPage() {
       setAllTrans((tr.data ?? []) as WorkflowTransition[])
     }
     setLoading(false)
-  }
-  useEffect(() => { load() }, [])
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  // Realtime : statuts achats + factures fournisseur changent en cascade
+  useRealtimeReload(
+    ['purchase_orders', 'purchase_order_lines', 'purchase_receipts', 'supplier_invoices'],
+    load,
+    { channelName: 'achats-page' },
+  )
 
   const filtered = useMemo(() => items.filter(o => {
     if (statusFilter !== 'all' && o.status !== statusFilter) return false
