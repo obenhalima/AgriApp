@@ -119,14 +119,18 @@ export function Sidebar() {
   const logoBorderColor = isDark ? 'rgba(0,232,122,.22)' : 'rgba(255,255,255,.18)'
   const logoText = isDark ? '#e8f5ee' : '#fff'
   const logoSub = isDark ? '#5a9376' : 'rgba(255,255,255,.55)'
-  // Couleurs contrastées : labels de section bien lisibles (≥ 70% en light, ≥ #9be3b6 en dark)
-  const sectionLabel = isDark ? '#9be3b6' : 'rgba(255,255,255,.78)'
-  const sectionLabelHover = isDark ? '#c4f5d6' : 'rgba(255,255,255,.95)'
+  // Couleurs contrastées pour distinguer hiérarchie :
+  //   • Parent (section) : teinte verte accentuée (mode dark) / blanc cassé (light)
+  //   • Enfant (item)    : ton neutre gris-blanc → contraste visible avec parent
+  const sectionLabel = isDark ? '#7dd09b' : 'rgba(255,255,255,.92)'      // parent : vert + saturé
+  const sectionLabelHover = isDark ? '#a8e8be' : '#fff'
   const sectionLabelActive = isDark ? 'var(--neon)' : '#fff'
-  const sectionTagline = isDark ? 'rgba(155,227,182,.55)' : 'rgba(255,255,255,.55)'
-  const itemColor = isDark ? '#bcd9c6' : 'rgba(255,255,255,.85)'
-  const itemHoverColor = isDark ? '#e8f5ee' : '#fff'
+  const sectionTagline = isDark ? 'rgba(125,208,155,.5)' : 'rgba(255,255,255,.55)'
+  const itemColor = isDark ? '#d0d8db' : 'rgba(255,255,255,.75)'         // enfant : gris neutre (plus de vert)
+  const itemHoverColor = isDark ? '#ffffff' : '#fff'
   const itemActiveColor = isDark ? 'var(--neon)' : '#fff'
+  // Ligne verticale guide entre les enfants et le bord gauche
+  const childGuideColor = isDark ? 'rgba(125,208,155,.18)' : 'rgba(255,255,255,.14)'
 
   return (
     <>
@@ -359,6 +363,14 @@ export function Sidebar() {
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
                       className="overflow-hidden"
+                      style={!collapsed ? {
+                        // Ligne verticale guide à gauche des enfants pour montrer la hierarchie
+                        borderLeft: `1px solid ${childGuideColor}`,
+                        marginLeft: 18,        // niveau d'indentation des enfants
+                        paddingLeft: 4,
+                        marginTop: 2,
+                        marginBottom: 4,
+                      } : undefined}
                     >
                       {group.items.map((item) => {
                         const Icon = item.icon
@@ -402,7 +414,7 @@ export function Sidebar() {
                           <Link
                             key={item.href}
                             href={item.href}
-                            className="group/item relative flex items-center gap-sm mx-2 my-0.5 px-2.5 py-1.5 rounded-md transition-all duration-150"
+                            className="group/item relative flex items-center gap-sm ml-1 mr-2 my-0.5 px-2 py-1.5 rounded-md transition-all duration-150"
                             style={{
                               background: active
                                 ? (isDark
