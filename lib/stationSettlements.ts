@@ -27,6 +27,8 @@ export interface Settlement {
   period_start: string
   period_end: string
   received_date: string
+  expected_payment_date?: string | null
+  invoice_id?: string | null
   status: SettlementStatus
   total_amount: number
   total_qty_kg: number
@@ -524,3 +526,102 @@ export async function buildMatrix(settlementId: string | null): Promise<MatrixRo
 
   return rows
 }
+
+// ───────────────────────────────────────────────────────────
+// Date prévue d'encaissement + facture
+// ───────────────────────────────────────────────────────────
+
+/**
+ * Calcule la date prévue d'encaissement à partir des lignes d'un bordereau.
+ * On prend le MAX des `payment_terms_days` des marchés impliqués (worst case
+ * = on n'optimise pas, on est prudent sur le cashflow).
+ *
+ * Si aucun marché n'a `payment_terms_days` paramétré, on retombe sur 30 jours.
+ */
+export async function computeExpectedPaymentDate(
+  settlementId: string,
+  receivedDate: string,
+): Promise<{ date: string; maxDays: number; perMarket: Array<{ market_id: string; market_name: string; days: number }> }> {
+  const { data, error } = await supabase
+    .from('station_settlement_lines')
+    .select(`
+      market_id,
+      markets ( name, payment_terms_days )
+    `)
+    .eq('settlement_id', settlementId)
+  if (error) throw error
+
+  const perMarket = new Map<string, { market_id: string; market_name: string; days: number }>()
+  for (const row of (data ?? []) as any[]) {
+    const days = Number(row.markets?.payment_terms_days ?? 30) || 30
+    perMarket.set(row.market_id, {
+      market_id: row.market_id,
+      market_name: row.markets?.name ?? '(?)',
+      days,
+    })
+  }
+
+  const list = Array.from(perMarket.values())
+  const maxDays = list.length > 0 ? Math.max(...list.map(m => m.days)) : 30
+
+  const base = new Date(receivedDate)
+  base.setDate(base.getDate() + maxDays)
+  const date = base.toISOString().slice(0, 10)
+
+  return { date, maxDays, perMarket: list }
+}
+
+/**
+ * Met à jour partiellement un bordereau (date prévue, notes, received_date…).
+ * Limité aux bordereaux brouillon — un valide ne devrait pas changer.
+ */
+export async function updateSettlement(
+  id: string,
+  patch: Partial<Pick<Settlement, 'expected_payment_date' | 'received_date' | 'notes'>>,
+): Promise<Settlement> {
+  const { data, error } = await supabase
+    .from('station_settlements')
+    .update(patch)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data as Settlement
+}
+
+/**
+ * Génère une facture (table invoices) à partir d'un bordereau validé.
+ * Appelle la RPC `admin_generate_settlement_invoice`.
+ * Idempotente : si la facture existe déjà, retourne son ID.
+ */
+export interface InvoiceGenResult {
+  success: boolean
+  created: boolean
+  invoice_id: string
+  invoice_number?: string
+  settlement_code: string
+  due_date?: string
+  amount?: number
+  message?: string
+}
+
+export async function generateSettlementInvoice(id: string): Promise<InvoiceGenResult> {
+  const { data, error } = await supabase.rpc('admin_generate_settlement_invoice', {
+    p_settlement_id: id,
+  })
+  if (error) {
+    if (
+      error.code === 'PGRST202' ||
+      error.code === '42883' ||
+      /does not exist/i.test(error.message ?? '')
+    ) {
+      throw new Error(
+        "La RPC admin_generate_settlement_invoice n'est pas déployée. " +
+        "Appliquer la migration 044_bordereau_payment_invoice.sql sur Supabase.",
+      )
+    }
+    throw error
+  }
+  return data as InvoiceGenResult
+}
+

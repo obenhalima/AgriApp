@@ -15,7 +15,7 @@ import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import {
   FileBarChart, Plus, CheckCircle2, RotateCcw, Trash2, AlertTriangle, Pencil, X, Info,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, FileText, Printer, CalendarClock,
 } from 'lucide-react'
 
 import { Card } from '@/components/ui/Card'
@@ -41,6 +41,9 @@ import {
   getIsoWeekNumber,
   isoWeekStringToRange,
   dateToIsoWeekString,
+  computeExpectedPaymentDate,
+  updateSettlement,
+  generateSettlementInvoice,
 } from '@/lib/stationSettlements'
 
 // ────────────────────────────────────────────────────────────
@@ -376,7 +379,14 @@ function SettlementMatrixModal({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [validating, setValidating] = useState(false)
+  const [generatingInvoice, setGeneratingInvoice] = useState(false)
+  // Date prévue d'encaissement (initialisée depuis settlement, écrasée par calcul auto)
+  const [expectedPaymentDate, setExpectedPaymentDate] = useState<string>(
+    settlement.expected_payment_date ?? ''
+  )
+  const [paymentInfo, setPaymentInfo] = useState<{ maxDays: number; perMarket: Array<{ market_name: string; days: number }> }>({ maxDays: 30, perMarket: [] })
   const isReadOnly = settlement.status === 'valide'
+  const hasInvoice = !!settlement.invoice_id
 
   const refresh = async () => {
     setLoading(true)
@@ -391,6 +401,56 @@ function SettlementMatrixModal({
   }
 
   useEffect(() => { refresh() }, [settlement.id])
+
+  // Auto-calcul de la date prévue d'encaissement à partir des marchés des lignes saisies
+  useEffect(() => {
+    let cancelled = false
+    if (!settlement.id) return
+    computeExpectedPaymentDate(settlement.id, settlement.received_date)
+      .then((res) => {
+        if (cancelled) return
+        setPaymentInfo({ maxDays: res.maxDays, perMarket: res.perMarket })
+        // Si l'utilisateur n'a pas encore saisi de date, on pré-remplit avec le calcul auto
+        if (!expectedPaymentDate) setExpectedPaymentDate(res.date)
+      })
+      .catch(() => { /* silent */ })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settlement.id, settlement.received_date, rows.length])
+
+  // Sauvegarde la date prévue dès qu'elle change (debounce léger)
+  useEffect(() => {
+    if (!expectedPaymentDate || isReadOnly) return
+    if (expectedPaymentDate === settlement.expected_payment_date) return
+    const t = setTimeout(() => {
+      updateSettlement(settlement.id, { expected_payment_date: expectedPaymentDate })
+        .catch((e: any) => toast.error(`Date prévue : ${e.message ?? e}`))
+    }, 500)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expectedPaymentDate])
+
+  const handleGenerateInvoice = async () => {
+    if (!confirm(`Générer la facture pour ${settlement.code} ?\n\nClient : Station de conditionnement\nMontant : ${totalAmount.toLocaleString('fr-FR')} MAD\nÉchéance : ${expectedPaymentDate || '?'}\n\nLa facture apparaîtra dans l'onglet "Crédit clients".`)) return
+    setGeneratingInvoice(true)
+    try {
+      const res = await generateSettlementInvoice(settlement.id)
+      if (res.created) {
+        toast.success(`Facture ${res.invoice_number} créée — ${(res.amount ?? 0).toLocaleString('fr-FR')} MAD échéance ${res.due_date}`, { duration: 8000 })
+      } else {
+        toast.info(res.message ?? 'Facture déjà existante')
+      }
+      await onSaved()
+    } catch (e: any) {
+      toast.error(`Génération facture échouée : ${e.message ?? e}`, { duration: 8000 })
+    } finally {
+      setGeneratingInvoice(false)
+    }
+  }
+
+  const handlePrint = () => {
+    window.open(`/factures/bordereau/${settlement.id}/print`, '_blank')
+  }
 
   const setRow = (key: string, patch: Partial<MatrixRow>) => {
     setRows((prev) => prev.map((r) => {
@@ -510,6 +570,36 @@ function SettlementMatrixModal({
           </Field>
         </div>
 
+        {/* ─── Date prévue d'encaissement ─── */}
+        <div className="rounded-md border border-border bg-surface-sunk p-md">
+          <div className="flex flex-wrap items-center gap-md">
+            <CalendarClock size={18} className="text-info flex-shrink-0" />
+            <Field label="Date prévue d'encaissement">
+              <input
+                type="date"
+                value={expectedPaymentDate}
+                onChange={(e) => setExpectedPaymentDate(e.target.value)}
+                disabled={isReadOnly && hasInvoice}
+                className="form-input"
+                style={{ minWidth: 160 }}
+              />
+            </Field>
+            <div className="text-body-sm text-fg-secondary flex-1 min-w-[200px]">
+              <div>
+                Calcul auto : <strong>reçu + {paymentInfo.maxDays}j</strong>
+                {paymentInfo.perMarket.length > 0 && (
+                  <span className="text-fg-tertiary ml-1">
+                    (max parmi {paymentInfo.perMarket.map((m) => `${m.market_name}: ${m.days}j`).join(', ')})
+                  </span>
+                )}
+              </div>
+              <div className="text-[10.5px] text-fg-tertiary mt-0.5">
+                Configure le délai dans <strong>Marchés → payment_terms_days</strong>. Modifiable manuellement.
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Warning overflow */}
         {/* Warning overflow : uniquement en mode édition (brouillon).
             Sur un bordereau validé, "Dispo" reflète le stock restant maintenant,
@@ -621,16 +711,40 @@ function SettlementMatrixModal({
           </div>
         )}
 
-        <div className="flex gap-sm justify-end pt-md border-t border-border">
+        <div className="flex flex-wrap gap-sm justify-end pt-md border-t border-border">
           <Button variant="ghost" onClick={onClose}>
             <X size={14} /> Fermer
           </Button>
 
           {isReadOnly ? (
-            <Button variant="secondary" onClick={handleUnvalidate} disabled={validating}>
-              <RotateCcw size={14} />
-              {validating ? 'Annulation…' : 'Annuler validation'}
-            </Button>
+            <>
+              <Button variant="ghost" onClick={handlePrint} title="Ouvrir une vue imprimable">
+                <Printer size={14} /> Imprimer
+              </Button>
+              {hasInvoice ? (
+                <Button
+                  variant="secondary"
+                  onClick={() => window.open(`/factures?tab=clients&invoice=${settlement.invoice_id}`, '_self')}
+                  title="Voir la facture liée"
+                >
+                  <FileText size={14} /> Voir facture
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  onClick={handleGenerateInvoice}
+                  disabled={generatingInvoice}
+                  title="Crée une facture dans /factures avec ce total et cette échéance"
+                >
+                  <FileText size={14} strokeWidth={2.5} />
+                  {generatingInvoice ? 'Génération…' : 'Générer facture'}
+                </Button>
+              )}
+              <Button variant="secondary" onClick={handleUnvalidate} disabled={validating || hasInvoice} title={hasInvoice ? 'Supprimez d\'abord la facture liée' : undefined}>
+                <RotateCcw size={14} />
+                {validating ? 'Annulation…' : 'Annuler validation'}
+              </Button>
+            </>
           ) : (
             <>
               <Button variant="secondary" onClick={handleSave} disabled={saving || rows.length === 0}>
