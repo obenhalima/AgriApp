@@ -45,6 +45,49 @@ audit trail complet. **Impact estimé V2** : +5-15% CA récupéré.
 
 ---
 
+## 💰 MODULE FACTURATION & TARIFICATION STATION
+
+### ✅ P1 — Bordereaux station (tarification hebdomadaire) — **LIVRÉ V1 juin 2026**
+
+La station de conditionnement envoie chaque semaine un bordereau qui paye
+les dispatches déjà triés. Un dispatch peut être tarifé partiellement sur
+plusieurs bordereaux (split FIFO).
+
+- [x] **Migration 040** — 3 nouvelles tables :
+  - `station_settlements` (en-tête bordereau, 1 par semaine ISO)
+  - `station_settlement_lines` (1 ligne par farm × market × variety)
+  - `station_settlement_allocations` (FIFO sur N dispatches)
+- [x] Code auto-généré format `SET-YYYY-Www` via trigger
+- [x] Colonnes `qty_priced_kg` + `settlement_id` sur `harvest_lots`
+- [x] Trigger de maintenance `total_amount` / `total_qty_kg`
+- [x] **Migration 041** — RPC `admin_validate_station_settlement(uuid)` :
+  - Algorithme FIFO (date_lot ASC) sur les dispatches `tri_status='tried'`
+  - Met à jour `qty_priced_kg` + bascule `tri_status='priced'` quand lot soldé
+  - Atomique (échoue si stock insuffisant)
+  - RPC complémentaire `admin_unvalidate_station_settlement` pour revenir en arrière
+- [x] **Helpers** `lib/stationSettlements.ts` :
+  - `getUnpricedLotsSummary()` — stock dispo agrégé market × variety × farm
+  - `buildMatrix()` — fusion stock + lignes existantes pour saisie
+  - `createCurrentWeekSettlement()` — création idempotente par semaine ISO
+- [x] **UI** nouveau sous-onglet "Bordereaux station" dans `/factures`
+  - Liste des bordereaux (brouillon + validés)
+  - Modal matrice market × variety × farm avec dispo / qty / prix
+  - Validation des quantités vs stock dispo
+  - Boutons Valider FIFO / Annuler validation
+  - Vue en lecture seule pour bordereaux validés
+
+**V2 (à venir)** :
+
+- [ ] Génération d'une vraie `invoice` (facture client) à la validation
+- [ ] Lien `harvest_lots ↔ invoices` pour suivi croisé prix payé / coût production
+- [ ] Vue "Bordereaux en retard" (>2 semaines sans validation)
+- [ ] Stats : prix moyen par variété par mois sur graphique
+
+**Impact V1** : workflow officiel station ↔ exploitation tracé en base,
+prêt pour audit. Plus de saisie ad-hoc dans Excel.
+
+---
+
 ## 🤖 MODULE CHATBOT TELEGRAM
 
 ### ⚡ P2 — TTS (text-to-speech) pour les réponses du bot

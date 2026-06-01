@@ -66,6 +66,8 @@ export default function PurchaseOrderDetailPage() {
 
   const editable = po?.status === 'brouillon'
   const canReceive = po?.status === 'envoye' || po?.status === 'partiellement_recu'
+  // Une facture peut être générée dès qu'on a au moins partiellement reçu
+  const canInvoice = po?.status === 'recu' || po?.status === 'partiellement_recu' || po?.status === 'facture' || po?.status === 'paye'
 
   const stockById = useMemo(() => Object.fromEntries(stockItems.map(s => [s.id, s])), [stockItems])
   const totalOrdered = useMemo(() => lines.reduce((s, l) => s + Number(l.quantity || 0), 0), [lines])

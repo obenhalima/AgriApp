@@ -4,17 +4,21 @@
  * Conserve toute la logique (calendrier, échéances, paiements) — refait l'UI.
  */
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import {
   Receipt, Plus, AlertCircle, Search, X, Calendar, ChevronLeft, ChevronRight,
   TrendingUp, TrendingDown, Wallet, AlertTriangle, ArrowDownCircle, ArrowUpCircle,
-  Banknote, FileBarChart, BadgeDollarSign,
+  Banknote, FileBarChart, BadgeDollarSign, Truck,
 } from 'lucide-react'
+
+import { BordereauxSection } from './BordereauxSection'
 
 import {
   createFacture, createFactureFournisseur, getCampagnes, getClients, getFactures,
   getFacturesFournisseurs, getFournisseurs, getSerres, payerFacture, payerFactureFournisseur,
+  supabase,
 } from '@/lib/supabase'
 import { cn } from '@/lib/cn'
 
@@ -31,7 +35,7 @@ import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { MoneyDisplay, DateDisplay } from '@/components/display'
 import { Tooltip } from '@/components/ui/Tooltip'
 
-type InvoiceTab = 'clients' | 'fournisseurs'
+type InvoiceTab = 'clients' | 'fournisseurs' | 'bordereaux'
 type ModalType = 'facture_client' | 'paiement_client' | 'facture_fournisseur' | 'paiement_fournisseur' | null
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -89,9 +93,10 @@ export default function FacturesPage() {
   const [clientForm, setClientForm] = useState({ client_id: '', invoice_date: '', due_date: '', subtotal: '', notes: '' })
   const [clientPaymentForm, setClientPaymentForm] = useState({ amount: '', payment_method: 'virement', reference: '' })
   const [supplierForm, setSupplierForm] = useState({
-    supplier_id: '', campaign_id: '', greenhouse_id: '', cost_category: 'services',
+    supplier_id: '', po_id: '', campaign_id: '', greenhouse_id: '', cost_category: 'services',
     invoice_date: '', due_date: '', subtotal: '', notes: '',
   })
+  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([])
   const [supplierPaymentForm, setSupplierPaymentForm] = useState({ amount: '', payment_method: 'virement', reference: '' })
 
   const [clientFilter, setClientFilter] = useState('all')
@@ -100,14 +105,49 @@ export default function FacturesPage() {
   const [search, setSearch] = useState('')
   const [calendarMonthOffset, setCalendarMonthOffset] = useState(0)
 
+  const searchParams = useSearchParams()
+
   const load = () =>
-    Promise.all([getFactures(), getFacturesFournisseurs(), getClients(), getFournisseurs(), getCampagnes(), getSerres()])
-      .then(([fc, ff, cd, sd, cad, srd]) => {
+    Promise.all([
+      getFactures(), getFacturesFournisseurs(), getClients(), getFournisseurs(), getCampagnes(), getSerres(),
+      // Charge les POs réceptionnés (entièrement ou partiellement) qui n'ont pas encore de facture
+      supabase.from('purchase_orders')
+        .select('id, code, supplier_id, total_amount, currency, status, order_date, campaign_id, greenhouse_id, suppliers(name)')
+        .in('status', ['recu', 'partiellement_recu', 'envoye'])
+        .order('order_date', { ascending: false })
+        .limit(100),
+    ])
+      .then(([fc, ff, cd, sd, cad, srd, pos]) => {
         setClientInvoices(fc); setSupplierInvoices(ff); setClients(cd); setSuppliers(sd); setCampagnes(cad); setSerres(srd)
+        setPurchaseOrders((pos.data ?? []) as any[])
         setLoading(false)
       })
       .catch(() => setLoading(false))
   useEffect(() => { load() }, [])
+
+  // ─── Pré-remplir depuis ?po=<id> (lien depuis page achat) ──────────────
+  useEffect(() => {
+    const poId = searchParams?.get('po')
+    if (!poId || purchaseOrders.length === 0) return
+    const po = purchaseOrders.find(p => p.id === poId)
+    if (!po) return
+    // Pré-remplit le formulaire et ouvre la modale
+    const today = new Date().toISOString().slice(0, 10)
+    const due = new Date(); due.setDate(due.getDate() + 30)
+    setSupplierForm({
+      supplier_id: po.supplier_id ?? '',
+      po_id: po.id,
+      campaign_id: po.campaign_id ?? '',
+      greenhouse_id: po.greenhouse_id ?? '',
+      cost_category: 'services',
+      invoice_date: today,
+      due_date: due.toISOString().slice(0, 10),
+      subtotal: String(po.total_amount ?? ''),
+      notes: `Facture liée au bon d'achat ${po.code}`,
+    })
+    setTab('fournisseurs')
+    setModal('facture_fournisseur')
+  }, [searchParams, purchaseOrders])
 
   // ─── Dérivations ─────────────────────────────────────────────────────────
   const effClient = useMemo(() => clientInvoices.map(i => ({ ...i, effectiveStatus: getEffectiveStatus(i) })), [clientInvoices])
@@ -264,7 +304,10 @@ export default function FacturesPage() {
   }
 
   const saveSupplierInvoice = async () => {
-    if (!supplierForm.supplier_id || !supplierForm.invoice_date || !supplierForm.due_date || !supplierForm.subtotal) return
+    if (!supplierForm.supplier_id || !supplierForm.invoice_date || !supplierForm.due_date || !supplierForm.subtotal) {
+      toast.error('Champs requis manquants')
+      return
+    }
     setSaving(true)
     try {
       const total = Number(supplierForm.subtotal)
@@ -272,16 +315,36 @@ export default function FacturesPage() {
         ...supplierForm,
         campaign_id: supplierForm.campaign_id || undefined,
         greenhouse_id: supplierForm.greenhouse_id || undefined,
+        po_id: supplierForm.po_id || undefined,
         subtotal: total, total_amount: total,
       })
       setSupplierInvoices(p => [created, ...p]); setDone(true)
-      toast.success('Facture fournisseur créée')
+      toast.success('✅ Facture fournisseur créée' + (supplierForm.po_id ? ' et liée au bon d\'achat' : ''))
       setTimeout(() => {
         resetModalState()
-        setSupplierForm({ supplier_id: '', campaign_id: '', greenhouse_id: '', cost_category: 'services', invoice_date: '', due_date: '', subtotal: '', notes: '' })
+        setSupplierForm({ supplier_id: '', po_id: '', campaign_id: '', greenhouse_id: '', cost_category: 'services', invoice_date: '', due_date: '', subtotal: '', notes: '' })
       }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) {
+      console.error('[saveSupplierInvoice]', e)
+      toast.error('Erreur : ' + e.message)
+    }
     setSaving(false)
+  }
+
+  // Helper : sélectionner un PO depuis la modale → auto-remplit les champs
+  const selectPoForInvoice = (poId: string) => {
+    setSupplierForm(f => ({ ...f, po_id: poId }))
+    if (!poId) return
+    const po = purchaseOrders.find(p => p.id === poId)
+    if (!po) return
+    setSupplierForm(f => ({
+      ...f,
+      supplier_id: po.supplier_id ?? f.supplier_id,
+      campaign_id: po.campaign_id ?? f.campaign_id,
+      greenhouse_id: po.greenhouse_id ?? f.greenhouse_id,
+      subtotal: String(po.total_amount ?? f.subtotal),
+      notes: f.notes || `Facture liée au bon d'achat ${po.code}`,
+    }))
   }
 
   const saveClientPayment = async () => {
@@ -346,8 +409,22 @@ export default function FacturesPage() {
         <Modal title="Nouvelle facture fournisseur" onClose={resetModalState} size="lg">
           {done ? <SuccessMessage message="Facture fournisseur créée !" /> : (
             <div className="space-y-md">
+              {/* Lien optionnel vers un bon d'achat */}
+              <Field label="Bon d'achat lié (optionnel)" hint="Sélectionne pour auto-remplir fournisseur + montant">
+                <TSelect value={supplierForm.po_id} onChange={(e) => selectPoForInvoice(e.target.value)}>
+                  <option value="">— Aucun (saisie libre) —</option>
+                  {purchaseOrders
+                    .filter(po => !supplierForm.supplier_id || po.supplier_id === supplierForm.supplier_id)
+                    .map(po => (
+                      <option key={po.id} value={po.id}>
+                        {po.code} · {po.suppliers?.name ?? '?'} · {Number(po.total_amount ?? 0).toLocaleString('fr-FR')} MAD · {po.status}
+                      </option>
+                    ))}
+                </TSelect>
+              </Field>
+
               <Field label="Fournisseur" required>
-                <TSelect value={supplierForm.supplier_id} onChange={(e) => setSupplierForm(f => ({ ...f, supplier_id: e.target.value }))}>
+                <TSelect value={supplierForm.supplier_id} onChange={(e) => setSupplierForm(f => ({ ...f, supplier_id: e.target.value, po_id: '' }))}>
                   <option value="">— Sélectionner —</option>
                   {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </TSelect>
@@ -453,9 +530,11 @@ export default function FacturesPage() {
         iconColor="#f43f5e"
         description="Crédit clients · Débit fournisseurs · Échéances"
         actions={
-          <Button onClick={() => setModal(tab === 'clients' ? 'facture_client' : 'facture_fournisseur')} variant="primary">
-            <Plus size={14} strokeWidth={2.5} /> {tab === 'clients' ? 'Facture client' : 'Facture fournisseur'}
-          </Button>
+          tab === 'bordereaux' ? null : (
+            <Button onClick={() => setModal(tab === 'clients' ? 'facture_client' : 'facture_fournisseur')} variant="primary">
+              <Plus size={14} strokeWidth={2.5} /> {tab === 'clients' ? 'Facture client' : 'Facture fournisseur'}
+            </Button>
+          )
         }
       />
 
@@ -614,6 +693,7 @@ export default function FacturesPage() {
             {[
               { k: 'clients' as InvoiceTab, l: 'Crédit clients', i: ArrowDownCircle, c: '#10b981' },
               { k: 'fournisseurs' as InvoiceTab, l: 'Débit fournisseurs', i: ArrowUpCircle, c: '#f59e0b' },
+              { k: 'bordereaux' as InvoiceTab, l: 'Bordereaux station', i: Truck, c: '#8b5cf6' },
             ].map(t => {
               const Icon = t.i
               return (
@@ -635,40 +715,47 @@ export default function FacturesPage() {
             })}
           </div>
 
-          <div className="flex items-center gap-sm flex-1 min-w-[200px] max-w-md">
-            <Search size={14} className="text-fg-tertiary flex-shrink-0" />
-            <TInput
-              placeholder={`Rechercher numéro, ${tab === 'clients' ? 'client' : 'fournisseur'}…`}
-              value={search} onChange={(e) => setSearch(e.target.value)}
-              className="border-none bg-transparent focus:ring-0 px-0"
-            />
-            {search && <button onClick={() => setSearch('')} className="text-fg-tertiary hover:text-fg-primary"><X size={14} /></button>}
-          </div>
+          {tab !== 'bordereaux' && (
+            <>
+              <div className="flex items-center gap-sm flex-1 min-w-[200px] max-w-md">
+                <Search size={14} className="text-fg-tertiary flex-shrink-0" />
+                <TInput
+                  placeholder={`Rechercher numéro, ${tab === 'clients' ? 'client' : 'fournisseur'}…`}
+                  value={search} onChange={(e) => setSearch(e.target.value)}
+                  className="border-none bg-transparent focus:ring-0 px-0"
+                />
+                {search && <button onClick={() => setSearch('')} className="text-fg-tertiary hover:text-fg-primary"><X size={14} /></button>}
+              </div>
 
-          {tab === 'clients' ? (
-            <TSelect value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} className="h-8 w-auto min-w-[180px] text-body-sm">
-              <option value="all">Tous les clients</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </TSelect>
-          ) : (
-            <TSelect value={supplierFilter} onChange={(e) => setSupplierFilter(e.target.value)} className="h-8 w-auto min-w-[180px] text-body-sm">
-              <option value="all">Tous les fournisseurs</option>
-              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </TSelect>
+              {tab === 'clients' ? (
+                <TSelect value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} className="h-8 w-auto min-w-[180px] text-body-sm">
+                  <option value="all">Tous les clients</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </TSelect>
+              ) : (
+                <TSelect value={supplierFilter} onChange={(e) => setSupplierFilter(e.target.value)} className="h-8 w-auto min-w-[180px] text-body-sm">
+                  <option value="all">Tous les fournisseurs</option>
+                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </TSelect>
+              )}
+
+              <TSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-8 w-auto min-w-[150px] text-body-sm">
+                <option value="all">Tous statuts</option>
+                <option value="en_attente">En attente</option>
+                <option value="partiellement_paye">Partiel</option>
+                <option value="en_retard">En retard</option>
+                <option value="paye">Payée</option>
+              </TSelect>
+            </>
           )}
-
-          <TSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-8 w-auto min-w-[150px] text-body-sm">
-            <option value="all">Tous statuts</option>
-            <option value="en_attente">En attente</option>
-            <option value="partiellement_paye">Partiel</option>
-            <option value="en_retard">En retard</option>
-            <option value="paye">Payée</option>
-          </TSelect>
         </div>
       </Card>
 
+      {/* ─── Section Bordereaux station ─── */}
+      {tab === 'bordereaux' && <BordereauxSection />}
+
       {/* ─── KPI tab spécifique ─── */}
-      {!loading && (
+      {tab !== 'bordereaux' && !loading && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-sm mb-md">
           {[
             { label: tab === 'clients' ? 'Facturé'      : 'À payer', value: tab === 'clients' ? clientSummary.total       : supplierSummary.total,       color: '#3b82f6', icon: Banknote },
@@ -700,7 +787,7 @@ export default function FacturesPage() {
       )}
 
       {/* ─── Synthèse par compte ─── */}
-      {balance.length > 0 && (
+      {tab !== 'bordereaux' && balance.length > 0 && (
         <Card animate delay={0.45} padding="none" className="overflow-hidden mb-md">
           <div className="px-md py-sm border-b border-border">
             <div className="font-display text-heading-sm font-bold text-fg-primary">
@@ -733,6 +820,7 @@ export default function FacturesPage() {
       )}
 
       {/* ─── Table principale ─── */}
+      {tab !== 'bordereaux' && (
       <Card animate delay={0.5} padding="none" className="overflow-hidden">
         {loading ? (
           <div className="p-md space-y-2">
@@ -805,6 +893,7 @@ export default function FacturesPage() {
           </DataTable>
         )}
       </Card>
+      )}
     </div>
   )
 }

@@ -170,7 +170,7 @@ export const payerFacture = async (p: { invoice_id:string; amount:number; paymen
 export const getFacturesFournisseurs = async () => {
   const { data, error } = await supabase
     .from('supplier_invoices')
-    .select('*, suppliers(name,category), campaigns(name), greenhouses(code,name)')
+    .select('*, suppliers(name,category), campaigns(name), greenhouses(code,name), purchase_orders(code, total_amount)')
     .order('invoice_date', { ascending: false })
     .limit(100)
   if (error) throw error; return data ?? []
@@ -185,6 +185,7 @@ export const createFactureFournisseur = async (p: {
   greenhouse_id?:string
   cost_category?:string
   notes?:string
+  po_id?:string  // lien optionnel vers le bon d'achat
 }) => {
   const num = `FF-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`
   const { data, error } = await supabase.from('supplier_invoices').insert({
@@ -194,7 +195,7 @@ export const createFactureFournisseur = async (p: {
     paid_amount: 0,
     status: 'en_attente',
     currency: 'MAD',
-  }).select('*, suppliers(name,category), campaigns(name), greenhouses(code,name)').single()
+  }).select('*, suppliers(name,category), campaigns(name), greenhouses(code,name), purchase_orders(code, total_amount)').single()
   if (error) throw error; return data
 }
 export const payerFactureFournisseur = async (p: { supplier_invoice_id:string; amount:number; payment_method:string; reference?:string }) => {
