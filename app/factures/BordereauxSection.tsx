@@ -407,12 +407,26 @@ function SettlementMatrixModal({
         </div>
 
         {/* Warning overflow */}
-        {overflowRows.length > 0 && (
+        {/* Warning overflow : uniquement en mode édition (brouillon).
+            Sur un bordereau validé, "Dispo" reflète le stock restant maintenant,
+            pas celui au moment de la validation — la comparaison serait trompeuse. */}
+        {!isReadOnly && overflowRows.length > 0 && (
           <div className="rounded-md border border-warning bg-warning/10 px-md py-sm flex items-start gap-sm">
             <AlertTriangle size={16} className="text-warning flex-shrink-0 mt-px" />
             <div className="text-body-sm text-fg-primary">
               <span className="font-semibold">{overflowRows.length} ligne(s)</span> dépasse(nt) le stock disponible.
               La validation échouera tant que ce n'est pas corrigé.
+            </div>
+          </div>
+        )}
+
+        {/* Info clarification quand on consulte un bordereau validé */}
+        {isReadOnly && (
+          <div className="rounded-md border border-info bg-info/10 px-md py-sm flex items-start gap-sm">
+            <Info size={16} className="text-info flex-shrink-0 mt-px" />
+            <div className="text-body-sm text-fg-primary">
+              Bordereau validé. La colonne <strong>Dispo</strong> affiche le stock encore disponible aujourd'hui
+              pour la combinaison marché × variété × ferme (pas celui au moment de la validation).
             </div>
           </div>
         )}
