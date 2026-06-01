@@ -111,6 +111,7 @@ export default function DemoResetPage() {
   const [commerceRunning, setCommerceRunning] = useState(false)
   const [commerceCampaignId, setCommerceCampaignId] = useState<string>('')
   const [commerceGenerateInvoices, setCommerceGenerateInvoices] = useState(true)
+  const [commerceOnlyPast, setCommerceOnlyPast] = useState(false)  // par defaut : inclure les futures (campagne demo)
   // Dernières erreurs du generator pour affichage dans l'UI
   const [commerceErrors, setCommerceErrors] = useState<string[]>([])
   const [commerceReport, setCommerceReport] = useState<any>(null)
@@ -399,7 +400,7 @@ export default function DemoResetPage() {
     try {
       const report: CommerceGenReport = await generateCommerceForCampaign(cid, {
         generateInvoices: commerceGenerateInvoices,
-        onlyPast: true,
+        onlyPast: commerceOnlyPast,
       })
       console.log('[commerce-gen]', report)
       setCommerceReport(report)
@@ -1104,6 +1105,23 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
                     <span>Générer aussi les factures clients</span>
                   </label>
                 </div>
+              </div>
+
+              <div className="flex flex-wrap gap-md items-center">
+                <label className="flex items-center gap-2 cursor-pointer text-body-sm text-fg-secondary">
+                  <input
+                    type="checkbox"
+                    checked={commerceOnlyPast}
+                    onChange={(e) => setCommerceOnlyPast(e.target.checked)}
+                    className="w-4 h-4 accent-success"
+                  />
+                  <span>
+                    Uniquement récoltes passées
+                    <span className="text-caption text-fg-tertiary ml-1">
+                      (décoche pour générer aussi sur les récoltes futures — utile pour les démos)
+                    </span>
+                  </span>
+                </label>
               </div>
 
               <Button onClick={runCommerceGenerator} variant="primary" size="sm" loading={commerceRunning} disabled={commerceRunning}>

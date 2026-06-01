@@ -177,18 +177,23 @@ export async function generateCommerceForCampaign(
     midDate: string      // milieu de semaine
   }
 
+  // Compteurs de diagnostic pour comprendre pourquoi 0 groupes
+  let skipNoPlanting = 0
+  let skipNoDate = 0
+  let skipNoCampaignPlantingId = 0
+  let skipFuture = 0
   const groups = new Map<string, WeekGroup>()
   for (const h of harvests as any[]) {
     const cp = h.campaign_plantings
-    if (!cp?.variety_id || !cp?.greenhouse_id) continue
-    if (!h.harvest_date) continue
+    if (!cp?.variety_id || !cp?.greenhouse_id) { skipNoPlanting++; continue }
+    if (!h.harvest_date) { skipNoDate++; continue }
     if (!h.campaign_planting_id) {
       // Sans campaign_planting_id, impossible de creer un dispatch (FK NOT NULL)
-      report.errors.push(`Recolte ${h.lot_number ?? h.id} sans campaign_planting_id — ignoree`)
+      skipNoCampaignPlantingId++
       continue
     }
     const date = new Date(h.harvest_date + 'T00:00:00')
-    if (onlyPast && date > new Date()) continue
+    if (onlyPast && date > new Date()) { skipFuture++; continue }
 
     const week = isoWeek(date)
     const key = `${cp.variety_id}|${week}`
@@ -535,7 +540,21 @@ export async function generateCommerceForCampaign(
   // Si 0 dispatches generes, on ajoute un diagnostic explicite
   if (report.dispatchesCreated === 0) {
     const diag: string[] = []
-    diag.push(`Diagnostic : ${groups.size} groupes (variete x semaine) analyses`)
+    diag.push(`Diagnostic : ${harvests.length} recoltes chargees, ${groups.size} groupes (variete x semaine) analyses`)
+
+    // Diagnostic des skips au niveau du grouping
+    if (skipNoPlanting > 0) {
+      diag.push(`${skipNoPlanting} recoltes sans variety_id ou greenhouse_id (relation campaign_plantings cassee)`)
+    }
+    if (skipNoDate > 0) diag.push(`${skipNoDate} recoltes sans harvest_date`)
+    if (skipNoCampaignPlantingId > 0) {
+      diag.push(`${skipNoCampaignPlantingId} recoltes sans campaign_planting_id (NOT NULL requis)`)
+    }
+    if (skipFuture > 0) {
+      diag.push(`${skipFuture} recoltes ignorees car dans le futur (option onlyPast=true). Astuce : decoche cette option pour les inclure.`)
+    }
+
+    // Diagnostic des skips au niveau des groupes
     if (skippedNoQty > 0) diag.push(`${skippedNoQty} groupes sans qty (qty_category_1/2/3 = 0)`)
     if (skippedNoPriceExport > 0 && skippedNoPriceLocal > 0) {
       diag.push(`Aucun prix configure : verifier varieties.avg_price_export et avg_price_local`)
@@ -544,13 +563,14 @@ export async function generateCommerceForCampaign(
     } else if (skippedNoPriceLocal > 0) {
       diag.push(`Pas de prix Local : varieties.avg_price_local NULL ou 0`)
     }
-    if (skippedNoMarket > 0) diag.push(`Aucun marche actif`)
+    if (skippedNoMarket > 0) diag.push(`Aucun marche disponible (sans marketId attribue)`)
     if (exportMarketIds.length === 0 && localMarketIds.length === 0) {
       diag.push(`Aucun marche en DB. Cree au moins 1 marche dans /marches.`)
     }
     if (clientIds.length === 0) {
       diag.push(`Aucun client en DB. Cree au moins 1 client dans /clients.`)
     }
+
     for (const d of diag) report.errors.push(d)
   }
 
