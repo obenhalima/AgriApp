@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRealtimeReload } from '@/lib/useRealtimeReload'
+import { useRefreshOnEvent } from '@/lib/useAuthGuard'
 import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -134,6 +135,21 @@ export default function FacturesPage() {
     load,
     { channelName: 'factures-page' },
   )
+
+  // Bouton refresh Topbar OU action explicite (ex: génération facture bordereau)
+  useRefreshOnEvent(load)
+
+  // Highlight de la facture ciblée par ?invoice=ID (après generation depuis bordereau)
+  const focusInvoiceId = searchParams?.get('invoice') ?? null
+  useEffect(() => {
+    if (!focusInvoiceId) return
+    // Scroll vers la ligne après que la table soit rendue
+    const t = setTimeout(() => {
+      const el = document.querySelector(`[data-invoice-id="${focusInvoiceId}"]`)
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 600)
+    return () => clearTimeout(t)
+  }, [focusInvoiceId, clientInvoices.length])
 
   // ─── Onglet actif depuis ?tab=bordereaux|clients|fournisseurs ─────────
   useEffect(() => {
@@ -871,9 +887,19 @@ export default function FacturesPage() {
               {(tab === 'clients' ? filteredClient : filteredSupplier).map((item, i) => {
                 const remaining = Math.max(Number(item.total_amount || 0) - Number(item.paid_amount || 0), 0)
                 const st = STATUS_CONFIG[item.effectiveStatus] || STATUS_CONFIG.en_attente
+                const isFocused = item.id === focusInvoiceId
                 return (
-                  <TR key={item.id} animate delay={0.55 + i * 0.02}>
-                    <TD mono className="font-bold text-fg-primary">{item.invoice_number}</TD>
+                  <TR
+                    key={item.id}
+                    animate
+                    delay={0.55 + i * 0.02}
+                    data-invoice-id={item.id}
+                    className={isFocused ? 'bg-info/10 ring-2 ring-info ring-inset' : undefined}
+                  >
+                    <TD mono className="font-bold text-fg-primary">
+                      {isFocused && <span className="inline-block w-1.5 h-1.5 rounded-full bg-info mr-1.5 animate-pulse" />}
+                      {item.invoice_number}
+                    </TD>
                     <TD className="font-display font-semibold text-fg-primary">
                       {tab === 'clients' ? item.clients?.name : item.suppliers?.name}
                     </TD>

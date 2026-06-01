@@ -11,6 +11,7 @@
  *   - Vue des allocations FIFO créées
  */
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import {
@@ -375,6 +376,7 @@ function SettlementMatrixModal({
   onClose: () => void
   onSaved: () => Promise<void> | void
 }) {
+  const router = useRouter()
   const [rows, setRows] = useState<MatrixRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -440,6 +442,9 @@ function SettlementMatrixModal({
       } else {
         toast.info(res.message ?? 'Facture déjà existante')
       }
+      // Déclenche un reload sur toutes les pages qui ecoutent app:refresh-data
+      // (notamment /factures pour que la facture apparaisse dans Credit clients)
+      window.dispatchEvent(new CustomEvent('app:refresh-data'))
       await onSaved()
     } catch (e: any) {
       toast.error(`Génération facture échouée : ${e.message ?? e}`, { duration: 8000 })
@@ -724,8 +729,15 @@ function SettlementMatrixModal({
               {hasInvoice ? (
                 <Button
                   variant="secondary"
-                  onClick={() => window.open(`/factures?tab=clients&invoice=${settlement.invoice_id}`, '_self')}
-                  title="Voir la facture liée"
+                  onClick={() => {
+                    onClose()  // ferme le modal
+                    // Next.js : router.push met a jour les searchParams,
+                    // ce qui declenche le useEffect dans /factures pour switch tab + highlight
+                    router.push(`/factures?tab=clients&invoice=${settlement.invoice_id ?? ''}`)
+                    // Force un reload des donnees au cas ou Realtime n'aurait pas declenche
+                    window.dispatchEvent(new CustomEvent('app:refresh-data'))
+                  }}
+                  title="Voir la facture liée dans l'onglet Crédit clients"
                 >
                   <FileText size={14} /> Voir facture
                 </Button>
