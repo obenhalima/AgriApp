@@ -3,13 +3,14 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
+import { BordereauxSection } from '@/app/factures/BordereauxSection'
 
 // ============================================================
 // Page Récoltes — workflow unifié (CRUD + Cycle station)
 // Onglets : Récoltes | À envoyer | À trier | À tarifer | Confirmés | Alertes
 // ============================================================
 
-type Tab = 'liste' | 'a_envoyer' | 'a_trier' | 'a_tarifer' | 'confirmes' | 'stock_retour' | 'alertes'
+type Tab = 'liste' | 'a_envoyer' | 'a_trier' | 'a_tarifer' | 'confirmes' | 'stock_retour' | 'bordereaux' | 'alertes'
 
 const fmt = (n: number) => Math.round(n).toLocaleString('fr-FR')
 const fmt2 = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -371,7 +372,7 @@ export default function RecoltesPage() {
             ↻ Rafraîchir
           </button>
           <Link
-            href="/factures?tab=bordereaux"
+            href="#" onClick={(e) => { e.preventDefault(); setTab('bordereaux') }}
             className="btn-ghost"
             style={{
               fontSize: 11, padding: '6px 10px',
@@ -423,6 +424,7 @@ export default function RecoltesPage() {
           ['a_trier', '📦 À trier', aTrier.length],
           ['a_tarifer', '🔬 À tarifer', aTarifer.length],
           ['confirmes', '✅ Confirmés', confirmes.length],
+          ['bordereaux', '📑 Bordereaux station', 0],
           ['stock_retour', '🔄 Stock retour', stockRetour.length],
           ['alertes', '⚠ Alertes', alertesActives.length],
         ] as [Tab, string, number][]).map(([k, l, c]) => (
@@ -443,8 +445,9 @@ export default function RecoltesPage() {
       {tab === 'liste' && <ListeTab harvests={harvestsEnriched} onEdit={openEdit} onDelete={deleteRecolte} onBulkDelete={bulkDeleteRecoltes} loading={loading} />}
       {tab === 'a_envoyer' && <AEnvoyerTab harvests={aEnvoyer} onBulkDelete={bulkDeleteRecoltes} loading={loading} />}
       {tab === 'a_trier' && <ATrierTab dispatches={aTrier} onPick={d => setModalTri(d)} loading={loading} />}
-      {tab === 'a_tarifer' && <ATariferTab dispatches={aTarifer} summary={unpricedByMarketVariety} onPick={d => setModalPrice(d)} onOpenPeriod={() => setModalPeriodPrice(true)} loading={loading} />}
+      {tab === 'a_tarifer' && <ATariferTab dispatches={aTarifer} summary={unpricedByMarketVariety} onPick={d => setModalPrice(d)} onOpenPeriod={() => setModalPeriodPrice(true)} onGotoBordereaux={() => setTab('bordereaux')} loading={loading} />}
       {tab === 'confirmes' && <ConfirmesTab dispatches={confirmes} loading={loading} />}
+      {tab === 'bordereaux' && <BordereauxSection />}
       {tab === 'stock_retour' && <StockRetourTab lots={stockRetour} onReload={load} loading={loading} />}
       {tab === 'alertes' && <AlertesTab alertes={alertesActives} onResolve={resolveAlerte} loading={loading} />}
 
@@ -704,7 +707,7 @@ function ATrierTab({ dispatches, onPick, loading }: { dispatches: any[]; onPick:
   )
 }
 
-function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, loading }: { dispatches: any[]; summary: any[]; onPick: (d: any) => void; onOpenPeriod: () => void; loading: boolean }) {
+function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, onGotoBordereaux, loading }: { dispatches: any[]; summary: any[]; onPick: (d: any) => void; onOpenPeriod: () => void; onGotoBordereaux: () => void; loading: boolean }) {
   const summaryTotals = useMemo(() => ({
     remaining: summary.reduce((s, r) => s + r.remaining_kg, 0),
     accepted: summary.reduce((s, r) => s + r.accepted_kg, 0),
@@ -720,19 +723,20 @@ function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, loading }: { d
           Envois <strong>triés</strong>, en attente du <strong>prix /kg</strong> pour confirmer le CA.
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Link
-            href="/factures?tab=bordereaux"
+          <button
+            onClick={onGotoBordereaux}
             className="btn-primary"
             style={{
               fontSize: 11.5, padding: '6px 12px',
               background: '#8b5cf6', borderColor: '#8b5cf6',
               textDecoration: 'none',
+              border: 'none', cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 4,
             }}
             title="Saisir le bordereau hebdomadaire envoyé par la station (méthode recommandée)"
           >
             🚚 BORDEREAU STATION
-          </Link>
+          </button>
           <button onClick={onOpenPeriod} disabled={dispatches.length === 0} className="btn-ghost" style={{ fontSize: 11.5, padding: '6px 12px', color: '#a855f7', borderColor: 'color-mix(in srgb,#a855f7 30%,transparent)' }}>
             📅 TARIF PAR PÉRIODE
           </button>
@@ -753,7 +757,7 @@ function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, loading }: { d
           <span style={{ fontSize: 14 }}>💡</span>
           <span>
             <strong>Tip :</strong> au lieu de tarifer dispatch par dispatch, utilisez
-            {' '}<Link href="/factures?tab=bordereaux" style={{ color: '#8b5cf6', fontWeight: 600 }}>les bordereaux station</Link>{' '}
+            {' '}<a href="#" onClick={(e) => { e.preventDefault(); onGotoBordereaux() }} style={{ color: '#8b5cf6', fontWeight: 600 }}>les bordereaux station</a>{' '}
             pour saisir le prix de la semaine entière (allocation FIFO automatique).
           </span>
         </div>
@@ -1371,6 +1375,29 @@ function PriceModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () 
         certificate_number: String(qtyA), tri_status: 'priced',
       }).eq('id', dispatch.id)
       if (error) throw error
+
+      // Auto-facturation : génère une facture avec le client du marché
+      // Idempotent (la RPC retourne l'existante si déjà créée)
+      try {
+        const { data: invRes, error: invErr } = await supabase.rpc('admin_generate_dispatch_invoice', {
+          p_lot_id: dispatch.id,
+        })
+        if (invErr) {
+          // Erreurs non bloquantes : on log mais on continue
+          if (/PGRST202|does not exist/i.test(invErr.message ?? '')) {
+            console.warn('[recoltes] RPC admin_generate_dispatch_invoice non déployée — applique migration 047')
+          } else if (/client par défaut/i.test(invErr.message ?? '')) {
+            const { toast } = await import('sonner')
+            toast.warning(`Tarification OK mais facture impossible : ${invErr.message}`, { duration: 8000 })
+          } else {
+            console.error('[recoltes] auto-facturation:', invErr)
+          }
+        } else if (invRes && (invRes as any).created) {
+          const { toast } = await import('sonner')
+          toast.success(`Facture ${(invRes as any).invoice_number} créée — échéance ${(invRes as any).due_date}`, { duration: 6000 })
+        }
+      } catch (e) { /* silent */ }
+
       onDone()
     } catch (e: any) { setErr(e.message) }
     setSaving(false)

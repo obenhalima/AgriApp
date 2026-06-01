@@ -37,7 +37,7 @@ import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { MoneyDisplay, DateDisplay } from '@/components/display'
 import { Tooltip } from '@/components/ui/Tooltip'
 
-type InvoiceTab = 'clients' | 'fournisseurs' | 'bordereaux'
+type InvoiceTab = 'clients' | 'fournisseurs'
 type ModalType = 'facture_client' | 'paiement_client' | 'facture_fournisseur' | 'paiement_fournisseur' | null
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -233,7 +233,12 @@ export default function FacturesPage() {
   // ─── Onglet actif depuis ?tab=bordereaux|clients|fournisseurs ─────────
   useEffect(() => {
     const tabParam = searchParams?.get('tab')
-    if (tabParam === 'bordereaux' || tabParam === 'clients' || tabParam === 'fournisseurs') {
+    // Bordereaux module a ete deplace dans /recoltes — redirige si l'URL pointe ici
+    if (tabParam === 'bordereaux') {
+      window.location.href = '/recoltes?tab=bordereaux'
+      return
+    }
+    if (tabParam === 'clients' || tabParam === 'fournisseurs') {
       setTab(tabParam)
     }
   }, [searchParams])
@@ -643,11 +648,9 @@ export default function FacturesPage() {
         iconColor="#f43f5e"
         description="Crédit clients · Débit fournisseurs · Échéances"
         actions={
-          tab === 'bordereaux' ? null : (
-            <Button onClick={() => setModal(tab === 'clients' ? 'facture_client' : 'facture_fournisseur')} variant="primary">
-              <Plus size={14} strokeWidth={2.5} /> {tab === 'clients' ? 'Facture client' : 'Facture fournisseur'}
-            </Button>
-          )
+          <Button onClick={() => setModal(tab === 'clients' ? 'facture_client' : 'facture_fournisseur')} variant="primary">
+            <Plus size={14} strokeWidth={2.5} /> {tab === 'clients' ? 'Facture client' : 'Facture fournisseur'}
+          </Button>
         }
       />
 
@@ -806,7 +809,6 @@ export default function FacturesPage() {
             {[
               { k: 'clients' as InvoiceTab, l: 'Crédit clients', i: ArrowDownCircle, c: '#10b981' },
               { k: 'fournisseurs' as InvoiceTab, l: 'Débit fournisseurs', i: ArrowUpCircle, c: '#f59e0b' },
-              { k: 'bordereaux' as InvoiceTab, l: 'Bordereaux station', i: Truck, c: '#8b5cf6' },
             ].map(t => {
               const Icon = t.i
               return (
@@ -828,47 +830,40 @@ export default function FacturesPage() {
             })}
           </div>
 
-          {tab !== 'bordereaux' && (
-            <>
-              <div className="flex items-center gap-sm flex-1 min-w-[200px] max-w-md">
-                <Search size={14} className="text-fg-tertiary flex-shrink-0" />
-                <TInput
-                  placeholder={`Rechercher numéro, ${tab === 'clients' ? 'client' : 'fournisseur'}…`}
-                  value={search} onChange={(e) => setSearch(e.target.value)}
-                  className="border-none bg-transparent focus:ring-0 px-0"
-                />
-                {search && <button onClick={() => setSearch('')} className="text-fg-tertiary hover:text-fg-primary"><X size={14} /></button>}
-              </div>
+          <div className="flex items-center gap-sm flex-1 min-w-[200px] max-w-md">
+            <Search size={14} className="text-fg-tertiary flex-shrink-0" />
+            <TInput
+              placeholder={`Rechercher numéro, ${tab === 'clients' ? 'client' : 'fournisseur'}…`}
+              value={search} onChange={(e) => setSearch(e.target.value)}
+              className="border-none bg-transparent focus:ring-0 px-0"
+            />
+            {search && <button onClick={() => setSearch('')} className="text-fg-tertiary hover:text-fg-primary"><X size={14} /></button>}
+          </div>
 
-              {tab === 'clients' ? (
-                <TSelect value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} className="h-8 w-auto min-w-[180px] text-body-sm">
-                  <option value="all">Tous les clients</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </TSelect>
-              ) : (
-                <TSelect value={supplierFilter} onChange={(e) => setSupplierFilter(e.target.value)} className="h-8 w-auto min-w-[180px] text-body-sm">
-                  <option value="all">Tous les fournisseurs</option>
-                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </TSelect>
-              )}
-
-              <TSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-8 w-auto min-w-[150px] text-body-sm">
-                <option value="all">Tous statuts</option>
-                <option value="en_attente">En attente</option>
-                <option value="partiellement_paye">Partiel</option>
-                <option value="en_retard">En retard</option>
-                <option value="paye">Payée</option>
-              </TSelect>
-            </>
+          {tab === 'clients' ? (
+            <TSelect value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} className="h-8 w-auto min-w-[180px] text-body-sm">
+              <option value="all">Tous les clients</option>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </TSelect>
+          ) : (
+            <TSelect value={supplierFilter} onChange={(e) => setSupplierFilter(e.target.value)} className="h-8 w-auto min-w-[180px] text-body-sm">
+              <option value="all">Tous les fournisseurs</option>
+              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </TSelect>
           )}
+
+          <TSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-8 w-auto min-w-[150px] text-body-sm">
+            <option value="all">Tous statuts</option>
+            <option value="en_attente">En attente</option>
+            <option value="partiellement_paye">Partiel</option>
+            <option value="en_retard">En retard</option>
+            <option value="paye">Payée</option>
+          </TSelect>
         </div>
       </Card>
 
-      {/* ─── Section Bordereaux station ─── */}
-      {tab === 'bordereaux' && <BordereauxSection />}
-
       {/* ─── KPI tab spécifique ─── */}
-      {tab !== 'bordereaux' && !loading && (
+      {!loading && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-sm mb-md">
           {[
             { label: tab === 'clients' ? 'Facturé'      : 'À payer', value: tab === 'clients' ? clientSummary.total       : supplierSummary.total,       color: '#3b82f6', icon: Banknote },
@@ -900,7 +895,7 @@ export default function FacturesPage() {
       )}
 
       {/* ─── Synthèse par compte ─── */}
-      {tab !== 'bordereaux' && balance.length > 0 && (
+      {balance.length > 0 && (
         <Card animate delay={0.45} padding="none" className="overflow-hidden mb-md">
           <div className="px-md py-sm border-b border-border">
             <div className="font-display text-heading-sm font-bold text-fg-primary">
@@ -933,7 +928,7 @@ export default function FacturesPage() {
       )}
 
       {/* ─── Bandeau diagnostic : factures cachées par un filtre ─── */}
-      {tab !== 'bordereaux' && !loading && (() => {
+      {!loading && (() => {
         const totalRaw = tab === 'clients' ? clientInvoices.length : supplierInvoices.length
         const totalShown = tab === 'clients' ? filteredClient.length : filteredSupplier.length
         const hiddenCount = totalRaw - totalShown
@@ -961,7 +956,6 @@ export default function FacturesPage() {
       })()}
 
       {/* ─── Table principale ─── */}
-      {tab !== 'bordereaux' && (
       <Card animate delay={0.5} padding="none" className="overflow-hidden">
         {loading ? (
           <div className="p-md space-y-2">
@@ -1057,7 +1051,6 @@ export default function FacturesPage() {
           </DataTable>
         )}
       </Card>
-      )}
     </div>
   )
 }

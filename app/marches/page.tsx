@@ -31,11 +31,19 @@ export default function MarchesPage() {
   const [form, setForm] = useState({
     code: '', name: '', type: 'local', country: 'Maroc', currency: 'MAD',
     avg_price_per_kg: '', avg_logistics_cost_per_kg: '', export_fees_per_kg: '',
-    payment_terms: '', payment_terms_days: '30', requirements: '', notes: '',
+    payment_terms: '', payment_terms_days: '30', client_id: '', requirements: '', notes: '',
   })
   const upd = (k: string) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const [clients, setClients] = useState<any[]>([])
 
-  const load = () => supabase.from('markets').select('*').eq('is_active', true).order('name').then(r => { setItems(r.data || []); setLoading(false) })
+  const load = () => Promise.all([
+    supabase.from('markets').select('*, clients(name)').eq('is_active', true).order('name'),
+    supabase.from('clients').select('id, name').eq('is_active', true).order('name'),
+  ]).then(([m, c]) => {
+    setItems(m.data || [])
+    setClients(c.data || [])
+    setLoading(false)
+  })
   useEffect(() => { load() }, [])
 
   const filtered = useMemo(() => items.filter(m => {
@@ -57,7 +65,7 @@ export default function MarchesPage() {
       code: genCode('MKT', items.map(i => i.code)), name: '', type: 'local',
       country: 'Maroc', currency: 'MAD',
       avg_price_per_kg: '', avg_logistics_cost_per_kg: '', export_fees_per_kg: '',
-      payment_terms: '', payment_terms_days: '30', requirements: '', notes: '',
+      payment_terms: '', payment_terms_days: '30', client_id: '', requirements: '', notes: '',
     })
     setModal(true)
   }
@@ -75,6 +83,7 @@ export default function MarchesPage() {
       export_fees_per_kg: m.export_fees_per_kg != null ? String(m.export_fees_per_kg) : '',
       payment_terms: m.payment_terms ?? '',
       payment_terms_days: m.payment_terms_days != null ? String(m.payment_terms_days) : '30',
+      client_id: m.client_id ?? '',
       requirements: m.requirements ?? '',
       notes: m.notes ?? '',
     })
@@ -93,6 +102,7 @@ export default function MarchesPage() {
         export_fees_per_kg: form.export_fees_per_kg ? Number(form.export_fees_per_kg) : null,
         payment_terms: form.payment_terms || null,
         payment_terms_days: form.payment_terms_days ? Number(form.payment_terms_days) : 30,
+        client_id: form.client_id || null,
         requirements: form.requirements || null,
         notes: form.notes || null,
       }
@@ -171,7 +181,7 @@ export default function MarchesPage() {
                 <Field label="Conditions de paiement (texte)">
                   <TInput value={form.payment_terms} onChange={upd('payment_terms')} placeholder="30 jours net" />
                 </Field>
-                <Field label="Délai paiement (jours) — bordereau station">
+                <Field label="Délai paiement (jours) — auto-facturation">
                   <TInput
                     type="number"
                     min={0}
@@ -182,6 +192,17 @@ export default function MarchesPage() {
                   />
                 </Field>
               </div>
+              <Field label="Client par défaut (utilisé pour les factures)" required>
+                <TSelect value={form.client_id} onChange={upd('client_id')}>
+                  <option value="">— Choisir un client —</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </TSelect>
+                {!form.client_id && (
+                  <div className="text-caption text-warning mt-1">
+                    ⚠ Sans client, les ventes vers ce marché ne pourront pas être facturées
+                  </div>
+                )}
+              </Field>
               <Field label="Certifications requises"><TInput value={form.requirements} onChange={upd('requirements')} placeholder="GlobalGAP, BRC..." /></Field>
               <Field label="Notes"><Textarea rows={2} value={form.notes} onChange={upd('notes')} /></Field>
               <ModalFooter onCancel={() => { setModal(false); setEditId(null) }} onSave={save} loading={saving} disabled={!form.name} saveLabel={editId ? 'METTRE À JOUR' : 'CRÉER'} />
@@ -252,7 +273,16 @@ export default function MarchesPage() {
                     </div>
                   ))}
                 </div>
-                {/* Délai paiement (utilisé pour les bordereaux station) */}
+                {/* Client par défaut + délai paiement (utilisés pour les factures) */}
+                {m.clients?.name ? (
+                  <div className="mt-sm flex items-center gap-1 text-caption text-fg-secondary">
+                    👤 Client : <strong>{m.clients.name}</strong>
+                  </div>
+                ) : (
+                  <div className="mt-sm flex items-center gap-1 text-caption text-warning">
+                    ⚠ Aucun client (factures impossibles)
+                  </div>
+                )}
                 {m.payment_terms_days != null && (
                   <div className="mt-sm flex items-center gap-1 text-caption text-fg-tertiary">
                     <Calendar size={10} />
