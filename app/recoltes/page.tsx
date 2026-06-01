@@ -174,12 +174,15 @@ export default function RecoltesPage() {
   const unpricedByMarketVariety: UnpricedRow[] = useMemo(() => {
     const buckets = new Map<string, UnpricedRow>()
     for (const d of dispatchesEnriched) {
-      // On garde 'tried' (rien tarifé) ET 'priced' partiel (qty_priced < qty_acceptee)
+      // Seuls les dispatches 'tried' (triés, sans prix final) sont eligibles pour un bordereau station.
+      // Les dispatches 'priced' sont deja tarifés (legacy ou fully bordereau-priced) → exclus.
+      // Les dispatches 'pending' (pas encore triés) ne peuvent pas être tarifés.
+      if (d.tri_status !== 'tried') continue
+
       const accepted = Number(d.qty_acceptee_kg ?? 0)
       const priced = Number(d.qty_priced_kg ?? 0)
       const remaining = accepted - priced
       if (remaining <= 0.01) continue
-      if (d.tri_status !== 'tried' && d.tri_status !== 'priced') continue
 
       const farmId: string | null = d.greenhouses?.farm_id ?? null
       const farmName: string | null = d.greenhouses?.farms?.name ?? null

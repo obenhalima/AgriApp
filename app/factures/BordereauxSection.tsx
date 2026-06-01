@@ -541,8 +541,17 @@ function SettlementMatrixModal({
         ) : rows.length === 0 ? (
           <EmptyState
             icon={Info}
-            title="Aucun dispatch trié non tarifé"
-            description="Tous les dispatches sont déjà payés, ou aucun n'a été trié. Saisissez d'abord les tris dans la page Récoltes."
+            title="Aucun dispatch éligible"
+            description={
+              <span>
+                Pour qu'un dispatch apparaisse ici, il doit être au statut{' '}
+                <strong>« trié » (tri_status = 'tried')</strong> avec une qté acceptée et sans prix final.
+                <br />
+                Les dispatches déjà tarifés via le bouton classique "Tarifer" ne peuvent pas être re-payés par bordereau.
+                <br />
+                Saisissez d'abord les tris dans <strong>Récoltes → À trier</strong>.
+              </span> as any
+            }
           />
         ) : (
           <div className="max-h-[60vh] overflow-auto rounded-md border border-border">
