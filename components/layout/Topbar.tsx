@@ -19,6 +19,8 @@ import { findNavItem, buildBreadcrumbs } from '@/lib/navigation'
 import { getModuleKeyForPath } from '@/lib/modules'
 import { HelpLink } from '@/components/help/HelpLink'
 import { Badge } from '@/components/ui/Badge'
+import { getLiveCampaign } from '@/lib/appSettings'
+import { useRealtimeReload } from '@/lib/useRealtimeReload'
 
 export function Topbar() {
   const pathname = usePathname()
@@ -30,6 +32,25 @@ export function Topbar() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [isMac, setIsMac] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [liveCampaign, setLiveCampaign] = useState<{ id: string; code: string; name: string; source: 'manual' | 'auto' } | null>(null)
+
+  // Charge la campagne live (manuelle prioritaire, sinon status=en_cours)
+  const loadLiveCampaign = async () => {
+    try {
+      const c = await getLiveCampaign()
+      setLiveCampaign(c)
+    } catch {
+      setLiveCampaign(null)
+    }
+  }
+  useEffect(() => { loadLiveCampaign() }, [])
+
+  // Realtime : si admin change le paramètre ou si la campagne change de statut
+  useRealtimeReload(
+    ['app_settings', 'campaigns'],
+    loadLiveCampaign,
+    { channelName: 'topbar-live-campaign', debounceMs: 500, verbose: false },
+  )
 
   const handleRefresh = () => {
     setRefreshing(true)
@@ -176,10 +197,18 @@ export function Topbar() {
           <RefreshCw size={14} strokeWidth={2.2} className={refreshing ? 'animate-spin' : ''} />
         </button>
 
-        {/* Live badge */}
-        <Badge variant="success" size="md" dot pulse className="hidden sm:inline-flex">
-          Live · 2025-2026
-        </Badge>
+        {/* Live badge — visible uniquement s'il y a une campagne live */}
+        {liveCampaign && (
+          <Link
+            href="/campagnes"
+            title={`Campagne live (${liveCampaign.source === 'manual' ? 'définie manuellement' : 'auto: status en_cours'}) — cliquer pour ouvrir`}
+            className="hidden sm:inline-flex items-center no-underline"
+          >
+            <Badge variant="success" size="md" dot pulse>
+              Live · {liveCampaign.code}
+            </Badge>
+          </Link>
+        )}
 
         {/* Bouton action contextuel à la page */}
         {currentNav?.item.href && currentNav.item.href !== '/' && (

@@ -19,6 +19,8 @@ import {
 import { useAuth } from '@/lib/auth'
 import { cn } from '@/lib/cn'
 import { NAV } from '@/lib/navigation'
+import { getOrganization, type OrganizationSettings } from '@/lib/appSettings'
+import { useRealtimeReload } from '@/lib/useRealtimeReload'
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -29,6 +31,20 @@ export function Sidebar() {
   const [isDark, setIsDark] = useState(false)
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const [sectionsInitialized, setSectionsInitialized] = useState(false)
+  const [org, setOrg] = useState<OrganizationSettings>({ name: 'Domaine BENHALIMA', tagline: 'MES Production' })
+
+  // Charge l'identité du domaine (visible dans le logo en haut)
+  const loadOrg = async () => {
+    try { setOrg(await getOrganization()) } catch { /* fallback default */ }
+  }
+  useEffect(() => { loadOrg() }, [])
+
+  // Realtime : si admin change le nom, on le voit live
+  useRealtimeReload(
+    ['app_settings'],
+    loadOrg,
+    { channelName: 'sidebar-org', debounceMs: 300, verbose: false },
+  )
 
   // Filtrage permissions
   const filteredNav = useMemo(() => {
@@ -200,14 +216,16 @@ export function Sidebar() {
                 <div
                   className="font-display text-[14px] font-extrabold leading-tight truncate"
                   style={{ color: logoText, letterSpacing: '-0.2px' }}
+                  title={org.name}
                 >
-                  Domaine BENHALIMA
+                  {org.name}
                 </div>
                 <div
-                  className="font-mono text-[8px] tracking-[1.6px] uppercase mt-0.5"
+                  className="font-mono text-[8px] tracking-[1.6px] uppercase mt-0.5 truncate"
                   style={{ color: logoSub }}
+                  title={org.tagline ?? ''}
                 >
-                  MES Production
+                  {org.tagline ?? 'MES Production'}
                 </div>
               </div>
             </div>

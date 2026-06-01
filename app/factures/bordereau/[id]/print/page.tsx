@@ -15,10 +15,12 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { getOrganization, type OrganizationSettings } from '@/lib/appSettings'
 
 interface PrintData {
   settlement: any
   lines: any[]
+  org: OrganizationSettings
 }
 
 export default function BordereauPrintPage() {
@@ -31,7 +33,7 @@ export default function BordereauPrintPage() {
   useEffect(() => {
     if (!id) return
     ;(async () => {
-      const [sRes, lRes] = await Promise.all([
+      const [sRes, lRes, org] = await Promise.all([
         supabase
           .from('station_settlements')
           .select('*')
@@ -47,6 +49,7 @@ export default function BordereauPrintPage() {
           `)
           .eq('settlement_id', id)
           .order('created_at'),
+        getOrganization(),
       ])
       if (sRes.error) {
         setError(sRes.error.message)
@@ -56,7 +59,7 @@ export default function BordereauPrintPage() {
         setError(lRes.error.message)
         return
       }
-      setData({ settlement: sRes.data, lines: lRes.data ?? [] })
+      setData({ settlement: sRes.data, lines: lRes.data ?? [], org })
       // Auto-trigger print dialog after render (avec léger délai pour le rendu)
       setTimeout(() => window.print(), 600)
     })()
@@ -179,9 +182,25 @@ export default function BordereauPrintPage() {
             </div>
           </div>
           <div style={{ textAlign: 'right', fontSize: '10pt', lineHeight: 1.5 }}>
-            <div style={{ fontWeight: 700, fontSize: '12pt', color: '#111827' }}>Domaine BENHALIMA</div>
-            <div style={{ color: '#6b7280' }}>Production maraîchère</div>
-            <div style={{ color: '#6b7280' }}>Maroc</div>
+            {data.org.logo_url && (
+              <img
+                src={data.org.logo_url}
+                alt="Logo"
+                style={{ maxHeight: 50, maxWidth: 140, marginBottom: 8, marginLeft: 'auto', display: 'block' }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+              />
+            )}
+            <div style={{ fontWeight: 700, fontSize: '12pt', color: '#111827' }}>{data.org.name}</div>
+            {data.org.tagline && <div style={{ color: '#6b7280' }}>{data.org.tagline}</div>}
+            {data.org.address && <div style={{ color: '#6b7280' }}>{data.org.address}</div>}
+            {(data.org.city || data.org.country) && (
+              <div style={{ color: '#6b7280' }}>
+                {[data.org.city, data.org.country].filter(Boolean).join(', ')}
+              </div>
+            )}
+            {data.org.phone && <div style={{ color: '#6b7280', fontSize: '9pt' }}>Tél : {data.org.phone}</div>}
+            {data.org.email && <div style={{ color: '#6b7280', fontSize: '9pt' }}>{data.org.email}</div>}
+            {data.org.tax_id && <div style={{ color: '#6b7280', fontSize: '9pt' }}>ICE : {data.org.tax_id}</div>}
           </div>
         </div>
 
@@ -269,7 +288,7 @@ export default function BordereauPrintPage() {
             <div className="sig-line">Cachet et signature station</div>
           </div>
           <div className="sig">
-            <div className="sig-line">Domaine BENHALIMA</div>
+            <div className="sig-line">{data.org.name}</div>
           </div>
         </div>
       </div>
