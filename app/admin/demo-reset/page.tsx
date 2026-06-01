@@ -1114,9 +1114,11 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
               {commerceReport && (
                 <div className="mt-md rounded-md border border-border bg-surface-sunk p-sm space-y-1 text-body-sm">
                   <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-semibold mb-1">Rapport du dernier run</div>
-                  <div>📦 Dispatches : <strong>{commerceReport.dispatchesCreated}</strong></div>
+                  <div>📦 Dispatches envoyés : <strong>{commerceReport.dispatchesCreated}</strong></div>
+                  <div>🔬 Triages appliqués : <strong>{commerceReport.triApplied ?? 0}</strong></div>
+                  <div>📑 Bordereaux station créés : <strong>{commerceReport.settlementsCreated ?? 0}</strong> (validés : {commerceReport.settlementsValidated ?? 0})</div>
+                  <div>💰 Lots tarifés : <strong>{commerceReport.pricedSet ?? 0}</strong></div>
                   <div>📄 Factures : <strong>{commerceReport.invoicesCreated}</strong></div>
-                  <div>💰 Paiements : <strong>{commerceReport.paymentsRecorded}</strong></div>
                   <div>💵 CA total : <strong>{Math.round(commerceReport.totalCA ?? 0).toLocaleString('fr-FR')} MAD</strong></div>
                 </div>
               )}

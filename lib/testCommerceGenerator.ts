@@ -40,6 +40,8 @@ export type CommerceGenReport = {
   pricedSet: number
   invoicesCreated: number
   paymentsRecorded: number
+  settlementsCreated: number   // bordereaux station crees et valides
+  settlementsValidated: number
   totalCA: number
   errors: string[]
 }
@@ -95,6 +97,8 @@ export async function generateCommerceForCampaign(
     triApplied: 0,
     pricedSet: 0,
     invoicesCreated: 0,
+    settlementsCreated: 0,
+    settlementsValidated: 0,
     paymentsRecorded: 0,
     totalCA: 0,
     errors: [],
@@ -221,10 +225,27 @@ export async function generateCommerceForCampaign(
     if (h.harvest_date > g.midDate) g.midDate = h.harvest_date
   }
 
-  // ─── 4. Pour chaque groupe : créer dispatches Export + Local ────────────
-  const dispatchesByMonthClient = new Map<string, {
-    clientId: string; month: string; ca: number; varieties: string[]
-  }>()
+  // ─── 4. WORKFLOW REALISTE : envoi → tri → bordereau (Export) ou tarif direct (Local) ─
+  // Au lieu de creer les dispatches directement en 'priced', on simule les 4 phases :
+  //   A) Envoi : INSERT harvest_lots avec tri_status='pending'
+  //   B) Triage : UPDATE avec freinte/ecart et tri_status='tried'
+  //   C) Bordereaux station (export) : 1 bordereau par semaine + validation FIFO + factures
+  //   D) Tarif direct (local) : update -> 'priced' + facture via admin_generate_dispatch_invoice
+
+  type PendingDispatch = {
+    lotId: string  // rempli apres phase A
+    isExport: boolean
+    qtyEnvoyee: number
+    qtyAcceptee: number  // calcule en phase B
+    priceMAD: number
+    marketId: string
+    farmId: string | null
+    varietyId: string
+    weekKey: string
+    midDate: string
+    lotNumber: string
+  }
+  const pendingDispatches: PendingDispatch[] = []
 
   // Diagnostic : skip count par raison
   let skippedNoQty = 0
@@ -268,225 +289,246 @@ export async function generateCommerceForCampaign(
       qtyForLocal = totalAll
     }
 
-    // Dispatch EXPORT
+    // ─── PHASE A : Envoi (insert harvest_lots tri_status='pending') ───
     if (qtyForExport > 0) {
-      const lotNumber = `DISP-EXP-${g.weekKey}-${(g.variety?.code ?? 'V').slice(0, 4)}`
-      const month = g.midDate.slice(0, 7)
-      const monthNum = parseInt(month.split('-')[1])
+      const monthNum = parseInt(g.midDate.slice(5, 7))
       const coeff = seasonCoeff(monthNum)
       const variance = 1 + (Math.random() - 0.5) * 2 * priceVariance
       const priceEUR = g.priceExport * coeff * variance
-      const priceMAD = priceEUR * 11.0  // taux moyen EUR/MAD ~11
-
-      const freinte = gaussian(2.0, 0.6)
-      const ecart = gaussian(3.5, 1.0)
-      const fPct = Math.max(0.5, Math.min(5, freinte))
-      const ePct = Math.max(1, Math.min(8, ecart))
-      const qtyNette = qtyForExport * (1 - fPct / 100)
-      const qtyAcceptee = qtyNette * (1 - ePct / 100)
-      const ca = qtyAcceptee * priceMAD
-
+      const priceMAD = priceEUR * 11.0
       const marketId = pickRandom(exportMarketIds)
-      const clientId = pickRandom(clientIds)
+      if (!marketId) { skippedNoMarket++; continue }
+      const lotNumber = `DISP-EXP-${g.weekKey}-${(g.variety?.code ?? 'V').slice(0, 4)}`
 
       try {
         const { data: lot, error } = await supabase.from('harvest_lots').insert({
           lot_number: lotNumber,
-          // FK NOT NULL : on prend le campaign_planting_id du groupe (toutes les
-          // recoltes du groupe ont le meme planting puisque grouped par variete x semaine)
           campaign_planting_id: g.campaignPlantingId,
-          // harvest_id : pour les composites on prend la 1ere recolte du groupe
-          // (post-migration 024, harvest_id peut etre NULL mais on prefere le remplir)
           harvest_id: g.harvests[0]?.id ?? null,
           harvest_date: g.midDate,
           receipt_date: g.midDate,
           quantity_kg: qtyForExport,
-          qty_nette_kg: qtyNette,
-          qty_acceptee_kg: qtyAcceptee,
           category: 'station_dispatch',
           variety_id: g.varietyId,
           greenhouse_id: g.greenhouseId,
           market_id: marketId ?? null,
-          client_id: clientId ?? null,
-          freinte_pct: fPct,
-          ecart_pct: ePct,
-          price_per_kg: priceMAD,
-          ca_amount: ca,
+          tri_status: 'pending',  // ← PHASE A : envoye, pas encore trie
           station_ref: `STA-${g.weekKey}`,
           periode_debut: g.midDate,
           periode_fin: g.midDate,
-          tri_status: 'priced',
-          certificate_number: `CERT-EXP-${g.weekKey}`,
         }).select('id').single()
         if (error) throw error
-
         if (lot?.id) {
-          // Liens sources (N harvests → 1 lot)
-          const sources = g.harvests
-            .filter(h => h.qty_cat1 > 0)
-            .map(h => ({
-              harvest_lot_id: lot.id,
-              harvest_id: h.id,
-              qty_contributed_kg: h.qty_cat1,
-            }))
-          if (sources.length > 0) {
-            await supabase.from('harvest_lot_sources').insert(sources)
-          }
-        }
-
-        report.dispatchesCreated++
-        report.triApplied++
-        report.pricedSet++
-        report.totalCA += ca
-
-        // Aggrège pour les factures
-        if (clientId) {
-          const k = `${clientId}|${month}`
-          const cur = dispatchesByMonthClient.get(k) ?? { clientId, month, ca: 0, varieties: [] }
-          cur.ca += ca
-          if (g.variety?.commercial_name && !cur.varieties.includes(g.variety.commercial_name)) {
-            cur.varieties.push(g.variety.commercial_name)
-          }
-          dispatchesByMonthClient.set(k, cur)
+          // Sources (N harvests → 1 lot)
+          const sources = g.harvests.filter(h => h.qty_cat1 > 0).map(h => ({
+            harvest_lot_id: lot.id, harvest_id: h.id, qty_contributed_kg: h.qty_cat1,
+          }))
+          if (sources.length > 0) await supabase.from('harvest_lot_sources').insert(sources)
+          pendingDispatches.push({
+            lotId: lot.id, isExport: true,
+            qtyEnvoyee: qtyForExport, qtyAcceptee: 0,
+            priceMAD, marketId, farmId: g.farmId, varietyId: g.varietyId,
+            weekKey: g.weekKey, midDate: g.midDate, lotNumber,
+          })
+          report.dispatchesCreated++
         }
       } catch (e: any) {
-        report.errors.push(`Dispatch EXPORT ${lotNumber} : ${e.message}`)
+        report.errors.push(`Envoi EXPORT ${lotNumber} : ${e.message}`)
       }
     }
 
-    // Dispatch LOCAL (Cat 2+3 ou fallback depuis Cat 1 si pas d'Export)
     if (qtyForLocal > 0) {
-      const totalLocal = qtyForLocal
-      const lotNumber = `DISP-LOC-${g.weekKey}-${(g.variety?.code ?? 'V').slice(0, 4)}`
-      const month = g.midDate.slice(0, 7)
-      const monthNum = parseInt(month.split('-')[1])
+      const monthNum = parseInt(g.midDate.slice(5, 7))
       const coeff = seasonCoeff(monthNum)
       const variance = 1 + (Math.random() - 0.5) * 2 * priceVariance
       const priceMAD = g.priceLocal * coeff * variance
-
-      const freinte = gaussian(1.5, 0.5)
-      const ecart = gaussian(2.5, 0.8)
-      const fPct = Math.max(0.5, Math.min(4, freinte))
-      const ePct = Math.max(1, Math.min(6, ecart))
-      const qtyNette = totalLocal * (1 - fPct / 100)
-      const qtyAcceptee = qtyNette * (1 - ePct / 100)
-      const ca = qtyAcceptee * priceMAD
-
       const marketId = pickRandom(localMarketIds)
-      const clientId = pickRandom(clientIds)
+      if (!marketId) { skippedNoMarket++; continue }
+      const lotNumber = `DISP-LOC-${g.weekKey}-${(g.variety?.code ?? 'V').slice(0, 4)}`
 
       try {
         const { data: lot, error } = await supabase.from('harvest_lots').insert({
           lot_number: lotNumber,
-          harvest_id: g.harvests[0]?.id ?? null,
-          // FK NOT NULL : pris depuis le groupe (assigne lors du grouping)
           campaign_planting_id: g.campaignPlantingId,
+          harvest_id: g.harvests[0]?.id ?? null,
           harvest_date: g.midDate,
           receipt_date: g.midDate,
-          quantity_kg: totalLocal,
-          qty_nette_kg: qtyNette,
-          qty_acceptee_kg: qtyAcceptee,
+          quantity_kg: qtyForLocal,
           category: 'station_dispatch',
           variety_id: g.varietyId,
           greenhouse_id: g.greenhouseId,
           market_id: marketId ?? null,
-          client_id: clientId ?? null,
-          freinte_pct: fPct,
-          ecart_pct: ePct,
-          price_per_kg: priceMAD,
-          ca_amount: ca,
+          tri_status: 'pending',
           station_ref: `STA-${g.weekKey}-L`,
           periode_debut: g.midDate,
           periode_fin: g.midDate,
-          tri_status: 'priced',
-          certificate_number: `CERT-LOC-${g.weekKey}`,
         }).select('id').single()
         if (error) throw error
-
         if (lot?.id) {
-          const sources = g.harvests
-            .filter(h => h.qty_cat2 + h.qty_cat3 > 0)
-            .map(h => ({
-              harvest_lot_id: lot.id,
-              harvest_id: h.id,
-              qty_contributed_kg: h.qty_cat2 + h.qty_cat3,
-            }))
-          if (sources.length > 0) {
-            await supabase.from('harvest_lot_sources').insert(sources)
-          }
-        }
-
-        report.dispatchesCreated++
-        report.triApplied++
-        report.pricedSet++
-        report.totalCA += ca
-
-        if (clientId) {
-          const k = `${clientId}|${month}`
-          const cur = dispatchesByMonthClient.get(k) ?? { clientId, month, ca: 0, varieties: [] }
-          cur.ca += ca
-          if (g.variety?.commercial_name && !cur.varieties.includes(g.variety.commercial_name)) {
-            cur.varieties.push(g.variety.commercial_name)
-          }
-          dispatchesByMonthClient.set(k, cur)
+          const sources = g.harvests.filter(h => h.qty_cat2 + h.qty_cat3 > 0).map(h => ({
+            harvest_lot_id: lot.id, harvest_id: h.id, qty_contributed_kg: h.qty_cat2 + h.qty_cat3,
+          }))
+          if (sources.length > 0) await supabase.from('harvest_lot_sources').insert(sources)
+          pendingDispatches.push({
+            lotId: lot.id, isExport: false,
+            qtyEnvoyee: qtyForLocal, qtyAcceptee: 0,
+            priceMAD, marketId, farmId: g.farmId, varietyId: g.varietyId,
+            weekKey: g.weekKey, midDate: g.midDate, lotNumber,
+          })
+          report.dispatchesCreated++
         }
       } catch (e: any) {
-        report.errors.push(`Dispatch LOCAL ${lotNumber} : ${e.message}`)
+        report.errors.push(`Envoi LOCAL ${lotNumber} : ${e.message}`)
       }
     }
   }
 
-  // ─── 5. Factures clients (1 par client × mois) ────────────────────────
-  if (options.generateInvoices !== false && dispatchesByMonthClient.size > 0) {
-    let invIdx = 1
-    for (const g of dispatchesByMonthClient.values()) {
-      const subtotal = g.ca
-      const taxRate = 0.20
-      const taxAmount = subtotal * taxRate
-      const total = subtotal + taxAmount
-      const paid = total * (paymentRate + (Math.random() - 0.5) * 0.3)  // ±15% variance
-      const invoiceDate = `${g.month}-15`
-      const dueDate = new Date(invoiceDate + 'T00:00:00')
-      dueDate.setDate(dueDate.getDate() + 30)
-      const status = paid >= total - 1 ? 'paye'
-                    : paid > 0 ? 'partiellement_paye'
-                    : (new Date(fromDate(dueDate)) < new Date(today) ? 'en_retard' : 'en_attente')
+  // ─── PHASE B : Triage — applique freinte/ecart, tri_status='tried', qty_acceptee ───
+  for (const d of pendingDispatches) {
+    const freinteMean = d.isExport ? 2.0 : 1.5
+    const ecartMean = d.isExport ? 3.5 : 2.5
+    const fPct = Math.max(0.5, Math.min(d.isExport ? 5 : 4, gaussian(freinteMean, 0.6)))
+    const ePct = Math.max(1, Math.min(d.isExport ? 8 : 6, gaussian(ecartMean, 0.9)))
+    const qtyNette = d.qtyEnvoyee * (1 - fPct / 100)
+    const qtyAcceptee = qtyNette * (1 - ePct / 100)
+    d.qtyAcceptee = qtyAcceptee
 
-      try {
-        const { data: inv, error } = await supabase.from('invoices').insert({
-          invoice_number: `F-${g.month.replace('-', '')}-${String(invIdx).padStart(4, '0')}`,
-          invoice_type: 'vente',
-          client_id: g.clientId,
-          invoice_date: invoiceDate,
-          due_date: fromDate(dueDate),
-          currency: 'MAD',
-          subtotal,
-          tax_amount: taxAmount,
-          total_amount: total,
-          paid_amount: Math.max(0, paid),
-          status,
-          notes: `Facture auto-générée (démo) — ${g.varieties.join(', ')}`,
-        }).select('id').single()
-        if (error) throw error
-        report.invoicesCreated++
-        invIdx++
+    try {
+      const { error } = await supabase.from('harvest_lots').update({
+        tri_status: 'tried',
+        freinte_pct: fPct,
+        ecart_pct: ePct,
+        qty_nette_kg: qtyNette,
+        qty_acceptee_kg: qtyAcceptee,
+        rejet_qty_kg: d.qtyEnvoyee - qtyAcceptee,
+        destination_rejet: 'destruction',
+      }).eq('id', d.lotId)
+      if (error) throw error
+      report.triApplied++
+    } catch (e: any) {
+      report.errors.push(`Tri ${d.lotNumber} : ${e.message}`)
+    }
+  }
 
-        // Paiement reçu (si partiel ou complet)
-        if (inv?.id && paid > 0) {
-          const payDate = new Date(invoiceDate + 'T00:00:00')
-          payDate.setDate(payDate.getDate() + Math.floor(15 + Math.random() * 30))
-          await supabase.from('payments_received').insert({
-            invoice_id: inv.id,
-            payment_date: fromDate(payDate),
-            amount: Math.max(0, paid),
-            payment_method: Math.random() > 0.5 ? 'virement' : 'cheque',
-            reference: `PAY-${invIdx}`,
-          })
-          report.paymentsRecorded++
+  // ─── PHASE C : Bordereaux station pour les dispatches EXPORT (1 par semaine ISO) ───
+  // Groupe par semaine -> 1 bordereau par semaine ISO contenant toutes les lignes
+  // (market × variety × farm). Validation FIFO via RPC + generation factures.
+  const exportByWeek = new Map<string, PendingDispatch[]>()
+  for (const d of pendingDispatches.filter(x => x.isExport && x.qtyAcceptee > 0)) {
+    const arr = exportByWeek.get(d.weekKey) ?? []
+    arr.push(d)
+    exportByWeek.set(d.weekKey, arr)
+  }
+
+  for (const [weekKey, dispatches] of exportByWeek) {
+    // Lundi/dimanche de la semaine ISO
+    const [yyyy, ww] = weekKey.split('-W')
+    const year = parseInt(yyyy); const week = parseInt(ww)
+    const jan4 = new Date(Date.UTC(year, 0, 4))
+    const dayOfJan4 = jan4.getUTCDay() || 7
+    const week1Mon = new Date(jan4); week1Mon.setUTCDate(jan4.getUTCDate() - (dayOfJan4 - 1))
+    const monday = new Date(week1Mon); monday.setUTCDate(week1Mon.getUTCDate() + (week - 1) * 7)
+    const sunday = new Date(monday); sunday.setUTCDate(monday.getUTCDate() + 6)
+
+    let settlementId: string | null = null
+    try {
+      const { data: s, error: sErr } = await supabase
+        .from('station_settlements')
+        .insert({
+          period_start: fromDate(monday),
+          period_end: fromDate(sunday),
+          received_date: fromDate(sunday),
+          status: 'brouillon',
+          notes: `Bordereau auto-genere (demo) - semaine ${weekKey}`,
+        })
+        .select('id, code')
+        .single()
+      if (sErr) throw sErr
+      settlementId = s.id
+      report.settlementsCreated++
+
+      // Aggregate dispatches into lines (market × variety × farm)
+      const lineMap = new Map<string, { market_id: string; variety_id: string; farm_id: string | null; qty_kg: number; price_per_kg: number }>()
+      for (const d of dispatches) {
+        const key = `${d.marketId}|${d.varietyId}|${d.farmId ?? 'null'}`
+        const cur = lineMap.get(key) ?? {
+          market_id: d.marketId, variety_id: d.varietyId, farm_id: d.farmId,
+          qty_kg: 0, price_per_kg: d.priceMAD,
         }
-      } catch (e: any) {
-        report.errors.push(`Facture ${g.clientId}/${g.month} : ${e.message}`)
+        cur.qty_kg += d.qtyAcceptee
+        lineMap.set(key, cur)
       }
+
+      const linesToInsert = Array.from(lineMap.values()).map(l => ({
+        settlement_id: settlementId,
+        market_id: l.market_id,
+        variety_id: l.variety_id,
+        farm_id: l.farm_id,
+        qty_kg: l.qty_kg,
+        price_per_kg: l.price_per_kg,
+      }))
+      if (linesToInsert.length > 0) {
+        const { error: lErr } = await supabase.from('station_settlement_lines').insert(linesToInsert)
+        if (lErr) throw lErr
+      }
+
+      // Validation FIFO via RPC -> alloue + bascule lots en 'priced'
+      const { error: vErr } = await supabase.rpc('admin_validate_station_settlement', { p_settlement_id: settlementId })
+      if (vErr) throw vErr
+      report.settlementsValidated++
+
+      // Generation factures (1 par marche dans le bordereau si markets.client_id configure)
+      if (options.generateInvoices !== false) {
+        const { data: invRes, error: invErr } = await supabase.rpc('admin_generate_settlement_invoice', { p_settlement_id: settlementId })
+        if (invErr) {
+          report.errors.push(`Facture bordereau S${weekKey} : ${invErr.message}`)
+        } else if (invRes) {
+          const n = (invRes as any).invoices_created ?? 0
+          report.invoicesCreated += n
+          report.totalCA += (invRes as any).total_amount ?? 0
+        }
+      }
+
+      // Cumul CA (meme si pas de facture generee)
+      for (const d of dispatches) {
+        if (!(options.generateInvoices !== false)) {
+          report.totalCA += d.qtyAcceptee * d.priceMAD
+        }
+        report.pricedSet++
+      }
+    } catch (e: any) {
+      report.errors.push(`Bordereau S${weekKey}${settlementId ? ` (${settlementId.slice(0,8)})` : ''} : ${e.message}`)
+    }
+  }
+
+  // ─── PHASE D : Tarif direct pour LOCAL (pas de bordereau, vente immediate) ───
+  for (const d of pendingDispatches.filter(x => !x.isExport && x.qtyAcceptee > 0)) {
+    const ca = d.qtyAcceptee * d.priceMAD
+    try {
+      const { error } = await supabase.from('harvest_lots').update({
+        tri_status: 'priced',
+        price_per_kg: d.priceMAD,
+        ca_amount: ca,
+        certificate_number: `CERT-LOC-${d.weekKey}`,
+      }).eq('id', d.lotId)
+      if (error) throw error
+      report.pricedSet++
+      report.totalCA += ca
+
+      // Facture pour ce dispatch (via RPC, utilise markets.client_id)
+      if (options.generateInvoices !== false) {
+        const { data: invRes, error: invErr } = await supabase.rpc('admin_generate_dispatch_invoice', { p_lot_id: d.lotId })
+        if (invErr) {
+          // Erreur non bloquante : on note dans errors mais on continue
+          if (!/PGRST202|does not exist/i.test(invErr.message ?? '')) {
+            report.errors.push(`Facture LOCAL ${d.lotNumber} : ${invErr.message}`)
+          }
+        } else if (invRes && (invRes as any).created) {
+          report.invoicesCreated++
+        }
+      }
+    } catch (e: any) {
+      report.errors.push(`Tarif LOCAL ${d.lotNumber} : ${e.message}`)
     }
   }
 
