@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FramPilot — Workflows opérationnels</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 20px;
+    background-image: radial-gradient(at top right, rgba(16,185,129,.08), transparent 60%),
+                      radial-gradient(at bottom left, rgba(139,92,246,.08), transparent 60%);
+  }
+  .container { max-width: 1400px; margin: 0 auto; }
+  header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 0; border-bottom: 1px solid #1e293b; margin-bottom: 30px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-icon {
+    width: 40px; height: 40px; border-radius: 8px;
+    background: linear-gradient(135deg, #10b981, #3b82f6);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .brand-text h1 { font-size: 18px; font-weight: 800; color: #f1f5f9; letter-spacing: -0.5px; }
+  .brand-text p { font-size: 11px; color: #64748b; margin-top: 2px; font-family: monospace; letter-spacing: 1px; text-transform: uppercase; }
+  .meta { font-size: 11px; color: #64748b; font-family: monospace; }
+
+  /* Tabs */
+  .tabs {
+    display: flex; gap: 4px; margin-bottom: 24px;
+    background: #1e293b; border-radius: 12px; padding: 6px; overflow-x: auto;
+  }
+  .tab {
+    padding: 10px 18px; font-size: 13px; font-weight: 600;
+    background: transparent; color: #94a3b8;
+    border: none; cursor: pointer; border-radius: 8px;
+    display: flex; align-items: center; gap: 8px;
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .tab:hover { background: #334155; color: #f1f5f9; }
+  .tab.active { background: #f1f5f9; color: #0f172a; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
+  .tab .icon { font-size: 16px; }
+
+  .panel { display: none; animation: fadeIn 0.3s; }
+  .panel.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .panel-header {
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    border: 1px solid #334155; border-radius: 12px; padding: 24px;
+    margin-bottom: 24px;
+    display: flex; gap: 24px; align-items: center; flex-wrap: wrap;
+  }
+  .panel-header h2 { font-size: 24px; font-weight: 800; color: #f1f5f9; margin-bottom: 4px; }
+  .panel-header p { font-size: 13px; color: #94a3b8; line-height: 1.5; }
+  .panel-stats { display: flex; gap: 16px; margin-left: auto; }
+  .stat {
+    text-align: center; padding: 8px 16px; background: #0f172a; border-radius: 8px;
+    border: 1px solid #1e293b; min-width: 80px;
+  }
+  .stat-value { font-size: 22px; font-weight: 800; color: #10b981; font-family: monospace; }
+  .stat-label { font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 2px; }
+
+  /* Workflow flow */
+  .flow {
+    background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+    padding: 32px 24px; margin-bottom: 24px; overflow-x: auto;
+  }
+  .flow-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 2px;
+    color: #64748b; margin-bottom: 20px; font-family: monospace;
+  }
+  .nodes {
+    display: flex; gap: 0; align-items: flex-start; padding: 8px 0;
+    min-width: max-content;
+  }
+  .node {
+    flex: 0 0 auto; width: 150px; text-align: center;
+    padding: 14px 12px; border-radius: 10px;
+    border: 2px solid; background: #0f172a;
+    transition: all 0.2s; cursor: pointer; position: relative;
+  }
+  .node:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+  .node.initial::before {
+    content: 'DÉBUT'; position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    background: #10b981; color: white; padding: 2px 8px; border-radius: 4px;
+    font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  }
+  .node.final::after {
+    content: 'FIN'; position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
+    background: #64748b; color: white; padding: 2px 8px; border-radius: 4px;
+    font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  }
+  .node-icon { font-size: 28px; margin-bottom: 6px; }
+  .node-label { font-size: 13px; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+  .node-code { font-size: 10px; color: #94a3b8; font-family: monospace; }
+  .arrow {
+    flex: 0 0 auto; width: 32px; height: 60px;
+    display: flex; align-items: center; justify-content: center;
+    color: #475569; font-size: 20px;
+  }
+
+  /* Transitions table */
+  .trans-section {
+    background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px;
+    margin-bottom: 24px;
+  }
+  .trans-title {
+    font-size: 14px; font-weight: 700; color: #f1f5f9; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .trans-title::before { content: '⚡'; }
+  .trans-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .trans-table th {
+    text-align: left; padding: 10px; font-size: 10px;
+    color: #64748b; text-transform: uppercase; letter-spacing: 1px;
+    font-family: monospace; border-bottom: 1px solid #334155;
+  }
+  .trans-table td {
+    padding: 12px 10px; border-bottom: 1px solid rgba(51,65,85,0.5);
+    color: #cbd5e1;
+  }
+  .trans-table tr:hover { background: rgba(59,130,246,0.05); }
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 6px;
+    font-size: 11px; font-weight: 600; font-family: monospace;
+  }
+  .arrow-cell { text-align: center; color: #64748b; font-size: 14px; }
+
+  /* Details panel */
+  .details {
+    background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;
+  }
+  .detail-card {
+    background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px;
+  }
+  .detail-card h4 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px;
+    color: #94a3b8; margin-bottom: 8px; font-family: monospace;
+  }
+  .detail-card p { font-size: 13px; color: #cbd5e1; line-height: 1.6; }
+  .detail-card .icon { font-size: 22px; margin-bottom: 8px; }
+
+  /* Color helpers */
+  .c-blue { color: #3b82f6; border-color: #3b82f6; }
+  .c-amber { color: #f59e0b; border-color: #f59e0b; }
+  .c-neon { color: #10b981; border-color: #10b981; }
+  .c-purple { color: #8b5cf6; border-color: #8b5cf6; }
+  .c-red { color: #ef4444; border-color: #ef4444; }
+  .c-gray { color: #64748b; border-color: #64748b; }
+  .c-cyan { color: #06b6d4; border-color: #06b6d4; }
+
+  .bg-blue { background: rgba(59,130,246,0.15); color: #93c5fd; }
+  .bg-amber { background: rgba(245,158,11,0.15); color: #fcd34d; }
+  .bg-neon { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+  .bg-purple { background: rgba(139,92,246,0.15); color: #c4b5fd; }
+  .bg-red { background: rgba(239,68,68,0.15); color: #fca5a5; }
+  .bg-gray { background: rgba(100,116,139,0.15); color: #cbd5e1; }
+  .bg-cyan { background: rgba(6,182,212,0.15); color: #67e8f9; }
+
+  footer {
+    margin-top: 40px; padding-top: 20px; border-top: 1px solid #1e293b;
+    text-align: center; color: #64748b; font-size: 11px;
+    font-family: monospace; letter-spacing: 1px;
+  }
+  .legend {
+    display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;
+    padding: 12px 16px; background: #0f172a; border-radius: 8px; border: 1px solid #1e293b;
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #94a3b8; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🚜</div>
+      <div class="brand-text">
+        <h1>FramPilot · Workflows opérationnels</h1>
+        <p>Cycle de vie · 3 modules</p>
+      </div>
+    </div>
+    <div class="meta">
+      <div>Domaine BENHALIMA</div>
+      <div id="date" style="text-align:right;margin-top:2px;"></div>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-tab="recoltes"><span class="icon">🌿</span> Workflow Récoltes</button>
+    <button class="tab" data-tab="achats"><span class="icon">🛒</span> Workflow Achats</button>
+    <button class="tab" data-tab="commandes"><span class="icon">📋</span> Workflow Commandes</button>
+  </div>
+
+  <!-- ═════════════════════ PANEL RÉCOLTES ═════════════════════ -->
+  <div class="panel active" id="panel-recoltes">
+    <div class="panel-header">
+      <div style="flex:1;min-width:300px;">
+        <h2>🌿 Workflow Récoltes</h2>
+        <p>De la cueillette à la facture — cycle de vie complet d'un lot avec ses ramifications (envoi station, tri, tarification, écart).</p>
+      </div>
+      <div class="panel-stats">
+        <div class="stat"><div class="stat-value">7</div><div class="stat-label">étapes</div></div>
+        <div class="stat"><div class="stat-value">2</div><div class="stat-label">branches</div></div>
+        <div class="stat"><div class="stat-value">4</div><div class="stat-label">tables DB</div></div>
+      </div>
+    </div>
+
+    <div class="flow">
+      <div class="flow-title">▸ Flux principal · récolte → facture</div>
+      <div class="nodes">
+        <div class="node initial c-neon">
+          <div class="node-icon">🌿</div>
+          <div class="node-label">Récolte</div>
+          <div class="node-code">harvests</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node c-neon">
+          <div class="node-icon">🚚</div>
+          <div class="node-label">À envoyer</div>
+          <div class="node-code">remaining_kg &gt; 0</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node c-amber">
+          <div class="node-icon">📦</div>
+          <div class="node-label">Envoyé station</div>
+          <div class="node-code">tri_status: pending</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node c-blue">
+          <div class="node-icon">🔬</div>
+          <div class="node-label">Trié</div>
+          <div class="node-code">tri_status: tried</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node c-purple">
+          <div class="node-icon">💰</div>
+          <div class="node-label">Tarifé</div>
+          <div class="node-code">tri_status: priced</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node final c-neon">
+          <div class="node-icon">✅</div>
+          <div class="node-label">Facturé</div>
+          <div class="node-code">invoice_id ≠ NULL</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow">
+      <div class="flow-title">▸ Branches post-tri · destination des écarts</div>
+      <div class="nodes">
+        <div class="node c-blue">
+          <div class="node-icon">🔬</div>
+          <div class="node-label">Trié</div>
+          <div class="node-code">freinte + écart calculés</div>
+        </div>
+        <div class="arrow">⇉</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="node c-red" style="width:200px;">
+            <div class="node-icon">🗑️</div>
+            <div class="node-label">Destruction (freinte)</div>
+            <div class="node-code">pertes physiques</div>
+          </div>
+          <div class="node c-purple" style="width:200px;">
+            <div class="node-icon">🤝</div>
+            <div class="node-label">Vente écart</div>
+            <div class="node-code">client_ecart_buyer</div>
+          </div>
+          <div class="node c-cyan" style="width:200px;">
+            <div class="node-icon">🔄</div>
+            <div class="node-label">Retour stock</div>
+            <div class="node-code">category: stock_retour</div>
+          </div>
+          <div class="node c-amber" style="width:200px;">
+            <div class="node-icon">🏭</div>
+            <div class="node-label">Vente industrie</div>
+            <div class="node-code">prix réduit</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="trans-section">
+      <div class="trans-title">Transitions du cycle</div>
+      <table class="trans-table">
+        <thead>
+          <tr>
+            <th>Action</th>
+            <th>État précédent</th>
+            <th></th>
+            <th>État suivant</th>
+            <th>Déclencheur</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Saisir récolte</strong></td><td><span class="badge bg-gray">—</span></td><td class="arrow-cell">→</td><td><span class="badge bg-neon">harvests · created</span></td><td>UI /recoltes ou Bot Telegram</td></tr>
+          <tr><td><strong>Composer envoi</strong></td><td><span class="badge bg-neon">À envoyer</span></td><td class="arrow-cell">→</td><td><span class="badge bg-amber">tri_status: pending</span></td><td>Sélection N récoltes → 1 lot station</td></tr>
+          <tr><td><strong>Trier</strong></td><td><span class="badge bg-amber">Envoyé</span></td><td class="arrow-cell">→</td><td><span class="badge bg-blue">tri_status: tried</span></td><td>Saisie freinte% + écart% (modal Tri)</td></tr>
+          <tr><td><strong>Tarifer manuellement</strong></td><td><span class="badge bg-blue">Trié</span></td><td class="arrow-cell">→</td><td><span class="badge bg-purple">tri_status: priced</span></td><td>Bouton "Tarifer" + prix /kg + auto-facture</td></tr>
+          <tr><td><strong>Valider bordereau</strong></td><td><span class="badge bg-blue">Trié (N lots)</span></td><td class="arrow-cell">⇉</td><td><span class="badge bg-purple">tri_status: priced</span></td><td>FIFO via admin_validate_station_settlement</td></tr>
+          <tr><td><strong>Vente écart</strong></td><td><span class="badge bg-blue">Trié</span></td><td class="arrow-cell">↘</td><td><span class="badge bg-purple">dispatch enfant</span></td><td>destination_rejet='vente_ecart' → marché écart</td></tr>
+          <tr><td><strong>Retour stock</strong></td><td><span class="badge bg-blue">Trié</span></td><td class="arrow-cell">↘</td><td><span class="badge bg-cyan">stock_retour pending</span></td><td>destination_rejet='retour_stock' (ré-envoi possible)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="details">
+      <div class="detail-card">
+        <div class="icon">📐</div>
+        <h4>Modèle Freinte vs Écart</h4>
+        <p><strong>Freinte</strong> = pertes physiques (eau, déshydratation) → détruite.<br><strong>Écart</strong> = pièces hors-1ère cat → vendables au client écart sur marché dédié.</p>
+      </div>
+      <div class="detail-card">
+        <div class="icon">📑</div>
+        <h4>Bordereau station</h4>
+        <p>Hebdomadaire pour Export, mensuel pour Local. Validation FIFO automatique : alloue qty payées aux dispatches non encore tarifés (oldest first).</p>
+      </div>
+      <div class="detail-card">
+        <div class="icon">💰</div>
+        <h4>Auto-facturation</h4>
+        <p>À la tarification (manuelle ou bordereau), une facture est créée avec le client paramétré sur le marché. Échéance = received_date + payment_terms_days.</p>
+      </div>
+      <div class="detail-card">
+        <div class="icon">🔄</div>
+        <h4>Stock retour</h4>
+        <p>Les écarts catégorie 'retour_stock' deviennent un nouveau lot disponible pour re-composition d'envoi vers un autre marché.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════════════════════ PANEL ACHATS ═════════════════════ -->
+  <div class="panel" id="panel-achats">
+    <div class="panel-header">
+      <div style="flex:1;min-width:300px;">
+        <h2>🛒 Workflow Achats</h2>
+        <p>Cycle de vie d'un bon d'achat fournisseur, du brouillon au paiement. Permet aussi l'achat direct sans BO formel.</p>
+      </div>
+      <div class="panel-stats">
+        <div class="stat"><div class="stat-value">7</div><div class="stat-label">états</div></div>
+        <div class="stat"><div class="stat-value">9</div><div class="stat-label">transitions</div></div>
+        <div class="stat"><div class="stat-value">1</div><div class="stat-label">raccourci direct</div></div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot" style="background:#10b981;"></span> Standard</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#f59e0b;"></span> Intermédiaire</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#8b5cf6;"></span> Final positif</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span> Final négatif</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#64748b;"></span> Initial</div>
+    </div>
+
+    <div class="flow">
+      <div class="flow-title">▸ Workflow standard · brouillon → paiement</div>
+      <div class="nodes">
+        <div class="node initial c-gray">
+          <div class="node-icon">📝</div>
+          <div class="node-label">Brouillon</div>
+          <div class="node-code">brouillon</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node c-blue">
+          <div class="node-icon">📤</div>
+          <div class="node-label">Envoyé</div>
+          <div class="node-code">envoye</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node c-amber">
+          <div class="node-icon">📥</div>
+          <div class="node-label">Partiel reçu</div>
+          <div class="node-code">partiellement_recu</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node c-neon">
+          <div class="node-icon">✓</div>
+          <div class="node-label">Reçu</div>
+          <div class="node-code">recu</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node c-neon">
+          <div class="node-icon">📄</div>
+          <div class="node-label">Facturé</div>
+          <div class="node-code">facture</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node final c-purple">
+          <div class="node-icon">💸</div>
+          <div class="node-label">Payé</div>
+          <div class="node-code">paye</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow">
+      <div class="flow-title">▸ Raccourcis · achat direct ou annulation</div>
+      <div class="nodes">
+        <div class="node c-gray">
+          <div class="node-icon">📝</div>
+          <div class="node-label">Brouillon</div>
+          <div class="node-code">brouillon</div>
+        </div>
+        <div class="arrow">⤵</div>
+        <div class="node c-neon">
+          <div class="node-icon">⚡</div>
+          <div class="node-label">Achat direct</div>
+          <div class="node-code">→ Reçu</div>
+        </div>
+        <div style="width:60px;"></div>
+        <div class="node c-blue">
+          <div class="node-icon">📤</div>
+          <div class="node-label">Envoyé</div>
+        </div>
+        <div class="arrow">⤵</div>
+        <div class="node final c-red">
+          <div class="node-icon">✕</div>
+          <div class="node-label">Annulé</div>
+          <div class="node-code">annule</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="trans-section">
+      <div class="trans-title">Transitions complètes</div>
+      <table class="trans-table">
+        <thead>
+          <tr><th>Action</th><th>De</th><th></th><th>Vers</th><th>Quand</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Envoyer au fournisseur</strong></td><td><span class="badge bg-gray">Brouillon</span></td><td class="arrow-cell">→</td><td><span class="badge bg-blue">Envoyé</span></td><td>BO validé et expédié</td></tr>
+          <tr><td><strong>Réception partielle</strong></td><td><span class="badge bg-blue">Envoyé</span></td><td class="arrow-cell">→</td><td><span class="badge bg-amber">Partiel reçu</span></td><td>Une partie livrée, suite à venir</td></tr>
+          <tr><td><strong>Réception complète</strong></td><td><span class="badge bg-blue">Envoyé</span></td><td class="arrow-cell">→</td><td><span class="badge bg-neon">Reçu</span></td><td>Toute la qty livrée en une fois</td></tr>
+          <tr><td><strong>Complèter</strong></td><td><span class="badge bg-amber">Partiel reçu</span></td><td class="arrow-cell">→</td><td><span class="badge bg-neon">Reçu</span></td><td>Le reste arrivé</td></tr>
+          <tr><td><strong>Facturer</strong></td><td><span class="badge bg-neon">Reçu</span></td><td class="arrow-cell">→</td><td><span class="badge bg-neon">Facturé</span></td><td>Facture fournisseur reçue</td></tr>
+          <tr><td><strong>Payer</strong></td><td><span class="badge bg-neon">Facturé</span></td><td class="arrow-cell">→</td><td><span class="badge bg-purple">Payé</span></td><td>Virement/chèque émis</td></tr>
+          <tr style="background:rgba(16,185,129,0.05);"><td><strong>Achat direct</strong></td><td><span class="badge bg-gray">Brouillon</span></td><td class="arrow-cell">⇒</td><td><span class="badge bg-neon">Reçu</span></td><td>Achat en cash sans BO formel</td></tr>
+          <tr><td><strong>Annuler</strong></td><td><span class="badge bg-gray">Brouillon</span></td><td class="arrow-cell">→</td><td><span class="badge bg-red">Annulé</span></td><td>Avant envoi fournisseur</td></tr>
+          <tr><td><strong>Annuler</strong></td><td><span class="badge bg-blue">Envoyé</span></td><td class="arrow-cell">→</td><td><span class="badge bg-red">Annulé</span></td><td>Annulation après envoi (rare)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="details">
+      <div class="detail-card">
+        <div class="icon">⚡</div>
+        <h4>Achat direct</h4>
+        <p>Pour les achats cash ou urgents : skip Brouillon → Envoyé, directement à Reçu. Le BO est créé après coup avec les justificatifs.</p>
+      </div>
+      <div class="detail-card">
+        <div class="icon">📥</div>
+        <h4>Réceptions partielles</h4>
+        <p>Plusieurs livraisons pour un même BO. Le status passe à 'partiellement_recu', et un par un les quantités sont saisies jusqu'au complet.</p>
+      </div>
+      <div class="detail-card">
+        <div class="icon">📄</div>
+        <h4>Lien BO → Facture fournisseur</h4>
+        <p>Sur /factures, sélectionner un BO 'recu' ou 'envoye' depuis la dropdown pré-remplit le formulaire facture (montant, fournisseur, catégorie de coût).</p>
+      </div>
+      <div class="detail-card">
+        <div class="icon">📊</div>
+        <h4>Impact comptable</h4>
+        <p>À la transition Reçu, les coûts s'imputent à la campagne/serre. À 'facture', la facture rentre dans /factures (débit fournisseur).</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════════════════════ PANEL COMMANDES ═════════════════════ -->
+  <div class="panel" id="panel-commandes">
+    <div class="panel-header">
+      <div style="flex:1;min-width:300px;">
+        <h2>📋 Workflow Commandes</h2>
+        <p>Cycle d'une commande client : du brouillon à la facturation, en passant par la préparation et l'expédition.</p>
+      </div>
+      <div class="panel-stats">
+        <div class="stat"><div class="stat-value">7</div><div class="stat-label">états</div></div>
+        <div class="stat"><div class="stat-value">9</div><div class="stat-label">transitions</div></div>
+        <div class="stat"><div class="stat-value">4</div><div class="stat-label">étapes opé</div></div>
+      </div>
+    </div>
+
+    <div class="flow">
+      <div class="flow-title">▸ Workflow standard · brouillon → facturée</div>
+      <div class="nodes">
+        <div class="node initial c-gray">
+          <div class="node-icon">📝</div>
+          <div class="node-label">Brouillon</div>
+          <div class="node-code">brouillon</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node c-blue">
+          <div class="node-icon">✓</div>
+          <div class="node-label">Confirmée</div>
+          <div class="node-code">confirme</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node c-amber">
+          <div class="node-icon">🧰</div>
+          <div class="node-label">En préparation</div>
+          <div class="node-code">en_preparation</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node c-purple">
+          <div class="node-icon">🚛</div>
+          <div class="node-label">Expédiée</div>
+          <div class="node-code">expedie</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node c-neon">
+          <div class="node-icon">📍</div>
+          <div class="node-label">Livrée</div>
+          <div class="node-code">livre</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node final c-neon">
+          <div class="node-icon">📄</div>
+          <div class="node-label">Facturée</div>
+          <div class="node-code">facture</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow">
+      <div class="flow-title">▸ Annulation (possible à tout état pré-livraison)</div>
+      <div class="nodes">
+        <div class="node c-gray"><div class="node-icon">📝</div><div class="node-label">Brouillon</div></div>
+        <div class="arrow">⇣</div>
+        <div class="node c-blue"><div class="node-icon">✓</div><div class="node-label">Confirmée</div></div>
+        <div class="arrow">⇣</div>
+        <div class="node c-amber"><div class="node-icon">🧰</div><div class="node-label">Préparation</div></div>
+        <div class="arrow">⇣</div>
+        <div class="node c-purple"><div class="node-icon">🚛</div><div class="node-label">Expédiée</div></div>
+        <div class="arrow">⇣</div>
+        <div class="node final c-red"><div class="node-icon">✕</div><div class="node-label">Annulée</div><div class="node-code">annule</div></div>
+      </div>
+    </div>
+
+    <div class="trans-section">
+      <div class="trans-title">Transitions complètes</div>
+      <table class="trans-table">
+        <thead>
+          <tr><th>Action</th><th>De</th><th></th><th>Vers</th><th>Quand</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Confirmer</strong></td><td><span class="badge bg-gray">Brouillon</span></td><td class="arrow-cell">→</td><td><span class="badge bg-blue">Confirmée</span></td><td>Devis accepté par client, qty bloquée</td></tr>
+          <tr><td><strong>Lancer préparation</strong></td><td><span class="badge bg-blue">Confirmée</span></td><td class="arrow-cell">→</td><td><span class="badge bg-amber">En préparation</span></td><td>Composition lot, emballage station</td></tr>
+          <tr><td><strong>Expédier</strong></td><td><span class="badge bg-amber">Préparation</span></td><td class="arrow-cell">→</td><td><span class="badge bg-purple">Expédiée</span></td><td>Chargement camion + bon de livraison</td></tr>
+          <tr><td><strong>Marquer livrée</strong></td><td><span class="badge bg-purple">Expédiée</span></td><td class="arrow-cell">→</td><td><span class="badge bg-neon">Livrée</span></td><td>Réception confirmée par le client</td></tr>
+          <tr><td><strong>Facturer</strong></td><td><span class="badge bg-neon">Livrée</span></td><td class="arrow-cell">→</td><td><span class="badge bg-neon">Facturée</span></td><td>Émission facture vente</td></tr>
+          <tr><td><strong>Annuler (brouillon)</strong></td><td><span class="badge bg-gray">Brouillon</span></td><td class="arrow-cell">→</td><td><span class="badge bg-red">Annulée</span></td><td>Avant confirmation</td></tr>
+          <tr><td><strong>Annuler (confirmée)</strong></td><td><span class="badge bg-blue">Confirmée</span></td><td class="arrow-cell">→</td><td><span class="badge bg-red">Annulée</span></td><td>Client se rétracte</td></tr>
+          <tr><td><strong>Annuler (préparation)</strong></td><td><span class="badge bg-amber">Préparation</span></td><td class="arrow-cell">→</td><td><span class="badge bg-red">Annulée</span></td><td>Problème qualité / lot manquant</td></tr>
+          <tr><td><strong>Annuler (expédiée)</strong></td><td><span class="badge bg-purple">Expédiée</span></td><td class="arrow-cell">→</td><td><span class="badge bg-red">Annulée</span></td><td>Refus livraison (rare)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="details">
+      <div class="detail-card">
+        <div class="icon">🔒</div>
+        <h4>Blocage de stock</h4>
+        <p>À la transition 'Confirmée', les quantités commandées sont réservées sur les lots disponibles. Empêche la sur-vente.</p>
+      </div>
+      <div class="detail-card">
+        <div class="icon">🚛</div>
+        <h4>Bon de livraison</h4>
+        <p>Généré automatiquement à 'Expédiée'. PDF imprimable signé par le chauffeur, à présenter à la livraison.</p>
+      </div>
+      <div class="detail-card">
+        <div class="icon">📄</div>
+        <h4>Facture vs Bordereau</h4>
+        <p>La facture peut être émise directement après livraison (modèle 'Commandes') OU groupée dans un bordereau station hebdo/mensuel (modèle 'Récoltes').</p>
+      </div>
+      <div class="detail-card">
+        <div class="icon">⚙️</div>
+        <h4>Configuration</h4>
+        <p>Workflow définissable dans /admin/workflows : nouvelles étapes, transitions custom, restrictions par rôle.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Source : workflows définis dans migration 037 (admin_reseed_workflows) · DB Supabase<br>
+    Généré pour Domaine BENHALIMA · FramPilot 2026
+  </footer>
+
+</div>
+
+<script>
+  // Tab switching
+  const tabs = document.querySelectorAll('.tab')
+  const panels = document.querySelectorAll('.panel')
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(x => x.classList.remove('active'))
+    panels.forEach(p => p.classList.remove('active'))
+    t.classList.add('active')
+    document.getElementById('panel-' + t.dataset.tab).classList.add('active')
+    // Save selection
+    try { localStorage.setItem('fp_workflow_tab', t.dataset.tab) } catch (e) {}
+  }))
+
+  // Restore last tab
+  try {
+    const last = localStorage.getItem('fp_workflow_tab')
+    if (last) {
+      const t = document.querySelector(`.tab[data-tab="${last}"]`)
+      if (t) t.click()
+    }
+  } catch (e) {}
+
+  // Display current date
+  const today = new Date()
+  document.getElementById('date').textContent = today.toLocaleDateString('fr-FR', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  })
+</script>
+</body>
+</html>
