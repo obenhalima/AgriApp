@@ -54,6 +54,18 @@ export default function RecoltesPage() {
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
 
+  // ─── Filtres globaux (s'appliquent à tous les onglets sauf bordereaux) ───
+  const [filterDateFrom, setFilterDateFrom] = useState('')
+  const [filterDateTo, setFilterDateTo] = useState('')
+  const [filterFarmId, setFilterFarmId] = useState('')
+  const [filterGreenhouseId, setFilterGreenhouseId] = useState('')
+  const [filterVarietyId, setFilterVarietyId] = useState('')
+
+  // ─── Tri par colonne (utilisé par ListeTab) ───
+  type SortKey = 'lot_number' | 'harvest_date' | 'greenhouse' | 'variety' | 'total_qty' | 'used_kg' | 'remaining_kg'
+  const [sortKey, setSortKey] = useState<SortKey>('harvest_date')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
   // ─── Chargement ───
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -62,7 +74,7 @@ export default function RecoltesPage() {
       const since30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
       const [hRes, dRes, sRes, pRes, mRes, alRes, srRes] = await Promise.all([
         supabase.from('harvests')
-          .select('id, lot_number, harvest_date, total_qty, notes, campaign_planting_id, campaign_plantings(*, greenhouses(code, name), varieties(commercial_name, code), campaigns(name))')
+          .select('id, lot_number, harvest_date, total_qty, notes, campaign_planting_id, campaign_plantings(*, greenhouses(code, name, farm_id, farms(name)), varieties(commercial_name, code), campaigns(name))')
           .order('harvest_date', { ascending: false })
           .limit(300),
         supabase.from('harvest_lots')
@@ -72,7 +84,7 @@ export default function RecoltesPage() {
           .order('harvest_date', { ascending: false }),
         supabase.from('harvest_lot_sources')
           .select('harvest_lot_id, harvest_id, qty_contributed_kg, harvests(lot_number, harvest_date)'),
-        supabase.from('campaign_plantings').select('id, variety_id, greenhouse_id, greenhouses(code, name), varieties(commercial_name, code), campaigns(name)'),
+        supabase.from('campaign_plantings').select('id, variety_id, greenhouse_id, greenhouses(code, name, farm_id, farms(name)), varieties(commercial_name, code), campaigns(name)'),
         supabase.from('markets').select('id, code, name, currency, type').eq('is_active', true).order('name'),
         supabase.from('alerts').select('*').eq('type', 'no_harvest').order('created_at', { ascending: false }).limit(100),
         // Stock de retour : lots créés via tri (destination = retour_stock) pas encore consommés
@@ -145,12 +157,101 @@ export default function RecoltesPage() {
     return dispatches.map((d: any) => ({ ...d, sources: sourcesByLot.get(d.id) ?? [] }))
   }, [dispatches, sources])
 
-  // Filtres par tab
-  const aEnvoyer = useMemo(() => harvestsEnriched.filter(h => h.remaining_kg > 0.01), [harvestsEnriched])
-  const aTrier = useMemo(() => dispatchesEnriched.filter(d => (d.tri_status ?? 'pending') === 'pending'), [dispatchesEnriched])
-  const aTarifer = useMemo(() => dispatchesEnriched.filter(d => d.tri_status === 'tried'), [dispatchesEnriched])
-  const confirmes = useMemo(() => dispatchesEnriched.filter(d => d.tri_status === 'priced'), [dispatchesEnriched])
+  // ─── Application des filtres globaux ───
+  // Filtres : date_from, date_to, farm, greenhouse, variety
+  const matchesFilters = useCallback((row: any, opts: { dateField?: string } = {}) => {
+    const dateField = opts.dateField ?? 'harvest_date'
+    const dateValue = row[dateField]
+    if (filterDateFrom && dateValue && dateValue < filterDateFrom) return false
+    if (filterDateTo && dateValue && dateValue > filterDateTo) return false
+
+    // Variety : direct sur row ou via campaign_plantings
+    const varietyId = row.variety_id ?? row.campaign_plantings?.variety_id ?? null
+    if (filterVarietyId && varietyId !== filterVarietyId) return false
+
+    // Greenhouse : direct ou via campaign_plantings
+    const ghId = row.greenhouse_id ?? row.campaign_plantings?.greenhouse_id ?? null
+    if (filterGreenhouseId && ghId !== filterGreenhouseId) return false
+
+    // Farm : via greenhouses → farm_id (peut être direct sur dispatches.greenhouses ou via plantings.greenhouses)
+    const farmId = row.greenhouses?.farm_id
+      ?? row.campaign_plantings?.greenhouses?.farm_id
+      ?? null
+    if (filterFarmId && farmId !== filterFarmId) return false
+
+    return true
+  }, [filterDateFrom, filterDateTo, filterFarmId, filterGreenhouseId, filterVarietyId])
+
+  // Versions filtrees
+  const harvestsFiltered = useMemo(() => harvestsEnriched.filter(h => matchesFilters(h)), [harvestsEnriched, matchesFilters])
+  const dispatchesFiltered = useMemo(() => dispatchesEnriched.filter(d => matchesFilters(d)), [dispatchesEnriched, matchesFilters])
+
+  // Tri (applique uniquement a la liste principale)
+  const harvestsSorted = useMemo(() => {
+    const arr = [...harvestsFiltered]
+    arr.sort((a, b) => {
+      let va: any, vb: any
+      switch (sortKey) {
+        case 'lot_number':  va = a.lot_number ?? ''; vb = b.lot_number ?? ''; break
+        case 'harvest_date': va = a.harvest_date ?? ''; vb = b.harvest_date ?? ''; break
+        case 'greenhouse':  va = a.campaign_plantings?.greenhouses?.code ?? ''; vb = b.campaign_plantings?.greenhouses?.code ?? ''; break
+        case 'variety':     va = a.campaign_plantings?.varieties?.code ?? ''; vb = b.campaign_plantings?.varieties?.code ?? ''; break
+        case 'total_qty':   va = Number(a.total_qty || 0); vb = Number(b.total_qty || 0); break
+        case 'used_kg':     va = Number(a.used_kg || 0); vb = Number(b.used_kg || 0); break
+        case 'remaining_kg': va = Number(a.remaining_kg || 0); vb = Number(b.remaining_kg || 0); break
+      }
+      if (typeof va === 'number' && typeof vb === 'number') {
+        return sortDir === 'asc' ? va - vb : vb - va
+      }
+      const cmp = String(va).localeCompare(String(vb))
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+    return arr
+  }, [harvestsFiltered, sortKey, sortDir])
+
+  // Filtres par tab (utilisent les versions filtrees)
+  const aEnvoyer = useMemo(() => harvestsFiltered.filter(h => h.remaining_kg > 0.01), [harvestsFiltered])
+  const aTrier = useMemo(() => dispatchesFiltered.filter(d => (d.tri_status ?? 'pending') === 'pending'), [dispatchesFiltered])
+  const aTarifer = useMemo(() => dispatchesFiltered.filter(d => d.tri_status === 'tried'), [dispatchesFiltered])
+  const confirmes = useMemo(() => dispatchesFiltered.filter(d => d.tri_status === 'priced'), [dispatchesFiltered])
   const alertesActives = useMemo(() => alertes.filter(a => !a.is_resolved), [alertes])
+
+  // Liste de fermes / greenhouses / varietes pour les dropdowns
+  const farmsForFilter = useMemo(() => {
+    const set = new Map<string, string>()
+    for (const p of plantings) {
+      const fid = p.greenhouses?.farm_id
+      const fname = p.greenhouses?.farms?.name
+      if (fid && fname) set.set(fid, fname)
+    }
+    return Array.from(set.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+  }, [plantings])
+
+  const greenhousesForFilter = useMemo(() => {
+    const set = new Map<string, { name: string; farm_id?: string }>()
+    for (const p of plantings) {
+      if (p.greenhouse_id && p.greenhouses?.code) {
+        if (filterFarmId && p.greenhouses?.farm_id !== filterFarmId) continue
+        set.set(p.greenhouse_id, { name: `${p.greenhouses.code} — ${p.greenhouses.name ?? ''}`, farm_id: p.greenhouses.farm_id })
+      }
+    }
+    return Array.from(set.entries()).map(([id, v]) => ({ id, name: v.name })).sort((a, b) => a.name.localeCompare(b.name))
+  }, [plantings, filterFarmId])
+
+  const varietiesForFilter = useMemo(() => {
+    const set = new Map<string, string>()
+    for (const p of plantings) {
+      if (p.variety_id && p.varieties?.code) {
+        set.set(p.variety_id, `${p.varieties.code} — ${p.varieties.commercial_name ?? ''}`)
+      }
+    }
+    return Array.from(set.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+  }, [plantings])
+
+  const hasActiveFilter = !!(filterDateFrom || filterDateTo || filterFarmId || filterGreenhouseId || filterVarietyId)
+  const resetFilters = () => {
+    setFilterDateFrom(''); setFilterDateTo(''); setFilterFarmId(''); setFilterGreenhouseId(''); setFilterVarietyId('')
+  }
 
   // ─── Dispo à tarifer par Marché × Variété × Ferme ───
   // Pour chaque dispatch trié non encore tarifé OU partiellement tarifé :
@@ -416,6 +517,68 @@ export default function RecoltesPage() {
         <KPI icon="💰" label="CA" value={fmt(kpis.ca) + ' MAD'} sub="encaissé" color="#a855f7" />
       </div>
 
+      {/* Barre de filtres globaux (hors bordereaux) */}
+      {tab !== 'bordereaux' && (
+        <div style={{
+          marginBottom: 12, padding: '10px 12px',
+          background: hasActiveFilter ? 'color-mix(in srgb, #3b82f6 6%, transparent)' : 'var(--bg-2)',
+          border: '1px solid ' + (hasActiveFilter ? 'color-mix(in srgb, #3b82f6 40%, transparent)' : 'var(--bd-1)'),
+          borderRadius: 8,
+          display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
+        }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: 1 }}>
+            🔍 Filtres
+          </span>
+
+          {/* Date du */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <label style={{ fontSize: 11, color: 'var(--text-sub)' }}>Du</label>
+            <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)}
+              style={{ padding: '4px 8px', fontSize: 12, border: '1px solid var(--bd-1)', borderRadius: 4, background: 'var(--bg-1)', color: 'var(--text-main)' }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <label style={{ fontSize: 11, color: 'var(--text-sub)' }}>Au</label>
+            <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)}
+              style={{ padding: '4px 8px', fontSize: 12, border: '1px solid var(--bd-1)', borderRadius: 4, background: 'var(--bg-1)', color: 'var(--text-main)' }} />
+          </div>
+
+          {/* Ferme */}
+          <select value={filterFarmId} onChange={e => { setFilterFarmId(e.target.value); setFilterGreenhouseId('') }}
+            style={{ padding: '4px 8px', fontSize: 12, border: '1px solid var(--bd-1)', borderRadius: 4, background: 'var(--bg-1)', color: 'var(--text-main)', minWidth: 140 }}>
+            <option value="">Toutes fermes</option>
+            {farmsForFilter.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+
+          {/* Serre */}
+          <select value={filterGreenhouseId} onChange={e => setFilterGreenhouseId(e.target.value)}
+            style={{ padding: '4px 8px', fontSize: 12, border: '1px solid var(--bd-1)', borderRadius: 4, background: 'var(--bg-1)', color: 'var(--text-main)', minWidth: 180 }}>
+            <option value="">Toutes serres</option>
+            {greenhousesForFilter.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select>
+
+          {/* Variété */}
+          <select value={filterVarietyId} onChange={e => setFilterVarietyId(e.target.value)}
+            style={{ padding: '4px 8px', fontSize: 12, border: '1px solid var(--bd-1)', borderRadius: 4, background: 'var(--bg-1)', color: 'var(--text-main)', minWidth: 180 }}>
+            <option value="">Toutes variétés</option>
+            {varietiesForFilter.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+          </select>
+
+          {/* Reset */}
+          {hasActiveFilter && (
+            <button onClick={resetFilters} className="btn-ghost" style={{ fontSize: 11, padding: '4px 10px', color: '#3b82f6', marginLeft: 'auto' }}>
+              ✕ Réinitialiser
+            </button>
+          )}
+
+          {/* Compteur */}
+          {hasActiveFilter && (
+            <span style={{ fontSize: 11, color: 'var(--text-sub)', fontFamily: 'var(--font-mono)' }}>
+              {harvestsFiltered.length} récolte(s) · {dispatchesFiltered.length} dispatch(es)
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid var(--bd-1)', marginBottom: 14, overflowX: 'auto' }}>
         {([
@@ -442,7 +605,14 @@ export default function RecoltesPage() {
       </div>
 
       {/* Tab contents */}
-      {tab === 'liste' && <ListeTab harvests={harvestsEnriched} onEdit={openEdit} onDelete={deleteRecolte} onBulkDelete={bulkDeleteRecoltes} loading={loading} />}
+      {tab === 'liste' && <ListeTab
+        harvests={harvestsSorted}
+        sortKey={sortKey} sortDir={sortDir}
+        onSort={(k) => {
+          if (k === sortKey) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+          else { setSortKey(k); setSortDir('asc') }
+        }}
+        onEdit={openEdit} onDelete={deleteRecolte} onBulkDelete={bulkDeleteRecoltes} loading={loading} />}
       {tab === 'a_envoyer' && <AEnvoyerTab harvests={aEnvoyer} onBulkDelete={bulkDeleteRecoltes} loading={loading} />}
       {tab === 'a_trier' && <ATrierTab dispatches={aTrier} onPick={d => setModalTri(d)} loading={loading} />}
       {tab === 'a_tarifer' && <ATariferTab dispatches={aTarifer} summary={unpricedByMarketVariety} onPick={d => setModalPrice(d)} onOpenPeriod={() => setModalPeriodPrice(true)} onGotoBordereaux={() => setTab('bordereaux')} loading={loading} />}
@@ -499,7 +669,26 @@ export default function RecoltesPage() {
 // TABS
 // ============================================================
 
-function ListeTab({ harvests, onEdit, onDelete, onBulkDelete, loading }: { harvests: any[]; onEdit: (h: any) => void; onDelete: (h: any) => void; onBulkDelete: (ids: string[]) => void; loading: boolean }) {
+type SortKey = 'lot_number' | 'harvest_date' | 'greenhouse' | 'variety' | 'total_qty' | 'used_kg' | 'remaining_kg'
+
+function ListeTab({ harvests, sortKey, sortDir, onSort, onEdit, onDelete, onBulkDelete, loading }: {
+  harvests: any[]; sortKey: SortKey; sortDir: 'asc' | 'desc'; onSort: (k: SortKey) => void;
+  onEdit: (h: any) => void; onDelete: (h: any) => void; onBulkDelete: (ids: string[]) => void; loading: boolean
+}) {
+  // Helper : cellule header cliquable avec indicateur de tri
+  const sortHeader = (label: string, key: SortKey) => {
+    const isActive = sortKey === key
+    return (
+      <span
+        onClick={() => onSort(key)}
+        style={{ cursor: 'pointer', userSelect: 'none', color: isActive ? 'var(--neon)' : undefined, fontWeight: isActive ? 700 : undefined }}
+        title="Cliquer pour trier"
+      >
+        {label} {isActive ? (sortDir === 'asc' ? '▲' : '▼') : <span style={{ opacity: 0.3 }}>⇅</span>}
+      </span>
+    )
+  }
+
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const allSelected = harvests.length > 0 && harvests.every(h => selected.has(h.id))
   const someSelected = selected.size > 0
@@ -554,7 +743,13 @@ function ListeTab({ harvests, onEdit, onDelete, onBulkDelete, loading }: { harve
         headers={[
           <input key="sa" type="checkbox" checked={allSelected} onChange={toggleAll}
             style={{ cursor: 'pointer', width: 16, height: 16 }} title="Tout sélectionner" />,
-          'Lot', 'Date', 'Serre / Variété', 'Total', 'Engagé', 'Restant', 'Actions',
+          sortHeader('Lot', 'lot_number'),
+          sortHeader('Date', 'harvest_date'),
+          <span key="gv">{sortHeader('Serre', 'greenhouse')} / {sortHeader('Variété', 'variety')}</span>,
+          sortHeader('Total', 'total_qty'),
+          sortHeader('Engagé', 'used_kg'),
+          sortHeader('Restant', 'remaining_kg'),
+          'Actions',
         ]}
         loading={loading}
         empty="Aucune récolte. Cliquer + Saisir récolte."
