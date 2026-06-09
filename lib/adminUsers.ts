@@ -60,20 +60,42 @@ export async function createUser(input: {
   const { data: { session } } = await supabase.auth.getSession()
   const bearer = session?.access_token ?? key
 
-  const res = await fetch(`${url}/functions/v1/admin-create-user`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': key,
-      'Authorization': `Bearer ${bearer}`,
-    },
-    body: JSON.stringify(input),
-  })
+  let res: Response
+  try {
+    res = await fetch(`${url}/functions/v1/admin-create-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': key,
+        'Authorization': `Bearer ${bearer}`,
+      },
+      body: JSON.stringify(input),
+    })
+  } catch (networkErr: any) {
+    // Échec réseau pur : fonction non déployée, CORS, ou pas de connexion
+    console.error('[createUser] network error:', networkErr)
+    throw new Error(
+      "Impossible de joindre la fonction admin-create-user. " +
+      "Vérifie qu'elle est déployée sur Supabase (Dashboard → Edge Functions → admin-create-user). " +
+      `Détail : ${networkErr?.message ?? networkErr}`
+    )
+  }
 
   const raw = await res.text()
   let parsed: any
   try { parsed = JSON.parse(raw) } catch { parsed = { error: raw } }
-  if (!res.ok) throw new Error(parsed.error ?? `Erreur ${res.status}`)
+
+  if (res.status === 404) {
+    throw new Error(
+      "Fonction admin-create-user introuvable (404). Elle n'est pas déployée. " +
+      "Déploie-la via : supabase functions deploy admin-create-user"
+    )
+  }
+  if (!res.ok) {
+    const detail = parsed.error ?? `Erreur ${res.status}`
+    console.error('[createUser] HTTP error', res.status, parsed)
+    throw new Error(detail)
+  }
   if (parsed.error) throw new Error(parsed.error)
   return parsed
 }
