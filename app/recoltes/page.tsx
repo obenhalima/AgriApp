@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { BordereauxSection } from '@/app/factures/BordereauxSection'
+import { useReferenceList } from '@/lib/useReferenceList'
 
 // ============================================================
 // Page Récoltes — workflow unifié (CRUD + Cycle station)
@@ -27,6 +28,7 @@ function computeUsed(harvestId: string, sources: any[], legacyDirect: any[]): nu
 }
 
 export default function RecoltesPage() {
+  const { values: trayTypes } = useReferenceList('tray_type')
   const [tab, setTab] = useState<Tab>('liste')
   const [harvests, setHarvests] = useState<any[]>([])
   const [stockRetour, setStockRetour] = useState<any[]>([])
@@ -47,8 +49,22 @@ export default function RecoltesPage() {
   const [modalPeriodPrice, setModalPeriodPrice] = useState(false)
   const [modalAlerte, setModalAlerte] = useState(false)
 
-  // ─── Form: nouvelle récolte ───
-  const [formNew, setFormNew] = useState({ campaign_planting_id: '', harvest_date: '', total_qty: '', notes: '' })
+  // ─── Form: nouvelle récolte (saisie en plateaux) ───
+  const emptyTrayLine = () => ({ tray_type_code: '', nb: '' })
+  const [formNew, setFormNew] = useState<{ campaign_planting_id: string; harvest_date: string; notes: string; trayLines: { tray_type_code: string; nb: string }[] }>(
+    { campaign_planting_id: '', harvest_date: '', notes: '', trayLines: [emptyTrayLine()] }
+  )
+
+  // Poids théorique par code de plateau (depuis le référentiel tray_type)
+  const trayWeightByCode = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const t of trayTypes) m.set(t.code, Number(t.metadata?.poids_kg ?? 0))
+    return m
+  }, [trayTypes])
+
+  // Estimation = Σ (nb plateaux × poids théorique)
+  const estimateLines = (lines: { tray_type_code: string; nb: string }[]) =>
+    lines.reduce((s, l) => s + (Number(l.nb) || 0) * (trayWeightByCode.get(l.tray_type_code) ?? 0), 0)
   const [formEdit, setFormEdit] = useState<Record<string, any>>({})
   const [formAlerte, setFormAlerte] = useState({ date: '', reason: 'panne_irrigation', notes: '' })
   const [saving, setSaving] = useState(false)
@@ -339,23 +355,47 @@ export default function RecoltesPage() {
     }
   }, [harvests, confirmes, aEnvoyer, aTrier, aTarifer])
 
-  // ─── CRUD récolte ───
+  // ─── CRUD récolte (saisie en plateaux → poids estimé) ───
   const saveNew = async () => {
-    if (!formNew.campaign_planting_id || !formNew.harvest_date || !formNew.total_qty) return
+    // Lignes de plateaux valides
+    const validLines = formNew.trayLines.filter(l => l.tray_type_code && Number(l.nb) > 0)
+    if (!formNew.campaign_planting_id || !formNew.harvest_date || validLines.length === 0) return
     setSaving(true); setError('')
     try {
+      const estimated = estimateLines(validLines)
       const lot = `LOT-${formNew.harvest_date.replace(/-/g, '')}-${String(Date.now()).slice(-4)}`
-      const { error } = await supabase.from('harvests').insert({
+      // 1. Récolte — estimated_kg est la source de vérité ; on miroir dans
+      //    qty_category_1 (bridge) pour que total_qty/dashboards restent cohérents
+      //    tant que la pesée station (Lot 2) ne prend pas le relais.
+      const { data: created, error } = await supabase.from('harvests').insert({
         campaign_planting_id: formNew.campaign_planting_id,
         harvest_date: formNew.harvest_date,
-        qty_category_1: Number(formNew.total_qty) || 0,
+        estimated_kg: estimated,
+        qty_category_1: estimated,
         qty_category_2: 0, qty_category_3: 0, qty_waste: 0,
         lot_number: lot,
         notes: formNew.notes || null,
-      })
+      }).select('id').single()
       if (error) throw error
+      // 2. Lignes de plateaux (snapshot du libellé + poids théorique)
+      const lineRows = validLines.map(l => {
+        const t = trayTypes.find(x => x.code === l.tray_type_code)
+        return {
+          harvest_id: created!.id,
+          tray_type_code: l.tray_type_code,
+          tray_type_label: t?.label ?? l.tray_type_code,
+          nb_trays: Number(l.nb),
+          poids_unitaire_kg: trayWeightByCode.get(l.tray_type_code) ?? 0,
+        }
+      })
+      const { error: linesErr } = await supabase.from('harvest_tray_lines').insert(lineRows)
+      if (linesErr) throw linesErr
       setDone(true)
-      setTimeout(() => { setModalNew(false); setDone(false); setFormNew({ campaign_planting_id: '', harvest_date: '', total_qty: '', notes: '' }); load() }, 1000)
+      setTimeout(() => {
+        setModalNew(false); setDone(false)
+        setFormNew({ campaign_planting_id: '', harvest_date: '', notes: '', trayLines: [emptyTrayLine()] })
+        load()
+      }, 1000)
     } catch (e: any) { setError(e.message || String(e)) }
     setSaving(false)
   }
@@ -368,10 +408,14 @@ export default function RecoltesPage() {
     if (!modalEdit) return
     setSaving(true); setError('')
     try {
+      // Correction directe du poids estimé (sans repasser par les plateaux).
+      // On synchronise estimated_kg et le miroir qty_category_1.
+      const qty = Number(formEdit.total_qty) || 0
       const { error } = await supabase.from('harvests').update({
         campaign_planting_id: formEdit.campaign_planting_id,
         harvest_date: formEdit.harvest_date,
-        qty_category_1: Number(formEdit.total_qty) || 0,
+        estimated_kg: qty,
+        qty_category_1: qty,
         qty_category_2: 0, qty_category_3: 0, qty_waste: 0,
         notes: formEdit.notes || null,
       }).eq('id', modalEdit.id)
@@ -624,7 +668,9 @@ export default function RecoltesPage() {
       {/* Modals */}
       {modalNew && (
         <NewHarvestModal
-          form={formNew} setForm={setFormNew} plantings={plantings} saving={saving} done={done} error={error}
+          form={formNew} setForm={setFormNew} plantings={plantings} trayTypes={trayTypes}
+          estimate={estimateLines(formNew.trayLines)} emptyTrayLine={emptyTrayLine}
+          saving={saving} done={done} error={error}
           onClose={() => { setModalNew(false); setDone(false); setError('') }} onSave={saveNew}
         />
       )}
@@ -1213,13 +1259,23 @@ function AlertesTab({ alertes, onResolve, loading }: { alertes: any[]; onResolve
 // MODALS
 // ============================================================
 
-function NewHarvestModal({ form, setForm, plantings, saving, done, error, onClose, onSave }: any) {
+function NewHarvestModal({ form, setForm, plantings, trayTypes, estimate, emptyTrayLine, saving, done, error, onClose, onSave }: any) {
   const f = (k: string) => (e: any) => setForm((s: any) => ({ ...s, [k]: e.target.value }))
+
+  const setLine = (i: number, key: string, val: string) =>
+    setForm((s: any) => ({ ...s, trayLines: s.trayLines.map((l: any, idx: number) => idx === i ? { ...l, [key]: val } : l) }))
+  const addLine = () => setForm((s: any) => ({ ...s, trayLines: [...s.trayLines, emptyTrayLine()] }))
+  const removeLine = (i: number) => setForm((s: any) => ({ ...s, trayLines: s.trayLines.length > 1 ? s.trayLines.filter((_: any, idx: number) => idx !== i) : s.trayLines }))
+
+  const poidsOf = (code: string) => Number(trayTypes.find((t: any) => t.code === code)?.metadata?.poids_kg ?? 0)
+  const hasValidLine = form.trayLines.some((l: any) => l.tray_type_code && Number(l.nb) > 0)
+  const noTrayTypes = trayTypes.length === 0
+
   return (
     <Modal title="🌿 Saisir une récolte" onClose={onClose}>
       {done ? <SuccessMessage message="Récolte créée" /> : (
         <>
-          <FormGroup label="Plantation *">
+          <FormGroup label="Plantation (serre · variété) *">
             <Select value={form.campaign_planting_id} onChange={f('campaign_planting_id')}>
               <option value="">— sélectionner —</option>
               {plantings.map((p: any) => (
@@ -1229,13 +1285,53 @@ function NewHarvestModal({ form, setForm, plantings, saving, done, error, onClos
               ))}
             </Select>
           </FormGroup>
-          <FormRow>
-            <FormGroup label="Date récolte *"><Input type="date" value={form.harvest_date} onChange={f('harvest_date')} /></FormGroup>
-            <FormGroup label="Quantité (kg) *"><Input type="number" value={form.total_qty} onChange={f('total_qty')} placeholder="150" /></FormGroup>
-          </FormRow>
+          <FormGroup label="Date récolte *"><Input type="date" value={form.harvest_date} onChange={f('harvest_date')} /></FormGroup>
+
+          {/* Saisie en plateaux */}
+          <FormGroup label="Plateaux récoltés *">
+            {noTrayTypes ? (
+              <div className="text-[13px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                Aucun type de plateau défini. Ajoute-les dans <strong>Admin → Référentiels → Types de plateaux</strong>.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {form.trayLines.map((l: any, i: number) => {
+                  const lineKg = (Number(l.nb) || 0) * poidsOf(l.tray_type_code)
+                  return (
+                    <div key={i} className="flex items-center gap-2">
+                      <Select value={l.tray_type_code} onChange={(e: any) => setLine(i, 'tray_type_code', e.target.value)}>
+                        <option value="">— type de plateau —</option>
+                        {trayTypes.map((t: any) => (
+                          <option key={t.code} value={t.code}>{t.label} ({poidsOf(t.code)} kg)</option>
+                        ))}
+                      </Select>
+                      <div style={{ width: 90, flexShrink: 0 }}>
+                        <Input type="number" value={l.nb} onChange={(e: any) => setLine(i, 'nb', e.target.value)} placeholder="Nb" />
+                      </div>
+                      <span className="text-[12px] text-gray-500 font-mono whitespace-nowrap" style={{ minWidth: 70, textAlign: 'right' }}>
+                        {lineKg > 0 ? `${fmt(lineKg)} kg` : '—'}
+                      </span>
+                      <button type="button" onClick={() => removeLine(i)} className="text-gray-400 hover:text-red-500 px-1" title="Retirer">✕</button>
+                    </div>
+                  )
+                })}
+                <button type="button" onClick={addLine} className="text-[13px] text-emerald-600 hover:text-emerald-700 font-medium">
+                  + Ajouter un type de plateau
+                </button>
+              </div>
+            )}
+          </FormGroup>
+
+          {/* Estimation */}
+          <div className="flex items-center justify-between rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2 my-1">
+            <span className="text-[13px] text-emerald-800 font-medium">Poids estimé</span>
+            <span className="text-[15px] font-bold text-emerald-700 font-mono">{fmt(estimate)} kg</span>
+          </div>
+          <div className="text-[11px] text-gray-500 -mt-1 mb-1">Estimation au champ. Le poids réel sera confirmé à la pesée station.</div>
+
           <FormGroup label="Notes"><Textarea value={form.notes} onChange={f('notes')} placeholder="Optionnel" /></FormGroup>
           {error && <ErrorBox msg={error} />}
-          <ModalFooter onCancel={onClose} onSave={onSave} loading={saving} saveLabel="CRÉER" disabled={!form.campaign_planting_id || !form.harvest_date || !form.total_qty} />
+          <ModalFooter onCancel={onClose} onSave={onSave} loading={saving} saveLabel="CRÉER" disabled={!form.campaign_planting_id || !form.harvest_date || !hasValidLine} />
         </>
       )}
     </Modal>

@@ -37,8 +37,12 @@ export default function ReferentielsPage() {
 
   // Modal ajout valeur
   const [addOpen, setAddOpen] = useState(false)
-  const [addForm, setAddForm] = useState({ code: '', label: '', color: '' })
+  const [addForm, setAddForm] = useState({ code: '', label: '', color: '', poids_kg: '' })
   const [saving, setSaving] = useState(false)
+
+  // Listes ayant un poids unitaire éditable (metadata.poids_kg) — ex: types de plateaux
+  const WEIGHTED_LISTS = ['tray_type']
+  const hasWeight = WEIGHTED_LISTS.includes(selectedKey)
 
   // Modal nouvelle liste
   const [newListOpen, setNewListOpen] = useState(false)
@@ -92,10 +96,11 @@ export default function ReferentielsPage() {
         label: addForm.label.trim(),
         color: addForm.color || null,
         order_idx: maxOrder + 1,
+        metadata: hasWeight ? { poids_kg: Number(addForm.poids_kg) || 0 } : undefined,
       })
       toast.success('Valeur ajoutée')
       setAddOpen(false)
-      setAddForm({ code: '', label: '', color: '' })
+      setAddForm({ code: '', label: '', color: '', poids_kg: '' })
       await Promise.all([loadValues(selectedKey), loadLists()])
     } catch (e: any) {
       if (/duplicate key|unique/i.test(e.message ?? '')) toast.error('Ce code existe déjà dans cette liste')
@@ -110,6 +115,17 @@ export default function ReferentielsPage() {
     try {
       await updateReferenceValue(v.id, { label })
       setValues(prev => prev.map(x => x.id === v.id ? { ...x, label } : x))
+    } catch (e: any) { toast.error(`MAJ échouée : ${e.message ?? e}`) }
+  }
+
+  // Édition du poids unitaire (metadata.poids_kg) — listes pondérées (plateaux)
+  const handleUpdateWeight = async (v: ReferenceValue, kgStr: string) => {
+    const kg = Number(kgStr) || 0
+    if (kg === Number(v.metadata?.poids_kg ?? 0)) return
+    const metadata = { ...(v.metadata ?? {}), poids_kg: kg }
+    try {
+      await updateReferenceValue(v.id, { metadata })
+      setValues(prev => prev.map(x => x.id === v.id ? { ...x, metadata } : x))
     } catch (e: any) { toast.error(`MAJ échouée : ${e.message ?? e}`) }
   }
 
@@ -331,6 +347,21 @@ export default function ReferentielsPage() {
                         style={{ height: 32 }}
                       />
 
+                      {/* Poids unitaire (listes pondérées : plateaux) */}
+                      {hasWeight && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <input
+                            type="number"
+                            defaultValue={String(v.metadata?.poids_kg ?? '')}
+                            onBlur={(e) => handleUpdateWeight(v, e.target.value)}
+                            className="form-input w-20 text-right"
+                            style={{ height: 32 }}
+                            placeholder="0"
+                          />
+                          <span className="text-caption text-fg-tertiary">kg</span>
+                        </div>
+                      )}
+
                       {/* Default */}
                       <button
                         onClick={() => handleSetDefault(v)}
@@ -384,6 +415,17 @@ export default function ReferentielsPage() {
                 placeholder="ex: Nouveau type"
               />
             </Field>
+            {hasWeight && (
+              <Field label="Poids unitaire (kg)" required>
+                <TInput
+                  type="number"
+                  value={addForm.poids_kg}
+                  onChange={(e) => setAddForm(f => ({ ...f, poids_kg: e.target.value }))}
+                  placeholder="ex: 10"
+                />
+                <div className="text-caption text-fg-tertiary mt-1">Poids théorique d'un plateau de ce type — sert à estimer le tonnage.</div>
+              </Field>
+            )}
             <Field label="Couleur (optionnel, hex)">
               <TInput
                 value={addForm.color}
@@ -391,7 +433,7 @@ export default function ReferentielsPage() {
                 placeholder="#10b981"
               />
             </Field>
-            <ModalFooter onCancel={() => setAddOpen(false)} onSave={handleAdd} loading={saving} disabled={!addForm.code || !addForm.label} saveLabel="AJOUTER" />
+            <ModalFooter onCancel={() => setAddOpen(false)} onSave={handleAdd} loading={saving} disabled={!addForm.code || !addForm.label || (hasWeight && !addForm.poids_kg)} saveLabel="AJOUTER" />
           </div>
         </Modal>
       )}

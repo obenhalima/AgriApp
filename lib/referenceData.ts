@@ -77,6 +77,7 @@ export async function createReferenceValue(input: {
   icon?: string | null
   order_idx?: number
   is_default?: boolean
+  metadata?: any
 }): Promise<ReferenceValue> {
   // Si is_default, on retire le défaut des autres valeurs de la même liste
   if (input.is_default) {
@@ -95,6 +96,7 @@ export async function createReferenceValue(input: {
       order_idx: input.order_idx ?? 0,
       is_default: input.is_default ?? false,
       is_active: true,
+      metadata: input.metadata ?? {},
     })
     .select()
     .single()
@@ -104,7 +106,7 @@ export async function createReferenceValue(input: {
 
 export async function updateReferenceValue(
   id: string,
-  patch: Partial<Pick<ReferenceValue, 'label' | 'color' | 'icon' | 'order_idx' | 'is_active' | 'is_default'>>,
+  patch: Partial<Pick<ReferenceValue, 'label' | 'color' | 'icon' | 'order_idx' | 'is_active' | 'is_default' | 'metadata'>>,
 ): Promise<void> {
   // Si on passe is_default=true, retire le défaut des autres
   if (patch.is_default === true) {
