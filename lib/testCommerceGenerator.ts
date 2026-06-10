@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { loadCurrentRates, rateToMAD } from './exchangeRates'
 
 /**
  * testCommerceGenerator — Génération de la chaîne commerciale (post-récoltes).
@@ -108,6 +109,10 @@ export async function generateCommerceForCampaign(
   const priceVariance = options.priceVariance ?? 0.10
   const paymentRate = options.paymentRate ?? 0.78
 
+  // Charge les taux de change courants (utilisés par resolveMarketPrice)
+  // → si la migration 051 n'est pas appliquée, rateToMAD retombe sur les fallbacks fixes
+  await loadCurrentRates().catch(() => { /* fallback hardcodé */ })
+
   // ─── 1. Charger les récoltes + plantings + variétés de la campagne ─────
   const { data: harvests, error: hErr } = await supabase
     .from('harvests')
@@ -183,12 +188,9 @@ export async function generateCommerceForCampaign(
   function resolveMarketPrice(marketId: string, isExport: boolean, fallbackVarExport: number, fallbackVarLocal: number): number {
     const m = marketPriceById.get(marketId)
     if (m && m.price > 0) {
-      // Conversion vers MAD selon devise du marche (taux fixes simplifies)
-      const rate = m.currency === 'EUR' ? 11.0
-                 : m.currency === 'USD' ? 10.0
-                 : m.currency === 'GBP' ? 12.5
-                 : 1.0  // MAD ou autre → pas de conversion
-      return m.price * rate
+      // Conversion vers MAD selon le taux courant de la table exchange_rates
+      // (chargé en amont via loadCurrentRates). Fallback hardcodé si cache vide.
+      return m.price * rateToMAD(m.currency)
     }
     // Fallback variete : on suppose MAD (par convention).
     // Si l'utilisateur a vraiment saisi des prix en EUR, ils doivent le mettre

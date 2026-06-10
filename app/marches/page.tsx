@@ -20,6 +20,7 @@ const TYPE_VARIANT: Record<string, 'success' | 'warning' | 'info' | 'brand' | 'd
 
 export default function MarchesPage() {
   const { values: TYPES } = useReferenceList('market_type')
+  const { values: CURRENCIES } = useReferenceList('currency')
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
@@ -234,7 +235,7 @@ export default function MarchesPage() {
                   <TSelect value={form.type} onChange={upd('type')}>{TYPES.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}</TSelect>
                 </Field>
                 <Field label="Devise">
-                  <TSelect value={form.currency} onChange={upd('currency')}>{['MAD', 'EUR', 'USD', 'GBP'].map(c => <option key={c}>{c}</option>)}</TSelect>
+                  <TSelect value={form.currency} onChange={upd('currency')}>{CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</TSelect>
                 </Field>
               </div>
               <div className="grid grid-cols-2 gap-md">

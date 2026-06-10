@@ -14,6 +14,7 @@ import { SupplierInvoiceModal } from '@/components/purchase/SupplierInvoiceModal
 import { SupplierCreateModal } from '@/components/suppliers/SupplierCreateModal'
 
 import { cn } from '@/lib/cn'
+import { useReferenceList } from '@/lib/useReferenceList'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -29,6 +30,7 @@ const ENTITY_TYPE = 'purchase_order'
 const CATS = ['semences', 'engrais', 'phytosanitaires', 'irrigation', 'emballage', 'transport', 'energie', 'services', 'equipement', 'divers']
 
 export default function AchatsPage() {
+  const { values: CURRENCIES } = useReferenceList('currency')
   const [items, setItems] = useState<any[]>([])
   const [suppliers, setSuppliers] = useState<any[]>([])
   const [campagnes, setCampagnes] = useState<any[]>([])
@@ -246,7 +248,7 @@ export default function AchatsPage() {
               </FormGroup>
               <FormRow>
                 <FormGroup label="Catégorie"><TSelect value={form.cost_category} onChange={s('cost_category')}>{CATS.map(c => <option key={c}>{c}</option>)}</TSelect></FormGroup>
-                <FormGroup label="Devise"><TSelect value={form.currency} onChange={s('currency')}>{['MAD', 'EUR', 'USD'].map(c => <option key={c}>{c}</option>)}</TSelect></FormGroup>
+                <FormGroup label="Devise"><TSelect value={form.currency} onChange={s('currency')}>{CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</TSelect></FormGroup>
               </FormRow>
               <FormRow>
                 <FormGroup label="Date commande *"><TInput type="date" value={form.order_date} onChange={s('order_date')} /></FormGroup>
@@ -293,7 +295,7 @@ export default function AchatsPage() {
               </FormRow>
               <FormRow>
                 <FormGroup label="Catégorie"><TSelect value={direct.cost_category} onChange={d('cost_category')}>{CATS.map(c => <option key={c}>{c}</option>)}</TSelect></FormGroup>
-                <FormGroup label="Devise"><TSelect value={direct.currency} onChange={d('currency')}>{['MAD', 'EUR', 'USD'].map(c => <option key={c}>{c}</option>)}</TSelect></FormGroup>
+                <FormGroup label="Devise"><TSelect value={direct.currency} onChange={d('currency')}>{CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</TSelect></FormGroup>
                 <FormGroup label="Référence"><TInput value={direct.reference} onChange={d('reference')} placeholder="Ticket, BL..." /></FormGroup>
               </FormRow>
               <FormRow>

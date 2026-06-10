@@ -31,11 +31,28 @@ export interface CurrentCampaignSetting {
   id: string | null
 }
 
+/** Valeurs par défaut pré-remplies dans les formulaires (clé app_settings 'defaults') */
+export interface AppDefaults {
+  default_currency: string          // 'MAD'
+  default_country: string           // 'Maroc'
+  campaign_start_month: number      // 7 (juillet, 1-12)
+  vat_rate: number                  // 0.20
+  default_payment_terms_days: number // 30
+}
+
 // Valeurs par défaut (utilisées si la table n'a pas encore été migrée)
 const DEFAULT_ORG: OrganizationSettings = {
   name: 'Domaine BENHALIMA',
   tagline: 'Production maraîchère',
   country: 'Maroc',
+}
+
+const DEFAULT_DEFAULTS: AppDefaults = {
+  default_currency: 'MAD',
+  default_country: 'Maroc',
+  campaign_start_month: 7,
+  vat_rate: 0.20,
+  default_payment_terms_days: 30,
 }
 
 // ───────────────────────────────────────────────────────────
@@ -56,6 +73,27 @@ async function getSetting<T>(key: string, fallback: T): Promise<T> {
 
 export async function getOrganization(): Promise<OrganizationSettings> {
   return getSetting<OrganizationSettings>('organization', DEFAULT_ORG)
+}
+
+// Cache module-level des defaults (lu très souvent par les formulaires)
+let _defaultsCache: AppDefaults | null = null
+
+export async function getDefaults(): Promise<AppDefaults> {
+  if (_defaultsCache) return _defaultsCache
+  const d = await getSetting<Partial<AppDefaults>>('defaults', DEFAULT_DEFAULTS)
+  _defaultsCache = { ...DEFAULT_DEFAULTS, ...d }
+  return _defaultsCache
+}
+
+export async function updateDefaults(patch: Partial<AppDefaults>): Promise<AppDefaults> {
+  const current = await getDefaults()
+  const next = { ...current, ...patch }
+  const { error } = await supabase
+    .from('app_settings')
+    .upsert({ key: 'defaults', value: next }, { onConflict: 'key' })
+  if (error) throw error
+  _defaultsCache = next
+  return next
 }
 
 export async function getCurrentCampaignId(): Promise<string | null> {

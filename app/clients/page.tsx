@@ -25,6 +25,7 @@ import { Modal, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { MoneyDisplay } from '@/components/display'
 import { useReferenceList } from '@/lib/useReferenceList'
+import { getDefaults } from '@/lib/appSettings'
 
 // ─── Formulaire partagé New/Edit (HORS du composant parent pour éviter
 //     le remount à chaque keystroke qui faisait perdre le focus) ───
@@ -103,8 +104,17 @@ export default function ClientsPage() {
   const upd = (k: string) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }))
   const updE = (k: string) => (e: any) => setFormE(f => ({ ...f, [k]: e.target.value }))
 
+  // Valeurs par défaut paramétrables (pays, délai paiement) depuis /admin/parametres
+  const [defaults, setDefaults] = useState({ country: 'Maroc', paymentDays: '30' })
+
   const load = () => getClients().then(d => { setItems(d); setLoading(false) }).catch(() => setLoading(false))
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    getDefaults().then(d => setDefaults({
+      country: d.default_country,
+      paymentDays: String(d.default_payment_terms_days),
+    })).catch(() => { /* garde les fallbacks */ })
+  }, [])
 
   const filtered = useMemo(() => items.filter(c => {
     if (typeFilter !== 'all' && c.type !== typeFilter) return false
@@ -130,8 +140,9 @@ export default function ClientsPage() {
   const openNew = () => {
     setForm({
       code: genCode('CL', items.map(i => i.code)),
-      name: '', type: 'grossiste', city: '', country: 'Maroc',
-      email: '', phone: '', payment_terms_days: '30', credit_limit: '',
+      name: '', type: TYPES.find(t => t.is_default)?.code ?? 'grossiste',
+      city: '', country: defaults.country,
+      email: '', phone: '', payment_terms_days: defaults.paymentDays, credit_limit: '',
       is_ecart_buyer: false,
     } as any)
     setModalNew(true)
