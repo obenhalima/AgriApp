@@ -101,7 +101,7 @@ export default function RecoltesPage() {
           .order('harvest_date', { ascending: false }),
         supabase.from('harvest_lot_sources')
           .select('harvest_lot_id, harvest_id, qty_contributed_kg, harvests(lot_number, harvest_date)'),
-        supabase.from('campaign_plantings').select('id, variety_id, greenhouse_id, greenhouses(code, name, farm_id, farms(name)), varieties(commercial_name, code), campaigns(name)'),
+        supabase.from('campaign_plantings').select('id, variety_id, greenhouse_id, first_harvest_date, last_harvest_date, greenhouses(code, name, farm_id, farms(name)), varieties(commercial_name, code), campaigns(name, harvest_start, harvest_end)'),
         supabase.from('markets').select('id, code, name, currency, type').eq('is_active', true).order('name'),
         supabase.from('alerts').select('*').eq('type', 'no_harvest').order('created_at', { ascending: false }).limit(100),
         // Stock de retour : lots créés via tri (destination = retour_stock) pas encore consommés
@@ -363,11 +363,29 @@ export default function RecoltesPage() {
     }
   }, [harvests, confirmes, aEnvoyer, aTrier, aTarifer])
 
+  // Fenêtre de récolte d'une plantation : bornes plantation sinon campagne
+  const harvestWindowOf = useCallback((plantingId: string): { start: string | null; end: string | null } => {
+    const p = plantings.find((x: any) => x.id === plantingId)
+    if (!p) return { start: null, end: null }
+    return {
+      start: p.first_harvest_date ?? p.campaigns?.harvest_start ?? null,
+      end: p.last_harvest_date ?? p.campaigns?.harvest_end ?? null,
+    }
+  }, [plantings])
+
   // ─── CRUD récolte (saisie en plateaux → poids estimé) ───
   const saveNew = async () => {
     // Lignes de plateaux valides
     const validLines = formNew.trayLines.filter(l => l.tray_type_code && Number(l.nb) > 0)
     if (!formNew.campaign_planting_id || !formNew.harvest_date || validLines.length === 0) return
+    // Garde-fou plage de récolte (miroir du trigger DB, pour un message immédiat)
+    const win = harvestWindowOf(formNew.campaign_planting_id)
+    if (win.start && formNew.harvest_date < win.start) {
+      setError(`Date hors plage : la récolte commence le ${win.start}.`); return
+    }
+    if (win.end && formNew.harvest_date > win.end) {
+      setError(`Date hors plage : la récolte se termine le ${win.end}.`); return
+    }
     setSaving(true); setError('')
     try {
       const estimated = estimateLines(validLines)
@@ -680,6 +698,7 @@ export default function RecoltesPage() {
         <NewHarvestModal
           form={formNew} setForm={setFormNew} plantings={plantings} trayTypes={trayTypes}
           estimate={estimateLines(formNew.trayLines)} emptyTrayLine={emptyTrayLine}
+          window={harvestWindowOf(formNew.campaign_planting_id)}
           saving={saving} done={done} error={error}
           onClose={() => { setModalNew(false); setDone(false); setError('') }} onSave={saveNew}
         />
@@ -1376,7 +1395,7 @@ function AlertesTab({ alertes, onResolve, loading }: { alertes: any[]; onResolve
 // MODALS
 // ============================================================
 
-function NewHarvestModal({ form, setForm, plantings, trayTypes, estimate, emptyTrayLine, saving, done, error, onClose, onSave }: any) {
+function NewHarvestModal({ form, setForm, plantings, trayTypes, estimate, emptyTrayLine, window: win, saving, done, error, onClose, onSave }: any) {
   const f = (k: string) => (e: any) => setForm((s: any) => ({ ...s, [k]: e.target.value }))
 
   const setLine = (i: number, key: string, val: string) =>
@@ -1402,7 +1421,14 @@ function NewHarvestModal({ form, setForm, plantings, trayTypes, estimate, emptyT
               ))}
             </Select>
           </FormGroup>
-          <FormGroup label="Date récolte *"><Input type="date" value={form.harvest_date} onChange={f('harvest_date')} /></FormGroup>
+          <FormGroup label="Date récolte *">
+            <Input type="date" value={form.harvest_date} onChange={f('harvest_date')} min={win?.start ?? undefined} max={win?.end ?? undefined} />
+            {form.campaign_planting_id && (win?.start || win?.end) && (
+              <div className="text-[11px] text-gray-500 mt-1">
+                Plage de récolte : {win?.start ?? '—'} → {win?.end ?? '—'}
+              </div>
+            )}
+          </FormGroup>
 
           {/* Saisie en plateaux */}
           <FormGroup label="Plateaux récoltés *">
