@@ -203,58 +203,111 @@ export async function countUsage(listKey: string, code: string): Promise<number>
 }
 
 // ───────────────────────────────────────────────────────────
-// P4 — Export / Import de la configuration des référentiels
+// P4 — Export / Import Excel (.xlsx) de la configuration
+//
+// Format pensé pour des utilisateurs NON techniques :
+//   1 feuille « Référentiels » avec colonnes lisibles. Ils éditent dans
+//   Excel (libellés, ordre, ajout de lignes) puis ré-importent le fichier.
 // ───────────────────────────────────────────────────────────
 
-export interface ReferentielExport {
-  version: 1
-  exported_at: string
-  lists: { key: string; label: string; description?: string | null }[]
-  values: Omit<ReferenceValue, 'id'>[]
-}
+const XLSX_HEADERS = ['Clé liste', 'Liste', 'Code', 'Libellé', 'Couleur', 'Ordre', 'Par défaut', 'Actif'] as const
 
-/** Exporte toutes les listes + valeurs dans un objet sérialisable. */
-export async function exportReferentiels(exportedAt: string): Promise<ReferentielExport> {
+/** Génère le classeur Excel (.xlsx) de toute la config. Retourne un ArrayBuffer. */
+export async function exportReferentielsXlsx(): Promise<ArrayBuffer> {
+  const XLSX = await import('xlsx')
   const [listsRes, valuesRes] = await Promise.all([
-    supabase.from('reference_lists').select('key, label, description').order('label'),
-    supabase.from('reference_values').select('list_key, code, label, color, icon, metadata, order_idx, is_active, is_default').order('list_key').order('order_idx'),
+    supabase.from('reference_lists').select('key, label').order('label'),
+    supabase.from('reference_values').select('list_key, code, label, color, order_idx, is_active, is_default').order('list_key').order('order_idx'),
   ])
   if (listsRes.error) throw listsRes.error
   if (valuesRes.error) throw valuesRes.error
-  return {
-    version: 1,
-    exported_at: exportedAt,
-    lists: (listsRes.data ?? []) as any,
-    values: (valuesRes.data ?? []) as any,
+
+  const labelByKey = new Map<string, string>()
+  for (const l of (listsRes.data ?? []) as any[]) labelByKey.set(l.key, l.label)
+
+  const rows = ((valuesRes.data ?? []) as any[]).map(v => ({
+    'Clé liste': v.list_key,
+    'Liste': labelByKey.get(v.list_key) ?? v.list_key,
+    'Code': v.code,
+    'Libellé': v.label,
+    'Couleur': v.color ?? '',
+    'Ordre': v.order_idx ?? 0,
+    'Par défaut': v.is_default ? 'Oui' : '',
+    'Actif': v.is_active ? 'Oui' : 'Non',
+  }))
+
+  const ws = XLSX.utils.json_to_sheet(rows, { header: XLSX_HEADERS as unknown as string[] })
+  // Largeurs de colonnes lisibles
+  ws['!cols'] = [{ wch: 20 }, { wch: 22 }, { wch: 18 }, { wch: 24 }, { wch: 10 }, { wch: 7 }, { wch: 10 }, { wch: 8 }]
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Référentiels')
+  return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+}
+
+// Lecture tolérante d'une cellule par en-tête (insensible accents/casse/espaces)
+function norm(s: string): string {
+  return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+}
+function cellByHeader(row: Record<string, any>, candidates: string[]): any {
+  const keys = Object.keys(row)
+  for (const cand of candidates) {
+    const hit = keys.find(k => norm(k) === norm(cand))
+    if (hit !== undefined) return row[hit]
   }
+  return undefined
+}
+function parseBool(v: any, fallback: boolean): boolean {
+  if (v === undefined || v === null || String(v).trim() === '') return fallback
+  return ['oui', 'yes', 'true', 'vrai', '1', 'x', '✓', 'o'].includes(norm(String(v)))
 }
 
 /**
- * Importe une config exportée (upsert idempotent).
- * Les listes/valeurs existantes sont mises à jour, les nouvelles créées.
- * Ne supprime jamais de valeur existante (sécurité).
+ * Importe un classeur Excel exporté (ou édité). Upsert idempotent
+ * (clé naturelle list_key + code). Ne supprime jamais de valeur existante.
  */
-export async function importReferentiels(payload: ReferentielExport): Promise<{ lists: number; values: number }> {
-  if (!payload || payload.version !== 1 || !Array.isArray(payload.lists) || !Array.isArray(payload.values)) {
-    throw new Error('Format de fichier invalide (version 1 attendue avec lists[] et values[]).')
-  }
-  // 1. Upsert des listes
-  if (payload.lists.length > 0) {
-    const { error } = await supabase
-      .from('reference_lists')
-      .upsert(payload.lists.map(l => ({ key: l.key, label: l.label, description: l.description ?? null })), { onConflict: 'key' })
-    if (error) throw error
-  }
-  // 2. Upsert des valeurs (clé naturelle = list_key + code)
-  if (payload.values.length > 0) {
-    const { error } = await supabase
-      .from('reference_values')
-      .upsert(payload.values.map(v => ({
-        list_key: v.list_key, code: v.code, label: v.label,
-        color: v.color ?? null, icon: v.icon ?? null, metadata: v.metadata ?? {},
-        order_idx: v.order_idx ?? 0, is_active: v.is_active ?? true, is_default: v.is_default ?? false,
-      })), { onConflict: 'list_key,code' })
-    if (error) throw error
-  }
-  return { lists: payload.lists.length, values: payload.values.length }
+export async function importReferentielsXlsx(file: File): Promise<{ lists: number; values: number; skipped: number }> {
+  const XLSX = await import('xlsx')
+  const buf = await file.arrayBuffer()
+  const wb = XLSX.read(buf, { type: 'array' })
+  const ws = wb.Sheets[wb.SheetNames[0]]
+  if (!ws) throw new Error('Le fichier ne contient aucune feuille.')
+  const raw = XLSX.utils.sheet_to_json(ws) as Record<string, any>[]
+  if (raw.length === 0) throw new Error('La feuille est vide.')
+
+  const listLabels = new Map<string, string>()   // key → label
+  const values: any[] = []
+  let skipped = 0
+
+  raw.forEach((row, idx) => {
+    const listKey = String(cellByHeader(row, ['Clé liste', 'cle liste', 'list_key', 'liste_cle']) ?? '').trim()
+    const code = String(cellByHeader(row, ['Code', 'code']) ?? '').trim()
+    if (!listKey || !code) { skipped++; return }  // ligne incomplète ignorée
+
+    const listLabel = String(cellByHeader(row, ['Liste', 'nom liste', 'label']) ?? listKey).trim()
+    if (!listLabels.has(listKey)) listLabels.set(listKey, listLabel)
+
+    const ordreRaw = cellByHeader(row, ['Ordre', 'order', 'order_idx'])
+    values.push({
+      list_key: listKey,
+      code: code.toLowerCase().replace(/[^a-z0-9_]/g, '_'),
+      label: String(cellByHeader(row, ['Libellé', 'libelle', 'label']) ?? code).trim(),
+      color: (() => { const c = cellByHeader(row, ['Couleur', 'color']); return c ? String(c).trim() : null })(),
+      order_idx: Number.isFinite(Number(ordreRaw)) && String(ordreRaw).trim() !== '' ? Number(ordreRaw) : idx + 1,
+      is_default: parseBool(cellByHeader(row, ['Par défaut', 'par defaut', 'defaut', 'default', 'is_default']), false),
+      is_active: parseBool(cellByHeader(row, ['Actif', 'active', 'is_active']), true),
+    })
+  })
+
+  if (values.length === 0) throw new Error('Aucune ligne valide (colonnes « Clé liste » et « Code » requises).')
+
+  // 1. Upsert des listes (key + label ; description préservée car non fournie)
+  const lists = Array.from(listLabels.entries()).map(([key, label]) => ({ key, label }))
+  const { error: lErr } = await supabase.from('reference_lists').upsert(lists, { onConflict: 'key' })
+  if (lErr) throw lErr
+
+  // 2. Upsert des valeurs
+  const { error: vErr } = await supabase.from('reference_values').upsert(values, { onConflict: 'list_key,code' })
+  if (vErr) throw vErr
+
+  return { lists: lists.length, values: values.length, skipped }
 }

@@ -13,7 +13,7 @@ import {
   type ReferenceList, type ReferenceValue,
   listReferenceLists, listReferenceValues,
   createReferenceValue, updateReferenceValue, deleteReferenceValue,
-  createReferenceList, countUsage, exportReferentiels, importReferentiels,
+  createReferenceList, countUsage, exportReferentielsXlsx, importReferentielsXlsx,
 } from '@/lib/referenceData'
 import { useAuth } from '@/lib/auth'
 
@@ -166,29 +166,30 @@ export default function ReferentielsPage() {
     }
   }
 
-  // P4 — export : télécharge un JSON de toute la config
+  // P4 — export : télécharge un classeur Excel (.xlsx) de toute la config
   const handleExport = async () => {
     try {
-      const stamp = new Date().toISOString()
-      const data = await exportReferentiels(stamp)
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const stamp = new Date().toISOString().slice(0, 10)
+      const buf = await exportReferentielsXlsx()
+      const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `referentiels-${stamp.slice(0, 10)}.json`
+      a.download = `referentiels-${stamp}.xlsx`
       a.click()
       URL.revokeObjectURL(url)
-      toast.success(`Export : ${data.lists.length} listes, ${data.values.length} valeurs`)
+      toast.success('Export Excel téléchargé')
     } catch (e: any) { toast.error(`Export échoué : ${e.message ?? e}`) }
   }
 
-  // P4 — import : lit un JSON et upsert
+  // P4 — import : lit un fichier Excel (.xlsx) et upsert
   const handleImportFile = async (file: File) => {
     try {
-      const text = await file.text()
-      const payload = JSON.parse(text)
-      const res = await importReferentiels(payload)
-      toast.success(`Import : ${res.lists} listes, ${res.values} valeurs mises à jour`)
+      const res = await importReferentielsXlsx(file)
+      toast.success(
+        `Import : ${res.values} valeur(s) dans ${res.lists} liste(s)` +
+        (res.skipped > 0 ? ` — ${res.skipped} ligne(s) ignorée(s)` : '')
+      )
       await loadLists()
       if (selectedKey) await loadValues(selectedKey)
     } catch (e: any) {
@@ -235,15 +236,15 @@ export default function ReferentielsPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="application/json,.json"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportFile(f) }}
             />
-            <Button variant="ghost" size="sm" onClick={handleExport} title="Télécharger la config en JSON">
-              <Download size={14} strokeWidth={2.5} /> Exporter
+            <Button variant="ghost" size="sm" onClick={handleExport} title="Télécharger toutes les listes en Excel">
+              <Download size={14} strokeWidth={2.5} /> Exporter Excel
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} title="Importer une config JSON">
-              <Upload size={14} strokeWidth={2.5} /> Importer
+            <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} title="Importer un fichier Excel (édité)">
+              <Upload size={14} strokeWidth={2.5} /> Importer Excel
             </Button>
             <Button variant="ghost" size="sm" onClick={() => setNewListOpen(true)}>
               <Plus size={14} strokeWidth={2.5} /> Nouvelle liste
@@ -356,6 +357,7 @@ export default function ReferentielsPage() {
                 💡 Le <strong>code</strong> est immuable (utilisé en base). Modifie seulement le <strong>libellé affiché</strong>.
                 Glisse les lignes <GripVertical size={11} className="inline -mt-0.5" /> pour réordonner.
                 Désactive 👁 plutôt que supprimer pour préserver les données existantes.
+                Pour éditer en masse : <strong>Exporter Excel</strong> → modifier dans Excel → <strong>Importer Excel</strong>.
               </div>
             </>
           )}
