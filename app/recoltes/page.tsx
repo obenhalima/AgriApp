@@ -11,7 +11,7 @@ import { useReferenceList } from '@/lib/useReferenceList'
 // Onglets : Récoltes | À envoyer | À trier | À tarifer | Confirmés | Alertes
 // ============================================================
 
-type Tab = 'liste' | 'a_envoyer' | 'a_trier' | 'a_tarifer' | 'confirmes' | 'stock_retour' | 'bordereaux' | 'alertes'
+type Tab = 'liste' | 'a_envoyer' | 'a_peser' | 'a_trier' | 'a_tarifer' | 'confirmes' | 'stock_retour' | 'bordereaux' | 'alertes'
 
 const fmt = (n: number) => Math.round(n).toLocaleString('fr-FR')
 const fmt2 = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -44,6 +44,7 @@ export default function RecoltesPage() {
   const [modalNew, setModalNew] = useState(false)
   const [modalEdit, setModalEdit] = useState<any>(null)
   const [modalCompose, setModalCompose] = useState(false)
+  const [modalPesee, setModalPesee] = useState<any>(null)
   const [modalTri, setModalTri] = useState<any>(null)
   const [modalPrice, setModalPrice] = useState<any>(null)
   const [modalPeriodPrice, setModalPeriodPrice] = useState(false)
@@ -94,7 +95,7 @@ export default function RecoltesPage() {
           .order('harvest_date', { ascending: false })
           .limit(300),
         supabase.from('harvest_lots')
-          .select('id, lot_number, harvest_id, harvest_date, quantity_kg, market_id, markets(name, currency), variety_id, varieties(code, commercial_name), tri_status, freinte_pct, ecart_pct, qty_nette_kg, qty_acceptee_kg, qty_priced_kg, price_per_kg, ca_amount, station_ref, certificate_number, notes, destination_rejet, rejet_qty_kg, parent_dispatch_id, campaign_planting_id, greenhouse_id, greenhouses(farm_id, farms(name)), category')
+          .select('id, lot_number, harvest_id, harvest_date, quantity_kg, estimated_kg, weighed_kg, weighed_at, market_id, markets(name, currency), variety_id, varieties(code, commercial_name), tri_status, freinte_pct, ecart_pct, qty_nette_kg, qty_acceptee_kg, qty_priced_kg, price_per_kg, ca_amount, station_ref, certificate_number, notes, destination_rejet, rejet_qty_kg, parent_dispatch_id, campaign_planting_id, greenhouse_id, greenhouses(farm_id, farms(name)), category')
           .eq('category', 'station_dispatch')
           .gte('harvest_date', since30)
           .order('harvest_date', { ascending: false }),
@@ -227,7 +228,14 @@ export default function RecoltesPage() {
 
   // Filtres par tab (utilisent les versions filtrees)
   const aEnvoyer = useMemo(() => harvestsFiltered.filter(h => h.remaining_kg > 0.01), [harvestsFiltered])
-  const aTrier = useMemo(() => dispatchesFiltered.filter(d => (d.tri_status ?? 'pending') === 'pending'), [dispatchesFiltered])
+  // À peser : envoi avec estimation (tray-based), pas encore pesé par la station
+  const aPeser = useMemo(() => dispatchesFiltered.filter(d =>
+    (d.tri_status ?? 'pending') === 'pending' && d.estimated_kg != null && d.weighed_kg == null
+  ), [dispatchesFiltered])
+  // À trier : envoi pesé OU envoi legacy sans estimation (pesée non requise)
+  const aTrier = useMemo(() => dispatchesFiltered.filter(d =>
+    (d.tri_status ?? 'pending') === 'pending' && (d.weighed_kg != null || d.estimated_kg == null)
+  ), [dispatchesFiltered])
   const aTarifer = useMemo(() => dispatchesFiltered.filter(d => d.tri_status === 'tried'), [dispatchesFiltered])
   const confirmes = useMemo(() => dispatchesFiltered.filter(d => d.tri_status === 'priced'), [dispatchesFiltered])
   const alertesActives = useMemo(() => alertes.filter(a => !a.is_resolved), [alertes])
@@ -628,6 +636,7 @@ export default function RecoltesPage() {
         {([
           ['liste', '📋 Récoltes', kpis.lots],
           ['a_envoyer', '🚚 À envoyer', aEnvoyer.length],
+          ['a_peser', '⚖️ À peser', aPeser.length],
           ['a_trier', '📦 À trier', aTrier.length],
           ['a_tarifer', '🔬 À tarifer', aTarifer.length],
           ['confirmes', '✅ Confirmés', confirmes.length],
@@ -658,6 +667,7 @@ export default function RecoltesPage() {
         }}
         onEdit={openEdit} onDelete={deleteRecolte} onBulkDelete={bulkDeleteRecoltes} loading={loading} />}
       {tab === 'a_envoyer' && <AEnvoyerTab harvests={aEnvoyer} onBulkDelete={bulkDeleteRecoltes} loading={loading} />}
+      {tab === 'a_peser' && <APeserTab dispatches={aPeser} onPick={d => setModalPesee(d)} loading={loading} />}
       {tab === 'a_trier' && <ATrierTab dispatches={aTrier} onPick={d => setModalTri(d)} loading={loading} />}
       {tab === 'a_tarifer' && <ATariferTab dispatches={aTarifer} summary={unpricedByMarketVariety} onPick={d => setModalPrice(d)} onOpenPeriod={() => setModalPeriodPrice(true)} onGotoBordereaux={() => setTab('bordereaux')} loading={loading} />}
       {tab === 'confirmes' && <ConfirmesTab dispatches={confirmes} loading={loading} />}
@@ -687,6 +697,9 @@ export default function RecoltesPage() {
           onClose={() => setModalCompose(false)}
           onDone={() => { setModalCompose(false); load() }}
         />
+      )}
+      {modalPesee && (
+        <PeseeModal dispatch={modalPesee} sources={sources} onClose={() => setModalPesee(null)} onDone={() => { setModalPesee(null); load() }} />
       )}
       {modalTri && (
         <TriModal dispatch={modalTri} onClose={() => setModalTri(null)} onDone={() => { setModalTri(null); load() }} />
@@ -912,6 +925,110 @@ function AEnvoyerTab({ harvests, onBulkDelete, loading }: { harvests: any[]; onB
         )}
       </Table>
     </div>
+  )
+}
+
+function APeserTab({ dispatches, onPick, loading }: { dispatches: any[]; onPick: (d: any) => void; loading: boolean }) {
+  return (
+    <div>
+      <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--text-sub)' }}>
+        Envois partis à la station avec un poids <strong>estimé</strong> (plateaux). Saisis le <strong>tonnage réel</strong> pesé par la station — il sera réparti au prorata sur les récoltes.
+      </div>
+      <Table headers={['Lot dispatch', 'Date', 'Marché', 'Variété', 'Récoltes incluses', 'Estimé (kg)', 'Action']} loading={loading} empty="Aucun envoi en attente de pesée ✓" rows={dispatches}>
+        {(d: any) => (
+          <tr key={d.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
+            <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{d.lot_number}</td>
+            <td style={td}>{d.harvest_date}</td>
+            <td style={td}>{d.markets?.name ?? '—'}</td>
+            <td style={{ ...td, fontSize: 11.5 }}>
+              {d.varieties?.code
+                ? <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,.15)', color: '#a855f7', fontWeight: 600 }}>{d.varieties.code}</span>
+                : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+            </td>
+            <td style={{ ...td, fontSize: 11, color: 'var(--text-sub)' }}>
+              {(d.sources?.length ?? 0) > 0
+                ? d.sources.map((s: any) => `${s.harvests?.lot_number ?? '?'} (${fmt(s.qty_contributed_kg)})`).join(', ')
+                : <em>simple</em>}
+            </td>
+            <td style={tdNum}>{fmt(d.estimated_kg ?? d.quantity_kg)}</td>
+            <td style={td}>
+              <button onClick={() => onPick(d)} className="btn-primary" style={{ fontSize: 11, padding: '4px 10px' }}>⚖️ Saisir tonnage</button>
+            </td>
+          </tr>
+        )}
+      </Table>
+    </div>
+  )
+}
+
+function PeseeModal({ dispatch, sources, onClose, onDone }: { dispatch: any; sources: any[]; onClose: () => void; onDone: () => void }) {
+  const lines = useMemo(() => sources.filter((s: any) => s.harvest_lot_id === dispatch.id), [sources, dispatch.id])
+  const totalEst = useMemo(() => lines.reduce((s: number, l: any) => s + Number(l.qty_contributed_kg || 0), 0)
+    || Number(dispatch.estimated_kg ?? dispatch.quantity_kg ?? 0), [lines, dispatch])
+  const [realKg, setRealKg] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+
+  const real = Number(realKg.replace(',', '.')) || 0
+  const ecart = real > 0 ? real - totalEst : 0
+  const ecartPct = totalEst > 0 && real > 0 ? (ecart / totalEst) * 100 : 0
+
+  const save = async () => {
+    if (real <= 0) { setErr('Saisis le tonnage réel (> 0).'); return }
+    setSaving(true); setErr('')
+    try {
+      const { error } = await supabase.rpc('admin_weigh_station_dispatch', { p_dispatch_id: dispatch.id, p_real_kg: real })
+      if (error) throw error
+      onDone()
+    } catch (e: any) { setErr(e.message || String(e)); setSaving(false) }
+  }
+
+  return (
+    <Modal title={`⚖️ Pesée station — ${dispatch.lot_number}`} onClose={onClose}>
+      <div style={{ fontSize: 12.5, color: 'var(--text-sub)', marginBottom: 10 }}>
+        Le tonnage réel sera réparti au <strong>prorata de l'estimation</strong> sur chaque récolte de l'envoi.
+      </div>
+
+      {/* Estimation + saisie */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.3)', borderRadius: 6, padding: '8px 12px', marginBottom: 10 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#b45309' }}>Poids estimé (plateaux)</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 15, color: '#b45309' }}>{fmt(totalEst)} kg</span>
+      </div>
+
+      <FormGroup label="Tonnage réel pesé par la station (kg) *">
+        <Input type="number" value={realKg} onChange={(e: any) => setRealKg(e.target.value)} placeholder={String(Math.round(totalEst))} autoFocus />
+      </FormGroup>
+
+      {real > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: ecart < 0 ? 'rgba(239,68,68,.08)' : 'rgba(34,197,94,.08)', border: `1px solid ${ecart < 0 ? 'rgba(239,68,68,.3)' : 'rgba(34,197,94,.3)'}`, borderRadius: 6, padding: '6px 12px', marginBottom: 10 }}>
+          <span style={{ fontSize: 12.5, color: 'var(--text-sub)' }}>Écart estimation → réel</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: ecart < 0 ? '#dc2626' : '#16a34a' }}>
+            {ecart >= 0 ? '+' : ''}{fmt2(ecart)} kg ({ecartPct >= 0 ? '+' : ''}{ecartPct.toFixed(1)}%)
+          </span>
+        </div>
+      )}
+
+      {/* Aperçu répartition */}
+      {lines.length > 0 && real > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: .4 }}>Répartition prorata</div>
+          <div style={{ border: '1px solid var(--bd-1)', borderRadius: 6, overflow: 'hidden' }}>
+            {lines.map((l: any, i: number) => {
+              const part = totalEst > 0 ? real * (Number(l.qty_contributed_kg) / totalEst) : 0
+              return (
+                <div key={l.harvest_id ?? i} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 10px', fontSize: 12, borderTop: i ? '1px solid var(--bd-1)' : 'none' }}>
+                  <span style={{ color: 'var(--text-sub)' }}>{l.harvests?.lot_number ?? l.harvest_id?.slice(0, 8)} <span style={{ color: 'var(--text-muted)' }}>(est. {fmt(l.qty_contributed_kg)})</span></span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{fmt2(part)} kg</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {err && <ErrorBox msg={err} />}
+      <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel="VALIDER LA PESÉE" disabled={real <= 0} />
+    </Modal>
   )
 }
 
@@ -1426,6 +1543,7 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
           campaign_planting_id: sub?.campaign_planting_id ?? null,
           harvest_date: today,
           quantity_kg: subTotal,
+          estimated_kg: subTotal,
           category: 'station_dispatch',
           variety_id: varietyId,
           greenhouse_id: sub?.campaign_plantings?.greenhouse_id ?? null,
