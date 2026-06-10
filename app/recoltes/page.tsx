@@ -1433,6 +1433,21 @@ function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () =>
   )
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+
+  // Pré-remplit freinte/écart avec les valeurs par défaut paramétrables
+  // (business_params) au premier tri seulement (si pas déjà saisis).
+  useEffect(() => {
+    const alreadyTried = Number(dispatch.freinte_pct ?? 0) > 0 || Number(dispatch.ecart_pct ?? 0) > 0
+    if (alreadyTried) return
+    import('@/lib/businessParams').then(({ getBusinessParams }) => {
+      getBusinessParams().then(p => {
+        const isExport = (dispatch.markets?.type ?? '') === 'export'
+        setFreinte(String(isExport ? p.default_freinte_export : p.default_freinte_local))
+        setEcart(String(isExport ? p.default_ecart_export : p.default_ecart_local))
+      }).catch(() => { /* garde 0 */ })
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const fr = Number(freinte) || 0
   const ec = Number(ecart) || 0
   const qtyB = Number(dispatch.quantity_kg)

@@ -25,6 +25,11 @@ import {
   listCurrentRates,
   setRate,
 } from '@/lib/exchangeRates'
+import {
+  type BusinessParams,
+  getBusinessParams,
+  updateBusinessParams,
+} from '@/lib/businessParams'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 
@@ -57,13 +62,14 @@ export default function ParametresPage() {
   const [defaults, setDefaults] = useState<AppDefaults | null>(null)
   const [rates, setRates] = useState<ExchangeRate[]>([])
   const [rateEdits, setRateEdits] = useState<Record<string, string>>({})  // from_currency → nouveau taux
+  const [biz, setBiz] = useState<BusinessParams | null>(null)
 
   const MONTHS = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [o, campId, camps, def, rts] = await Promise.all([
+      const [o, campId, camps, def, rts, bp] = await Promise.all([
         getOrganization(),
         getCurrentCampaignId(),
         supabase
@@ -72,12 +78,14 @@ export default function ParametresPage() {
           .order('preparation_start', { ascending: false, nullsFirst: false }),
         getDefaults(),
         listCurrentRates().catch(() => []),
+        getBusinessParams().catch(() => null),
       ])
       setOrg(o)
       setCurrentCampId(campId ?? '')
       setCampaigns((camps.data ?? []) as CampaignLite[])
       setDefaults(def)
       setRates(rts)
+      setBiz(bp)
     } catch (e: any) {
       toast.error(`Chargement : ${e.message ?? e}`)
     } finally {
@@ -146,6 +154,19 @@ export default function ParametresPage() {
       setRateEdits(prev => { const n = { ...prev }; delete n[fromCurrency]; return n })
       const rts = await listCurrentRates()
       setRates(rts)
+    } catch (e: any) {
+      toast.error(`Enregistrement : ${e.message ?? e}`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSaveBiz = async () => {
+    if (!biz) return
+    setSaving(true)
+    try {
+      await updateBusinessParams(biz)
+      toast.success('Paramètres métier enregistrés')
     } catch (e: any) {
       toast.error(`Enregistrement : ${e.message ?? e}`)
     } finally {
@@ -419,6 +440,73 @@ export default function ParametresPage() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+      </Card>
+
+      {/* ─── Paramètres métier (coeff saisonniers + freinte/écart) ─── */}
+      <Card animate delay={0.5}>
+        <div className="flex items-center gap-sm mb-md pb-sm border-b border-border">
+          <Percent size={18} className="text-purple" strokeWidth={2.5} />
+          <div>
+            <h2 className="font-display text-heading-sm font-bold text-fg-primary">Paramètres métier</h2>
+            <p className="text-body-sm text-fg-secondary">
+              Coefficients saisonniers des prix + freinte/écart par défaut pré-remplis au tri.
+            </p>
+          </div>
+        </div>
+
+        {loading || !biz ? (
+          <Skeleton className="h-40 w-full" />
+        ) : (
+          <div className="space-y-md">
+            {/* Coefficients saisonniers */}
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-semibold mb-sm">
+                Coefficient prix par mois (1.0 = neutre)
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-sm">
+                {MONTHS.slice(1).map((m, i) => {
+                  const mk = String(i + 1)
+                  return (
+                    <div key={mk}>
+                      <label className="text-caption text-fg-tertiary block mb-0.5">{m.slice(0, 4)}</label>
+                      <TInput
+                        type="number"
+                        value={String(biz.seasonal_coefficients[mk] ?? 1)}
+                        onChange={(e) => setBiz({
+                          ...biz,
+                          seasonal_coefficients: { ...biz.seasonal_coefficients, [mk]: Number(e.target.value) || 1 },
+                        })}
+                        className="h-8"
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Freinte / écart par défaut */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-md">
+              <Field label="Freinte Export (%)">
+                <TInput type="number" value={String(biz.default_freinte_export)} onChange={(e) => setBiz({ ...biz, default_freinte_export: Number(e.target.value) || 0 })} />
+              </Field>
+              <Field label="Écart Export (%)">
+                <TInput type="number" value={String(biz.default_ecart_export)} onChange={(e) => setBiz({ ...biz, default_ecart_export: Number(e.target.value) || 0 })} />
+              </Field>
+              <Field label="Freinte Local (%)">
+                <TInput type="number" value={String(biz.default_freinte_local)} onChange={(e) => setBiz({ ...biz, default_freinte_local: Number(e.target.value) || 0 })} />
+              </Field>
+              <Field label="Écart Local (%)">
+                <TInput type="number" value={String(biz.default_ecart_local)} onChange={(e) => setBiz({ ...biz, default_ecart_local: Number(e.target.value) || 0 })} />
+              </Field>
+            </div>
+
+            <div className="flex justify-end pt-sm border-t border-border">
+              <Button variant="primary" onClick={handleSaveBiz} disabled={saving}>
+                <Save size={14} strokeWidth={2.5} /> {saving ? 'Enregistrement…' : 'Enregistrer'}
+              </Button>
+            </div>
           </div>
         )}
       </Card>

@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { loadCurrentRates, rateToMAD } from './exchangeRates'
+import { getBusinessParams, seasonCoeffOf, type BusinessParams } from './businessParams'
 
 /**
  * testCommerceGenerator — Génération de la chaîne commerciale (post-récoltes).
@@ -53,15 +54,10 @@ export type CommerceGenReport = {
 const toNum = (v: any) => (typeof v === 'number' && !isNaN(v) ? v : (Number(v) || 0))
 const fromDate = (d: Date) => d.toISOString().slice(0, 10)
 
-/** Coefficient saisonnier des prix (basé sur le mois). */
+/** Coefficient saisonnier des prix — lu depuis business_params (cache).
+ *  Fallback sur les valeurs historiques si cache vide. */
 function seasonCoeff(month: number): number {
-  // Saison haute : déc-fév (offre rare) → +20%
-  // Saison creuse : mai-juin (offre abondante) → -15%
-  // Normale : sinon
-  if ([12, 1, 2].includes(month)) return 1.20
-  if ([5, 6].includes(month)) return 0.85
-  if ([3, 4, 11].includes(month)) return 1.05
-  return 1.0
+  return seasonCoeffOf(month)
 }
 
 /** ISO week number "YYYY-Www" pour grouper les récoltes. */
@@ -112,6 +108,10 @@ export async function generateCommerceForCampaign(
   // Charge les taux de change courants (utilisés par resolveMarketPrice)
   // → si la migration 051 n'est pas appliquée, rateToMAD retombe sur les fallbacks fixes
   await loadCurrentRates().catch(() => { /* fallback hardcodé */ })
+
+  // Charge les paramètres métier (coeff saisonniers + freinte/écart par défaut)
+  // → remplit le cache utilisé par seasonCoeff() ; fallback aux valeurs historiques
+  const bizParams: BusinessParams = await getBusinessParams()
 
   // ─── 1. Charger les récoltes + plantings + variétés de la campagne ─────
   const { data: harvests, error: hErr } = await supabase
@@ -456,10 +456,11 @@ export async function generateCommerceForCampaign(
 
   // ─── PHASE B : Triage — applique freinte/ecart, tri_status='tried', qty_acceptee ───
   for (const d of pendingDispatches) {
-    const freinteMean = d.isExport ? 2.0 : 1.5
-    const ecartMean = d.isExport ? 3.5 : 2.5
-    const fPct = Math.max(0.5, Math.min(d.isExport ? 5 : 4, gaussian(freinteMean, 0.6)))
-    const ePct = Math.max(1, Math.min(d.isExport ? 8 : 6, gaussian(ecartMean, 0.9)))
+    // Moyennes paramétrables (business_params) selon export/local
+    const freinteMean = d.isExport ? bizParams.default_freinte_export : bizParams.default_freinte_local
+    const ecartMean = d.isExport ? bizParams.default_ecart_export : bizParams.default_ecart_local
+    const fPct = Math.max(0.5, Math.min(bizParams.freinte_max_pct, gaussian(freinteMean, 0.6)))
+    const ePct = Math.max(1, Math.min(bizParams.ecart_max_pct, gaussian(ecartMean, 0.9)))
     const qtyNette = d.qtyEnvoyee * (1 - fPct / 100)
     const qtyAcceptee = qtyNette * (1 - ePct / 100)
     d.qtyAcceptee = qtyAcceptee
