@@ -14,6 +14,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { computePayroll, fmtMAD, type PayFrequency } from '@/lib/payroll'
 import { cn } from '@/lib/cn'
+import { useReferenceList } from '@/lib/useReferenceList'
 
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -55,14 +56,9 @@ const CATEGORIES = [
   { code: 'saisonnier',  label: 'Saisonnier',       icon: '🌻',  color: '#f59e0b', defaultFreq: 'journalier' as PayFrequency, description: 'Saisonnier — paie journalière' },
   { code: 'tacheron',    label: 'Staff à la tâche', icon: '🛠️',  color: '#ec4899', defaultFreq: 'journalier' as PayFrequency, description: 'Mission ponctuelle' },
 ]
-const FAMILY_STATUS = [
-  { code: 'celibataire', label: 'Célibataire' },
-  { code: 'marie',       label: 'Marié(e)' },
-  { code: 'divorce',     label: 'Divorcé(e)' },
-  { code: 'veuf',        label: 'Veuf(ve)' },
-]
-const PAY_METHODS = ['virement', 'cash', 'cheque']
-const CONTRACT_TYPES = ['CDI', 'CDD', 'saisonnier']
+// FAMILY_STATUS, PAY_METHODS, CONTRACT_TYPES sont maintenant chargés
+// dynamiquement via useReferenceList (no-code, voir /admin/referentiels).
+// CATEGORIES reste en code : il porte de la logique de paie (defaultFreq).
 
 const empty: Partial<Worker> = {
   first_name: '', last_name: '', cin: '', cnss_number: '', matricule: '',
@@ -75,6 +71,9 @@ const empty: Partial<Worker> = {
 }
 
 export default function EmployesPage() {
+  const { values: FAMILY_STATUS } = useReferenceList('family_status')
+  const { values: PAY_METHODS } = useReferenceList('payment_method')
+  const { values: CONTRACT_TYPES } = useReferenceList('contract_type')
   const [items, setItems] = useState<Worker[]>([])
   const [farms, setFarms] = useState<Farm[]>([])
   const [loading, setLoading] = useState(true)
@@ -430,7 +429,7 @@ export default function EmployesPage() {
               <FormRow>
                 <FormGroup label="Type de contrat">
                   <TSelect value={form.contract_type ?? 'CDI'} onChange={f('contract_type')}>
-                    {CONTRACT_TYPES.map(c => <option key={c} value={c}>{c}</option>)}
+                    {CONTRACT_TYPES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
                   </TSelect>
                 </FormGroup>
                 <FormGroup label="Date d'embauche"><TInput type="date" value={form.start_date ?? ''} onChange={f('start_date')} /></FormGroup>
@@ -452,7 +451,7 @@ export default function EmployesPage() {
                 <FormGroup label="Tarif journalier (MAD)"><TInput type="number" value={String(form.daily_rate ?? 0)} onChange={f('daily_rate')} /></FormGroup>
                 <FormGroup label="Méthode paiement">
                   <TSelect value={form.payment_method ?? 'virement'} onChange={f('payment_method')}>
-                    {PAY_METHODS.map(p => <option key={p} value={p}>{p}</option>)}
+                    {PAY_METHODS.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
                   </TSelect>
                 </FormGroup>
               </FormRow>

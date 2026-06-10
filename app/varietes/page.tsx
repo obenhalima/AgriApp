@@ -25,11 +25,10 @@ import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { NumberDisplay, MoneyDisplay } from '@/components/display'
 import { useReferenceList } from '@/lib/useReferenceList'
 
-const DESTINATIONS = ['mixte', 'export', 'local', 'grande_distribution', 'industrie']
-
 // ─── Formulaire partagé (HORS du composant parent pour éviter remount/focus loss) ───
 function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e: any) => void }) {
   const { values: types } = useReferenceList('variety_type')
+  const { values: destinations } = useReferenceList('variety_destination')
   return (
     <div className="space-y-md">
       <div className="grid grid-cols-2 gap-md">
@@ -44,7 +43,7 @@ function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e:
         </Field>
         <Field label="Destination">
           <TSelect value={vals.destination} onChange={onChange('destination')}>
-            {DESTINATIONS.map(d => <option key={d}>{d}</option>)}
+            {destinations.map(d => <option key={d.code} value={d.code}>{d.label}</option>)}
           </TSelect>
         </Field>
       </div>
@@ -81,6 +80,7 @@ const blank = {
 
 export default function VarietesPage() {
   const { values: TYPES } = useReferenceList('variety_type')
+  const { values: DESTINATIONS } = useReferenceList('variety_destination')
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [modalNew, setModalNew] = useState(false)
@@ -242,7 +242,7 @@ export default function VarietesPage() {
             </TSelect>
             <TSelect value={destFilter} onChange={(e) => setDestFilter(e.target.value)} className="h-8 w-auto min-w-[150px] text-body-sm">
               <option value="all">Toutes destinations</option>
-              {DESTINATIONS.map(d => <option key={d} value={d}>{d.replace('_', ' ')}</option>)}
+              {DESTINATIONS.map(d => <option key={d.code} value={d.code}>{d.label}</option>)}
             </TSelect>
             <div className="ml-auto text-caption font-mono text-fg-tertiary">{filtered.length}/{items.length}</div>
           </div>

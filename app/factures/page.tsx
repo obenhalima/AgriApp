@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRealtimeReload } from '@/lib/useRealtimeReload'
 import { useRefreshOnEvent } from '@/lib/useAuthGuard'
+import { useReferenceList } from '@/lib/useReferenceList'
 import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -75,6 +76,7 @@ const STATUS_CONFIG: Record<string, { variant: 'success' | 'warning' | 'danger' 
 
 // ════════════════════════════════════════════════════════════════════════════
 export default function FacturesPage() {
+  const { values: PAY_METHODS } = useReferenceList('payment_method')
   const [tab, setTab] = useState<InvoiceTab>('clients')
   const [modal, setModal] = useState<ModalType>(null)
   const [loading, setLoading] = useState(true)
@@ -594,7 +596,7 @@ export default function FacturesPage() {
               <div className="grid grid-cols-2 gap-md">
                 <Field label="Mode de paiement">
                   <TSelect value={clientPaymentForm.payment_method} onChange={(e) => setClientPaymentForm(f => ({ ...f, payment_method: e.target.value }))}>
-                    {['virement', 'cheque', 'especes', 'lettre_change'].map(p => <option key={p} value={p}>{p}</option>)}
+                    {PAY_METHODS.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
                   </TSelect>
                 </Field>
                 <Field label="Référence"><TInput value={clientPaymentForm.reference} onChange={(e) => setClientPaymentForm(f => ({ ...f, reference: e.target.value }))} /></Field>
@@ -624,7 +626,7 @@ export default function FacturesPage() {
               <div className="grid grid-cols-2 gap-md">
                 <Field label="Mode de paiement">
                   <TSelect value={supplierPaymentForm.payment_method} onChange={(e) => setSupplierPaymentForm(f => ({ ...f, payment_method: e.target.value }))}>
-                    {['virement', 'cheque', 'especes', 'lettre_change'].map(p => <option key={p} value={p}>{p}</option>)}
+                    {PAY_METHODS.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
                   </TSelect>
                 </Field>
                 <Field label="Référence"><TInput value={supplierPaymentForm.reference} onChange={(e) => setSupplierPaymentForm(f => ({ ...f, reference: e.target.value }))} /></Field>

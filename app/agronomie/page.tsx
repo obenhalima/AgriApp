@@ -13,14 +13,14 @@ import { Input as TInput, Select as TSelect, Textarea, Field } from '@/component
 import { Modal, FormGroup, FormRow, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { DateDisplay } from '@/components/display'
-
-const TYPES = ['traitement', 'irrigation', 'fertilisation', 'taille', 'effeuillage', 'palissage', 'desherbage', 'inspection', 'plantation', 'autre']
+import { useReferenceList } from '@/lib/useReferenceList'
 const TYPE_VARIANT: Record<string, 'success' | 'warning' | 'info' | 'brand' | 'danger' | 'default'> = {
   traitement: 'danger', irrigation: 'info', fertilisation: 'success', taille: 'warning',
   effeuillage: 'brand', inspection: 'info', plantation: 'warning', autre: 'default',
 }
 
 export default function AgronomePage() {
+  const { values: TYPES } = useReferenceList('operation_type')
   const [items, setItems] = useState<any[]>([])
   const [plantings, setPlantings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -113,7 +113,7 @@ export default function AgronomePage() {
               </FormGroup>
               <FormRow>
                 <FormGroup label="Type d'opération">
-                  <TSelect value={form.operation_type} onChange={upd('operation_type')}>{TYPES.map(t => <option key={t} value={t}>{t}</option>)}</TSelect>
+                  <TSelect value={form.operation_type} onChange={upd('operation_type')}>{TYPES.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}</TSelect>
                 </FormGroup>
                 <FormGroup label="Date *"><TInput type="date" value={form.operation_date} onChange={upd('operation_date')} /></FormGroup>
               </FormRow>
@@ -174,7 +174,7 @@ export default function AgronomePage() {
             </div>
             <TSelect value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="h-8 w-auto min-w-[160px] text-body-sm">
               <option value="all">Tous types</option>
-              {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              {TYPES.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
             </TSelect>
           </div>
         </Card>
