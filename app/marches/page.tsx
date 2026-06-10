@@ -12,13 +12,14 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Input as TInput, Select as TSelect, Textarea, Field } from '@/components/ui/Input'
 import { Modal, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
+import { useReferenceList } from '@/lib/useReferenceList'
 
-const TYPES = ['local', 'export', 'grande_distribution', 'grossiste', 'industrie']
 const TYPE_VARIANT: Record<string, 'success' | 'warning' | 'info' | 'brand' | 'default'> = {
   export: 'warning', local: 'success', grande_distribution: 'info', grossiste: 'brand', industrie: 'default',
 }
 
 export default function MarchesPage() {
+  const { values: TYPES } = useReferenceList('market_type')
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
@@ -230,7 +231,7 @@ export default function MarchesPage() {
               </div>
               <div className="grid grid-cols-2 gap-md">
                 <Field label="Type">
-                  <TSelect value={form.type} onChange={upd('type')}>{TYPES.map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}</TSelect>
+                  <TSelect value={form.type} onChange={upd('type')}>{TYPES.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}</TSelect>
                 </Field>
                 <Field label="Devise">
                   <TSelect value={form.currency} onChange={upd('currency')}>{['MAD', 'EUR', 'USD', 'GBP'].map(c => <option key={c}>{c}</option>)}</TSelect>
@@ -325,7 +326,7 @@ export default function MarchesPage() {
             </div>
             <TSelect value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="h-8 w-auto min-w-[160px] text-body-sm">
               <option value="all">Tous types</option>
-              {TYPES.map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
+              {TYPES.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
             </TSelect>
           </div>
         </Card>

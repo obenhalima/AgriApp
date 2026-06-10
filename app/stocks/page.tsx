@@ -15,11 +15,11 @@ import { Input as TInput, Select as TSelect, Textarea, Field } from '@/component
 import { Modal, FormGroup, FormRow, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { MoneyDisplay } from '@/components/display'
-
-const CATS = ['semences', 'plants', 'engrais', 'phytosanitaires', 'emballages', 'consommables', 'pieces_rechange', 'autre']
-const UNITS = ['kg', 'L', 'unite', 'sac', 'boite', 'rouleau', 'm2', 'autre']
+import { useReferenceList } from '@/lib/useReferenceList'
 
 export default function StocksPage() {
+  const { values: CATS } = useReferenceList('stock_category')
+  const { values: UNITS } = useReferenceList('unit')
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [modalArticle, setModalArticle] = useState(false)
@@ -112,8 +112,8 @@ export default function StocksPage() {
         <Field label="Nom" required><TInput value={vals.name} onChange={onChange('name')} placeholder="NPK 20-20-20" autoFocus /></Field>
       </div>
       <div className="grid grid-cols-2 gap-md">
-        <Field label="Catégorie"><TSelect value={vals.category} onChange={onChange('category')}>{CATS.map(c => <option key={c}>{c}</option>)}</TSelect></Field>
-        <Field label="Unité"><TSelect value={vals.unit} onChange={onChange('unit')}>{UNITS.map(u => <option key={u}>{u}</option>)}</TSelect></Field>
+        <Field label="Catégorie"><TSelect value={vals.category} onChange={onChange('category')}>{CATS.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}</TSelect></Field>
+        <Field label="Unité"><TSelect value={vals.unit} onChange={onChange('unit')}>{UNITS.map(u => <option key={u.code} value={u.code}>{u.label}</option>)}</TSelect></Field>
       </div>
       <div className="grid grid-cols-2 gap-md">
         <Field label="Stock min. (alerte)"><TInput type="number" value={vals.min_qty} onChange={onChange('min_qty')} placeholder="100" /></Field>
@@ -209,7 +209,7 @@ export default function StocksPage() {
             </div>
             <TSelect value={catFilter} onChange={(e) => setCatFilter(e.target.value)} className="h-8 w-auto min-w-[160px] text-body-sm">
               <option value="all">Toutes catégories</option>
-              {CATS.map(c => <option key={c} value={c}>{c}</option>)}
+              {CATS.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
             </TSelect>
           </div>
         </Card>

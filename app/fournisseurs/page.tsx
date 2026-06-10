@@ -13,11 +13,11 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Input as TInput, Select as TSelect, Textarea, Field } from '@/components/ui/Input'
 import { Modal, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
-
-const CATS = ['semences', 'engrais', 'phytosanitaires', 'irrigation', 'emballage', 'transport', 'energie', 'services', 'equipement', 'autre']
+import { useReferenceList } from '@/lib/useReferenceList'
 
 // ─── Formulaire partagé (HORS du composant parent pour éviter remount/focus loss) ───
 function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e: any) => void }) {
+  const { values: cats } = useReferenceList('supplier_category')
   return (
     <div className="space-y-md">
       <div className="grid grid-cols-2 gap-md">
@@ -26,7 +26,7 @@ function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e:
       </div>
       <div className="grid grid-cols-2 gap-md">
         <Field label="Catégorie">
-          <TSelect value={vals.category} onChange={onChange('category')}>{CATS.map(c => <option key={c}>{c}</option>)}</TSelect>
+          <TSelect value={vals.category} onChange={onChange('category')}>{cats.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}</TSelect>
         </Field>
         <Field label="Ville"><TInput value={vals.city} onChange={onChange('city')} placeholder="Casablanca" /></Field>
       </div>
@@ -41,6 +41,7 @@ function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e:
 }
 
 export default function FournisseursPage() {
+  const { values: CATS } = useReferenceList('supplier_category')
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [modalNew, setModalNew] = useState(false)
@@ -202,7 +203,7 @@ export default function FournisseursPage() {
             </div>
             <TSelect value={catFilter} onChange={(e) => setCatFilter(e.target.value)} className="h-8 w-auto min-w-[160px] text-body-sm">
               <option value="all">Toutes catégories</option>
-              {CATS.map(c => <option key={c} value={c}>{c}</option>)}
+              {CATS.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
             </TSelect>
             <div className="ml-auto text-caption font-mono text-fg-tertiary">{filtered.length}/{items.length}</div>
           </div>

@@ -24,12 +24,12 @@ import { Input as TInput, Select as TSelect, Field } from '@/components/ui/Input
 import { Modal, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { MoneyDisplay } from '@/components/display'
-
-const TYPES = ['grossiste', 'exportateur', 'grande_surface', 'detail', 'industrie', 'institutionnel', 'autre']
+import { useReferenceList } from '@/lib/useReferenceList'
 
 // ─── Formulaire partagé New/Edit (HORS du composant parent pour éviter
 //     le remount à chaque keystroke qui faisait perdre le focus) ───
 function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e: any) => void }) {
+  const { values: typeOptions } = useReferenceList('client_type')
   return (
     <div className="space-y-md">
       <div className="grid grid-cols-2 gap-md">
@@ -39,7 +39,7 @@ function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e:
       <div className="grid grid-cols-2 gap-md">
         <Field label="Type">
           <TSelect value={vals.type} onChange={onChange('type')}>
-            {TYPES.map(t => <option key={t}>{t}</option>)}
+            {typeOptions.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
           </TSelect>
         </Field>
         <Field label="Pays"><TInput value={vals.country} onChange={onChange('country')} /></Field>
@@ -85,6 +85,7 @@ const TYPE_VARIANT: Record<string, 'success' | 'warning' | 'info' | 'brand' | 'd
 }
 
 export default function ClientsPage() {
+  const { values: TYPES } = useReferenceList('client_type')
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [modalNew, setModalNew] = useState(false)
@@ -268,7 +269,7 @@ export default function ClientsPage() {
             </div>
             <TSelect value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="h-8 w-auto min-w-[160px] text-body-sm">
               <option value="all">Tous types</option>
-              {TYPES.map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
+              {TYPES.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
             </TSelect>
             <div className="ml-auto text-caption font-mono text-fg-tertiary">{filtered.length}/{items.length}</div>
           </div>

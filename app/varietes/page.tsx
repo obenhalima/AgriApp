@@ -23,12 +23,13 @@ import { Input as TInput, Select as TSelect, Textarea, Field } from '@/component
 import { Modal, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { NumberDisplay, MoneyDisplay } from '@/components/display'
+import { useReferenceList } from '@/lib/useReferenceList'
 
-const TYPES = ['ronde', 'grappe', 'cerise', 'allongee', 'cocktail', 'beef', 'olivette', 'autre']
 const DESTINATIONS = ['mixte', 'export', 'local', 'grande_distribution', 'industrie']
 
 // ─── Formulaire partagé (HORS du composant parent pour éviter remount/focus loss) ───
 function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e: any) => void }) {
+  const { values: types } = useReferenceList('variety_type')
   return (
     <div className="space-y-md">
       <div className="grid grid-cols-2 gap-md">
@@ -38,7 +39,7 @@ function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e:
       <div className="grid grid-cols-2 gap-md">
         <Field label="Type">
           <TSelect value={vals.type} onChange={onChange('type')}>
-            {TYPES.map(t => <option key={t}>{t}</option>)}
+            {types.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
           </TSelect>
         </Field>
         <Field label="Destination">
@@ -79,6 +80,7 @@ const blank = {
 }
 
 export default function VarietesPage() {
+  const { values: TYPES } = useReferenceList('variety_type')
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [modalNew, setModalNew] = useState(false)
@@ -236,7 +238,7 @@ export default function VarietesPage() {
             </div>
             <TSelect value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="h-8 w-auto min-w-[130px] text-body-sm">
               <option value="all">Tous types</option>
-              {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              {TYPES.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
             </TSelect>
             <TSelect value={destFilter} onChange={(e) => setDestFilter(e.target.value)} className="h-8 w-auto min-w-[150px] text-body-sm">
               <option value="all">Toutes destinations</option>
