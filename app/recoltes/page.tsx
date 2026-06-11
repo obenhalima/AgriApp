@@ -5,13 +5,14 @@ import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { BordereauxSection } from '@/app/factures/BordereauxSection'
 import { useReferenceList } from '@/lib/useReferenceList'
+import { useAuth } from '@/lib/auth'
 
 // ============================================================
 // Page Récoltes — workflow unifié (CRUD + Cycle station)
 // Onglets : Récoltes | À envoyer | À trier | À tarifer | Confirmés | Alertes
 // ============================================================
 
-type Tab = 'liste' | 'a_envoyer' | 'a_peser' | 'a_trier' | 'a_tarifer' | 'confirmes' | 'stock_retour' | 'bordereaux' | 'alertes'
+type Tab = 'liste' | 'a_envoyer' | 'a_peser' | 'a_trier' | 'a_tarifer' | 'confirmes' | 'ca' | 'stock_retour' | 'bordereaux' | 'alertes'
 
 const fmt = (n: number) => Math.round(n).toLocaleString('fr-FR')
 const fmt2 = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -29,6 +30,9 @@ function computeUsed(harvestId: string, sources: any[], legacyDirect: any[]): nu
 
 export default function RecoltesPage() {
   const { values: trayTypes } = useReferenceList('tray_type')
+  const { profile } = useAuth()
+  const myId = profile?.id ?? null
+  const myName = profile?.full_name || profile?.email || 'Moi'
   const [tab, setTab] = useState<Tab>('liste')
   const [harvests, setHarvests] = useState<any[]>([])
   const [stockRetour, setStockRetour] = useState<any[]>([])
@@ -91,7 +95,7 @@ export default function RecoltesPage() {
       const since30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
       const [hRes, dRes, sRes, pRes, mRes, alRes, srRes] = await Promise.all([
         supabase.from('harvests')
-          .select('id, lot_number, harvest_date, total_qty, notes, campaign_planting_id, campaign_plantings(*, greenhouses(code, name, farm_id, farms(name)), varieties(commercial_name, code), campaigns(name))')
+          .select('id, lot_number, harvest_date, total_qty, estimated_kg, actual_kg, recorded_by, recorded_by_name, notes, campaign_planting_id, campaign_plantings(*, greenhouses(code, name, farm_id, farms(name)), varieties(commercial_name, code), campaigns(name))')
           .order('harvest_date', { ascending: false })
           .limit(300),
         supabase.from('harvest_lots')
@@ -100,7 +104,7 @@ export default function RecoltesPage() {
           .gte('harvest_date', since30)
           .order('harvest_date', { ascending: false }),
         supabase.from('harvest_lot_sources')
-          .select('harvest_lot_id, harvest_id, qty_contributed_kg, harvests(lot_number, harvest_date)'),
+          .select('harvest_lot_id, harvest_id, qty_contributed_kg, harvests(lot_number, harvest_date, recorded_by, recorded_by_name)'),
         supabase.from('campaign_plantings').select('id, variety_id, greenhouse_id, first_harvest_date, last_harvest_date, greenhouses(code, name, farm_id, farms(name)), varieties(commercial_name, code), campaigns(name, harvest_start, harvest_end)'),
         supabase.from('markets').select('id, code, name, currency, type').eq('is_active', true).order('name'),
         supabase.from('alerts').select('*').eq('type', 'no_harvest').order('created_at', { ascending: false }).limit(100),
@@ -239,6 +243,46 @@ export default function RecoltesPage() {
   const aTarifer = useMemo(() => dispatchesFiltered.filter(d => d.tri_status === 'tried'), [dispatchesFiltered])
   const confirmes = useMemo(() => dispatchesFiltered.filter(d => d.tri_status === 'priced'), [dispatchesFiltered])
   const alertesActives = useMemo(() => alertes.filter(a => !a.is_resolved), [alertes])
+
+  // ─── CA réalisé : attribution par lot + par récolteur (prorata des contributions) ───
+  const caData = useMemo(() => {
+    const harvestById = new Map(harvests.map((h: any) => [h.id, h]))
+    let totalCA = 0, myCA = 0
+    const rows = confirmes.map((d: any) => {
+      const ca = Number(d.ca_amount || 0)
+      totalCA += ca
+      const shares = new Map<string, { name: string; amount: number }>()
+      const srcs = d.sources ?? []
+      if (srcs.length > 0) {
+        const tot = srcs.reduce((s: number, x: any) => s + Number(x.qty_contributed_kg || 0), 0) || 1
+        for (const s of srcs) {
+          const rid = s.harvests?.recorded_by ?? 'unknown'
+          const name = s.harvests?.recorded_by_name ?? '— non attribué'
+          const amt = ca * (Number(s.qty_contributed_kg || 0) / tot)
+          const cur = shares.get(rid) ?? { name, amount: 0 }
+          cur.amount += amt; shares.set(rid, cur)
+        }
+      } else if (d.harvest_id) {
+        const h = harvestById.get(d.harvest_id)
+        shares.set(h?.recorded_by ?? 'unknown', { name: h?.recorded_by_name ?? '— non attribué', amount: ca })
+      } else {
+        shares.set('unknown', { name: '— non attribué', amount: ca })
+      }
+      const mine = myId ? (shares.get(myId)?.amount ?? 0) : 0
+      myCA += mine
+      return {
+        id: d.id, lot: d.lot_number, date: d.harvest_date,
+        variety: d.varieties?.code ?? d.varieties?.commercial_name ?? '—',
+        market: d.markets?.name ?? '—',
+        qty: Number(d.qty_acceptee_kg || 0),
+        price: Number(d.price_per_kg || 0),
+        ca,
+        contributors: Array.from(shares.values()).map(s => s.name).filter((v, i, a) => a.indexOf(v) === i),
+        mine,
+      }
+    })
+    return { rows, totalCA, myCA }
+  }, [confirmes, harvests, myId])
 
   // Liste de fermes / greenhouses / varietes pour les dropdowns
   const farmsForFilter = useMemo(() => {
@@ -401,6 +445,8 @@ export default function RecoltesPage() {
         qty_category_2: 0, qty_category_3: 0, qty_waste: 0,
         lot_number: lot,
         notes: formNew.notes || null,
+        recorded_by: myId,
+        recorded_by_name: myName,
       }).select('id').single()
       if (error) throw error
       // 2. Lignes de plateaux (snapshot du libellé + poids théorique)
@@ -658,6 +704,7 @@ export default function RecoltesPage() {
           ['a_trier', '📦 À trier', aTrier.length],
           ['a_tarifer', '🔬 À tarifer', aTarifer.length],
           ['confirmes', '✅ Confirmés', confirmes.length],
+          ['ca', '💰 CA réalisé', caData.rows.length],
           ['bordereaux', '📑 Bordereaux station', 0],
           ['stock_retour', '🔄 Stock retour', stockRetour.length],
           ['alertes', '⚠ Alertes', alertesActives.length],
@@ -689,6 +736,7 @@ export default function RecoltesPage() {
       {tab === 'a_trier' && <ATrierTab dispatches={aTrier} onPick={d => setModalTri(d)} loading={loading} />}
       {tab === 'a_tarifer' && <ATariferTab dispatches={aTarifer} summary={unpricedByMarketVariety} onPick={d => setModalPrice(d)} onOpenPeriod={() => setModalPeriodPrice(true)} onGotoBordereaux={() => setTab('bordereaux')} loading={loading} />}
       {tab === 'confirmes' && <ConfirmesTab dispatches={confirmes} loading={loading} />}
+      {tab === 'ca' && <CaTab data={caData} myName={myName} myId={myId} loading={loading} />}
       {tab === 'bordereaux' && <BordereauxSection />}
       {tab === 'stock_retour' && <StockRetourTab lots={stockRetour} onReload={load} loading={loading} />}
       {tab === 'alertes' && <AlertesTab alertes={alertesActives} onResolve={resolveAlerte} loading={loading} />}
@@ -1271,6 +1319,63 @@ function ConfirmesTab({ dispatches, loading }: { dispatches: any[]; loading: boo
             <td style={tdNum}>{(d.price_per_kg ?? 0).toFixed(2)}</td>
             <td style={{ ...tdNum, color: 'var(--neon)', fontWeight: 700 }}>{fmt(d.ca_amount ?? 0)} MAD</td>
             <td style={{ ...td, fontSize: 11, color: 'var(--text-sub)' }}>{d.station_ref ?? '—'}</td>
+          </tr>
+        )}
+      </Table>
+    </div>
+  )
+}
+
+function CaTab({ data, myName, myId, loading }: { data: { rows: any[]; totalCA: number; myCA: number }; myName: string; myId: string | null; loading: boolean }) {
+  const [mineOnly, setMineOnly] = useState(false)
+  // Tri du plus gros CA au plus petit
+  const rows = useMemo(() => {
+    const r = mineOnly ? data.rows.filter(x => x.mine > 0) : data.rows
+    return [...r].sort((a, b) => (mineOnly ? b.mine - a.mine : b.ca - a.ca))
+  }, [data.rows, mineOnly])
+
+  return (
+    <div>
+      {/* KPIs CA */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 180, border: '1px solid var(--bd-1)', borderRadius: 8, padding: '10px 14px' }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: .4 }}>CA total réalisé</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--neon)', fontFamily: 'var(--font-mono)' }}>{fmt(data.totalCA)} MAD</div>
+          <div style={{ fontSize: 11, color: 'var(--text-sub)' }}>{data.rows.length} lot(s) confirmé(s)</div>
+        </div>
+        <div style={{ flex: 1, minWidth: 180, border: '1px solid rgba(34,197,94,.4)', borderRadius: 8, padding: '10px 14px', background: 'rgba(34,197,94,.05)' }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: .4 }}>Mon CA ({myName})</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: '#16a34a', fontFamily: 'var(--font-mono)' }}>{fmt(data.myCA)} MAD</div>
+          <div style={{ fontSize: 11, color: 'var(--text-sub)' }}>
+            {data.totalCA > 0 ? ((data.myCA / data.totalCA) * 100).toFixed(1) : '0'}% du total
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 12.5, color: 'var(--text-sub)' }}>
+          CA par lot. Attribution au récolteur au <strong>prorata</strong> des quantités contribuées.
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, cursor: 'pointer' }}>
+          <input type="checkbox" checked={mineOnly} onChange={(e) => setMineOnly(e.target.checked)} disabled={!myId} />
+          Mon CA seulement
+        </label>
+      </div>
+
+      <Table headers={['Lot', 'Date', 'Marché', 'Variété', 'Acceptée', 'Prix /kg', 'CA lot', 'Ma part', 'Récolteur(s)']} loading={loading} empty="Aucun CA réalisé pour l'instant." rows={rows}>
+        {(r: any) => (
+          <tr key={r.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
+            <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{r.lot}</td>
+            <td style={td}>{r.date}</td>
+            <td style={td}>{r.market}</td>
+            <td style={td}>
+              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,.15)', color: '#a855f7', fontWeight: 600, fontSize: 11.5 }}>{r.variety}</span>
+            </td>
+            <td style={tdNum}>{fmt(r.qty)}</td>
+            <td style={tdNum}>{r.price.toFixed(2)}</td>
+            <td style={{ ...tdNum, color: 'var(--neon)', fontWeight: 700 }}>{fmt(r.ca)}</td>
+            <td style={{ ...tdNum, color: r.mine > 0 ? '#16a34a' : 'var(--text-muted)', fontWeight: r.mine > 0 ? 700 : 400 }}>{r.mine > 0 ? fmt(r.mine) : '—'}</td>
+            <td style={{ ...td, fontSize: 11, color: 'var(--text-sub)' }}>{r.contributors.join(', ')}</td>
           </tr>
         )}
       </Table>
