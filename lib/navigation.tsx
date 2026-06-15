@@ -104,6 +104,7 @@ export const NAV: NavSection[] = [
     items: [
       { href: '/fermes',   moduleCode: 'fermes',   label: 'Fermes',   icon: Building2, color: '#64748b', keywords: ['sites', 'domaine'], description: 'Sites de production' },
       { href: '/serres',   moduleCode: 'serres',   label: 'Serres',   icon: Box,        color: '#0ea5e9', keywords: ['greenhouse', 'tunnel'], description: 'Inventaire des serres' },
+      { href: '/cultures', moduleCode: 'varietes', label: 'Cultures', icon: Sprout,     color: '#22c55e', keywords: ['crop', 'culture', 'poivron', 'concombre', 'multi-culture', 'catalogue variete'], description: 'Cultures de l\'exploitation + catalogue de variétés' },
       { href: '/varietes', moduleCode: 'varietes', label: 'Variétés', icon: Dna,        color: '#a855f7', keywords: ['cultivar', 'roma', 'cherry', 'tomate'], description: 'Catalogue des variétés' },
     ],
   },

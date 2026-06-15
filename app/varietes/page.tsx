@@ -24,11 +24,25 @@ import { Modal, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { NumberDisplay, MoneyDisplay } from '@/components/display'
 import { useReferenceList } from '@/lib/useReferenceList'
+import { type Crop, listCrops } from '@/lib/crops'
 
 // ─── Formulaire partagé (HORS du composant parent pour éviter remount/focus loss) ───
 function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e: any) => void }) {
-  const { values: types } = useReferenceList('variety_type')
+  const { values: refTypes } = useReferenceList('variety_type')
   const { values: destinations } = useReferenceList('variety_destination')
+  const [crops, setCrops] = useState<Crop[]>([])
+  useEffect(() => { listCrops({ activeOnly: true }).then(setCrops).catch(() => {}) }, [])
+
+  // Type filtré par la culture sélectionnée (segments propres), sinon le référentiel
+  const selectedCrop = crops.find(c => c.id === vals.crop_id)
+  const typeOptions: { code: string; label: string }[] = selectedCrop?.variety_segments?.length
+    ? selectedCrop.variety_segments.map(s => ({ code: s, label: s.replace(/_/g, ' ') }))
+    : refTypes.map(t => ({ code: t.code, label: t.label }))
+  // Conserve la valeur courante même si absente des options
+  if (vals.type && !typeOptions.some(o => o.code === vals.type)) {
+    typeOptions.unshift({ code: vals.type, label: vals.type.replace(/_/g, ' ') })
+  }
+
   return (
     <div className="space-y-md">
       <div className="grid grid-cols-2 gap-md">
@@ -36,16 +50,25 @@ function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e:
         <Field label="Nom commercial" required><TInput value={vals.commercial_name} onChange={onChange('commercial_name')} placeholder="Vitalia" autoFocus /></Field>
       </div>
       <div className="grid grid-cols-2 gap-md">
-        <Field label="Type">
-          <TSelect value={vals.type} onChange={onChange('type')}>
-            {types.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
+        <Field label="Culture">
+          <TSelect value={vals.crop_id ?? ''} onChange={onChange('crop_id')}>
+            <option value="">— choisir —</option>
+            {crops.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
           </TSelect>
         </Field>
+        <Field label="Type">
+          <TSelect value={vals.type} onChange={onChange('type')}>
+            {typeOptions.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
+          </TSelect>
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-md">
         <Field label="Destination">
           <TSelect value={vals.destination} onChange={onChange('destination')}>
             {destinations.map(d => <option key={d.code} value={d.code}>{d.label}</option>)}
           </TSelect>
         </Field>
+        <div />
       </div>
       <div className="grid grid-cols-2 gap-md">
         <Field label="Rendement th. (kg/m²)"><TInput type="number" value={vals.theoretical_yield_per_m2} onChange={onChange('theoretical_yield_per_m2')} placeholder="45" /></Field>
@@ -72,7 +95,7 @@ const DEST_VARIANT: Record<string, 'success' | 'warning' | 'info' | 'brand' | 'd
 }
 
 const blank = {
-  code: '', commercial_name: '', type: 'ronde', destination: 'mixte',
+  code: '', commercial_name: '', crop_id: '', type: 'ronde', destination: 'mixte',
   theoretical_yield_per_m2: '', theoretical_cost_per_m2: '',
   avg_price_local: '', avg_price_export: '',
   estimated_cycle_days: '', technical_notes: '',
@@ -121,7 +144,7 @@ export default function VarietesPage() {
   const openNew = () => { setForm({ ...blank, code: genCode('V', items.map(i => i.code)) }); setModalNew(true) }
   const openEdit = (v: any) => {
     setFormE({
-      code: v.code, commercial_name: v.commercial_name, type: v.type, destination: v.destination,
+      code: v.code, commercial_name: v.commercial_name, crop_id: v.crop_id ?? '', type: v.type, destination: v.destination,
       theoretical_yield_per_m2: String(v.theoretical_yield_per_m2 || ''),
       theoretical_cost_per_m2: String(v.theoretical_cost_per_m2 || ''),
       avg_price_local: String(v.avg_price_local || ''),
@@ -138,6 +161,7 @@ export default function VarietesPage() {
     try {
       const n = await createVariete({
         ...form,
+        crop_id: form.crop_id || undefined,
         theoretical_yield_per_m2: Number(form.theoretical_yield_per_m2) || 0,
         theoretical_cost_per_m2: Number(form.theoretical_cost_per_m2) || 0,
         avg_price_local: Number(form.avg_price_local) || 0,
@@ -156,7 +180,7 @@ export default function VarietesPage() {
     setSaving(true)
     try {
       const { error } = await supabase.from('varieties').update({
-        code: formE.code, commercial_name: formE.commercial_name, type: formE.type, destination: formE.destination,
+        code: formE.code, commercial_name: formE.commercial_name, crop_id: formE.crop_id || null, type: formE.type, destination: formE.destination,
         theoretical_yield_per_m2: Number(formE.theoretical_yield_per_m2) || 0,
         theoretical_cost_per_m2: Number(formE.theoretical_cost_per_m2) || 0,
         avg_price_local: Number(formE.avg_price_local) || 0,

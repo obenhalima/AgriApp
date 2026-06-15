@@ -48,7 +48,7 @@ export const getVarietes = async () => {
   const { data, error } = await supabase.from('varieties').select('*').eq('is_active', true).order('commercial_name')
   if (error) throw error; return data ?? []
 }
-export const createVariete = async (p: { code:string; commercial_name:string; type:string; destination:string; theoretical_yield_per_m2:number; theoretical_cost_per_m2:number; avg_price_local:number; avg_price_export:number; estimated_cycle_days?:number; technical_notes?:string }) => {
+export const createVariete = async (p: { code:string; commercial_name:string; type:string; destination:string; theoretical_yield_per_m2:number; theoretical_cost_per_m2:number; avg_price_local:number; avg_price_export:number; estimated_cycle_days?:number; technical_notes?:string; crop_id?:string }) => {
   const { data, error } = await supabase.from('varieties').insert({ ...p, is_active: true }).select().single()
   if (error) throw error; return data
 }
