@@ -1,6 +1,6 @@
-# FramPilot — Présentation opérationnelle
+# FarmPilot — Présentation opérationnelle
 
-Présentation PowerPoint de l'application FramPilot, orientée chef de culture + chef station.
+Présentation PowerPoint de l'application FarmPilot, orientée chef de culture + chef station.
 
 ## Structure (19 slides)
 
@@ -34,7 +34,7 @@ npm install        # première fois uniquement
 node generate_pres.js
 ```
 
-→ Le fichier `FramPilot_Presentation.pptx` est créé/écrasé dans ce dossier.
+→ Le fichier `FarmPilot_Presentation.pptx` est créé/écrasé dans ce dossier.
 
 ## Personnaliser
 

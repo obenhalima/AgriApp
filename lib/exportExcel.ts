@@ -88,7 +88,7 @@ async function getExcelJS(): Promise<any> {
 export async function createWorkbook(): Promise<ExcelJS.Workbook> {
   const ExcelJSMod = await getExcelJS()
   const wb = new ExcelJSMod.Workbook() as ExcelJS.Workbook
-  wb.creator = 'FramPilot'
+  wb.creator = 'FarmPilot'
   wb.created = new Date()
   return wb
 }

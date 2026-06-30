@@ -1,5 +1,5 @@
 /**
- * FramPilot — Configuration de navigation centralisée.
+ * FarmPilot — Configuration de navigation centralisée.
  *
  * Source unique pour la Sidebar, le Command Palette (Cmd+K) et les Breadcrumbs.
  *

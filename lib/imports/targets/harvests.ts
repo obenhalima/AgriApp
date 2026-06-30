@@ -434,8 +434,8 @@ export const harvestsTarget: ImportTarget = {
     ]] : []
 
     return await buildTemplate({
-      title: 'Template Import Récoltes — FramPilot',
-      author: 'FramPilot',
+      title: 'Template Import Récoltes — FarmPilot',
+      author: 'FarmPilot',
       instructions: {
         title: '🌿 Import des récoltes — Guide',
         lines: [

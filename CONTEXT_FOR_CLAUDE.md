@@ -1,4 +1,4 @@
-# FramPilot — Contexte pour concevoir de nouvelles fonctionnalités
+# FarmPilot — Contexte pour concevoir de nouvelles fonctionnalités
 
 > **Comment utiliser ce fichier :** copie tout son contenu dans une conversation Claude,
 > puis ajoute en bas ta demande de feature. Claude aura tout le contexte pour te
@@ -8,7 +8,7 @@
 
 ## 0. En une phrase
 
-FramPilot est l'**ERP de pilotage agricole** de **Domaine BENHALIMA** (production de tomates sous serres au Maroc) : il couvre tout le cycle **du sol à la facture** — planification, récolte, tri à la station, facturation, comptabilité analytique — dans une seule application web, avec un bot Telegram multilingue pour le terrain.
+FarmPilot est l'**ERP de pilotage agricole** de **Domaine BENHALIMA** (production de tomates sous serres au Maroc) : il couvre tout le cycle **du sol à la facture** — planification, récolte, tri à la station, facturation, comptabilité analytique — dans une seule application web, avec un bot Telegram multilingue pour le terrain.
 
 ---
 
@@ -272,4 +272,4 @@ UI : Topbar sticky (52px) · Sidebar à sections (Production/Commerce/Finance/Ad
 
 ---
 
-*Fin du contexte FramPilot. Ajoute ton brief ci-dessous.* ⬇️
+*Fin du contexte FarmPilot. Ajoute ton brief ci-dessous.* ⬇️

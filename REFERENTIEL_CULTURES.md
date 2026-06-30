@@ -1,4 +1,4 @@
-# Référentiel des cultures — FramPilot multi-culture
+# Référentiel des cultures — FarmPilot multi-culture
 
 > Référentiel agronomique pour rendre l'application multi-culture, **adossé à une
 > recherche multi-sources vérifiée** (recherche du 2026-06, vérification

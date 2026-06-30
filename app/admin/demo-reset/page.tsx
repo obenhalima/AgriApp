@@ -1715,7 +1715,7 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
                   <strong>Procédure (1 minute) :</strong>
                   <ol className="mt-sm list-decimal list-inside space-y-1">
                     <li>Va sur <a href="https://supabase.com/dashboard" target="_blank" rel="noopener" className="text-info underline">supabase.com/dashboard</a></li>
-                    <li>Sélectionne ton projet <strong>FramPilot / AgriApp</strong></li>
+                    <li>Sélectionne ton projet <strong>FarmPilot / AgriApp</strong></li>
                     <li>Menu de gauche → <strong>SQL Editor</strong> → bouton <strong>+ New query</strong></li>
                     <li>Copie le bloc SQL ci-dessous (bouton <strong>Copier</strong> à droite)</li>
                     <li>Colle dans l'éditeur SQL → clique <strong>Run</strong> (ou <code>Ctrl+Enter</code>)</li>

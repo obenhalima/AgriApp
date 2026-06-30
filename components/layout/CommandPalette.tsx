@@ -230,7 +230,7 @@ export function CommandPalette() {
                     </div>
                     <span className="hidden sm:flex items-center gap-1">
                       <Zap size={9} />
-                      FramPilot
+                      FarmPilot
                     </span>
                   </div>
                 </Command>

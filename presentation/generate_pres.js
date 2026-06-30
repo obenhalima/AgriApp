@@ -1,13 +1,13 @@
-// FramPilot - Présentation opérationnels
+// FarmPilot - Présentation opérationnels
 // 3 piliers : Production / Commerce / Finance
 // Audience : chef de culture + chef station
 
 const pptxgen = require("pptxgenjs")
 const pres = new pptxgen()
 pres.layout = "LAYOUT_WIDE"  // 13.3" x 7.5"
-pres.author = "FramPilot"
+pres.author = "FarmPilot"
 pres.company = "Domaine BENHALIMA"
-pres.title = "FramPilot — Pilotage Agricole Intelligent"
+pres.title = "FarmPilot — Pilotage Agricole Intelligent"
 
 // ─── Palette ───
 const C = {
@@ -53,7 +53,7 @@ function addFooter(slide, pageNum, totalPages, dark = false) {
     x: 0.5, y: H - 0.35, w: 4, h: 0.25,
     fontSize: 9, fontFace: F.body, color: c, italic: true, margin: 0,
   })
-  slide.addText(`FramPilot · ${pageNum}/${totalPages}`, {
+  slide.addText(`FarmPilot · ${pageNum}/${totalPages}`, {
     x: W - 3, y: H - 0.35, w: 2.5, h: 0.25,
     fontSize: 9, fontFace: F.body, color: c, align: "right", margin: 0,
   })
@@ -103,8 +103,8 @@ function bullet(text, indent = 0) {
   // Cercle décoratif en bas droite
   s.addShape(pres.shapes.OVAL, { x: W - 2.5, y: H - 2.5, w: 4, h: 4, fill: { color: C.green, transparency: 85 }, line: { type: "none" } })
 
-  // Marque "FramPilot"
-  s.addText("FRAMPILOT", {
+  // Marque "FarmPilot"
+  s.addText("FARMPILOT", {
     x: 1, y: 1.5, w: 8, h: 0.5,
     fontSize: 14, fontFace: F.mono, color: C.green, bold: true, charSpacing: 8, margin: 0,
   })
@@ -1257,7 +1257,7 @@ function bullet(text, indent = 0) {
     x: 1, y: 1.8, w: 11, h: 0.5,
     fontSize: 16, fontFace: F.mono, color: C.green, bold: true, charSpacing: 8, margin: 0,
   })
-  s.addText("FramPilot vous attend.", {
+  s.addText("FarmPilot vous attend.", {
     x: 1, y: 2.4, w: 11, h: 1.2,
     fontSize: 56, fontFace: F.title, color: C.white, bold: true, margin: 0,
   })
@@ -1295,7 +1295,7 @@ function bullet(text, indent = 0) {
     x: 1, y: H - 0.7, w: 8, h: 0.3,
     fontSize: 10, fontFace: F.body, color: C.textLight, italic: true, margin: 0,
   })
-  s.addText("FramPilot · 19/19", {
+  s.addText("FarmPilot · 19/19", {
     x: W - 4, y: H - 0.7, w: 3, h: 0.3,
     fontSize: 10, fontFace: F.body, color: C.textLight, italic: true, align: "right", margin: 0,
   })
@@ -1304,7 +1304,7 @@ function bullet(text, indent = 0) {
 // ──────────────────────────────────────────────────────────────
 // GÉNÉRATION
 // ──────────────────────────────────────────────────────────────
-const outputPath = "FramPilot_Presentation.pptx"
+const outputPath = "FarmPilot_Presentation.pptx"
 pres.writeFile({ fileName: outputPath }).then(fn => {
   console.log(`✅ Présentation générée : ${fn}`)
   console.log(`   ${pres.slides.length} slides`)

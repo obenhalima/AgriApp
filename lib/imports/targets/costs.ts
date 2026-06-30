@@ -254,8 +254,8 @@ export const costsTarget: ImportTarget = {
     ]] : []
 
     return await buildTemplate({
-      title: 'Template Import Coûts — FramPilot',
-      author: 'FramPilot',
+      title: 'Template Import Coûts — FarmPilot',
+      author: 'FarmPilot',
       instructions: {
         title: '📥 Import des coûts — Guide rapide',
         lines: [

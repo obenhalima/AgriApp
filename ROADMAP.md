@@ -1,4 +1,4 @@
-# Roadmap FramPilot / AgriApp
+# Roadmap FarmPilot / AgriApp
 
 > Backlog des évolutions produit pour le pilotage de production agricole
 > du Domaine BENHALIMA (tomates serres, Maroc).

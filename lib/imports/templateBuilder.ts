@@ -99,7 +99,7 @@ const COLOR_REFERENCE_HDR = 'FF6B7280'
 
 export async function buildTemplate(spec: TemplateSpec): Promise<Blob> {
   const wb = new ExcelJS.Workbook()
-  wb.creator = spec.author || 'FramPilot'
+  wb.creator = spec.author || 'FarmPilot'
   wb.created = new Date()
   if (spec.title) wb.title = spec.title
 

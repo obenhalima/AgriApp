@@ -1,7 +1,7 @@
 import type { Config } from 'tailwindcss'
 
 /**
- * FramPilot — Design System Tailwind config
+ * FarmPilot — Design System Tailwind config
  *
  * Stratégie : Tailwind expose des tokens sémantiques qui pointent vers nos
  * CSS variables existantes (`--bg-base`, `--neon`, etc.) déjà définies dans

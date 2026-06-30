@@ -1,4 +1,4 @@
-# FramPilot — Audit des référentiels & plan "No-Code"
+# FarmPilot — Audit des référentiels & plan "No-Code"
 
 > **Objectif** : rendre paramétrables, sans toucher au code, toutes les listes
 > déroulantes, statuts, devises, taux et constantes métier de l'application.
