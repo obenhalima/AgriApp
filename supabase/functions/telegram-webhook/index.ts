@@ -124,6 +124,7 @@ const T: Translations = {
   voice_session_saved: { fr: '✅ <b>{{inserted}}/{{total}} récolte(s) enregistrée(s)</b>\nDate : {{date}}\nTotal : {{kg}} kg', en: '✅ <b>{{inserted}}/{{total}} harvest(s) saved</b>\nDate: {{date}}\nTotal: {{kg}} kg', ar: '✅ <b>{{inserted}}/{{total}} محصول تم تسجيله</b>\nالتاريخ: {{date}}\nالمجموع: {{kg}} كغ', darija: '✅ <b>{{inserted}}/{{total}} ركولت تسجلوا</b>\nالنهار : {{date}}\nالمجموع : {{kg}} كيلو' },
   voice_session_open:  { fr: '🎙️ <b>Session vocale ouverte</b>\n\nDicte tes récoltes une par une OU plusieurs dans le même message.\nExemple : <i>"Cent cinquante kilos sur la serre 1 marquise, et deux quintaux sur la serre 3 cherry"</i>\n\nQuand tu as terminé, dis <b>"fini"</b> ou tape sur le bouton.', en: '🎙️ <b>Voice session open</b>\n\nDictate your harvests one by one OR several in the same message.\nExample: <i>"One hundred fifty kilos on greenhouse 1 marquise, and two quintals on greenhouse 3 cherry"</i>\n\nWhen you\'re done, say <b>"done"</b> or tap the button.', ar: '🎙️ <b>الجلسة الصوتية مفتوحة</b>\n\nأملِ محاصيلك واحداً تلو الآخر أو عدة في الرسالة نفسها.\nمثال: <i>"مئة وخمسون كيلو على البيت الأول مركيز، ومئتان على البيت الثالث شيري"</i>\n\nعندما تنتهي، قل <b>"انتهيت"</b> أو اضغط الزر.', darija: '🎙️ <b>السيسيون فوكال محلولة</b>\n\nقول الركولتات ديالك وحدة بوحدة ولا بزاف ف مساج واحد.\nمثال : <i>"مية و خمسين كيلو ف السير 1 مركيز، و ميتاين ف السير 3 شيري"</i>\n\nملي تسالي، قول <b>"خلاص"</b> ولا دور على البوطون.' },
   voice_show_recap:    { fr: '✅ Terminer (afficher récap)', en: '✅ Finish (show summary)', ar: '✅ إنهاء (عرض الملخص)', darija: '✅ سالي (وريلي ركاب)' },
+  voice_partial_error: { fr: '⚠️ <b>{{ok}}/{{total}} récolte(s) enregistrée(s)</b>\nLes autres ont été refusées :\n{{reasons}}', en: '⚠️ <b>{{ok}}/{{total}} harvest(s) saved</b>\nThe others were rejected:\n{{reasons}}', ar: '⚠️ <b>{{ok}}/{{total}} محصول تم تسجيله</b>\nالباقي مرفوض:\n{{reasons}}', darija: '⚠️ <b>{{ok}}/{{total}} ركولت تسجلات</b>\nالباقي متردات :\n{{reasons}}' },
   // ─── Récolte en plateaux (Lot 3) ───
   pick_tray_type:      { fr: '📦 Choisis un type de plateau (puis dis combien).', en: '📦 Choose a tray type (then how many).', ar: '📦 اختر نوع الصندوق (ثم كم عددها).', darija: '📦 ختار نوع د البلاطو (ومن بعد شحال).' },
   ask_tray_count:      { fr: '🔢 Combien de « {{label}} » ({{poids}} kg/plateau) ? Envoie juste le nombre.', en: '🔢 How many "{{label}}" ({{poids}} kg each)? Just send the number.', ar: '🔢 كم عدد « {{label}} » ({{poids}} كغ للواحد)؟ أرسل الرقم فقط.', darija: '🔢 شحال د « {{label}} » ({{poids}} كيلو للواحد) ؟ صيفط غير الرقم.' },
@@ -1109,6 +1110,7 @@ async function confirmVoiceSession(user: any): Promise<{ inserted: number; lots:
   const noteAuthor = `Saisie vocale via Telegram par ${user.workers?.first_name ?? '?'} ${user.workers?.last_name ?? ''}`
 
   const inserted: string[] = []
+  const errorMsgs: string[] = []
   for (let i = 0; i < pending.length; i++) {
     const h = pending[i]
     const lot = `LOT-${today.replace(/-/g, '')}-${ts.slice(-4)}-${String(i + 1).padStart(2, '0')}`
@@ -1125,9 +1127,24 @@ async function confirmVoiceSession(user: any): Promise<{ inserted: number; lots:
     }).select('lot_number').single()
     if (error) {
       console.error('[voice] insert error:', error)
+      errorMsgs.push(`${h.planting_label} : ${error.message}`)
       continue
     }
     inserted.push(data!.lot_number)
+  }
+
+  // Ne pas échouer en silence : si des insertions ont été rejetées (ex. garde-fou
+  // de date hors plage), on affiche la vraie raison à l'utilisateur.
+  if (errorMsgs.length > 0) {
+    await sendMessage(user.channel_user_id,
+      t(lang, 'voice_partial_error', {
+        ok: String(inserted.length),
+        total: String(pending.length),
+        reasons: errorMsgs.map(m => `• ${m}`).join('\n'),
+      }),
+      buildMainMenu(lang)
+    )
+    if (inserted.length === 0) { await updateSession(user.id, {}); return { inserted: 0, lots: [] } }
   }
 
   await updateSession(user.id, {})
