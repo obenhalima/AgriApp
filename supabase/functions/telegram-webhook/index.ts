@@ -297,10 +297,14 @@ function parseNumberFromText(text: string): number | null {
   return null
 }
 
-/** Type d'extraction conversationnelle (V3 : multi-récoltes + intention de fin). */
+/** Type d'extraction conversationnelle (V3 : multi-récoltes + intention de fin).
+ *  V4 : saisie en PLATEAUX (nb_trays + poids/plateau). qty_kg = fallback si
+ *  l'ouvrier dicte un poids total direct au lieu de compter des plateaux. */
 type ExtractedHarvest = {
   planting_id: string | null
-  qty_kg: number | null
+  nb_trays: number | null       // nombre de plateaux comptés
+  tray_poids_kg: number | null  // poids/plateau mentionné (ex. « de 25 » → 25)
+  qty_kg: number | null         // fallback : poids total dicté directement en kg
   notes: string | null
 }
 type VoiceExtraction = {
@@ -313,7 +317,7 @@ type VoiceExtraction = {
 
 /** Envoie l'audio à Gemini 2.5 Flash : transcription + extraction structurée (V3 conversationnel).
  *  La langue de l'ouvrier (FR/EN/AR/Darija) est passée pour adapter le reply_hint. */
-async function transcribeAndExtract(audioB64: string, mime: string, plantings: any[], pendingCount: number = 0, userLang: string = 'fr'): Promise<VoiceExtraction & {
+async function transcribeAndExtract(audioB64: string, mime: string, plantings: any[], pendingCount: number = 0, userLang: string = 'fr', trayTypes: Array<{ code: string; label: string; poids: number }> = []): Promise<VoiceExtraction & {
   // legacy fields pour compat V2 single-harvest
   planting_id: string | null
   qty_kg: number | null
@@ -329,23 +333,30 @@ async function transcribeAndExtract(audioB64: string, mime: string, plantings: a
     return `- planting_id="${p.id}" — ferme=${ferme}, serre=${serre}, variété=${variete} (${nom})`
   }).join('\n')
 
+  const trayList = trayTypes.length > 0
+    ? trayTypes.map(ty => `- ${ty.label} → poids/plateau = ${ty.poids} kg`).join('\n')
+    : '(aucun type de plateau configuré)'
+
   const sessionContext = pendingCount > 0
     ? `\n\nL'ouvrier est dans une session de saisie groupée et a déjà dicté ${pendingCount} récolte(s). Il peut en ajouter d'autres OU dire qu'il a terminé.`
     : ''
 
   const langInstruction = langInstructionForGemini(userLang)
 
-  const prompt = `Tu es l'assistant vocal d'une ferme de tomates au Maroc. Un ouvrier dicte ses récoltes en français, darija marocaine, arabe classique ou anglais. Ton rôle : transcrire fidèlement, extraire UNE OU PLUSIEURS récoltes du même message, ou détecter la fin de saisie.${sessionContext}
+  const prompt = `Tu es l'assistant vocal d'une ferme au Maroc. Un ouvrier dicte ses récoltes en français, darija marocaine, arabe classique ou anglais. Au champ, l'ouvrier compte des PLATEAUX (contenants), pas des kilos. Ton rôle : transcrire fidèlement, extraire UNE OU PLUSIEURS récoltes du même message, ou détecter la fin de saisie.${sessionContext}
 
 ${langInstruction}
 
 PLANTATIONS ACTIVES :
 ${plantingsList}
 
+TYPES DE PLATEAUX (contenants) :
+${trayList}
+
 INSTRUCTIONS :
 1. Transcris exactement ce que dit l'ouvrier dans sa langue d'origine. Pour la darija marocaine ET pour l'arabe classique, utilise OBLIGATOIREMENT l'alphabet arabe (الحروف العربية), JAMAIS la translittération latine.
 2. Détermine intent :
-   - "harvest" : il annonce 1+ récolte(s) (qty + serre/variété)
+   - "harvest" : il annonce 1+ récolte(s) (plateaux ou poids + serre/variété)
    - "no_harvest" : il signale qu'il n'y a pas de récolte (panne, maladie, météo, etc.)
    - "done" : il signale qu'il a terminé sa saisie. Mots clés multilingues :
      · FR : "fini", "c'est tout", "voilà", "termine", "j'ai terminé", "rien d'autre", "non c'est tout"
@@ -353,13 +364,16 @@ INSTRUCTIONS :
      · Arabe classique : "انتهيت", "هذا كل شيء", "خلاص"
      · EN : "done", "that's all", "finished", "nothing else"
    - "unknown" : ambigu ou pas exploitable
-3. Si "harvest" : remplis le tableau "harvests" avec autant d'éléments que de récoltes mentionnées (le message peut en contenir plusieurs : "150 sur S1 marquise et 200 sur S3 cherry").
+3. Si "harvest" : remplis le tableau "harvests" avec autant d'éléments que de récoltes mentionnées (le message peut en contenir plusieurs : "10 plateaux sur S1 marquise et 5 caisses sur S3 cherry").
    - planting_id : matche serre + variété aux plantations actives
-   - qty_kg : convertir oralement → nombres :
-     · FR : "cent cinquante" = 150, "deux quintaux" = 200, "un quintal et demi" = 150
-     · Darija (arabe) : "خمسين" = 50, "مية" = 100, "ألف" = 1000, "ميتين" = 200
-     · Arabe : "خمسون" = 50, "مئة" = 100, "ألف" = 1000
-   - notes : observations qualitatives (catégorie, déchets, etc.)
+   - PRIORITÉ AUX PLATEAUX. Si l'ouvrier compte des plateaux / plateau / caisses / cageots / cagettes / paniers (darija : "طبلية", "طبالي", "كيسة", "قفة", "بلاطو") :
+     · nb_trays : le NOMBRE de plateaux (ex. "dix plateaux" = 10, "عشر طبالي" = 10)
+     · tray_poids_kg : le poids/plateau SEULEMENT s'il est mentionné (ex. "plateaux de 25" = 25 ; "caisse de vingt" = 20). Sinon null (le système prendra le type par défaut).
+     · qty_kg : null
+   - SINON, s'il dicte un POIDS TOTAL direct en kilos/quintaux SANS parler de plateaux :
+     · qty_kg : le poids ("cent cinquante" = 150, "deux quintaux" = 200 ; darija "مية" = 100, "ميتين" = 200)
+     · nb_trays : null, tray_poids_kg : null
+   - notes : observations qualitatives (variété, déchets, etc.)
 4. reply_hint : une réponse courte ADAPTÉE À LA LANGUE DE L'UTILISATEUR. Exemples :
    · FR après acquittement : "Noté ! D'autres récoltes ?"
    · Darija (en lettres arabes) après acquittement : "واخا ! ركولتات أخرين ؟"
@@ -387,6 +401,8 @@ INSTRUCTIONS :
               type: 'object',
               properties: {
                 planting_id: { type: 'string', nullable: true },
+                nb_trays: { type: 'number', nullable: true },
+                tray_poids_kg: { type: 'number', nullable: true },
                 qty_kg: { type: 'number', nullable: true },
                 notes: { type: 'string', nullable: true },
               },
@@ -577,9 +593,10 @@ async function startHarvestFlow(user: any) {
 
 /** Liste les types de plateaux actifs (référentiel no-code 'tray_type').
  *  Le poids théorique est dans metadata.poids_kg (cf. migration 054). */
-async function listTrayTypes(): Promise<Array<{ code: string; label: string; poids: number }>> {
+type TrayType = { code: string; label: string; poids: number; is_default: boolean }
+async function listTrayTypes(): Promise<TrayType[]> {
   const { data } = await supabase.from('reference_values')
-    .select('code, label, metadata, order_idx, is_active')
+    .select('code, label, metadata, order_idx, is_active, is_default')
     .eq('list_key', 'tray_type')
     .eq('is_active', true)
     .order('order_idx', { ascending: true })
@@ -587,7 +604,21 @@ async function listTrayTypes(): Promise<Array<{ code: string; label: string; poi
     code: v.code,
     label: v.label ?? v.code,
     poids: Number(v?.metadata?.poids_kg) || 0,
+    is_default: v.is_default === true,
   }))
+}
+
+/** Résout le type de plateau dicté vocalement : par poids mentionné (le plus proche),
+ *  sinon le type par défaut (is_default), sinon le premier. Retourne null si aucun type. */
+function resolveTrayType(types: TrayType[], poidsHint: number | null): TrayType | null {
+  if (types.length === 0) return null
+  if (poidsHint && poidsHint > 0) {
+    // Match exact d'abord, sinon le poids le plus proche
+    const exact = types.find(t => t.poids === poidsHint)
+    if (exact) return exact
+    return types.slice().sort((a, b) => Math.abs(a.poids - poidsHint) - Math.abs(b.poids - poidsHint))[0]
+  }
+  return types.find(t => t.is_default) ?? types[0]
 }
 
 /** Total estimé (kg) des lignes de plateaux accumulées en session. */
@@ -841,10 +872,11 @@ async function saveNoHarvest(user: any, reason: string, notes: string | null = n
 /** Type pour récolte en attente dans une session vocale. */
 type PendingHarvest = {
   planting_id: string
-  qty_kg: number
+  qty_kg: number          // poids estimé (= nb × poids/plateau) OU poids direct si dicté en kg
   planting_label: string  // "F01-S01 / Marquise"
   notes?: string | null
   transcription?: string
+  tray?: { code: string; label: string; poids: number; nb: number } | null  // détail plateaux si saisi ainsi
 }
 
 /** Affiche le récap final de la session vocale + boutons confirm/cancel. */
@@ -857,9 +889,12 @@ async function showVoiceSessionRecap(chatId: string, pending: PendingHarvest[], 
     )
     return
   }
-  const lines = pending.map((h, i) =>
-    `<b>${i + 1}.</b> ${h.planting_label} — <b>${h.qty_kg} kg</b>${h.notes ? ` <i>(${h.notes})</i>` : ''}`
-  ).join('\n')
+  const lines = pending.map((h, i) => {
+    const main = h.tray
+      ? `<b>${h.tray.nb} × ${h.tray.label}</b> ≈ ${h.qty_kg} kg`
+      : `<b>${h.qty_kg} kg</b>`
+    return `<b>${i + 1}.</b> ${h.planting_label} — ${main}${h.notes ? ` <i>(${h.notes})</i>` : ''}`
+  }).join('\n')
   const total = pending.reduce((s, h) => s + h.qty_kg, 0)
   await sendMessage(chatId,
     `${t(lang, 'voice_recap_title')}\n\n${lines}\n` +
@@ -972,6 +1007,7 @@ async function handleVoiceMessage(user: any, voice: any): Promise<void> {
   const state = (user.session_state ?? {}) as any
   const pending: PendingHarvest[] = state.intent === 'voice_session' && Array.isArray(state.pending) ? state.pending : []
 
+  const trayTypes = await listTrayTypes()
   let payload: any
   try {
     const audio = await downloadTelegramAudio(voice.file_id)
@@ -980,7 +1016,7 @@ async function handleVoiceMessage(user: any, voice: any): Promise<void> {
       await sendMessage(chatId, t(lang, 'voice_no_planting'))
       return
     }
-    payload = await transcribeAndExtract(audio.data, audio.mime, plantings, pending.length, lang)
+    payload = await transcribeAndExtract(audio.data, audio.mime, plantings, pending.length, lang, trayTypes)
   } catch (e: any) {
     console.error('[voice] error:', e)
     await sendMessage(chatId, t(lang, 'voice_transcription_error', { msg: e?.message ?? '?' }), buildMainMenu(lang))
@@ -1029,7 +1065,11 @@ async function handleVoiceMessage(user: any, voice: any): Promise<void> {
     const valid: PendingHarvest[] = []
     const rejected: any[] = []
     for (const h of payload.harvests) {
-      if (h.planting_id && h.qty_kg && Number(h.qty_kg) > 0) {
+      const nbTrays = Number(h.nb_trays) || 0
+      const directKg = Number(h.qty_kg) || 0
+      const hasTrays = nbTrays > 0
+      const hasKg = directKg > 0
+      if (h.planting_id && (hasTrays || hasKg)) {
         // Vérifie le planting et récupère le label
         const { data: p } = await supabase.from('campaign_plantings')
           .select('id, greenhouses(code), varieties(code, commercial_name)')
@@ -1037,12 +1077,25 @@ async function handleVoiceMessage(user: any, voice: any): Promise<void> {
           .maybeSingle()
         if (p) {
           const pa: any = p
+          // Priorité aux plateaux : résout le type (poids dicté sinon défaut), poids estimé = nb × poids
+          let qty = directKg
+          let tray: PendingHarvest['tray'] = null
+          if (hasTrays) {
+            const ty = resolveTrayType(trayTypes, Number(h.tray_poids_kg) || null)
+            if (ty) {
+              tray = { code: ty.code, label: ty.label, poids: ty.poids, nb: nbTrays }
+              qty = nbTrays * ty.poids
+            } else if (!hasKg) {
+              rejected.push(h); continue   // plateaux dictés mais aucun type configuré ni poids direct
+            }
+          }
           valid.push({
             planting_id: h.planting_id,
-            qty_kg: Number(h.qty_kg),
+            qty_kg: qty,
             planting_label: `${pa.greenhouses?.code ?? '?'} / ${pa.varieties?.commercial_name ?? '?'}`,
             notes: h.notes ?? null,
             transcription: payload.transcription,
+            tray,
           })
         } else { rejected.push(h) }
       } else { rejected.push(h) }
@@ -1066,7 +1119,10 @@ async function handleVoiceMessage(user: any, voice: any): Promise<void> {
     }
 
     // Acquittement : liste des saisies de ce message + reply_hint Gemini (déjà dans la langue du user)
-    const ackLines = valid.map(h => `✓ ${h.planting_label} — <b>${h.qty_kg} kg</b>${h.notes ? ` <i>(${h.notes})</i>` : ''}`).join('\n')
+    const ackLines = valid.map(h => {
+      const main = h.tray ? `<b>${h.tray.nb} × ${h.tray.label}</b> ≈ ${h.qty_kg} kg` : `<b>${h.qty_kg} kg</b>`
+      return `✓ ${h.planting_label} — ${main}${h.notes ? ` <i>(${h.notes})</i>` : ''}`
+    }).join('\n')
     // Gemini renvoie reply_hint adapté à la langue → on le garde tel quel
     const replyHint = payload.reply_hint ?? ''
     await sendMessage(chatId,
@@ -1107,7 +1163,8 @@ async function confirmVoiceSession(user: any): Promise<{ inserted: number; lots:
   }
   const today = new Date().toISOString().slice(0, 10)
   const ts = String(Date.now())
-  const noteAuthor = `Saisie vocale via Telegram par ${user.workers?.first_name ?? '?'} ${user.workers?.last_name ?? ''}`
+  const workerName = `${user.workers?.first_name ?? '?'} ${user.workers?.last_name ?? ''}`.trim()
+  const noteAuthor = `Saisie vocale via Telegram par ${workerName}`
 
   const inserted: string[] = []
   const errorMsgs: string[] = []
@@ -1120,15 +1177,28 @@ async function confirmVoiceSession(user: any): Promise<{ inserted: number; lots:
     const { error, data } = await supabase.from('harvests').insert({
       campaign_planting_id: h.planting_id,
       harvest_date: today,
-      qty_category_1: h.qty_kg,
+      estimated_kg: h.tray ? h.qty_kg : null,   // poids estimé si saisie en plateaux
+      qty_category_1: h.qty_kg,                  // pont (source de vérité avant pesée station)
       qty_category_2: 0, qty_category_3: 0, qty_waste: 0,
       lot_number: lot,
+      recorded_by_name: workerName,
       notes,
-    }).select('lot_number').single()
+    }).select('id, lot_number').single()
     if (error) {
       console.error('[voice] insert error:', error)
       errorMsgs.push(`${h.planting_label} : ${error.message}`)
       continue
+    }
+    // Ligne de plateaux si la récolte a été dictée en plateaux
+    if (h.tray) {
+      const { error: e2 } = await supabase.from('harvest_tray_lines').insert({
+        harvest_id: data!.id,
+        tray_type_code: h.tray.code,
+        tray_type_label: h.tray.label,
+        nb_trays: h.tray.nb,
+        poids_unitaire_kg: h.tray.poids,
+      })
+      if (e2) console.error('[voice] tray line insert error:', e2.message)
     }
     inserted.push(data!.lot_number)
   }
@@ -1895,7 +1965,7 @@ Deno.serve(async (req) => {
       if (callbackData === 'voice:show_recap') {
         const state = (user.session_state ?? {}) as any
         const pending = Array.isArray(state.pending) ? state.pending : []
-        await showVoiceSessionRecap(chatId, pending)
+        await showVoiceSessionRecap(chatId, pending, user.language)
         return new Response('OK', { status: 200 })
       }
       if (callbackData === 'voice:continue') {
@@ -1966,7 +2036,7 @@ Deno.serve(async (req) => {
         const doneKeywords = ['fini', "c'est tout", 'cest tout', 'cest fini', "c'est fini", 'termine', 'terminé', 'terminer', 'voila', 'voilà', 'khlas', 'rien dautre', "rien d'autre", 'non', 'non c\'est tout']
         if (doneKeywords.some(k => lower === k || lower.startsWith(k + ' ') || lower.endsWith(' ' + k))) {
           const pending = Array.isArray(state.pending) ? state.pending : []
-          await showVoiceSessionRecap(chatId, pending)
+          await showVoiceSessionRecap(chatId, pending, user.language)
           return new Response('OK', { status: 200 })
         }
       }
