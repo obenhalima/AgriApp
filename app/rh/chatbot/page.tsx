@@ -342,8 +342,10 @@ export default function ChatbotPage() {
               <div className="px-md py-sm border-b border-border font-mono text-caption uppercase tracking-wider text-fg-tertiary">
                 Aperçu du message
               </div>
-              <div className="p-lg bg-white text-black whitespace-pre-wrap text-body leading-relaxed max-h-[600px] overflow-auto"
-                dangerouslySetInnerHTML={{ __html: recapPreview.replace(/\n/g, '<br>') }} />
+              {/* Rendu en texte brut (whitespace-pre-wrap préserve les sauts de ligne) — pas de dangerouslySetInnerHTML (anti-XSS) */}
+              <div className="p-lg bg-white text-black whitespace-pre-wrap text-body leading-relaxed max-h-[600px] overflow-auto">
+                {recapPreview}
+              </div>
             </Card>
           )}
 

@@ -127,4 +127,10 @@
 7. ⏳ CORS au domaine (M1) — laissé `*` (le JWT est la vraie frontière) ; à restreindre quand le domaine prod est figé.
 > ⚠️ **Redéploiement requis** : les Edge Functions doivent être redéployées (`supabase functions deploy`). Configurer `TELEGRAM_WEBHOOK_SECRET` dans les secrets AVANT de déployer le webhook (sinon il refuse tout).
 
-**Lot sécurité 3 (hygiène)** : `npm audit` (H5), garde serveur pages admin (M2), assainir le chatbot (M3).
+**Lot sécurité 3 (hygiène)** — ✅ **partiellement fait** :
+- ✅ **M3** XSS : `app/rh/chatbot/page.tsx` — suppression du `dangerouslySetInnerHTML` (rendu texte + `whitespace-pre-wrap`).
+- ✅ **H5** `npm audit fix` (non-breaking) : 18 → 13 vulnérabilités (corrige `ws` HIGH, etc.).
+  - ⏳ **xlsx** (Prototype Pollution / ReDoS) : **pas de patch npm**. Surface = parsing d'imports (`imports/page`, `budgetImport`, `engine`, `referentiels`), flux **privilégiés/admin**. Options : version SheetJS depuis leur CDN (hors npm), ou accepter le risque vu la surface restreinte.
+  - ⏳ **exceljs/uuid** (moderate) : correctif = rupture (`exceljs@3.4.0`) — reporté (exceljs très utilisé pour l'export).
+- ⏳ **M2** garde serveur pages admin : nécessite de passer l'auth Supabase en **cookies** (`@supabase/ssr`) pour un middleware ; refactor hors périmètre hygiène. Atténué par RLS + RPC gated côté serveur.
+- ⏳ **M4** annuaire `profiles`/`users` lisible : laissé (utilisé pour afficher les noms d'auteurs) — faible risque.
