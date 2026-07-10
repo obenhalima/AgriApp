@@ -1542,12 +1542,15 @@ async function showMyLots(user: any) {
 
 // ─── Webhook handler ─────────────────────────────────────────
 Deno.serve(async (req) => {
-  // Vérification du secret Telegram
-  if (TELEGRAM_WEBHOOK_SECRET) {
-    const got = req.headers.get('x-telegram-bot-api-secret-token')
-    if (got !== TELEGRAM_WEBHOOK_SECRET) {
-      return new Response('Forbidden', { status: 403 })
-    }
+  // Vérification du secret Telegram (correctif sécurité C4 : fail-closed).
+  // Le secret DOIT être configuré ET correspondre — sinon on refuse. Sans ça,
+  // n'importe qui connaissant l'URL pouvait forger un update au nom d'un ouvrier.
+  if (!TELEGRAM_WEBHOOK_SECRET) {
+    console.error('[telegram] TELEGRAM_WEBHOOK_SECRET non configuré — webhook refusé')
+    return new Response('Webhook secret not configured', { status: 500 })
+  }
+  if (req.headers.get('x-telegram-bot-api-secret-token') !== TELEGRAM_WEBHOOK_SECRET) {
+    return new Response('Forbidden', { status: 403 })
   }
 
   try {

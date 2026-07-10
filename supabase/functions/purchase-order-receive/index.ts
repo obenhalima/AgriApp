@@ -73,15 +73,12 @@ serve(async (req: Request) => {
     // @ts-ignore
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
-    // Identification user (facultatif)
-    let userId: string | null = null
+    // Authentification REQUISE (correctif sécurité C3) : rejette les appels anonymes.
     const authHeader = req.headers.get('Authorization')
-    if (authHeader?.startsWith('Bearer ')) {
-      try {
-        const { data } = await supabase.auth.getUser(authHeader.slice(7))
-        userId = data?.user?.id ?? null
-      } catch {}
-    }
+    if (!authHeader?.startsWith('Bearer ')) return jsonResponse({ error: 'Non authentifié' }, 401)
+    const { data: uData } = await supabase.auth.getUser(authHeader.slice(7))
+    if (!uData?.user) return jsonResponse({ error: 'Session invalide' }, 401)
+    const userId: string = uData.user.id
 
     // 1. Charger le PO + lignes concernées
     const { data: po, error: poe } = await supabase

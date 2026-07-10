@@ -5,6 +5,8 @@
 
 // @ts-ignore
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
+// @ts-ignore
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -164,6 +166,19 @@ serve(async (req: Request) => {
     // @ts-ignore
     const apiKey = Deno.env.get('GEMINI_API_KEY')
     if (!apiKey) return jsonResponse({ error: 'GEMINI_API_KEY non configurée' }, 500)
+
+    // Authentification REQUISE (correctif sécurité H3) : la fonction reçoit des
+    // données comptables — seul un utilisateur connecté peut l'appeler.
+    // @ts-ignore
+    const supaUrl = Deno.env.get('SUPABASE_URL')
+    // @ts-ignore
+    const supaKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ') || !supaUrl || !supaKey) {
+      return jsonResponse({ error: 'Non authentifié' }, 401)
+    }
+    const { data: uData } = await createClient(supaUrl, supaKey).auth.getUser(authHeader.slice(7))
+    if (!uData?.user) return jsonResponse({ error: 'Session invalide' }, 401)
 
     const body = await req.json()
     if (!body?.context || !body?.data) return jsonResponse({ error: 'context et data requis' }, 400)

@@ -69,18 +69,13 @@ serve(async (req: Request) => {
     // Client service_role : bypass RLS, accès complet. L'Edge Function est la frontière de sécurité.
     const supabase = createClient(supabaseUrl, serviceKey)
 
-    // Identification de l'utilisateur (optionnel — si auth pas encore en place, userId reste null).
-    let userId: string | null = null
+    // Authentification REQUISE (correctif sécurité C3) : rejette les appels
+    // anonymes (clé anon publique) — seul un utilisateur connecté peut piloter un workflow.
     const authHeader = req.headers.get('Authorization')
-    if (authHeader?.startsWith('Bearer ')) {
-      try {
-        const token = authHeader.slice('Bearer '.length)
-        const { data: userData } = await supabase.auth.getUser(token)
-        userId = userData?.user?.id ?? null
-      } catch (e) {
-        console.warn('[wf] impossible d\'identifier l\'utilisateur :', e)
-      }
-    }
+    if (!authHeader?.startsWith('Bearer ')) return jsonResponse({ error: 'Non authentifié' }, 401)
+    const { data: userData } = await supabase.auth.getUser(authHeader.slice('Bearer '.length))
+    if (!userData?.user) return jsonResponse({ error: 'Session invalide' }, 401)
+    const userId: string = userData.user.id
 
     // 1. Charger la transition (queries séquentielles simples — pas d'embedding PostgREST)
     const { data: transition, error: te } = await supabase

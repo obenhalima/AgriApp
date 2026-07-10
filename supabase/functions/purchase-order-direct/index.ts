@@ -67,15 +67,12 @@ serve(async (req: Request) => {
     // @ts-ignore
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
-    // User ID pour traçabilité
-    let userId: string | null = null
+    // Authentification REQUISE (correctif sécurité C3) : rejette les appels anonymes.
     const authHeader = req.headers.get('Authorization')
-    if (authHeader?.startsWith('Bearer ')) {
-      try {
-        const { data } = await supabase.auth.getUser(authHeader.slice(7))
-        userId = data?.user?.id ?? null
-      } catch {}
-    }
+    if (!authHeader?.startsWith('Bearer ')) return jsonResponse({ error: 'Non authentifié' }, 401)
+    const { data: uData } = await supabase.auth.getUser(authHeader.slice(7))
+    if (!uData?.user) return jsonResponse({ error: 'Session invalide' }, 401)
+    const userId: string = uData.user.id
 
     const orderIso = orderDate ?? new Date().toISOString().slice(0, 10)
     const poNumber = `BA-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`

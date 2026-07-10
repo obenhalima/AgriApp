@@ -120,10 +120,11 @@
 3. ✅ Lecture paie/CNSS/congés (H1) restreinte à `is_admin` (V1).
 > ⚠️ Effet de bord : la **pesée station** et la **création d'écart** exigent désormais l'admin. Ajouter un rôle « opérateur station » plus tard si des non-admins doivent peser.
 
-**Lot sécurité 2 (Edge Functions)** :
-4. Rendre `TELEGRAM_WEBHOOK_SECRET` obligatoire (C4).
-5. Exiger un JWT valide + rôle dans workflow-transition / purchase-order-* (C3) et ai-analyze-cpc (H3).
-6. Corriger `lib/aiAnalysis.ts` / `aiChat.ts` → token de session (H4).
-7. Restreindre CORS au domaine (M1).
+**Lot sécurité 2 (Edge Functions)** — ✅ **FAIT** (à redéployer) :
+4. ✅ `TELEGRAM_WEBHOOK_SECRET` obligatoire — fail-closed (C4).
+5. ✅ JWT valide requis dans workflow-transition / purchase-order-receive / purchase-order-direct (C3) et ai-analyze-cpc (H3) — les appels anonymes (clé anon) sont refusés (401).
+6. ✅ `lib/aiAnalysis.ts` / `aiChat.ts` envoient le token de session (H4).
+7. ⏳ CORS au domaine (M1) — laissé `*` (le JWT est la vraie frontière) ; à restreindre quand le domaine prod est figé.
+> ⚠️ **Redéploiement requis** : les Edge Functions doivent être redéployées (`supabase functions deploy`). Configurer `TELEGRAM_WEBHOOK_SECRET` dans les secrets AVANT de déployer le webhook (sinon il refuse tout).
 
 **Lot sécurité 3 (hygiène)** : `npm audit` (H5), garde serveur pages admin (M2), assainir le chatbot (M3).

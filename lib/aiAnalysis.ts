@@ -35,12 +35,17 @@ export async function analyzeCPC(input: AICPCInput): Promise<string> {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!url || !key) throw new Error('Variables Supabase manquantes')
 
+  // Envoie le JWT de session (correctif sécurité H4) — la clé anon seule ne doit pas authentifier.
+  const { supabase } = await import('./supabase')
+  const { data: { session } } = await supabase.auth.getSession()
+  const token = session?.access_token ?? key
+
   const res = await fetch(`${url}/functions/v1/ai-analyze-cpc`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'apikey': key,
-      'Authorization': `Bearer ${key}`,
+      'Authorization': `Bearer ${token}`,
     },
     body: JSON.stringify(input),
   })
