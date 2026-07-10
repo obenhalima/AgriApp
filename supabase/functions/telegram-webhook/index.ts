@@ -125,6 +125,7 @@ const T: Translations = {
   voice_session_open:  { fr: '🎙️ <b>Session vocale ouverte</b>\n\nDicte tes récoltes une par une OU plusieurs dans le même message.\nExemple : <i>"Cent cinquante kilos sur la serre 1 marquise, et deux quintaux sur la serre 3 cherry"</i>\n\nQuand tu as terminé, dis <b>"fini"</b> ou tape sur le bouton.', en: '🎙️ <b>Voice session open</b>\n\nDictate your harvests one by one OR several in the same message.\nExample: <i>"One hundred fifty kilos on greenhouse 1 marquise, and two quintals on greenhouse 3 cherry"</i>\n\nWhen you\'re done, say <b>"done"</b> or tap the button.', ar: '🎙️ <b>الجلسة الصوتية مفتوحة</b>\n\nأملِ محاصيلك واحداً تلو الآخر أو عدة في الرسالة نفسها.\nمثال: <i>"مئة وخمسون كيلو على البيت الأول مركيز، ومئتان على البيت الثالث شيري"</i>\n\nعندما تنتهي، قل <b>"انتهيت"</b> أو اضغط الزر.', darija: '🎙️ <b>السيسيون فوكال محلولة</b>\n\nقول الركولتات ديالك وحدة بوحدة ولا بزاف ف مساج واحد.\nمثال : <i>"مية و خمسين كيلو ف السير 1 مركيز، و ميتاين ف السير 3 شيري"</i>\n\nملي تسالي، قول <b>"خلاص"</b> ولا دور على البوطون.' },
   voice_show_recap:    { fr: '✅ Terminer (afficher récap)', en: '✅ Finish (show summary)', ar: '✅ إنهاء (عرض الملخص)', darija: '✅ سالي (وريلي ركاب)' },
   voice_partial_error: { fr: '⚠️ <b>{{ok}}/{{total}} récolte(s) enregistrée(s)</b>\nLes autres ont été refusées :\n{{reasons}}', en: '⚠️ <b>{{ok}}/{{total}} harvest(s) saved</b>\nThe others were rejected:\n{{reasons}}', ar: '⚠️ <b>{{ok}}/{{total}} محصول تم تسجيله</b>\nالباقي مرفوض:\n{{reasons}}', darija: '⚠️ <b>{{ok}}/{{total}} ركولت تسجلات</b>\nالباقي متردات :\n{{reasons}}' },
+  available_plantings: { fr: '📋 <b>Serres disponibles</b> (dis le code ou le n° + la variété) :', en: '📋 <b>Available greenhouses</b> (say the code or number + variety):', ar: '📋 <b>البيوت المتاحة</b> (قل الرمز أو الرقم + الصنف):', darija: '📋 <b>السيرات لي كاينين</b> (قول الكود ولا الرقم + الصنف) :' },
   // ─── Récolte en plateaux (Lot 3) ───
   pick_tray_type:      { fr: '📦 Choisis un type de plateau (puis dis combien).', en: '📦 Choose a tray type (then how many).', ar: '📦 اختر نوع الصندوق (ثم كم عددها).', darija: '📦 ختار نوع د البلاطو (ومن بعد شحال).' },
   ask_tray_count:      { fr: '🔢 Combien de « {{label}} » ({{poids}} kg/plateau) ? Envoie juste le nombre.', en: '🔢 How many "{{label}}" ({{poids}} kg each)? Just send the number.', ar: '🔢 كم عدد « {{label}} » ({{poids}} كغ للواحد)؟ أرسل الرقم فقط.', darija: '🔢 شحال د « {{label}} » ({{poids}} كيلو للواحد) ؟ صيفط غير الرقم.' },
@@ -365,7 +366,11 @@ INSTRUCTIONS :
      · EN : "done", "that's all", "finished", "nothing else"
    - "unknown" : ambigu ou pas exploitable
 3. Si "harvest" : remplis le tableau "harvests" avec autant d'éléments que de récoltes mentionnées (le message peut en contenir plusieurs : "10 plateaux sur S1 marquise et 5 caisses sur S3 cherry").
-   - planting_id : matche serre + variété aux plantations actives
+   - planting_id : identifie la PLANTATION visée dans la liste ci-dessus.
+     · L'ouvrier peut nommer la serre par son CODE (ex. S01, Serre 3) OU par un ORDINAL/NUMÉRO : "serre 1 / première / الأولى / الأول / لولا" = serre n°1 ; "deuxième / الثانية / التانية" = serre n°2 ; etc. Mappe l'ordinal au code de serre correspondant (le code de serre contient généralement ce numéro, ex. "première" → serre dont le code contient 1 comme S01).
+     · Matche par SERRE d'abord. Si la serre identifiée n'a qu'UNE SEULE plantation active dans la liste, utilise son planting_id MÊME si la variété n'est pas dite.
+     · Si la serre a plusieurs plantations, sers-toi de la variété mentionnée pour choisir. Si aucune variété n'est dite et qu'il y a ambiguïté, mets planting_id=null.
+     · Ne mets planting_id=null QUE si tu ne peux vraiment pas identifier la serre.
    - PRIORITÉ AUX PLATEAUX. Si l'ouvrier compte des plateaux / plateau / caisses / cageots / cagettes / paniers (darija : "طبلية", "طبالي", "كيسة", "قفة", "بلاطو") :
      · nb_trays : le NOMBRE de plateaux (ex. "dix plateaux" = 10, "عشر طبالي" = 10)
      · tray_poids_kg : le poids/plateau SEULEMENT s'il est mentionné (ex. "plateaux de 25" = 25 ; "caisse de vingt" = 20). Sinon null (le système prendra le type par défaut).
@@ -879,6 +884,15 @@ type PendingHarvest = {
   tray?: { code: string; label: string; poids: number; nb: number } | null  // détail plateaux si saisi ainsi
 }
 
+/** Rappel des plantations actives (serre + variété) — aide l'ouvrier à re-dicter
+ *  correctement quand l'extraction n'a pas pu identifier la plantation. */
+function plantingsHint(plantings: any[], lang: string): string {
+  if (!plantings || plantings.length === 0) return ''
+  const items = plantings.slice(0, 12).map((p: any) =>
+    `• ${p.greenhouses?.code ?? '?'} — ${p.varieties?.commercial_name ?? p.varieties?.code ?? '?'}`).join('\n')
+  return `\n\n${t(lang, 'available_plantings')}\n${items}`
+}
+
 /** Affiche le récap final de la session vocale + boutons confirm/cancel. */
 async function showVoiceSessionRecap(chatId: string, pending: PendingHarvest[], lang: string = 'fr') {
   if (pending.length === 0) {
@@ -1008,10 +1022,11 @@ async function handleVoiceMessage(user: any, voice: any): Promise<void> {
   const pending: PendingHarvest[] = state.intent === 'voice_session' && Array.isArray(state.pending) ? state.pending : []
 
   const trayTypes = await listTrayTypes()
+  let plantings: any[] = []
   let payload: any
   try {
     const audio = await downloadTelegramAudio(voice.file_id)
-    const plantings = await listPlantings()
+    plantings = await listPlantings()
     if (plantings.length === 0) {
       await sendMessage(chatId, t(lang, 'voice_no_planting'))
       return
@@ -1107,7 +1122,7 @@ async function handleVoiceMessage(user: any, voice: any): Promise<void> {
     if (valid.length === 0) {
       // Aucune récolte exploitée
       await sendMessage(chatId,
-        t(lang, 'voice_extracted_unclear', { transcription: payload.transcription }),
+        t(lang, 'voice_extracted_unclear', { transcription: payload.transcription }) + plantingsHint(plantings, lang),
         merged.length > 0 ? {
           inline_keyboard: [
             [{ text: t(lang, 'voice_save_all'), callback_data: 'voice:show_recap' }],
@@ -1142,7 +1157,8 @@ async function handleVoiceMessage(user: any, voice: any): Promise<void> {
   // ─── INTENT : unknown ───────────────────────────────
   await sendMessage(chatId,
     `🎤 <i>"${payload.transcription}"</i>` +
-    (payload.reply_hint ? `\n\n❓ ${payload.reply_hint}` : `\n\n${t(lang, 'voice_extracted_unclear', { transcription: '' }).split('\n\n')[1] ?? ''}`),
+    (payload.reply_hint ? `\n\n❓ ${payload.reply_hint}` : `\n\n${t(lang, 'voice_extracted_unclear', { transcription: '' }).split('\n\n')[1] ?? ''}`) +
+    plantingsHint(plantings, lang),
     pending.length > 0 ? {
       inline_keyboard: [
         [{ text: t(lang, 'voice_save_all'), callback_data: 'voice:show_recap' }],
