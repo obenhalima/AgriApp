@@ -124,6 +124,15 @@ const T: Translations = {
   voice_session_saved: { fr: '✅ <b>{{inserted}}/{{total}} récolte(s) enregistrée(s)</b>\nDate : {{date}}\nTotal : {{kg}} kg', en: '✅ <b>{{inserted}}/{{total}} harvest(s) saved</b>\nDate: {{date}}\nTotal: {{kg}} kg', ar: '✅ <b>{{inserted}}/{{total}} محصول تم تسجيله</b>\nالتاريخ: {{date}}\nالمجموع: {{kg}} كغ', darija: '✅ <b>{{inserted}}/{{total}} ركولت تسجلوا</b>\nالنهار : {{date}}\nالمجموع : {{kg}} كيلو' },
   voice_session_open:  { fr: '🎙️ <b>Session vocale ouverte</b>\n\nDicte tes récoltes une par une OU plusieurs dans le même message.\nExemple : <i>"Cent cinquante kilos sur la serre 1 marquise, et deux quintaux sur la serre 3 cherry"</i>\n\nQuand tu as terminé, dis <b>"fini"</b> ou tape sur le bouton.', en: '🎙️ <b>Voice session open</b>\n\nDictate your harvests one by one OR several in the same message.\nExample: <i>"One hundred fifty kilos on greenhouse 1 marquise, and two quintals on greenhouse 3 cherry"</i>\n\nWhen you\'re done, say <b>"done"</b> or tap the button.', ar: '🎙️ <b>الجلسة الصوتية مفتوحة</b>\n\nأملِ محاصيلك واحداً تلو الآخر أو عدة في الرسالة نفسها.\nمثال: <i>"مئة وخمسون كيلو على البيت الأول مركيز، ومئتان على البيت الثالث شيري"</i>\n\nعندما تنتهي، قل <b>"انتهيت"</b> أو اضغط الزر.', darija: '🎙️ <b>السيسيون فوكال محلولة</b>\n\nقول الركولتات ديالك وحدة بوحدة ولا بزاف ف مساج واحد.\nمثال : <i>"مية و خمسين كيلو ف السير 1 مركيز، و ميتاين ف السير 3 شيري"</i>\n\nملي تسالي، قول <b>"خلاص"</b> ولا دور على البوطون.' },
   voice_show_recap:    { fr: '✅ Terminer (afficher récap)', en: '✅ Finish (show summary)', ar: '✅ إنهاء (عرض الملخص)', darija: '✅ سالي (وريلي ركاب)' },
+  // ─── Récolte en plateaux (Lot 3) ───
+  pick_tray_type:      { fr: '📦 Choisis un type de plateau (puis dis combien).', en: '📦 Choose a tray type (then how many).', ar: '📦 اختر نوع الصندوق (ثم كم عددها).', darija: '📦 ختار نوع د البلاطو (ومن بعد شحال).' },
+  ask_tray_count:      { fr: '🔢 Combien de « {{label}} » ({{poids}} kg/plateau) ? Envoie juste le nombre.', en: '🔢 How many "{{label}}" ({{poids}} kg each)? Just send the number.', ar: '🔢 كم عدد « {{label}} » ({{poids}} كغ للواحد)؟ أرسل الرقم فقط.', darija: '🔢 شحال د « {{label}} » ({{poids}} كيلو للواحد) ؟ صيفط غير الرقم.' },
+  invalid_tray_count:  { fr: '❌ Nombre invalide. Envoie un entier, ex : <code>12</code>', en: '❌ Invalid number. Send a whole number, e.g.: <code>12</code>', ar: '❌ العدد غير صحيح. أرسل رقماً صحيحاً، مثال: <code>12</code>', darija: '❌ العدد ماخدماش. صيفط رقم صحيح، مثال : <code>12</code>' },
+  tray_line_added:     { fr: '➕ Ajouté : {{nb}} × {{label}}', en: '➕ Added: {{nb}} × {{label}}', ar: '➕ أُضيف: {{nb}} × {{label}}', darija: '➕ تزاد : {{nb}} × {{label}}' },
+  tray_total:          { fr: '<b>Total estimé : {{total}} kg</b>', en: '<b>Estimated total: {{total}} kg</b>', ar: '<b>المجموع التقديري: {{total}} كغ</b>', darija: '<b>المجموع تقديري : {{total}} كيلو</b>' },
+  trays_done_btn:      { fr: '✅ Terminer & enregistrer', en: '✅ Finish & save', ar: '✅ إنهاء وحفظ', darija: '✅ سالي و سجل' },
+  trays_empty:         { fr: '❌ Aucun plateau saisi. Ajoute au moins un type.', en: '❌ No tray entered. Add at least one type.', ar: '❌ لم تُدخل أي صندوق. أضف نوعاً واحداً على الأقل.', darija: '❌ ما دخلتي حتى بلاطو. زيد على الأقل نوع واحد.' },
+  harvest_saved_est:   { fr: '✅ <b>Récolte enregistrée (plateaux)</b>\nLot : <code>{{lot}}</code>\nPoids estimé : {{qty}} kg\nDate : {{date}}\n\n⚖️ Le poids réel sera confirmé à la pesée station.', en: '✅ <b>Harvest saved (trays)</b>\nLot: <code>{{lot}}</code>\nEstimated weight: {{qty}} kg\nDate: {{date}}\n\n⚖️ Real weight will be confirmed at station weighing.', ar: '✅ <b>تم تسجيل المحصول (صناديق)</b>\nالدفعة: <code>{{lot}}</code>\nالوزن التقديري: {{qty}} كغ\nالتاريخ: {{date}}\n\n⚖️ سيتم تأكيد الوزن الحقيقي عند وزن المحطة.', darija: '✅ <b>الركولت تسجلات (بلاطوات)</b>\nاللوطاج : <code>{{lot}}</code>\nالوزن تقديري : {{qty}} كيلو\nالنهار : {{date}}\n\n⚖️ الوزن الحقيقي غادي يتأكد فالبيصاج ديال الستاسيون.' },
 }
 
 function t(lang: string | null | undefined, key: string, params?: Record<string, string | number>): string {
@@ -565,7 +574,57 @@ async function startHarvestFlow(user: any) {
   await sendMessage(user.channel_user_id, t(lang, 'pick_planting'), { inline_keyboard: buttons })
 }
 
-/** Continue le flow récolte après choix planting. */
+/** Liste les types de plateaux actifs (référentiel no-code 'tray_type').
+ *  Le poids théorique est dans metadata.poids_kg (cf. migration 054). */
+async function listTrayTypes(): Promise<Array<{ code: string; label: string; poids: number }>> {
+  const { data } = await supabase.from('reference_values')
+    .select('code, label, metadata, order_idx, is_active')
+    .eq('list_key', 'tray_type')
+    .eq('is_active', true)
+    .order('order_idx', { ascending: true })
+  return (data ?? []).map((v: any) => ({
+    code: v.code,
+    label: v.label ?? v.code,
+    poids: Number(v?.metadata?.poids_kg) || 0,
+  }))
+}
+
+/** Total estimé (kg) des lignes de plateaux accumulées en session. */
+function trayLinesTotal(lines: any[]): number {
+  return (Array.isArray(lines) ? lines : [])
+    .reduce((s, l) => s + (Number(l?.nb) || 0) * (Number(l?.poids) || 0), 0)
+}
+
+/** Ré-affiche le menu des types de plateaux + récap courant + bouton Terminer.
+ *  Lit `user.session_state.tray_lines` (doit être à jour localement). */
+async function showTrayMenu(user: any, note?: string) {
+  const lang = user.language
+  const state = (user.session_state ?? {}) as any
+  const lines = Array.isArray(state.tray_lines) ? state.tray_lines : []
+  const types = await listTrayTypes()
+  const buttons = types.map((ty) => ([{
+    text: `${ty.label}`,
+    callback_data: `harvest:tray:${ty.code}`,
+  }]))
+  if (lines.length > 0) {
+    buttons.push([{ text: t(lang, 'trays_done_btn'), callback_data: 'harvest:trays_done' }])
+  }
+  buttons.push([{ text: t(lang, 'cancel'), callback_data: 'cancel' }])
+
+  let recap = ''
+  if (lines.length > 0) {
+    const rows = lines.map((l: any) =>
+      `• ${Number(l.nb)} × ${l.label} = ${(Number(l.nb) || 0) * (Number(l.poids) || 0)} kg`).join('\n')
+    recap = `${rows}\n${t(lang, 'tray_total', { total: trayLinesTotal(lines) })}\n\n`
+  }
+  const msg = `${note ? note + '\n\n' : ''}${recap}${t(lang, 'pick_tray_type')}`
+  await sendMessage(user.channel_user_id, msg, { inline_keyboard: buttons })
+}
+
+/** Continue le flow récolte après choix planting.
+ *  Réalité terrain : le caporal compte des PLATEAUX (pas des kg). On saisit
+ *  type + nombre → poids estimé (Lot 3, cohérent avec le web Lot 1).
+ *  Si aucun type de plateau n'est configuré, on retombe sur la saisie kg. */
 async function continueHarvestPickPlanting(user: any, plantingId: string) {
   const lang = user.language
   const { data: planting } = await supabase.from('campaign_plantings')
@@ -576,12 +635,125 @@ async function continueHarvestPickPlanting(user: any, plantingId: string) {
     await sendMessage(user.channel_user_id, t(lang, 'planting_not_found'))
     return
   }
-  await updateSession(user.id, {
-    intent: 'new_harvest', step: 'ask_qty', planting_id: plantingId,
-  })
   const p: any = planting
   const label = `${p.greenhouses?.code} / ${p.varieties?.commercial_name}`
-  await sendMessage(user.channel_user_id, t(lang, 'ask_quantity', { label }))
+
+  const types = await listTrayTypes()
+  if (types.length === 0) {
+    // Fallback : aucun type de plateau configuré → saisie directe en kg (legacy).
+    await updateSession(user.id, { intent: 'new_harvest', step: 'ask_qty', planting_id: plantingId })
+    await sendMessage(user.channel_user_id, t(lang, 'ask_quantity', { label }))
+    return
+  }
+
+  const newState = {
+    intent: 'new_harvest', step: 'pick_tray',
+    planting_id: plantingId, planting_label: label, tray_lines: [],
+  }
+  await updateSession(user.id, newState)
+  user.session_state = newState   // miroir local pour showTrayMenu
+  await showTrayMenu(user, `🌿 ${label}`)
+}
+
+/** L'utilisateur a choisi un type de plateau → on demande le nombre. */
+async function continueHarvestPickTray(user: any, code: string) {
+  const lang = user.language
+  const state = (user.session_state ?? {}) as any
+  if (state.intent !== 'new_harvest') {
+    await sendMessage(user.channel_user_id, t(lang, 'session_lost'))
+    return
+  }
+  const types = await listTrayTypes()
+  const ty = types.find((x) => x.code === code)
+  if (!ty) {
+    await sendMessage(user.channel_user_id, t(lang, 'not_found'))
+    return
+  }
+  const newState = { ...state, step: 'ask_tray_count', current_tray: ty }
+  await updateSession(user.id, newState)
+  user.session_state = newState
+  await sendMessage(user.channel_user_id, t(lang, 'ask_tray_count', { label: ty.label, poids: ty.poids }))
+}
+
+/** Reçoit le nombre de plateaux pour le type courant → ajoute la ligne, ré-affiche le menu. */
+async function continueHarvestSaveTrayCount(user: any, text: string) {
+  const lang = user.language
+  const state = (user.session_state ?? {}) as any
+  const ty = state.current_tray
+  if (!ty) {
+    await sendMessage(user.channel_user_id, t(lang, 'session_lost'))
+    return
+  }
+  const nb = Math.floor(Number(String(text).replace(',', '.').replace(/[^\d.]/g, '')))
+  if (!Number.isFinite(nb) || nb <= 0) {
+    await sendMessage(user.channel_user_id, t(lang, 'invalid_tray_count'))
+    return
+  }
+  const lines = Array.isArray(state.tray_lines) ? state.tray_lines.slice() : []
+  // Fusionne si le même type est déjà présent
+  const existing = lines.find((l: any) => l.code === ty.code)
+  if (existing) existing.nb = (Number(existing.nb) || 0) + nb
+  else lines.push({ code: ty.code, label: ty.label, poids: ty.poids, nb })
+
+  const newState = { ...state, step: 'pick_tray', tray_lines: lines, current_tray: null }
+  await updateSession(user.id, newState)
+  user.session_state = newState
+  await showTrayMenu(user, t(lang, 'tray_line_added', { nb, label: ty.label }))
+}
+
+/** Finalise : calcule le poids estimé, crée la récolte + les lignes de plateaux. */
+async function continueHarvestSaveTrays(user: any) {
+  const lang = user.language
+  const state = (user.session_state ?? {}) as any
+  const plantingId = state.planting_id
+  const lines = Array.isArray(state.tray_lines) ? state.tray_lines : []
+  if (!plantingId) {
+    await sendMessage(user.channel_user_id, t(lang, 'session_lost'))
+    return null
+  }
+  if (lines.length === 0) {
+    await sendMessage(user.channel_user_id, t(lang, 'trays_empty'))
+    return null
+  }
+  const estimated = trayLinesTotal(lines)
+  const today = new Date().toISOString().slice(0, 10)
+  const lot = `LOT-${today.replace(/-/g, '')}-${String(Date.now()).slice(-4)}`
+  const workerName = `${user.workers?.first_name ?? '?'} ${user.workers?.last_name ?? ''}`.trim()
+
+  const { data: harvest, error } = await supabase.from('harvests').insert({
+    campaign_planting_id: plantingId,
+    harvest_date: today,
+    estimated_kg: estimated,
+    qty_category_1: estimated,        // pont : source de vérité avant pesée station (cf. web Lot 1)
+    qty_category_2: 0, qty_category_3: 0, qty_waste: 0,
+    lot_number: lot,
+    recorded_by_name: workerName,
+    notes: `Saisie via Telegram (plateaux) par ${workerName}`,
+  }).select('id, lot_number').single()
+
+  if (error) {
+    await sendMessage(user.channel_user_id, t(lang, 'error_with_msg', { msg: error.message }))
+    return null
+  }
+
+  // Lignes de plateaux (snapshot type + poids théorique figé)
+  const rows = lines.map((l: any) => ({
+    harvest_id: harvest!.id,
+    tray_type_code: l.code,
+    tray_type_label: l.label,
+    nb_trays: Number(l.nb),
+    poids_unitaire_kg: Number(l.poids),
+  }))
+  const { error: e2 } = await supabase.from('harvest_tray_lines').insert(rows)
+  if (e2) console.error('[harvest-trays] tray lines insert error:', e2.message)
+
+  await updateSession(user.id, {})
+  user.session_state = {}
+  await sendMessage(user.channel_user_id,
+    t(lang, 'harvest_saved_est', { lot: harvest!.lot_number, qty: String(estimated), date: today }),
+    buildMainMenu(lang)
+  )
+  return harvest!.id
 }
 
 /** Reçoit la quantité, crée la récolte. */
@@ -1640,6 +1812,21 @@ Deno.serve(async (req) => {
         await continueHarvestPickPlanting(user, plantingId)
         return new Response('OK', { status: 200 })
       }
+      if (callbackData.startsWith('harvest:tray:')) {
+        const code = callbackData.slice('harvest:tray:'.length)
+        await continueHarvestPickTray(user, code)
+        return new Response('OK', { status: 200 })
+      }
+      if (callbackData === 'harvest:trays_done') {
+        const harvestId = await continueHarvestSaveTrays(user)
+        if (harvestId) {
+          await logMessage({
+            chatbot_user_id: user.id, direction: 'out', content: 'harvest saved (trays)',
+            intent: 'harvest', created_harvest_id: harvestId,
+          })
+        }
+        return new Response('OK', { status: 200 })
+      }
       // Composition envoi station
       if (callbackData.startsWith('compose:add:')) {
         const harvestId = callbackData.split(':')[2]
@@ -1775,6 +1962,16 @@ Deno.serve(async (req) => {
             intent: 'harvest', parsed_data: { qty: text }, created_harvest_id: harvestId,
           })
         }
+        return new Response('OK', { status: 200 })
+      }
+      // Récolte en plateaux : nombre de plateaux pour le type courant
+      if (state.intent === 'new_harvest' && state.step === 'ask_tray_count') {
+        await continueHarvestSaveTrayCount(user, text)
+        return new Response('OK', { status: 200 })
+      }
+      // Récolte en plateaux : à l'étape choix de type, on attend un bouton → on ré-affiche le menu
+      if (state.intent === 'new_harvest' && state.step === 'pick_tray') {
+        await showTrayMenu(user)
         return new Response('OK', { status: 200 })
       }
       // Composer un envoi : reçoit la qty à contribuer pour un harvest
