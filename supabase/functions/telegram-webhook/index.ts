@@ -126,6 +126,14 @@ const T: Translations = {
   voice_show_recap:    { fr: '✅ Terminer (afficher récap)', en: '✅ Finish (show summary)', ar: '✅ إنهاء (عرض الملخص)', darija: '✅ سالي (وريلي ركاب)' },
   voice_partial_error: { fr: '⚠️ <b>{{ok}}/{{total}} récolte(s) enregistrée(s)</b>\nLes autres ont été refusées :\n{{reasons}}', en: '⚠️ <b>{{ok}}/{{total}} harvest(s) saved</b>\nThe others were rejected:\n{{reasons}}', ar: '⚠️ <b>{{ok}}/{{total}} محصول تم تسجيله</b>\nالباقي مرفوض:\n{{reasons}}', darija: '⚠️ <b>{{ok}}/{{total}} ركولت تسجلات</b>\nالباقي متردات :\n{{reasons}}' },
   available_plantings: { fr: '📋 <b>Serres disponibles</b> (dis le code ou le n° + la variété) :', en: '📋 <b>Available greenhouses</b> (say the code or number + variety):', ar: '📋 <b>البيوت المتاحة</b> (قل الرمز أو الرقم + الصنف):', darija: '📋 <b>السيرات لي كاينين</b> (قول الكود ولا الرقم + الصنف) :' },
+  // ─── Pointage temps de travail (Lot 2B) ───
+  menu_pointage:       { fr: '⏱️ Pointer des heures', en: '⏱️ Log work hours', ar: '⏱️ تسجيل ساعات العمل', darija: '⏱️ سجل الساعات' },
+  pointage_pick_task:  { fr: '🛠️ Quelle tâche ?', en: '🛠️ Which task?', ar: '🛠️ ما هي المهمة؟', darija: '🛠️ أشمن خدمة ؟' },
+  pointage_ask_count:  { fr: '👥 Combien d\'ouvriers ? Envoie juste le nombre.', en: '👥 How many workers? Just send the number.', ar: '👥 كم عدد العمال؟ أرسل الرقم فقط.', darija: '👥 شحال د العمال ؟ صيفط غير الرقم.' },
+  pointage_invalid_count: { fr: '❌ Nombre invalide. Envoie un entier, ex : <code>5</code>', en: '❌ Invalid number. Send a whole number, e.g.: <code>5</code>', ar: '❌ عدد غير صحيح. أرسل رقماً صحيحاً، مثال: <code>5</code>', darija: '❌ العدد ماخدماش. صيفط رقم صحيح، مثال : <code>5</code>' },
+  pointage_ask_hours:  { fr: '⏱️ Combien d\'heures par personne ? Ex : <code>6</code>', en: '⏱️ How many hours per person? E.g.: <code>6</code>', ar: '⏱️ كم ساعة لكل شخص؟ مثال: <code>6</code>', darija: '⏱️ شحال د الساعات لكل واحد ؟ مثال : <code>6</code>' },
+  pointage_invalid_hours: { fr: '❌ Heures invalides. Envoie un nombre, ex : <code>6</code>', en: '❌ Invalid hours. Send a number, e.g.: <code>6</code>', ar: '❌ ساعات غير صحيحة. أرسل رقماً، مثال: <code>6</code>', darija: '❌ الساعات ماخدماش. صيفط رقم، مثال : <code>6</code>' },
+  pointage_saved:      { fr: '✅ <b>Pointage enregistré</b>\n{{label}}\nTâche : {{task}}\n{{count}} ouvrier(s) × {{hours}} h = <b>{{ph}} h-personnes</b>\nDate : {{date}}', en: '✅ <b>Time logged</b>\n{{label}}\nTask: {{task}}\n{{count}} worker(s) × {{hours}} h = <b>{{ph}} person-hours</b>\nDate: {{date}}', ar: '✅ <b>تم تسجيل الوقت</b>\n{{label}}\nالمهمة: {{task}}\n{{count}} عامل × {{hours}} س = <b>{{ph}} ساعة-شخص</b>\nالتاريخ: {{date}}', darija: '✅ <b>تسجل الوقت</b>\n{{label}}\nالخدمة : {{task}}\n{{count}} عمال × {{hours}} س = <b>{{ph}} ساعة-شخص</b>\nالنهار : {{date}}' },
   // ─── Récolte en plateaux (Lot 3) ───
   pick_tray_type:      { fr: '📦 Choisis un type de plateau (puis dis combien).', en: '📦 Choose a tray type (then how many).', ar: '📦 اختر نوع الصندوق (ثم كم عددها).', darija: '📦 ختار نوع د البلاطو (ومن بعد شحال).' },
   ask_tray_count:      { fr: '🔢 Combien de « {{label}} » ({{poids}} kg/plateau) ? Envoie juste le nombre.', en: '🔢 How many "{{label}}" ({{poids}} kg each)? Just send the number.', ar: '🔢 كم عدد « {{label}} » ({{poids}} كغ للواحد)؟ أرسل الرقم فقط.', darija: '🔢 شحال د « {{label}} » ({{poids}} كيلو للواحد) ؟ صيفط غير الرقم.' },
@@ -169,6 +177,7 @@ function buildMainMenu(lang: string | null | undefined) {
       [{ text: t(lang, 'menu_tri'), callback_data: 'menu:tri' }],
       [{ text: t(lang, 'menu_confirm_price'), callback_data: 'menu:confirm_price' }],
       [{ text: t(lang, 'menu_no_harvest'), callback_data: 'menu:no_harvest' }],
+      [{ text: t(lang, 'menu_pointage'), callback_data: 'menu:pointage' }],
       [{ text: t(lang, 'menu_my_lots'), callback_data: 'menu:my_lots' }],
       [{ text: t(lang, 'menu_help'), callback_data: 'menu:help' }],
     ],
@@ -829,6 +838,109 @@ async function continueHarvestSaveQty(user: any, text: string) {
     buildMainMenu(lang)
   )
   return harvest!.id
+}
+
+// ─── POINTAGE DU TEMPS DE TRAVAIL (Lot 2B) ──────────────────
+/** Liste les tâches de main-d'œuvre (référentiel no-code 'labor_task'). */
+async function listLaborTasks(): Promise<Array<{ code: string; label: string }>> {
+  const { data } = await supabase.from('reference_values')
+    .select('code, label, order_idx, is_active')
+    .eq('list_key', 'labor_task').eq('is_active', true)
+    .order('order_idx', { ascending: true })
+  return (data ?? []).map((v: any) => ({ code: v.code, label: v.label ?? v.code }))
+}
+
+/** Démarre le flow pointage : choix de la plantation/serre. */
+async function startPointageFlow(user: any) {
+  const lang = user.language
+  const plantings = await listPlantings()
+  if (plantings.length === 0) {
+    await sendMessage(user.channel_user_id, t(lang, 'no_active_planting'))
+    return
+  }
+  await updateSession(user.id, { intent: 'pointage', step: 'pick_planting' })
+  const buttons = plantings.map((p: any) => ([{
+    text: `${p.greenhouses?.code ?? '?'} — ${p.varieties?.code ?? '?'}`,
+    callback_data: `pointage:planting:${p.id}`,
+  }]))
+  buttons.push([{ text: t(lang, 'cancel'), callback_data: 'cancel' }])
+  await sendMessage(user.channel_user_id, t(lang, 'pick_planting'), { inline_keyboard: buttons })
+}
+
+/** Plantation choisie → propose les tâches. */
+async function continuePointagePickPlanting(user: any, plantingId: string) {
+  const lang = user.language
+  const { data: planting } = await supabase.from('campaign_plantings')
+    .select('id, campaign_id, greenhouse_id, greenhouses(code), varieties(commercial_name)')
+    .eq('id', plantingId).maybeSingle()
+  if (!planting) { await sendMessage(user.channel_user_id, t(lang, 'planting_not_found')); return }
+  const p: any = planting
+  const tasks = await listLaborTasks()
+  if (tasks.length === 0) { await sendMessage(user.channel_user_id, t(lang, 'not_found')); return }
+  const label = `${p.greenhouses?.code} / ${p.varieties?.commercial_name}`
+  await updateSession(user.id, {
+    intent: 'pointage', step: 'pick_task',
+    pt_planting_id: plantingId, pt_greenhouse_id: p.greenhouse_id, pt_campaign_id: p.campaign_id, pt_label: label,
+  })
+  const buttons = tasks.map(tk => ([{ text: tk.label, callback_data: `pointage:task:${tk.code}` }]))
+  buttons.push([{ text: t(lang, 'cancel'), callback_data: 'cancel' }])
+  await sendMessage(user.channel_user_id, `🌿 ${label}\n\n${t(lang, 'pointage_pick_task')}`, { inline_keyboard: buttons })
+}
+
+/** Tâche choisie → demande le nombre d'ouvriers. */
+async function continuePointagePickTask(user: any, code: string) {
+  const lang = user.language
+  const state = (user.session_state ?? {}) as any
+  if (state.intent !== 'pointage') { await sendMessage(user.channel_user_id, t(lang, 'session_lost')); return }
+  const tasks = await listLaborTasks()
+  const tk = tasks.find(x => x.code === code)
+  if (!tk) { await sendMessage(user.channel_user_id, t(lang, 'not_found')); return }
+  await updateSession(user.id, { ...state, step: 'ask_count', pt_task: code, pt_task_label: tk.label })
+  await sendMessage(user.channel_user_id, t(lang, 'pointage_ask_count'))
+}
+
+/** Reçoit le nombre d'ouvriers → demande les heures. */
+async function continuePointageSaveCount(user: any, text: string) {
+  const lang = user.language
+  const state = (user.session_state ?? {}) as any
+  const n = Math.floor(Number(String(text).replace(',', '.').replace(/[^\d.]/g, '')))
+  if (!Number.isFinite(n) || n <= 0) { await sendMessage(user.channel_user_id, t(lang, 'pointage_invalid_count')); return }
+  await updateSession(user.id, { ...state, step: 'ask_hours', pt_count: n })
+  await sendMessage(user.channel_user_id, t(lang, 'pointage_ask_hours'))
+}
+
+/** Reçoit les heures → enregistre le pointage. */
+async function continuePointageSaveHours(user: any, text: string) {
+  const lang = user.language
+  const state = (user.session_state ?? {}) as any
+  const hours = Number(String(text).replace(',', '.').replace(/[^\d.]/g, ''))
+  if (!Number.isFinite(hours) || hours <= 0) { await sendMessage(user.channel_user_id, t(lang, 'pointage_invalid_hours')); return null }
+  const count = Number(state.pt_count) || 0
+  if (!state.pt_greenhouse_id || count <= 0) { await sendMessage(user.channel_user_id, t(lang, 'session_lost')); return null }
+  const today = new Date().toISOString().slice(0, 10)
+  const workerName = `${user.workers?.first_name ?? '?'} ${user.workers?.last_name ?? ''}`.trim()
+  const { data, error } = await supabase.from('labor_entries').insert({
+    work_date: today,
+    campaign_id: state.pt_campaign_id ?? null,
+    greenhouse_id: state.pt_greenhouse_id,
+    campaign_planting_id: state.pt_planting_id ?? null,
+    worker_id: null,
+    worker_count: count,
+    operation_type: state.pt_task,
+    hours_worked: hours,
+    notes: `Pointage via Telegram par ${workerName}`,
+    recorded_via: 'telegram',
+    recorded_by_name: workerName,
+  }).select('id').single()
+  if (error) { await sendMessage(user.channel_user_id, t(lang, 'error_with_msg', { msg: error.message })); return null }
+  await updateSession(user.id, {})
+  await sendMessage(user.channel_user_id,
+    t(lang, 'pointage_saved', {
+      label: state.pt_label ?? '', task: state.pt_task_label ?? state.pt_task ?? '',
+      count: String(count), hours: String(hours), ph: String(count * hours), date: today,
+    }),
+    buildMainMenu(lang))
+  return data!.id
 }
 
 /** Démarre flow "journée sans récolte". */
@@ -1905,6 +2017,7 @@ Deno.serve(async (req) => {
       if (callbackData === 'menu:tri') { await startTriFlow(user); return new Response('OK', { status: 200 }) }
       if (callbackData === 'menu:confirm_price') { await startConfirmPriceFlow(user); return new Response('OK', { status: 200 }) }
       if (callbackData === 'menu:no_harvest') { await startNoHarvestFlow(user); return new Response('OK', { status: 200 }) }
+      if (callbackData === 'menu:pointage') { await startPointageFlow(user); return new Response('OK', { status: 200 }) }
       if (callbackData === 'menu:my_lots') { await showMyLots(user); return new Response('OK', { status: 200 }) }
       if (callbackData === 'menu:help') {
         await sendMessage(chatId, t(user.language, 'help_text'), buildMainMenu(user.language))
@@ -1928,6 +2041,17 @@ Deno.serve(async (req) => {
             intent: 'harvest', created_harvest_id: harvestId,
           })
         }
+        return new Response('OK', { status: 200 })
+      }
+      // Pointage du temps de travail
+      if (callbackData.startsWith('pointage:planting:')) {
+        const plantingId = callbackData.split(':')[2]
+        await continuePointagePickPlanting(user, plantingId)
+        return new Response('OK', { status: 200 })
+      }
+      if (callbackData.startsWith('pointage:task:')) {
+        const code = callbackData.slice('pointage:task:'.length)
+        await continuePointagePickTask(user, code)
         return new Response('OK', { status: 200 })
       }
       // Composition envoi station
@@ -2075,6 +2199,16 @@ Deno.serve(async (req) => {
       // Récolte en plateaux : à l'étape choix de type, on attend un bouton → on ré-affiche le menu
       if (state.intent === 'new_harvest' && state.step === 'pick_tray') {
         await showTrayMenu(user)
+        return new Response('OK', { status: 200 })
+      }
+      // Pointage : nombre d'ouvriers puis heures
+      if (state.intent === 'pointage' && state.step === 'ask_count') {
+        await continuePointageSaveCount(user, text)
+        return new Response('OK', { status: 200 })
+      }
+      if (state.intent === 'pointage' && state.step === 'ask_hours') {
+        const id = await continuePointageSaveHours(user, text)
+        if (id) await logMessage({ chatbot_user_id: user.id, direction: 'out', content: 'labor entry saved', intent: 'pointage' })
         return new Response('OK', { status: 200 })
       }
       // Composer un envoi : reçoit la qty à contribuer pour un harvest
