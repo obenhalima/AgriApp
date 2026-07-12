@@ -4,7 +4,10 @@
 // ============================================================
 import { supabase } from './supabase'
 
-const SELECT = '*, greenhouses(code,name), workers(first_name,last_name), campaign_plantings(varieties(commercial_name))'
+// NB : pas d'embed campaign_plantings ici — le FK est récent (migration 062) et
+// PostgREST peut mettre du temps à le détecter. Le nom de culture est résolu
+// côté page depuis les plantations déjà chargées (via campaign_planting_id).
+const SELECT = '*, greenhouses(code,name), workers(first_name,last_name)'
 
 export type LaborEntryInput = {
   work_date: string

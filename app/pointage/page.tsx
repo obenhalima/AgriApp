@@ -117,6 +117,11 @@ export default function PointagePage() {
     return { ph, cost, count: entries.length }
   }, [entries])
   const taskLabel = (code: string) => TASKS.find(t => t.code === code)?.label ?? code
+  const plantingVariety = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const p of plantings) if (p.varieties?.commercial_name) m.set(p.id, p.varieties.commercial_name)
+    return m
+  }, [plantings])
 
   return (
     <div>
@@ -156,7 +161,7 @@ export default function PointagePage() {
                   <TR key={e.id} animate delay={Math.min(0.3, i * 0.015)}>
                     <TD mono><DateDisplay value={e.work_date} /></TD>
                     <TD>{e.greenhouses?.code ?? '—'}</TD>
-                    <TD className="text-fg-secondary">{e.campaign_plantings?.varieties?.commercial_name ?? '—'}</TD>
+                    <TD className="text-fg-secondary">{plantingVariety.get(e.campaign_planting_id) ?? '—'}</TD>
                     <TD><Badge variant="default" size="xs">{taskLabel(e.operation_type)}</Badge></TD>
                     <TD>{e.workers ? <span className="inline-flex items-center gap-1"><User size={12} />{e.workers.last_name} {e.workers.first_name}</span> : <span className="inline-flex items-center gap-1 text-fg-secondary"><Users size={12} />{e.worker_count} ouvriers</span>}</TD>
                     <TD right mono>{Number(e.hours_worked).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}</TD>
