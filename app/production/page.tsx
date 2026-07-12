@@ -17,7 +17,7 @@ import { AreaDisplay, VolumeDisplay, MoneyDisplay, DateDisplay } from '@/compone
 
 const emptyForm = {
   campaign_id: '', farm_id: '', greenhouse_id: '', variety_id: '',
-  planted_area: '', plant_count: '', planting_date: '',
+  planted_area: '', plant_count: '', linear_meters: '', planting_date: '',
   target_yield_per_m2: '', estimated_cost: '',
   harvest_start_date: '', harvest_end_date: '',
   export_share_pct: '100',
@@ -52,6 +52,7 @@ export default function ProductionPage() {
       greenhouse_id: p.greenhouse_id || '', variety_id: p.variety_id || '',
       planted_area: p.planted_area ? String(p.planted_area) : '',
       plant_count: p.plant_count ? String(p.plant_count) : '',
+      linear_meters: p.linear_meters ? String(p.linear_meters) : '',
       planting_date: p.planting_date || '',
       target_yield_per_m2: p.target_yield_per_m2 ? String(p.target_yield_per_m2) : '',
       estimated_cost: p.estimated_cost ? String(p.estimated_cost) : '',
@@ -132,6 +133,7 @@ export default function ProductionPage() {
         campaign_id: form.campaign_id, greenhouse_id: form.greenhouse_id, variety_id: form.variety_id,
         planted_area: area,
         plant_count: form.plant_count ? Number(form.plant_count) : null,
+        linear_meters: form.linear_meters ? Number(form.linear_meters) : null,
         planting_date: form.planting_date || null,
         harvest_start_date: form.harvest_start_date || null,
         harvest_end_date: form.harvest_end_date || null,
@@ -226,6 +228,10 @@ export default function ProductionPage() {
                   )}
                 </FormGroup>
                 <FormGroup label="Nombre de plants"><TInput type="number" value={form.plant_count} onChange={upd('plant_count')} placeholder="6250" /></FormGroup>
+                <FormGroup label="Mètres linéaires">
+                  <TInput type="number" value={form.linear_meters} onChange={upd('linear_meters')} placeholder="nb rangs × longueur" />
+                  <div className="mt-1 font-mono text-caption text-fg-tertiary">nb de rangs × longueur, ou surface ÷ écartement. Sert au suivi kg/ml & coût/ml.</div>
+                </FormGroup>
               </FormRow>
 
               <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mt-md">Objectifs</div>

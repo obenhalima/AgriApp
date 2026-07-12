@@ -84,17 +84,12 @@ export type CoutRevientResult = {
   totals: CoutRevientTotals
 }
 
-export function computeCoutRevient(input: {
-  plantings: PlantingInput[]
-  varieties: VarietyInput[]
-  harvestsByPlanting: Map<string, HarvestAgg>   // clé = campaign_planting_id
-  lots: LotInput[]
-  costs: CostInput[]
-}): CoutRevientResult {
-  const { plantings, varieties, harvestsByPlanting, lots, costs } = input
-  const varMap = new Map(varieties.map(v => [v.id, v]))
-
-  // ── 1. Allocation des coûts en cascade → coût par plantation ──
+/** Allocation des coûts en CASCADE → coût par plantation (id → montant).
+ *   1. coût (serre + variété) → plantation directe
+ *   2. coût (serre seule)      → plantations de la serre, prorata surface
+ *   3. coût (niveau campagne)  → toutes les plantations, prorata surface
+ *  Réutilisée pour les coûts totaux ET les coûts MO (productivité). */
+export function allocateCostsToPlantings(plantings: PlantingInput[], costs: CostInput[]): Map<string, number> {
   const costByPlanting = new Map<string, number>()
   const addCost = (pid: string, amt: number) =>
     costByPlanting.set(pid, (costByPlanting.get(pid) ?? 0) + amt)
@@ -118,15 +113,27 @@ export function computeCoutRevient(input: {
     if (c.greenhouse_id && c.variety_id) {
       const direct = plantings.find(p => p.greenhouse_id === c.greenhouse_id && p.variety_id === c.variety_id)
       if (direct) { addCost(direct.id, amt); continue }
-      // pas de plantation correspondante → on retombe au niveau serre
     }
     if (c.greenhouse_id) {
       const ps = plantingsByGh.get(c.greenhouse_id)
       if (ps && ps.length > 0) { splitByArea(ps, amt); continue }
-      // serre hors périmètre → niveau campagne
     }
-    splitByArea(plantings, amt)   // niveau campagne : toutes les plantations
+    splitByArea(plantings, amt)
   }
+  return costByPlanting
+}
+
+export function computeCoutRevient(input: {
+  plantings: PlantingInput[]
+  varieties: VarietyInput[]
+  harvestsByPlanting: Map<string, HarvestAgg>   // clé = campaign_planting_id
+  lots: LotInput[]
+  costs: CostInput[]
+}): CoutRevientResult {
+  const { plantings, varieties, harvestsByPlanting, lots, costs } = input
+  const varMap = new Map(varieties.map(v => [v.id, v]))
+
+  const costByPlanting = allocateCostsToPlantings(plantings, costs)
 
   // ── 2. Production + CA valorisé par plantation ──
   const prodByPlanting = new Map<string, number>()

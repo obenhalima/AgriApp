@@ -22,7 +22,7 @@ import {
   ShoppingCart as SectionShopping, Wallet as SectionWallet, Users as SectionUsers,
   Sliders, ShieldAlert, BookOpen as SectionBook,
   // Nav items
-  LayoutDashboard, Sprout, Settings2, FlaskConical, AlertTriangle,
+  LayoutDashboard, Sprout, Settings2, FlaskConical, AlertTriangle, Gauge,
   Globe, Handshake, ClipboardList, Receipt, FileBarChart,
   Building2, Box, Dna, Calendar, Leaf,
   Truck, ShoppingCart, Package,
@@ -89,6 +89,7 @@ export const NAV: NavSection[] = [
       { href: '/campagnes',    moduleCode: 'campagnes',  label: 'Campagnes',       icon: Calendar,    color: '#22c55e', keywords: ['saison', 'cycle'], description: 'Saisons de production' },
       { href: '/production',   moduleCode: 'production', label: 'Plantations',     icon: Settings2,   color: '#f59e0b', keywords: ['rendement', 'plantations', 'production'], description: 'Affectation variétés × serres' },
       { href: '/recoltes',     moduleCode: 'recoltes',   label: 'Récoltes',        icon: Sprout,      color: '#10b981', keywords: ['harvest', 'lots', 'tri', 'station', 'recolte'], shortcut: ['g', 'r'], description: 'Lots, tri, dispatches, prix' },
+      { href: '/productivite', moduleCode: 'productivite', label: 'Productivité',    icon: Gauge,       color: '#8b5cf6', keywords: ['rendement', 'metre lineaire', 'ml', 'kg/ml', 'cout mo', 'productivite'], description: 'kg/ml, coût/ml, coût MO/ml par culture' },
       { href: '/agronomie',    moduleCode: 'agronomie',  label: 'Agronomie',       icon: FlaskConical, color: '#06b6d4', keywords: ['journal', 'cultural', 'traitement', 'irrigation', 'fertigation'], description: 'Journal cultural' },
     ],
   },
