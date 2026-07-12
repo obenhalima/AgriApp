@@ -1,7 +1,8 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { Ruler, Sprout, Coins, Users, Info, AlertCircle, Gauge } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Ruler, Sprout, Coins, Users, Info, AlertCircle, Gauge, Timer } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useReferenceList } from '@/lib/useReferenceList'
 import { Card } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -22,8 +23,14 @@ export default function ProductivitePage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [campaignId, setCampaignId] = useState<string>('')
   const [result, setResult] = useState<ProductiviteResult | null>(null)
+  const [cueilletteHours, setCueilletteHours] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>('')
+  const { values: TASKS } = useReferenceList('labor_task')
+  const harvestCodes = useMemo(() => {
+    const codes = TASKS.filter((t: any) => t.metadata?.is_harvest).map(t => t.code)
+    return codes.length ? codes : ['cueillette']
+  }, [TASKS])
 
   useEffect(() => {
     supabase.from('campaigns').select('id, code, name').order('planting_start', { ascending: false })
@@ -85,10 +92,15 @@ export default function ProductivitePage() {
         const moCosts = allCosts.filter(x => MO_CODES.has(x.code)).map(({ amount, greenhouse_id, variety_id }) => ({ amount, greenhouse_id, variety_id }))
 
         setResult(computeProductivite({ plantings, varieties, harvestsByPlanting, costs, moCosts }))
+
+        // Heures de cueillette pointées (Phase 2) → cueillette kg/heure
+        const lab = await supabase.from('labor_entries')
+          .select('person_hours').eq('campaign_id', campaignId).in('operation_type', harvestCodes)
+        setCueilletteHours(((lab.data ?? []) as any[]).reduce((s, r) => s + (Number(r.person_hours) || 0), 0))
       } catch (e: any) { setError(e.message || String(e)) }
       finally { setLoading(false) }
     })()
-  }, [campaignId])
+  }, [campaignId, harvestCodes])
 
   const t = result?.totals
 
@@ -118,15 +130,16 @@ export default function ProductivitePage() {
       )}
 
       {loading || !t ? (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-md mb-md">
-          {Array.from({ length: 4 }).map((_, i) => <SkeletonKPI key={i} />)}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-md mb-md">
+          {Array.from({ length: 5 }).map((_, i) => <SkeletonKPI key={i} />)}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-md mb-md">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-md mb-md">
           <KPICard label="Production" value={<VolumeDisplay value={t.productionKg} className="!text-current font-display !text-display-sm" />} sub={`${num(t.linearMeters, 0)} ml de culture`} icon={Sprout} accent="#10b981" variant="hero" delay={0} />
           <KPICard label="kg / mètre linéaire" value={<span className="font-display text-display-sm">{num(t.kgParMl, 1)}</span>} sub="rendement au ml" icon={Ruler} accent="#3b82f6" variant="hero" delay={0.05} />
-          <KPICard label="Coût / mètre linéaire" value={<span className="font-display text-display-sm">{num(t.coutParMl, 0)}</span>} sub="MAD/ml (tous coûts)" icon={Coins} accent="#f59e0b" variant="hero" delay={0.1} />
-          <KPICard label="Coût MO / mètre" value={<span className="font-display text-display-sm">{num(t.coutMOParMl, 0)}</span>} sub="MAD/ml (main-d'œuvre)" icon={Users} accent="#8b5cf6" variant="hero" delay={0.15} />
+          <KPICard label="Cueillette kg/h" value={<span className="font-display text-display-sm">{cueilletteHours > 0 ? num(t.productionKg / cueilletteHours, 1) : '—'}</span>} sub={cueilletteHours > 0 ? `sur ${num(cueilletteHours, 0)} h pointées` : 'pointe des heures'} icon={Timer} accent="#0ea5e9" variant="hero" delay={0.1} />
+          <KPICard label="Coût / mètre linéaire" value={<span className="font-display text-display-sm">{num(t.coutParMl, 0)}</span>} sub="MAD/ml (tous coûts)" icon={Coins} accent="#f59e0b" variant="hero" delay={0.15} />
+          <KPICard label="Coût MO / mètre" value={<span className="font-display text-display-sm">{num(t.coutMOParMl, 0)}</span>} sub="MAD/ml (main-d'œuvre)" icon={Users} accent="#8b5cf6" variant="hero" delay={0.2} />
         </div>
       )}
 
