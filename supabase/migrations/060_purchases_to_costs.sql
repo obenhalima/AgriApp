@@ -13,19 +13,24 @@
 --   • Attribution = campaign_id + greenhouse_id du bon d'achat
 --                  (fallback : campagne active de la ferme de la serre)
 --   • Catégorie  = mapping cost_category (achat) → account_categories
+--
+-- NB : tables qualifiées en public.* + search_path forcé, pour être robuste
+-- quel que soit le search_path de la session (éditeur SQL / db push).
 -- ============================================================
 
+SET search_path = public;
+
 -- ─── 1. Traçabilité : colonne source_po_id (idempotence + lien) ─────
-ALTER TABLE cost_entries
-  ADD COLUMN IF NOT EXISTS source_po_id UUID REFERENCES purchase_orders(id) ON DELETE CASCADE;
+ALTER TABLE public.cost_entries
+  ADD COLUMN IF NOT EXISTS source_po_id UUID REFERENCES public.purchase_orders(id) ON DELETE CASCADE;
 
-CREATE INDEX IF NOT EXISTS idx_cost_entries_source_po ON cost_entries(source_po_id);
+CREATE INDEX IF NOT EXISTS idx_cost_entries_source_po ON public.cost_entries(source_po_id);
 
-COMMENT ON COLUMN cost_entries.source_po_id IS
+COMMENT ON COLUMN public.cost_entries.source_po_id IS
   'Bon d''achat source (pont achats→coûts). Non NULL = coût généré automatiquement, non éditable manuellement.';
 
 -- ─── 2. Mapping cost_category (achat) → code account_categories ──────
-CREATE OR REPLACE FUNCTION map_purchase_cat_to_account_code(p_cat TEXT)
+CREATE OR REPLACE FUNCTION public.map_purchase_cat_to_account_code(p_cat TEXT)
 RETURNS TEXT LANGUAGE sql IMMUTABLE AS $$
   SELECT CASE lower(coalesce(p_cat, ''))
     WHEN 'semences'        THEN 'SEMENCES'
@@ -45,24 +50,24 @@ RETURNS TEXT LANGUAGE sql IMMUTABLE AS $$
 $$;
 
 -- ─── 3. Fonction de sync : PO → cost_entries ────────────────────────
-CREATE OR REPLACE FUNCTION sync_po_to_cost_entries(p_po_id UUID)
+CREATE OR REPLACE FUNCTION public.sync_po_to_cost_entries(p_po_id UUID)
 RETURNS INTEGER
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_po        purchase_orders%ROWTYPE;
+  v_po        public.purchase_orders%ROWTYPE;
   v_amount    NUMERIC;
   v_campaign  UUID;
   v_cat_id    UUID;
   v_inserted  INTEGER := 0;
 BEGIN
-  SELECT * INTO v_po FROM purchase_orders WHERE id = p_po_id;
+  SELECT * INTO v_po FROM public.purchase_orders WHERE id = p_po_id;
   IF NOT FOUND THEN RETURN 0; END IF;
 
   -- Idempotence : on efface l'existant pour ce bon d'achat
-  DELETE FROM cost_entries WHERE source_po_id = p_po_id;
+  DELETE FROM public.cost_entries WHERE source_po_id = p_po_id;
 
   -- Un coût n'est encouru qu'après (au moins partielle) réception
   IF v_po.status NOT IN ('partiellement_recu', 'recu', 'facture') THEN
@@ -72,7 +77,7 @@ BEGIN
   -- Montant reçu = Σ (received_qty × unit_price) sur les lignes
   SELECT COALESCE(SUM(COALESCE(received_qty, 0) * COALESCE(unit_price, 0)), 0)
     INTO v_amount
-  FROM purchase_order_lines WHERE po_id = p_po_id;
+  FROM public.purchase_order_lines WHERE po_id = p_po_id;
 
   IF v_amount <= 0 THEN RETURN 0; END IF;
 
@@ -81,8 +86,8 @@ BEGIN
   v_campaign := v_po.campaign_id;
   IF v_campaign IS NULL AND v_po.greenhouse_id IS NOT NULL THEN
     SELECT c.id INTO v_campaign
-    FROM greenhouses g
-    JOIN campaigns c ON c.farm_id = g.farm_id
+    FROM public.greenhouses g
+    JOIN public.campaigns c ON c.farm_id = g.farm_id
     WHERE g.id = v_po.greenhouse_id
       AND COALESCE(v_po.order_date, CURRENT_DATE)
           BETWEEN COALESCE(c.planting_start, DATE '1900-01-01')
@@ -94,10 +99,10 @@ BEGIN
   IF v_campaign IS NULL THEN RETURN 0; END IF;
 
   -- Catégorie comptable (feuille du plan comptable)
-  SELECT id INTO v_cat_id FROM account_categories
-  WHERE code = map_purchase_cat_to_account_code(v_po.cost_category) LIMIT 1;
+  SELECT id INTO v_cat_id FROM public.account_categories
+  WHERE code = public.map_purchase_cat_to_account_code(v_po.cost_category) LIMIT 1;
 
-  INSERT INTO cost_entries (
+  INSERT INTO public.cost_entries (
     campaign_id, greenhouse_id, account_category_id, cost_category,
     amount, entry_date, description, is_planned, source_po_id
   ) VALUES (
@@ -119,40 +124,40 @@ END;
 $$;
 
 -- ─── 4. Triggers : ré-synchroniser dès qu'un bon (ou ses lignes) bouge ─
-CREATE OR REPLACE FUNCTION trg_po_sync_cost() RETURNS TRIGGER
+CREATE OR REPLACE FUNCTION public.trg_po_sync_cost() RETURNS TRIGGER
 LANGUAGE plpgsql AS $$
 BEGIN
-  PERFORM sync_po_to_cost_entries(COALESCE(NEW.id, OLD.id));
+  PERFORM public.sync_po_to_cost_entries(COALESCE(NEW.id, OLD.id));
   RETURN NULL;
 END; $$;
 
-DROP TRIGGER IF EXISTS trg_po_cost_sync ON purchase_orders;
+DROP TRIGGER IF EXISTS trg_po_cost_sync ON public.purchase_orders;
 CREATE TRIGGER trg_po_cost_sync
   AFTER INSERT OR UPDATE OF status, campaign_id, greenhouse_id, cost_category
-  ON purchase_orders
-  FOR EACH ROW EXECUTE FUNCTION trg_po_sync_cost();
+  ON public.purchase_orders
+  FOR EACH ROW EXECUTE FUNCTION public.trg_po_sync_cost();
 
-CREATE OR REPLACE FUNCTION trg_pol_sync_cost() RETURNS TRIGGER
+CREATE OR REPLACE FUNCTION public.trg_pol_sync_cost() RETURNS TRIGGER
 LANGUAGE plpgsql AS $$
 BEGIN
-  PERFORM sync_po_to_cost_entries(COALESCE(NEW.po_id, OLD.po_id));
+  PERFORM public.sync_po_to_cost_entries(COALESCE(NEW.po_id, OLD.po_id));
   RETURN NULL;
 END; $$;
 
-DROP TRIGGER IF EXISTS trg_pol_cost_sync ON purchase_order_lines;
+DROP TRIGGER IF EXISTS trg_pol_cost_sync ON public.purchase_order_lines;
 CREATE TRIGGER trg_pol_cost_sync
   AFTER INSERT OR UPDATE OF received_qty, unit_price, quantity OR DELETE
-  ON purchase_order_lines
-  FOR EACH ROW EXECUTE FUNCTION trg_pol_sync_cost();
+  ON public.purchase_order_lines
+  FOR EACH ROW EXECUTE FUNCTION public.trg_pol_sync_cost();
 
 -- ─── 5. Backfill : tous les bons d'achat déjà (partiellement) reçus ──
 DO $$
 DECLARE r RECORD; n INT; total INT := 0; skipped INT := 0;
 BEGIN
-  FOR r IN SELECT id FROM purchase_orders
+  FOR r IN SELECT id FROM public.purchase_orders
            WHERE status IN ('partiellement_recu', 'recu', 'facture')
   LOOP
-    n := sync_po_to_cost_entries(r.id);
+    n := public.sync_po_to_cost_entries(r.id);
     total := total + n;
     IF n = 0 THEN skipped := skipped + 1; END IF;
   END LOOP;
@@ -162,5 +167,5 @@ BEGIN
   RAISE NOTICE '═══════════════════════════════════════════════';
 END $$;
 
-COMMENT ON FUNCTION sync_po_to_cost_entries(UUID) IS
+COMMENT ON FUNCTION public.sync_po_to_cost_entries(UUID) IS
   'Génère/rafraîchit le cost_entry réel d''un bon d''achat reçu. Idempotent (source_po_id).';
