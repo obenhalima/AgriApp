@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { Clock, Plus, Trash2, Users, User, AlertCircle, Timer, Coins } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useReferenceList } from '@/lib/useReferenceList'
-import { listLaborEntries, createLaborEntry, deleteLaborEntry } from '@/lib/labor'
+import { listLaborEntries, createLaborEntry, deleteLaborEntry, unitLabel } from '@/lib/labor'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -22,7 +22,7 @@ const todayISO = () => new Date().toISOString().slice(0, 10)
 const emptyForm = () => ({
   work_date: todayISO(), greenhouse_id: '', campaign_planting_id: '', operation_type: '',
   mode: 'equipe' as 'ouvrier' | 'equipe', worker_id: '', worker_count: '1',
-  hours_worked: '', daily_rate: '', notes: '',
+  hours_worked: '', daily_rate: '', quantity_done: '', notes: '',
 })
 
 export default function PointagePage() {
@@ -81,6 +81,15 @@ export default function PointagePage() {
   const rate = Number(form.daily_rate) || 0
   const cost = (personHours / 8) * rate
 
+  // Unité de rendement de la tâche choisie (référentiel labor_task, no-code).
+  // Pour la cueillette (is_harvest), les kg viennent des récoltes → pas de saisie.
+  const selectedTask = useMemo(() => TASKS.find(t => t.code === form.operation_type) as any, [TASKS, form.operation_type])
+  const taskUnit: string | null = selectedTask?.metadata?.unit ?? null
+  const isHarvestTask = !!selectedTask?.metadata?.is_harvest
+  const askQuantity = !!taskUnit && !isHarvestTask
+  const qty = Number(form.quantity_done) || 0
+  const rendement = personHours > 0 && qty > 0 ? qty / personHours : null
+
   const save = async () => {
     if (!form.work_date || !form.operation_type || !hpp) { toast.error('Date, tâche et heures sont requis'); return }
     if (form.mode === 'ouvrier' && !form.worker_id) { toast.error('Sélectionne un ouvrier'); return }
@@ -96,6 +105,8 @@ export default function PointagePage() {
         operation_type: form.operation_type,
         hours_worked: hpp,
         daily_rate: form.daily_rate ? rate : null,
+        quantity_done: askQuantity && qty > 0 ? qty : null,
+        quantity_unit: askQuantity && qty > 0 ? taskUnit : null,
         notes: form.notes || null,
       })
       setEntries(prev => [row, ...prev])
@@ -155,7 +166,7 @@ export default function PointagePage() {
         ) : (
           <div className="overflow-x-auto">
             <DataTable>
-              <THead><TR><TH>Date</TH><TH>Serre</TH><TH>Culture</TH><TH>Tâche</TH><TH>Qui</TH><TH right>h/pers</TH><TH right>h-pers</TH><TH right>Coût</TH><TH></TH></TR></THead>
+              <THead><TR><TH>Date</TH><TH>Serre</TH><TH>Culture</TH><TH>Tâche</TH><TH>Qui</TH><TH right>h/pers</TH><TH right>h-pers</TH><TH right>Fait</TH><TH right>Rendement</TH><TH right>Coût</TH><TH></TH></TR></THead>
               <tbody>
                 {entries.map((e, i) => (
                   <TR key={e.id} animate delay={Math.min(0.3, i * 0.015)}>
@@ -166,6 +177,8 @@ export default function PointagePage() {
                     <TD>{e.workers ? <span className="inline-flex items-center gap-1"><User size={12} />{e.workers.last_name} {e.workers.first_name}</span> : <span className="inline-flex items-center gap-1 text-fg-secondary"><Users size={12} />{e.worker_count} ouvriers</span>}</TD>
                     <TD right mono>{Number(e.hours_worked).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}</TD>
                     <TD right mono className="font-bold">{Number(e.person_hours).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}</TD>
+                    <TD right mono>{e.quantity_done ? `${Number(e.quantity_done).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} ${unitLabel(e.quantity_unit)}` : <span className="opacity-40">—</span>}</TD>
+                    <TD right mono className="font-bold text-brand">{e.quantity_done && Number(e.person_hours) > 0 ? `${(Number(e.quantity_done) / Number(e.person_hours)).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} ${unitLabel(e.quantity_unit)}/h` : <span className="opacity-40 font-normal text-fg-primary">—</span>}</TD>
                     <TD right mono>{e.total_cost ? <MoneyDisplay value={e.total_cost} compact="auto" /> : <span className="opacity-40">—</span>}</TD>
                     <TD><button onClick={() => onDelete(e.id)} className="text-fg-tertiary hover:text-danger transition-colors" title="Supprimer"><Trash2 size={14} /></button></TD>
                   </TR>
@@ -221,14 +234,27 @@ export default function PointagePage() {
             <FormGroup label="Heures par personne *"><TInput type="number" step="0.5" value={form.hours_worked} onChange={upd('hours_worked')} placeholder="6" /></FormGroup>
           </FormRow>
           <FormRow>
+            {askQuantity && (
+              <FormGroup label={`Travail réalisé (${unitLabel(taskUnit)})`}>
+                <TInput type="number" value={form.quantity_done} onChange={upd('quantity_done')} placeholder={taskUnit === 'ml' ? 'ex: 400 mètres faits' : 'ex: 1200'} />
+                <div className="mt-1 font-mono text-caption text-fg-tertiary">Sert à calculer le rendement ({unitLabel(taskUnit)}/h) et son évolution.</div>
+              </FormGroup>
+            )}
             <FormGroup label="Taux journalier (MAD, optionnel)"><TInput type="number" value={form.daily_rate} onChange={upd('daily_rate')} placeholder="ex: 100 (base 8h)" /></FormGroup>
-            <FormGroup label="Notes"><TInput value={form.notes} onChange={upd('notes')} placeholder="Optionnel" /></FormGroup>
           </FormRow>
+          <FormGroup label="Notes"><TInput value={form.notes} onChange={upd('notes')} placeholder="Optionnel" /></FormGroup>
+
+          {isHarvestTask && (
+            <div className="rounded-md border border-info/30 bg-info/5 p-md text-body-sm text-fg-secondary mt-sm">
+              ℹ️ Pour la cueillette, les kg proviennent automatiquement des <b>récoltes</b> — pas besoin de les ressaisir.
+            </div>
+          )}
 
           {hpp > 0 && (
             <div className="rounded-md border border-brand/30 bg-brand/5 p-md text-body-sm text-brand mt-sm">
               → <strong>{personHours.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} heures-personnes</strong>
               {rate > 0 && <> · coût ≈ <strong>{cost.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} MAD</strong></>}
+              {rendement != null && <> · rendement ≈ <strong>{rendement.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} {unitLabel(taskUnit)}/h</strong></>}
             </div>
           )}
 

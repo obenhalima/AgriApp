@@ -13,6 +13,7 @@ import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { MoneyDisplay, VolumeDisplay } from '@/components/display'
 import { computeProductivite, type ProductiviteResult } from '@/lib/productivite'
 import type { HarvestAgg } from '@/lib/coutRevient'
+import { RendementChart } from '@/components/productivite/RendementChart'
 
 type Campaign = { id: string; code: string; name: string }
 
@@ -180,6 +181,8 @@ export default function ProductivitePage() {
           </div>
         )}
       </Card>
+
+      {campaignId && <div className="mb-md"><RendementChart campaignId={campaignId} /></div>}
 
       <Card variant="ghost" className="border-info/30 bg-info/5">
         <div className="flex items-start gap-sm text-body-sm text-fg-secondary">

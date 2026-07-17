@@ -134,6 +134,9 @@ const T: Translations = {
   pointage_ask_hours:  { fr: '⏱️ Combien d\'heures par personne ? Ex : <code>6</code>', en: '⏱️ How many hours per person? E.g.: <code>6</code>', ar: '⏱️ كم ساعة لكل شخص؟ مثال: <code>6</code>', darija: '⏱️ شحال د الساعات لكل واحد ؟ مثال : <code>6</code>' },
   pointage_invalid_hours: { fr: '❌ Heures invalides. Envoie un nombre, ex : <code>6</code>', en: '❌ Invalid hours. Send a number, e.g.: <code>6</code>', ar: '❌ ساعات غير صحيحة. أرسل رقماً، مثال: <code>6</code>', darija: '❌ الساعات ماخدماش. صيفط رقم، مثال : <code>6</code>' },
   pointage_saved:      { fr: '✅ <b>Pointage enregistré</b>\n{{label}}\nTâche : {{task}}\n{{count}} ouvrier(s) × {{hours}} h = <b>{{ph}} h-personnes</b>\nDate : {{date}}', en: '✅ <b>Time logged</b>\n{{label}}\nTask: {{task}}\n{{count}} worker(s) × {{hours}} h = <b>{{ph}} person-hours</b>\nDate: {{date}}', ar: '✅ <b>تم تسجيل الوقت</b>\n{{label}}\nالمهمة: {{task}}\n{{count}} عامل × {{hours}} س = <b>{{ph}} ساعة-شخص</b>\nالتاريخ: {{date}}', darija: '✅ <b>تسجل الوقت</b>\n{{label}}\nالخدمة : {{task}}\n{{count}} عمال × {{hours}} س = <b>{{ph}} ساعة-شخص</b>\nالنهار : {{date}}' },
+  pointage_ask_quantity: { fr: '📏 Combien de {{unit}} avez-vous faits ? (envoie <code>0</code> si tu ne sais pas)', en: '📏 How many {{unit}} did you do? (send <code>0</code> if unknown)', ar: '📏 كم {{unit}} أنجزتم؟ (أرسل <code>0</code> إذا كنت لا تعرف)', darija: '📏 شحال د {{unit}} دَرتو ؟ (صيفط <code>0</code> إلا ما عرفتيش)' },
+  pointage_invalid_quantity: { fr: '❌ Quantité invalide. Envoie un nombre, ex : <code>400</code> (ou <code>0</code>)', en: '❌ Invalid quantity. Send a number, e.g.: <code>400</code> (or <code>0</code>)', ar: '❌ كمية غير صحيحة. أرسل رقماً، مثال: <code>400</code> (أو <code>0</code>)', darija: '❌ الكمية ماخدماش. صيفط رقم، مثال : <code>400</code> (ولا <code>0</code>)' },
+  pointage_rendement:  { fr: '📈 Rendement : <b>{{value}} {{unit}}/h</b>', en: '📈 Output: <b>{{value}} {{unit}}/h</b>', ar: '📈 المردود: <b>{{value}} {{unit}}/س</b>', darija: '📈 المردود : <b>{{value}} {{unit}}/س</b>' },
   // ─── Récolte en plateaux (Lot 3) ───
   pick_tray_type:      { fr: '📦 Choisis un type de plateau (puis dis combien).', en: '📦 Choose a tray type (then how many).', ar: '📦 اختر نوع الصندوق (ثم كم عددها).', darija: '📦 ختار نوع د البلاطو (ومن بعد شحال).' },
   ask_tray_count:      { fr: '🔢 Combien de « {{label}} » ({{poids}} kg/plateau) ? Envoie juste le nombre.', en: '🔢 How many "{{label}}" ({{poids}} kg each)? Just send the number.', ar: '🔢 كم عدد « {{label}} » ({{poids}} كغ للواحد)؟ أرسل الرقم فقط.', darija: '🔢 شحال د « {{label}} » ({{poids}} كيلو للواحد) ؟ صيفط غير الرقم.' },
@@ -841,13 +844,24 @@ async function continueHarvestSaveQty(user: any, text: string) {
 }
 
 // ─── POINTAGE DU TEMPS DE TRAVAIL (Lot 2B) ──────────────────
-/** Liste les tâches de main-d'œuvre (référentiel no-code 'labor_task'). */
-async function listLaborTasks(): Promise<Array<{ code: string; label: string }>> {
+type LaborTask = { code: string; label: string; unit: string | null; is_harvest: boolean }
+/** Liste les tâches de main-d'œuvre (référentiel no-code 'labor_task').
+ *  metadata.unit = unité de rendement (ml/plants/kg) ; metadata.is_harvest = cueillette. */
+async function listLaborTasks(): Promise<LaborTask[]> {
   const { data } = await supabase.from('reference_values')
-    .select('code, label, order_idx, is_active')
+    .select('code, label, metadata, order_idx, is_active')
     .eq('list_key', 'labor_task').eq('is_active', true)
     .order('order_idx', { ascending: true })
-  return (data ?? []).map((v: any) => ({ code: v.code, label: v.label ?? v.code }))
+  return (data ?? []).map((v: any) => ({
+    code: v.code, label: v.label ?? v.code,
+    unit: v?.metadata?.unit ?? null,
+    is_harvest: v?.metadata?.is_harvest === true,
+  }))
+}
+
+/** Libellé court d'une unité de rendement. */
+function unitShort(u: string | null): string {
+  return u === 'ml' ? 'm' : u === 'plants' ? 'plants' : u === 'kg' ? 'kg' : (u ?? '')
 }
 
 /** Démarre le flow pointage : choix de la plantation/serre. */
@@ -895,7 +909,10 @@ async function continuePointagePickTask(user: any, code: string) {
   const tasks = await listLaborTasks()
   const tk = tasks.find(x => x.code === code)
   if (!tk) { await sendMessage(user.channel_user_id, t(lang, 'not_found')); return }
-  await updateSession(user.id, { ...state, step: 'ask_count', pt_task: code, pt_task_label: tk.label })
+  await updateSession(user.id, {
+    ...state, step: 'ask_count', pt_task: code, pt_task_label: tk.label,
+    pt_unit: tk.unit, pt_is_harvest: tk.is_harvest,
+  })
   await sendMessage(user.channel_user_id, t(lang, 'pointage_ask_count'))
 }
 
@@ -909,7 +926,8 @@ async function continuePointageSaveCount(user: any, text: string) {
   await sendMessage(user.channel_user_id, t(lang, 'pointage_ask_hours'))
 }
 
-/** Reçoit les heures → enregistre le pointage. */
+/** Reçoit les heures → demande la quantité faite (si la tâche a une unité),
+ *  sinon enregistre directement (cueillette : les kg viennent des récoltes). */
 async function continuePointageSaveHours(user: any, text: string) {
   const lang = user.language
   const state = (user.session_state ?? {}) as any
@@ -917,6 +935,31 @@ async function continuePointageSaveHours(user: any, text: string) {
   if (!Number.isFinite(hours) || hours <= 0) { await sendMessage(user.channel_user_id, t(lang, 'pointage_invalid_hours')); return null }
   const count = Number(state.pt_count) || 0
   if (!state.pt_greenhouse_id || count <= 0) { await sendMessage(user.channel_user_id, t(lang, 'session_lost')); return null }
+
+  // Tâche mesurable (effeuillage…) → on demande le travail réalisé pour le rendement
+  if (state.pt_unit && !state.pt_is_harvest) {
+    await updateSession(user.id, { ...state, step: 'ask_quantity', pt_hours: hours })
+    await sendMessage(user.channel_user_id, t(lang, 'pointage_ask_quantity', { unit: unitShort(state.pt_unit) }))
+    return null
+  }
+  return await savePointage(user, state, hours, null)
+}
+
+/** Reçoit la quantité réalisée → enregistre le pointage. « 0 » = passer. */
+async function continuePointageSaveQuantity(user: any, text: string) {
+  const lang = user.language
+  const state = (user.session_state ?? {}) as any
+  const qty = Number(String(text).replace(',', '.').replace(/[^\d.]/g, ''))
+  if (!Number.isFinite(qty) || qty < 0) { await sendMessage(user.channel_user_id, t(lang, 'pointage_invalid_quantity')); return null }
+  const hours = Number(state.pt_hours) || 0
+  if (hours <= 0) { await sendMessage(user.channel_user_id, t(lang, 'session_lost')); return null }
+  return await savePointage(user, state, hours, qty > 0 ? qty : null)
+}
+
+/** Insert du pointage + accusé de réception. */
+async function savePointage(user: any, state: any, hours: number, quantity: number | null) {
+  const lang = user.language
+  const count = Number(state.pt_count) || 0
   const today = new Date().toISOString().slice(0, 10)
   const workerName = `${user.workers?.first_name ?? '?'} ${user.workers?.last_name ?? ''}`.trim()
   const { data, error } = await supabase.from('labor_entries').insert({
@@ -928,17 +971,24 @@ async function continuePointageSaveHours(user: any, text: string) {
     worker_count: count,
     operation_type: state.pt_task,
     hours_worked: hours,
+    quantity_done: quantity,
+    quantity_unit: quantity != null ? (state.pt_unit ?? null) : null,
     notes: `Pointage via Telegram par ${workerName}`,
     recorded_via: 'telegram',
     recorded_by_name: workerName,
   }).select('id').single()
   if (error) { await sendMessage(user.channel_user_id, t(lang, 'error_with_msg', { msg: error.message })); return null }
   await updateSession(user.id, {})
+
+  const ph = count * hours
+  const rdt = quantity != null && ph > 0
+    ? `\n${t(lang, 'pointage_rendement', { value: (quantity / ph).toFixed(1), unit: unitShort(state.pt_unit) })}`
+    : ''
   await sendMessage(user.channel_user_id,
     t(lang, 'pointage_saved', {
       label: state.pt_label ?? '', task: state.pt_task_label ?? state.pt_task ?? '',
-      count: String(count), hours: String(hours), ph: String(count * hours), date: today,
-    }),
+      count: String(count), hours: String(hours), ph: String(ph), date: today,
+    }) + rdt,
     buildMainMenu(lang))
   return data!.id
 }
@@ -2209,6 +2259,11 @@ Deno.serve(async (req) => {
       if (state.intent === 'pointage' && state.step === 'ask_hours') {
         const id = await continuePointageSaveHours(user, text)
         if (id) await logMessage({ chatbot_user_id: user.id, direction: 'out', content: 'labor entry saved', intent: 'pointage' })
+        return new Response('OK', { status: 200 })
+      }
+      if (state.intent === 'pointage' && state.step === 'ask_quantity') {
+        const id = await continuePointageSaveQuantity(user, text)
+        if (id) await logMessage({ chatbot_user_id: user.id, direction: 'out', content: 'labor entry saved (with qty)', intent: 'pointage' })
         return new Response('OK', { status: 200 })
       }
       // Composer un envoi : reçoit la qty à contribuer pour un harvest

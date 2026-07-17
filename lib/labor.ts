@@ -19,8 +19,14 @@ export type LaborEntryInput = {
   operation_type?: string | null
   hours_worked: number
   daily_rate?: number | null
+  quantity_done?: number | null
+  quantity_unit?: string | null
   notes?: string | null
 }
+
+/** Libellé court d'une unité de rendement. */
+export const unitLabel = (u?: string | null) =>
+  u === 'ml' ? 'm' : u === 'plants' ? 'plants' : u === 'kg' ? 'kg' : (u ?? '')
 
 export async function listLaborEntries(params: { campaignId?: string; limit?: number } = {}): Promise<any[]> {
   let q = supabase.from('labor_entries')
@@ -45,6 +51,8 @@ export async function createLaborEntry(input: LaborEntryInput) {
     operation_type: input.operation_type || null,
     hours_worked: input.hours_worked,
     daily_rate: input.daily_rate ?? null,
+    quantity_done: input.quantity_done ?? null,
+    quantity_unit: input.quantity_unit || null,
     notes: input.notes || null,
     recorded_via: 'web',
   }).select(SELECT).single()
