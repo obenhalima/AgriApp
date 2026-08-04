@@ -24,7 +24,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { user, loading } = useAuth()
   const [sidebarW, setSidebarW] = useState(240)
+  const [isDesktop, setIsDesktop] = useState(true)
   const [theme, setThemeState] = useState<'dark' | 'light'>('light')
+
+  // Desktop (lg+) : la sidebar pousse le contenu. Mobile : drawer, contenu pleine largeur.
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)')
+    const update = () => setIsDesktop(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
 
   // Theme + sidebar
   useEffect(() => {
@@ -94,9 +104,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
 
       <div
-        className="flex-1 flex flex-col min-h-screen transition-[margin-left] duration-250"
+        className="flex-1 flex flex-col min-h-screen min-w-0 transition-[margin-left] duration-250"
         style={{
-          marginLeft: sidebarW,
+          marginLeft: isDesktop ? sidebarW : 0,
           transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >

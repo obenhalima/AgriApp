@@ -9,7 +9,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, Sun, Moon, LogOut, ChevronRight, HelpCircle, Plus, Activity,
-  ChevronDown, RefreshCw, AlertCircle,
+  ChevronDown, RefreshCw, AlertCircle, Menu,
 } from 'lucide-react'
 
 import { getTheme, setTheme } from '@/lib/theme'
@@ -104,8 +104,15 @@ export function Topbar() {
         'transition-colors duration-300',
       )}
     >
-      {/* ─── Left : Breadcrumbs ─── */}
+      {/* ─── Left : hamburger (mobile) + Breadcrumbs ─── */}
       <div className="flex items-center gap-sm min-w-0 flex-1">
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('sidebar-mobile-toggle'))}
+          className="lg:hidden -ml-1 w-8 h-8 rounded-md flex items-center justify-center text-fg-secondary hover:bg-surface-sunk hover:text-fg-primary transition-colors flex-shrink-0"
+          aria-label="Ouvrir le menu"
+        >
+          <Menu size={18} strokeWidth={2.2} />
+        </button>
         {breadcrumbs.map((crumb, i) => {
           const Icon = crumb.icon
           const isLast = i === breadcrumbs.length - 1

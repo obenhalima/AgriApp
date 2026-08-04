@@ -32,12 +32,21 @@ export function Sidebar() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const [sectionsInitialized, setSectionsInitialized] = useState(false)
   const [org, setOrg] = useState<OrganizationSettings>({ name: 'Domaine BENHALIMA', tagline: 'MES Production' })
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   // Charge l'identité du domaine (visible dans le logo en haut)
   const loadOrg = async () => {
     try { setOrg(await getOrganization()) } catch { /* fallback default */ }
   }
   useEffect(() => { loadOrg() }, [])
+
+  // Drawer mobile : ouvert par le hamburger (Topbar), fermé au changement de page
+  useEffect(() => {
+    const toggle = () => setMobileOpen(o => !o)
+    window.addEventListener('sidebar-mobile-toggle', toggle)
+    return () => window.removeEventListener('sidebar-mobile-toggle', toggle)
+  }, [])
+  useEffect(() => { setMobileOpen(false) }, [pathname])
 
   // Realtime : si admin change le nom, on le voit live
   useRealtimeReload(
@@ -163,11 +172,20 @@ export function Sidebar() {
         }
       `}</style>
 
+      {/* Backdrop mobile (drawer) */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden
+        />
+      )}
+
       <motion.aside
         initial={false}
         animate={{ width: W }}
         transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
-        className="fixed left-0 top-0 bottom-0 z-50 flex flex-col overflow-hidden"
+        className={`fixed left-0 top-0 bottom-0 z-50 flex flex-col overflow-hidden transition-transform duration-300 lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
         style={{
           background: sidebarBg,
           border: sidebarBorder,
