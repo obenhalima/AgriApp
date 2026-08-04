@@ -14,6 +14,7 @@ import {
 import { getSerres, deleteSerre, getFarms, supabase } from '@/lib/supabase'
 import { genCode } from '@/lib/utils'
 import { cn } from '@/lib/cn'
+import { useReferenceList } from '@/lib/useReferenceList'
 import { formatArea } from '@/lib/format'
 
 import { Card } from '@/components/ui/Card'
@@ -27,15 +28,9 @@ import { Input as TInput, Select as TSelect, Textarea, Field } from '@/component
 import { Modal, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { AreaDisplay } from '@/components/display'
 
-const TYPE_OPTS = ['tunnel', 'chapelle', 'venlo', 'multispan', 'solaire', 'autre'] as const
-const STATUS_OPTS = ['active', 'en_preparation', 'hors_service', 'renovation'] as const
-
-const STATUS_COLOR: Record<string, string> = {
-  active:         '#10b981',
-  en_preparation: '#a855f7',
-  hors_service:   '#ef4444',
-  renovation:     '#3b82f6',
-}
+// Type & statut de serre : référentiels no-code greenhouse_type /
+// greenhouse_status (hooks appelés dans les composants). Le statut porte sa
+// couleur dans le référentiel (colonne color).
 
 // ─── Formulaire partagé New/Edit (HORS du composant parent pour éviter
 //     le remount à chaque keystroke qui faisait perdre le focus) ───
@@ -47,6 +42,8 @@ function FormBlock({
   isNew?: boolean
   farms: any[]
 }) {
+  const { values: GH_TYPES } = useReferenceList('greenhouse_type')
+  const { values: GH_STATUS } = useReferenceList('greenhouse_status')
   return (
     <div className="space-y-md">
       {isNew && (
@@ -70,12 +67,12 @@ function FormBlock({
       <div className="grid grid-cols-2 gap-md">
         <Field label="Type">
           <TSelect value={vals.type} onChange={onChange('type')}>
-            {TYPE_OPTS.map(t => <option key={t}>{t}</option>)}
+            {GH_TYPES.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
           </TSelect>
         </Field>
         <Field label="Statut">
           <TSelect value={vals.status} onChange={onChange('status')}>
-            {STATUS_OPTS.map(t => <option key={t}>{t.replace('_', ' ')}</option>)}
+            {GH_STATUS.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
           </TSelect>
         </Field>
       </div>
@@ -89,6 +86,8 @@ function FormBlock({
 }
 
 export default function SerresPage() {
+  const { values: GH_STATUS } = useReferenceList('greenhouse_status')
+  const statusColor = (code: string) => GH_STATUS.find(v => v.code === code)?.color || '#64748b'
   const [serres, setSerres] = useState<any[]>([])
   const [farms, setFarms]   = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -286,7 +285,7 @@ export default function SerresPage() {
               <Badge variant="default" size="sm">STATUT</Badge>
               <TSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-8 text-body-sm w-auto min-w-[140px]">
                 <option value="all">Tous</option>
-                {STATUS_OPTS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+                {GH_STATUS.map(s => <option key={s.code} value={s.code}>{s.label}</option>)}
               </TSelect>
             </div>
             {(search || farmFilter !== 'all' || statusFilter !== 'all') && (
@@ -325,7 +324,7 @@ export default function SerresPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-md">
           {filtered.map((s, i) => {
-            const color = STATUS_COLOR[s.status] || '#64748b'
+            const color = statusColor(s.status)
             const usagePct = s.total_area > 0 ? (Number(s.exploitable_area || 0) / Number(s.total_area)) * 100 : 100
             return (
               <Card

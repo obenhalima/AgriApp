@@ -184,6 +184,9 @@ const USAGE_MAP: Record<string, { table: string; column: string }[]> = {
   leave_type:          [{ table: 'leave_requests', column: 'type' }],
   tray_type:           [{ table: 'harvest_tray_lines', column: 'tray_type_code' }],
   labor_task:          [{ table: 'labor_entries', column: 'operation_type' }],
+  greenhouse_type:     [{ table: 'greenhouses', column: 'type' }],
+  greenhouse_status:   [{ table: 'greenhouses', column: 'status' }],
+  campaign_status:     [{ table: 'campaigns', column: 'status' }],
 }
 
 /**

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 
 import { supabase, getFarms } from '@/lib/supabase'
+import { useReferenceList } from '@/lib/useReferenceList'
 import { genCampagneCode } from '@/lib/utils'
 import { cn } from '@/lib/cn'
 import { formatDate } from '@/lib/format'
@@ -34,14 +35,13 @@ const EMPTY_FORM = {
   notes: '',
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  planification: '#3b82f6',
-  en_cours: '#10b981',
-  terminee: '#64748b',
-  annulee: '#ef4444',
-}
+// Statut de campagne : référentiel no-code campaign_status (hook ci-dessous).
+// ⚠️ Les codes (planification/en_cours/terminee/annulee) pilotent la logique
+// (en_cours = campagne active) — éditer les libellés/couleurs, pas les codes.
 
 export default function CampagnesPage() {
+  const { values: CAMP_STATUS } = useReferenceList('campaign_status')
+  const statusColor = (code: string) => CAMP_STATUS.find(v => v.code === code)?.color || '#64748b'
   const [items, setItems] = useState<any[]>([])
   const [farms, setFarms] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -184,10 +184,7 @@ export default function CampagnesPage() {
                 </Field>
                 <Field label="Statut">
                   <TSelect value={form.status} onChange={upd('status')}>
-                    <option value="planification">Planification</option>
-                    <option value="en_cours">En cours</option>
-                    <option value="terminee">Terminée</option>
-                    <option value="annulee">Annulée</option>
+                    {CAMP_STATUS.map(s => <option key={s.code} value={s.code}>{s.label}</option>)}
                   </TSelect>
                 </Field>
               </div>
@@ -269,10 +266,7 @@ export default function CampagnesPage() {
             </div>
             <TSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-8 w-auto min-w-[150px] text-body-sm">
               <option value="all">Tous statuts</option>
-              <option value="planification">Planification</option>
-              <option value="en_cours">En cours</option>
-              <option value="terminee">Terminée</option>
-              <option value="annulee">Annulée</option>
+              {CAMP_STATUS.map(s => <option key={s.code} value={s.code}>{s.label}</option>)}
             </TSelect>
             <div className="ml-auto text-caption font-mono text-fg-tertiary">{filtered.length}/{items.length}</div>
           </div>
@@ -300,7 +294,7 @@ export default function CampagnesPage() {
       ) : (
         <div className="flex flex-col gap-md">
           {filtered.map((c, i) => {
-            const color = STATUS_COLORS[c.status] || '#64748b'
+            const color = statusColor(c.status)
             return (
               <Card
                 key={c.id}
