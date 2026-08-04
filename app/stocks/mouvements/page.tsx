@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, BarChart3, ArrowUpCircle, ArrowDownCircle, Settings2, ArrowLeftRight, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useReferenceList } from '@/lib/useReferenceList'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -34,19 +35,8 @@ const TYPE_VARIANT: Record<string, 'success' | 'warning' | 'danger' | 'info' | '
 const TYPE_LABELS: Record<string, string> = { entree: 'Entrée', sortie: 'Sortie', ajustement: 'Ajustement', transfert: 'Transfert' }
 const TYPE_ICONS: Record<string, any> = { entree: ArrowUpCircle, sortie: ArrowDownCircle, ajustement: Settings2, transfert: ArrowLeftRight }
 
-const CATEGORIES = [
-  { v: '', l: 'Toutes' },
-  { v: 'semences', l: 'Semences' },
-  { v: 'plants', l: 'Plants' },
-  { v: 'engrais', l: 'Engrais' },
-  { v: 'phytosanitaires', l: 'Phytosanitaires' },
-  { v: 'emballages', l: 'Emballages' },
-  { v: 'consommables', l: 'Consommables' },
-  { v: 'pieces_rechange', l: 'Pièces de rechange' },
-  { v: 'autre', l: 'Autre' },
-]
-
 export default function MouvementsStockPage() {
+  const { values: STOCK_CATS } = useReferenceList('stock_category')
   const [movements, setMovements] = useState<Movement[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
@@ -140,7 +130,8 @@ export default function MouvementsStockPage() {
           </Field>
           <Field label="Catégorie">
             <TSelect value={category} onChange={(e) => setCategory(e.target.value)}>
-              {CATEGORIES.map(c => <option key={c.v} value={c.v}>{c.l}</option>)}
+              <option value="">Toutes</option>
+              {STOCK_CATS.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
             </TSelect>
           </Field>
           <Field label="Type">

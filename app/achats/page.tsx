@@ -27,10 +27,10 @@ import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { MoneyDisplay, DateDisplay } from '@/components/display'
 
 const ENTITY_TYPE = 'purchase_order'
-const CATS = ['semences', 'engrais', 'phytosanitaires', 'irrigation', 'emballage', 'transport', 'energie', 'services', 'equipement', 'divers']
 
 export default function AchatsPage() {
   const { values: CURRENCIES } = useReferenceList('currency')
+  const { values: CATS } = useReferenceList('purchase_category')
   const [items, setItems] = useState<any[]>([])
   const [suppliers, setSuppliers] = useState<any[]>([])
   const [campagnes, setCampagnes] = useState<any[]>([])
@@ -247,7 +247,7 @@ export default function AchatsPage() {
                 </div>
               </FormGroup>
               <FormRow>
-                <FormGroup label="Catégorie"><TSelect value={form.cost_category} onChange={s('cost_category')}>{CATS.map(c => <option key={c}>{c}</option>)}</TSelect></FormGroup>
+                <FormGroup label="Catégorie"><TSelect value={form.cost_category} onChange={s('cost_category')}>{CATS.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}</TSelect></FormGroup>
                 <FormGroup label="Devise"><TSelect value={form.currency} onChange={s('currency')}>{CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</TSelect></FormGroup>
               </FormRow>
               <FormRow>
@@ -294,7 +294,7 @@ export default function AchatsPage() {
                 <FormGroup label="Date *"><TInput type="date" value={direct.order_date} onChange={d('order_date')} /></FormGroup>
               </FormRow>
               <FormRow>
-                <FormGroup label="Catégorie"><TSelect value={direct.cost_category} onChange={d('cost_category')}>{CATS.map(c => <option key={c}>{c}</option>)}</TSelect></FormGroup>
+                <FormGroup label="Catégorie"><TSelect value={direct.cost_category} onChange={d('cost_category')}>{CATS.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}</TSelect></FormGroup>
                 <FormGroup label="Devise"><TSelect value={direct.currency} onChange={d('currency')}>{CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</TSelect></FormGroup>
                 <FormGroup label="Référence"><TInput value={direct.reference} onChange={d('reference')} placeholder="Ticket, BL..." /></FormGroup>
               </FormRow>

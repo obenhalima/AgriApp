@@ -50,15 +50,10 @@ type Worker = {
 }
 type Farm = { id: string; code: string; name: string }
 
-const CATEGORIES = [
-  { code: 'fermier',     label: 'Fermier',          icon: '🌾',  color: '#10b981', defaultFreq: 'quinzaine' as PayFrequency, description: 'Permanent — paie quinzaine' },
-  { code: 'staff_admin', label: 'Staff admin',      icon: '🧑‍💼', color: '#8b5cf6', defaultFreq: 'mensuel' as PayFrequency,    description: 'Personnel admin — paie mensuelle' },
-  { code: 'saisonnier',  label: 'Saisonnier',       icon: '🌻',  color: '#f59e0b', defaultFreq: 'journalier' as PayFrequency, description: 'Saisonnier — paie journalière' },
-  { code: 'tacheron',    label: 'Staff à la tâche', icon: '🛠️',  color: '#ec4899', defaultFreq: 'journalier' as PayFrequency, description: 'Mission ponctuelle' },
-]
-// FAMILY_STATUS, PAY_METHODS, CONTRACT_TYPES sont maintenant chargés
+// worker_category, FAMILY_STATUS, PAY_METHODS, CONTRACT_TYPES sont chargés
 // dynamiquement via useReferenceList (no-code, voir /admin/referentiels).
-// CATEGORIES reste en code : il porte de la logique de paie (defaultFreq).
+// La catégorie porte icône, couleur et defaultFreq (fréquence de paie par
+// défaut) dans les colonnes color/icon et metadata du référentiel.
 
 const empty: Partial<Worker> = {
   first_name: '', last_name: '', cin: '', cnss_number: '', matricule: '',
@@ -74,6 +69,12 @@ export default function EmployesPage() {
   const { values: FAMILY_STATUS } = useReferenceList('family_status')
   const { values: PAY_METHODS } = useReferenceList('payment_method')
   const { values: CONTRACT_TYPES } = useReferenceList('contract_type')
+  const { values: WCATS } = useReferenceList('worker_category')
+  const CATEGORIES = useMemo(() => WCATS.map(v => ({
+    code: v.code, label: v.label,
+    icon: v.icon ?? '', color: v.color ?? '#64748b',
+    defaultFreq: (v.metadata?.defaultFreq ?? 'quinzaine') as PayFrequency,
+  })), [WCATS])
   const [items, setItems] = useState<Worker[]>([])
   const [farms, setFarms] = useState<Farm[]>([])
   const [loading, setLoading] = useState(true)
@@ -129,7 +130,7 @@ export default function EmployesPage() {
         count: active.filter(i => i.category === c.code).length,
       })),
     }
-  }, [items])
+  }, [items, CATEGORIES])
 
   const openCreate = () => { setEditing(null); setForm(empty); setModalOpen(true); setDone(false); setModalError('') }
   const openEdit = (w: Worker) => { setEditing(w); setForm({ ...w }); setModalOpen(true); setDone(false); setModalError('') }
