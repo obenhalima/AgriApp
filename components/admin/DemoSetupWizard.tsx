@@ -506,6 +506,27 @@ export function DemoSetupWizard({ onClose, onComplete }: {
         })}
       </div>
 
+      {/* Progression (prominent, en haut — visible pendant toute la génération) */}
+      {generating && (
+        <div className="rounded-lg bg-brand/10 border border-brand/40 p-lg mb-md">
+          <div className="flex items-center gap-sm mb-sm">
+            <Loader2 size={22} className="animate-spin text-brand flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <div className="text-body font-bold text-fg-primary">Génération en cours…</div>
+              <div className="text-body-sm text-fg-secondary truncate">{progress.step}</div>
+            </div>
+            <div className="font-display text-heading font-extrabold text-brand tabular-nums">
+              {progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0}%
+            </div>
+          </div>
+          <div className="h-2.5 rounded-full bg-surface-sunk overflow-hidden">
+            <div className="h-full bg-brand transition-all duration-300 rounded-full"
+              style={{ width: `${progress.total > 0 ? Math.min(100, (progress.done / progress.total) * 100) : 4}%` }} />
+          </div>
+          <div className="mt-sm text-caption text-fg-tertiary">Quelques secondes — ne ferme pas la fenêtre.</div>
+        </div>
+      )}
+
       {/* Step 1 : Fermes */}
       {step === 1 && (
         <div className="space-y-md">
@@ -770,19 +791,6 @@ export function DemoSetupWizard({ onClose, onComplete }: {
             </div>
           </div>
 
-          {/* Progress */}
-          {generating && (
-            <div className="rounded-md bg-info/10 border border-info/30 p-md">
-              <div className="flex items-center gap-sm mb-2">
-                <Loader2 size={16} className="animate-spin text-info" />
-                <div className="text-body-sm font-semibold text-fg-primary">{progress.step}…</div>
-              </div>
-              <div className="h-1.5 rounded-full bg-surface-sunk overflow-hidden">
-                <div className="h-full bg-info transition-all duration-300"
-                  style={{ width: `${progress.total > 0 ? (progress.done / progress.total) * 100 : 0}%` }} />
-              </div>
-            </div>
-          )}
         </div>
       )}
 
