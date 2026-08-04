@@ -57,6 +57,7 @@ type CampaignDraft = {
   campaign_end: string
   budget_total: number
   generatePlannedCosts: boolean  // génère aussi les cost_entries prévisionnels
+  distributeChargesPerGreenhouse: boolean  // ventile les charges par serre (prorata surface)
 }
 
 // Répartition typique d'un budget de ferme tomate (somme = 100%)
@@ -150,6 +151,7 @@ export function DemoSetupWizard({ onClose, onComplete }: {
     campaign_end: todayPlus(9),
     budget_total: 0,
     generatePlannedCosts: true,
+    distributeChargesPerGreenhouse: true,
   })
 
   const [generating, setGenerating] = useState(false)
@@ -287,7 +289,7 @@ export function DemoSetupWizard({ onClose, onComplete }: {
         }
       })
       const { data: insertedGhs, error: ghErr } = await supabase
-        .from('greenhouses').insert(greenhouseInserts).select('id, farm_id, code')
+        .from('greenhouses').insert(greenhouseInserts).select('id, farm_id, code, exploitable_area')
       if (ghErr) throw ghErr
       stepCount += summary.totalGh
       setProgress({ step: `${insertedGhs!.length} serres créées`, done: stepCount, total: totalSteps })
@@ -412,7 +414,13 @@ export function DemoSetupWizard({ onClose, onComplete }: {
             date: new Date().toISOString().slice(0, 10),
           })
 
-          // Génère 1 cost_entry par (catégorie × mois) au niveau campagne (greenhouse_id = null)
+          // Génère les cost_entries par (catégorie × mois), ventilés PAR SERRE
+          // (prorata surface + variance par serre) si l'option est activée,
+          // sinon au niveau campagne (greenhouse_id = null).
+          const ghList = (insertedGhs ?? []) as any[]
+          const totalGhArea = ghList.reduce((s, g) => s + (Number(g.exploitable_area) || 0), 0)
+          const perGreenhouse = campaign.distributeChargesPerGreenhouse && ghList.length > 0 && totalGhArea > 0
+
           const costInserts: any[] = []
           for (const ratio of COST_RATIOS) {
             const catId = catMap.get(ratio.code)
@@ -420,18 +428,36 @@ export function DemoSetupWizard({ onClose, onComplete }: {
             const totalForCategory = budgetCalculated * ratio.ratio
             const perMonth = totalForCategory / months.length
             for (const m of months) {
-              // Variance ±10% par mois pour réalisme
-              const jitter = 1 + (Math.random() - 0.5) * 0.2
-              costInserts.push({
-                campaign_id: insertedCampaign!.id,
-                greenhouse_id: null,  // au niveau campagne (sera ventilé par budgetFromCosts)
-                account_category_id: catId,
-                cost_category: ratio.code.toLowerCase(),  // legacy field
-                amount: Math.round(perMonth * jitter),
-                entry_date: m.date,
-                is_planned: true,
-                description: `Prévisionnel auto-généré — ${ratio.code}`,
-              })
+              if (perGreenhouse) {
+                for (const g of ghList) {
+                  const share = (Number(g.exploitable_area) || 0) / totalGhArea
+                  const jitter = 1 + (Math.random() - 0.5) * 0.2  // variance ±10% par serre
+                  const amount = Math.round(perMonth * share * jitter)
+                  if (amount <= 0) continue
+                  costInserts.push({
+                    campaign_id: insertedCampaign!.id,
+                    greenhouse_id: g.id,
+                    account_category_id: catId,
+                    cost_category: ratio.code.toLowerCase(),
+                    amount,
+                    entry_date: m.date,
+                    is_planned: true,
+                    description: `Prévisionnel auto-généré — ${ratio.code} [${g.code}]`,
+                  })
+                }
+              } else {
+                const jitter = 1 + (Math.random() - 0.5) * 0.2
+                costInserts.push({
+                  campaign_id: insertedCampaign!.id,
+                  greenhouse_id: null,
+                  account_category_id: catId,
+                  cost_category: ratio.code.toLowerCase(),
+                  amount: Math.round(perMonth * jitter),
+                  entry_date: m.date,
+                  is_planned: true,
+                  description: `Prévisionnel auto-généré — ${ratio.code}`,
+                })
+              }
             }
           }
 
@@ -716,6 +742,25 @@ export function DemoSetupWizard({ onClose, onComplete }: {
                   </div>
                 </div>
               </label>
+
+              {campaign.generatePlannedCosts && (
+                <label className="flex items-start gap-2 cursor-pointer mt-sm pt-sm border-t border-border">
+                  <input
+                    type="checkbox"
+                    checked={campaign.distributeChargesPerGreenhouse}
+                    onChange={(e) => setCampaign(c => ({ ...c, distributeChargesPerGreenhouse: e.target.checked }))}
+                    className="w-4 h-4 accent-brand mt-0.5"
+                  />
+                  <div className="flex-1">
+                    <div className="font-display font-bold text-body-sm text-fg-primary">
+                      🏠 Ventiler les charges par serre (recommandé)
+                    </div>
+                    <div className="text-caption text-fg-tertiary leading-relaxed mt-1">
+                      Répartit les coûts sur <strong>chaque serre</strong> (prorata surface + variance par serre) au lieu de les laisser au niveau campagne. Nécessaire pour tester le <strong>coût de revient</strong> et la <strong>productivité par serre</strong>.
+                    </div>
+                  </div>
+                </label>
+              )}
             </div>
           </div>
         </div>
