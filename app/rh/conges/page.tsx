@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Palmtree, Plus, Check, X, Clock, CheckCircle2, XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useReferenceList } from '@/lib/useReferenceList'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -23,14 +24,8 @@ type LeaveRequest = {
 }
 type Worker = { id: string; first_name: string; last_name: string; matricule: string | null; category: string | null }
 
-const TYPES = [
-  { code: 'annuel', label: 'Congé annuel', icon: '🏖️', color: '#10b981' },
-  { code: 'maladie', label: 'Arrêt maladie', icon: '🤒', color: '#f59e0b' },
-  { code: 'maternite', label: 'Maternité', icon: '🤰', color: '#ec4899' },
-  { code: 'paternite', label: 'Paternité', icon: '👨‍🍼', color: '#3b82f6' },
-  { code: 'sans_solde', label: 'Sans solde', icon: '⏸️', color: '#6b7280' },
-  { code: 'special', label: 'Congé spécial', icon: '⭐', color: '#a855f7' },
-]
+// TYPES de congés : chargés depuis le référentiel no-code 'leave_type'
+// (voir hook dans le composant). Le statut reste un état géré par l'app.
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
   demande: 'warning', approuve: 'success', refuse: 'danger', annule: 'default',
 }
@@ -44,6 +39,10 @@ const computeDays = (start: string, end: string): number => {
 }
 
 export default function CongesPage() {
+  const { values: WLEAVE } = useReferenceList('leave_type')
+  const TYPES = useMemo(() => WLEAVE.map(v => ({
+    code: v.code, label: v.label, icon: v.icon ?? '', color: v.color ?? '#64748b',
+  })), [WLEAVE])
   const [items, setItems] = useState<LeaveRequest[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
   const [loading, setLoading] = useState(true)

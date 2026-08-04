@@ -2234,6 +2234,7 @@ function PeriodPriceModal({ dispatches, onClose, onDone }: { dispatches: any[]; 
 
 function AlerteModal({ form, setForm, saving, done, error, onClose, onSave }: any) {
   const f = (k: string) => (e: any) => setForm((s: any) => ({ ...s, [k]: e.target.value }))
+  const { values: REASONS } = useReferenceList('no_harvest_reason')
   return (
     <Modal title="⚠ Journée sans récolte" onClose={onClose}>
       {done ? <SuccessMessage message="Alerte créée" /> : (
@@ -2241,12 +2242,7 @@ function AlerteModal({ form, setForm, saving, done, error, onClose, onSave }: an
           <FormGroup label="Date *"><Input type="date" value={form.date} onChange={f('date')} /></FormGroup>
           <FormGroup label="Motif">
             <Select value={form.reason} onChange={f('reason')}>
-              <option value="panne_irrigation">Panne d'irrigation</option>
-              <option value="meteo">Météo défavorable</option>
-              <option value="main_oeuvre">Manque de main d'œuvre</option>
-              <option value="maladie">Maladie / phytopathologie</option>
-              <option value="maintenance">Maintenance</option>
-              <option value="autre">Autre</option>
+              {REASONS.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
             </Select>
           </FormGroup>
           <FormGroup label="Notes"><Textarea value={form.notes} onChange={f('notes')} /></FormGroup>

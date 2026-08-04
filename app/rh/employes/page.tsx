@@ -70,6 +70,7 @@ export default function EmployesPage() {
   const { values: PAY_METHODS } = useReferenceList('payment_method')
   const { values: CONTRACT_TYPES } = useReferenceList('contract_type')
   const { values: WCATS } = useReferenceList('worker_category')
+  const { values: PAY_FREQS } = useReferenceList('pay_frequency')
   const CATEGORIES = useMemo(() => WCATS.map(v => ({
     code: v.code, label: v.label,
     icon: v.icon ?? '', color: v.color ?? '#64748b',
@@ -436,9 +437,7 @@ export default function EmployesPage() {
                 <FormGroup label="Date d'embauche"><TInput type="date" value={form.start_date ?? ''} onChange={f('start_date')} /></FormGroup>
                 <FormGroup label="Fréquence paie *">
                   <TSelect value={form.pay_frequency ?? 'mensuel'} onChange={f('pay_frequency')}>
-                    <option value="mensuel">Mensuel (fin de mois)</option>
-                    <option value="quinzaine">Quinzaine (15 et fin de mois)</option>
-                    <option value="journalier">Journalier (saisonniers)</option>
+                    {PAY_FREQS.map(fq => <option key={fq.code} value={fq.code}>{fq.label}</option>)}
                   </TSelect>
                 </FormGroup>
               </FormRow>

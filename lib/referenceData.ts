@@ -179,6 +179,11 @@ const USAGE_MAP: Record<string, { table: string; column: string }[]> = {
   family_status:       [{ table: 'workers', column: 'family_status' }],
   contract_type:       [{ table: 'workers', column: 'contract_type' }],
   payment_method:      [{ table: 'workers', column: 'payment_method' }],
+  pay_frequency:       [{ table: 'workers', column: 'pay_frequency' }],
+  purchase_category:   [{ table: 'purchase_orders', column: 'cost_category' }],
+  leave_type:          [{ table: 'leave_requests', column: 'type' }],
+  tray_type:           [{ table: 'harvest_tray_lines', column: 'tray_type_code' }],
+  labor_task:          [{ table: 'labor_entries', column: 'operation_type' }],
 }
 
 /**
