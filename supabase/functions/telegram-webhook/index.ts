@@ -1516,10 +1516,23 @@ async function continueComposeAddHarvest(user: any, harvestId: string) {
     await sendMessage(user.channel_user_id, t(user.language, 'compose_lot_already_added'))
     return
   }
-  // Saisie en PLATEAUX (type par défaut du référentiel) → kg estimé.
-  const trays = await listTrayTypes()
-  const tray = trays.find(x => x.is_default) ?? trays[0]
-  const weight = tray?.poids ?? 0
+  // Saisie en PLATEAUX propres à la récolte : poids moyen/plateau = kg total ÷
+  // nb plateaux enregistrés à la collecte (harvest_tray_lines). Repli sur le
+  // type par défaut si la récolte n'a pas de lignes de plateaux (saisie en kg).
+  const { data: trayLines } = await supabase.from('harvest_tray_lines')
+    .select('nb_trays, tray_type_label').eq('harvest_id', harvestId)
+  const nbTrays = (trayLines ?? []).reduce((s: number, r: any) => s + (Number(r.nb_trays) || 0), 0)
+  const totalKg = Number(h.total_qty) || Number(h.estimated_kg) || 0
+  let weight = 0, trayLabel = 'plateaux'
+  if (nbTrays > 0 && totalKg > 0) {
+    weight = totalKg / nbTrays
+    trayLabel = (trayLines ?? [])[0]?.tray_type_label ?? 'plateaux'
+  } else {
+    const trays = await listTrayTypes()
+    const def = trays.find(x => x.is_default) ?? trays[0]
+    weight = def?.poids ?? 0
+    trayLabel = def?.label ?? 'plateaux'
+  }
   const maxTrays = weight > 0 ? Math.floor(h.remaining / weight) : 0
   await updateSession(user.id, {
     ...state,
@@ -1528,8 +1541,7 @@ async function continueComposeAddHarvest(user: any, harvestId: string) {
       harvest_id: harvestId,
       lot_number: h.lot_number,
       max_qty: h.remaining,
-      tray_code: tray?.code ?? null,
-      tray_label: tray?.label ?? 'plateau',
+      tray_label: trayLabel,
       tray_weight: weight,
       variety_id: h.campaign_plantings?.variety_id,
       variety_code: h.campaign_plantings?.varieties?.code,
@@ -1539,8 +1551,8 @@ async function continueComposeAddHarvest(user: any, harvestId: string) {
   })
   await sendMessage(user.channel_user_id,
     `📦 ${h.lot_number} · ${h.campaign_plantings?.greenhouses?.code ?? '?'}/${h.campaign_plantings?.varieties?.code ?? '?'}\n` +
-    `Disponible : <b>${Math.round(h.remaining)} kg</b> (${maxTrays} ${tray?.label ?? 'plateaux'})\n\n` +
-    `Combien de plateaux « ${tray?.label ?? 'plateau'} » (${weight} kg) mettre dans l'envoi ? Tape le nombre (ou <code>tout</code>).\n` +
+    `Disponible : <b>${Math.round(h.remaining)} kg</b> (${maxTrays} ${trayLabel})\n\n` +
+    `Combien de plateaux « ${trayLabel} » (~${Math.round(weight)} kg/plateau) mettre dans l'envoi ? Tape le nombre (ou <code>tout</code>).\n` +
     `🎤 Tu peux aussi répondre par message vocal.`
   )
 }
@@ -1581,7 +1593,7 @@ async function continueComposeSaveQty(user: any, text: string) {
 
   // Acquittement explicite + invite claire à continuer
   await sendMessage(user.channel_user_id,
-    `✓ Ajouté : <b>${nb} plateaux ≈ ${qty} kg</b> du lot <code>${ph.lot_number}</code>` +
+    `✓ Ajouté : <b>${nb} plateaux ≈ ${Math.round(qty)} kg</b> du lot <code>${ph.lot_number}</code>` +
     (ph.variety_code ? ` <i>[${ph.variety_code}]</i>` : '') + '\n' +
     `📌 <b>Total session : ${sources.length} lot(s)</b>\n\n` +
     `Tu peux continuer à ajouter d'autres lots ou cliquer <b>✅ Terminer</b> ↓`

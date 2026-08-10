@@ -1613,22 +1613,52 @@ function EditHarvestModal({ harvest, form, setForm, plantings, saving, done, err
 }
 
 function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[]; markets: any[]; onClose: () => void; onDone: () => void }) {
-  // Saisie en PLATEAUX (comme la récolte) → kg estimé. Un type de plateau
-  // pour tout l'envoi (référentiel tray_type, poids dans metadata.poids_kg).
+  // La collecte a été saisie en PLATEAUX → on réutilise le métrage plateaux
+  // de CHAQUE récolte (harvest_tray_lines). Poids moyen/plateau = kg total ÷
+  // nb plateaux enregistrés. Repli sur le type par défaut si une récolte n'a
+  // pas de lignes de plateaux (saisie en kg).
   const { values: trayTypes } = useReferenceList('tray_type')
-  const [trayCode, setTrayCode] = useState('')
+  const defaultTray = (trayTypes.find(t => (t as any).is_default) ?? trayTypes[0]) as any
+  const defaultWeight = Number(defaultTray?.metadata?.poids_kg) || 0
+  const defaultLabel = defaultTray?.label ?? 'plateaux'
+
+  const [trayByHarvest, setTrayByHarvest] = useState<Record<string, { trays: number; label: string }>>({})
   useEffect(() => {
-    if (!trayCode && trayTypes.length > 0) setTrayCode(((trayTypes.find(t => t.is_default) ?? trayTypes[0]) as any).code)
-  }, [trayTypes, trayCode])
-  const trayWeight = Number((trayTypes.find(t => t.code === trayCode) as any)?.metadata?.poids_kg) || 0
+    const ids = harvests.map((h: any) => h.id)
+    if (ids.length === 0) return
+    supabase.from('harvest_tray_lines').select('harvest_id, nb_trays, tray_type_label').in('harvest_id', ids)
+      .then(({ data }) => {
+        const m: Record<string, { trays: number; label: string }> = {}
+        for (const r of (data ?? []) as any[]) {
+          const cur = m[r.harvest_id] ?? { trays: 0, label: r.tray_type_label ?? 'plateaux' }
+          cur.trays += Number(r.nb_trays) || 0
+          m[r.harvest_id] = cur
+        }
+        setTrayByHarvest(m)
+      })
+  }, [harvests])
+
+  // Poids moyen d'un plateau + max plateaux pour une récolte
+  const trayOf = (h: any) => {
+    const info = trayByHarvest[h.id]
+    const totalKg = Number(h.total_qty) || Number(h.estimated_kg) || 0
+    if (info && info.trays > 0 && totalKg > 0) {
+      const w = totalKg / info.trays
+      return { w, label: info.label, max: w > 0 ? Math.floor(h.remaining_kg / w) : 0 }
+    }
+    return { w: defaultWeight, label: defaultLabel, max: defaultWeight > 0 ? Math.floor(h.remaining_kg / defaultWeight) : 0 }
+  }
+  const kgOf = (h: any, nb: number) => nb * trayOf(h).w
 
   const [picks, setPicks] = useState<Record<string, number>>({})  // nb de plateaux par récolte
   const [marketId, setMarketId] = useState('')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
   const totalTrays = Object.values(picks).reduce((s, v) => s + v, 0)
-  const total = totalTrays * trayWeight  // kg estimé
-  const maxTrays = (h: any) => trayWeight > 0 ? Math.floor(h.remaining_kg / trayWeight) : 0
+  const total = Object.entries(picks).reduce((s, [id, nb]) => {
+    const h = harvests.find((x: any) => x.id === id)
+    return s + (h ? kgOf(h, nb) : 0)
+  }, 0)  // kg estimé
 
   const updateQty = (h: any, nbStr: string) => {
     setErr('')
@@ -1637,16 +1667,19 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
       setPicks(s => { const n = { ...s }; delete n[h.id]; return n })
       return
     }
-    if (nb * trayWeight > h.remaining_kg + 0.01) { setErr(`${h.lot_number} : max ${maxTrays(h)} plateaux (${fmt(h.remaining_kg)} kg dispo)`); return }
+    const info = trayOf(h)
+    if (nb * info.w > h.remaining_kg + 0.01) { setErr(`${h.lot_number} : max ${info.max} plateaux (${fmt(h.remaining_kg)} kg dispo)`); return }
     setPicks(s => ({ ...s, [h.id]: nb }))
   }
-  const fillAll = (h: any) => updateQty(h, String(maxTrays(h)))
+  const fillAll = (h: any) => updateQty(h, String(trayOf(h).max))
 
   const save = async () => {
     setErr('')
-    if (trayWeight <= 0) { setErr('Choisis un type de plateau.'); return }
-    // Convertit les plateaux en kg estimé (qty_contributed_kg reste en kg)
-    const entries = Object.entries(picks).filter(([, nb]) => nb > 0).map(([id, nb]) => [id, nb * trayWeight] as [string, number])
+    // Convertit les plateaux en kg estimé, par récolte (poids propre à chacune)
+    const entries = Object.entries(picks).filter(([, nb]) => nb > 0).map(([id, nb]) => {
+      const h = harvests.find((x: any) => x.id === id)
+      return [id, h ? kgOf(h, nb) : 0] as [string, number]
+    }).filter(([, kg]) => kg > 0)
     if (entries.length === 0) { setErr('Sélectionne au moins une récolte.'); return }
     if (!marketId) { setErr('Choisis un marché.'); return }
     setSaving(true)
@@ -1722,18 +1755,12 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
   return (
     <Modal title="📦 Composer un envoi station" onClose={onClose} size="lg">
       <div style={{ marginBottom: 12, fontSize: 12.5, color: 'var(--text-sub)' }}>
-        Choisis le marché + le type de plateau, puis saisis le nombre de plateaux à envoyer par récolte (le poids kg est estimé).
+        Choisis le marché, puis saisis le nombre de plateaux à envoyer par récolte (le poids kg est estimé d'après les plateaux enregistrés à la collecte).
       </div>
       <FormGroup label="Marché *">
         <Select value={marketId} onChange={e => setMarketId(e.target.value)}>
           <option value="">— sélectionner —</option>
           {markets.map((m: any) => <option key={m.id} value={m.id}>🌍 {m.name}{m.code ? ` (${m.code})` : ''}</option>)}
-        </Select>
-      </FormGroup>
-      <FormGroup label="Type de plateau *">
-        <Select value={trayCode} onChange={e => setTrayCode(e.target.value)}>
-          {trayTypes.length === 0 && <option value="">— aucun plateau configuré —</option>}
-          {trayTypes.map((t: any) => <option key={t.code} value={t.code}>{t.label}{t.metadata?.poids_kg ? ` — ${t.metadata.poids_kg} kg` : ''}</option>)}
         </Select>
       </FormGroup>
       <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginTop: 12, marginBottom: 4 }}>
@@ -1750,14 +1777,14 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
                 <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{h.lot_number}</td>
                 <td style={td}>{h.harvest_date}</td>
                 <td style={{ ...td, fontSize: 11 }}>{h.campaign_plantings?.greenhouses?.code} / {h.campaign_plantings?.varieties?.code}</td>
-                <td style={tdNum}>{fmt(h.remaining_kg)} <span style={{ fontSize: 10, color: 'var(--text-sub)' }}>({maxTrays(h)} pl.)</span></td>
+                <td style={tdNum}>{fmt(h.remaining_kg)} <span style={{ fontSize: 10, color: 'var(--text-sub)' }}>({trayOf(h).max} {trayOf(h).label})</span></td>
                 <td style={td}>
-                  <input type="number" placeholder="0" min={0} max={maxTrays(h)}
+                  <input type="number" placeholder="0" min={0} max={trayOf(h).max}
                     value={picks[h.id] ?? ''}
                     onChange={e => updateQty(h, e.target.value)}
                     style={{ width: 70, padding: '4px 6px', background: 'var(--bg-2)', color: 'var(--text-main)', border: '1px solid var(--bd-1)', borderRadius: 4, fontSize: 12 }} />
-                  {Number(picks[h.id]) > 0 && trayWeight > 0 && (
-                    <span style={{ marginLeft: 6, fontSize: 10.5, color: 'var(--neon)' }}>≈ {fmt(Number(picks[h.id]) * trayWeight)} kg</span>
+                  {Number(picks[h.id]) > 0 && (
+                    <span style={{ marginLeft: 6, fontSize: 10.5, color: 'var(--neon)' }}>≈ {fmt(kgOf(h, Number(picks[h.id])))} kg</span>
                   )}
                 </td>
                 <td style={td}>
@@ -1787,7 +1814,7 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
         )
       })()}
       {err && <ErrorBox msg={err} />}
-      <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel="CRÉER L'ENVOI" disabled={total <= 0 || !marketId || !trayCode} />
+      <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel="CRÉER L'ENVOI" disabled={total <= 0 || !marketId} />
     </Modal>
   )
 }
