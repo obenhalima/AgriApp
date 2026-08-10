@@ -1516,6 +1516,11 @@ async function continueComposeAddHarvest(user: any, harvestId: string) {
     await sendMessage(user.channel_user_id, t(user.language, 'compose_lot_already_added'))
     return
   }
+  // Saisie en PLATEAUX (type par défaut du référentiel) → kg estimé.
+  const trays = await listTrayTypes()
+  const tray = trays.find(x => x.is_default) ?? trays[0]
+  const weight = tray?.poids ?? 0
+  const maxTrays = weight > 0 ? Math.floor(h.remaining / weight) : 0
   await updateSession(user.id, {
     ...state,
     step: 'ask_qty_for_harvest',
@@ -1523,6 +1528,9 @@ async function continueComposeAddHarvest(user: any, harvestId: string) {
       harvest_id: harvestId,
       lot_number: h.lot_number,
       max_qty: h.remaining,
+      tray_code: tray?.code ?? null,
+      tray_label: tray?.label ?? 'plateau',
+      tray_weight: weight,
       variety_id: h.campaign_plantings?.variety_id,
       variety_code: h.campaign_plantings?.varieties?.code,
       greenhouse_id: h.campaign_plantings?.greenhouse_id,
@@ -1531,8 +1539,8 @@ async function continueComposeAddHarvest(user: any, harvestId: string) {
   })
   await sendMessage(user.channel_user_id,
     `📦 ${h.lot_number} · ${h.campaign_plantings?.greenhouses?.code ?? '?'}/${h.campaign_plantings?.varieties?.code ?? '?'}\n` +
-    `Disponible : <b>${Math.round(h.remaining)} kg</b>\n\n` +
-    `Combien mettre dans l'envoi ? Tape la quantité (ou <code>tout</code> pour tout prendre).\n` +
+    `Disponible : <b>${Math.round(h.remaining)} kg</b> (${maxTrays} ${tray?.label ?? 'plateaux'})\n\n` +
+    `Combien de plateaux « ${tray?.label ?? 'plateau'} » (${weight} kg) mettre dans l'envoi ? Tape le nombre (ou <code>tout</code>).\n` +
     `🎤 Tu peux aussi répondre par message vocal.`
   )
 }
@@ -1542,19 +1550,22 @@ async function continueComposeSaveQty(user: any, text: string) {
   const state = (user.session_state ?? {}) as any
   const ph = state.pending_harvest
   if (!ph) { await sendMessage(user.channel_user_id, t(user.language, 'session_lost')); return }
-  const max = Number(ph.max_qty)
-  let qty: number
+  const max = Number(ph.max_qty)              // kg disponibles
+  const weight = Number(ph.tray_weight) || 0  // poids d'un plateau
+  const maxTrays = weight > 0 ? Math.floor(max / weight) : 0
+  let nb: number
   if (text.toLowerCase().trim() === 'tout') {
-    qty = max
+    nb = maxTrays
   } else {
-    qty = Number(String(text).replace(',', '.').replace(/[^\d.]/g, ''))
+    nb = Math.floor(Number(String(text).replace(',', '.').replace(/[^\d.]/g, '')))
   }
-  if (!Number.isFinite(qty) || qty <= 0) {
+  if (!Number.isFinite(nb) || nb <= 0) {
     await sendMessage(user.channel_user_id, t(user.language, 'compose_qty_invalid_or_all'))
     return
   }
+  const qty = nb * weight  // kg estimé
   if (qty > max + 0.01) {
-    await sendMessage(user.channel_user_id, t(user.language, 'compose_qty_exceeds', { max: String(Math.round(max)) }))
+    await sendMessage(user.channel_user_id, `❌ Trop — max ${maxTrays} plateaux (${Math.round(max)} kg dispo).`)
     return
   }
   const sources = [...(state.sources ?? []), {
@@ -1570,7 +1581,7 @@ async function continueComposeSaveQty(user: any, text: string) {
 
   // Acquittement explicite + invite claire à continuer
   await sendMessage(user.channel_user_id,
-    `✓ Ajouté : <b>${qty} kg</b> du lot <code>${ph.lot_number}</code>` +
+    `✓ Ajouté : <b>${nb} plateaux ≈ ${qty} kg</b> du lot <code>${ph.lot_number}</code>` +
     (ph.variety_code ? ` <i>[${ph.variety_code}]</i>` : '') + '\n' +
     `📌 <b>Total session : ${sources.length} lot(s)</b>\n\n` +
     `Tu peux continuer à ajouter d'autres lots ou cliquer <b>✅ Terminer</b> ↓`
