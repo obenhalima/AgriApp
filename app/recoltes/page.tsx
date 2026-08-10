@@ -1638,15 +1638,16 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
       })
   }, [harvests])
 
-  // Poids moyen d'un plateau + max plateaux pour une récolte
+  // Poids moyen d'un plateau + nb collecté + max plateaux envoyables pour une récolte
   const trayOf = (h: any) => {
     const info = trayByHarvest[h.id]
     const totalKg = Number(h.total_qty) || Number(h.estimated_kg) || 0
+    const collected = info?.trays ?? 0
     if (info && info.trays > 0 && totalKg > 0) {
       const w = totalKg / info.trays
-      return { w, label: info.label, max: w > 0 ? Math.floor(h.remaining_kg / w) : 0 }
+      return { w, label: info.label, collected, max: w > 0 ? Math.floor(h.remaining_kg / w) : 0 }
     }
-    return { w: defaultWeight, label: defaultLabel, max: defaultWeight > 0 ? Math.floor(h.remaining_kg / defaultWeight) : 0 }
+    return { w: defaultWeight, label: defaultLabel, collected, max: defaultWeight > 0 ? Math.floor(h.remaining_kg / defaultWeight) : 0 }
   }
   const kgOf = (h: any, nb: number) => nb * trayOf(h).w
 
@@ -1777,7 +1778,12 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
                 <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{h.lot_number}</td>
                 <td style={td}>{h.harvest_date}</td>
                 <td style={{ ...td, fontSize: 11 }}>{h.campaign_plantings?.greenhouses?.code} / {h.campaign_plantings?.varieties?.code}</td>
-                <td style={tdNum}>{fmt(h.remaining_kg)} <span style={{ fontSize: 10, color: 'var(--text-sub)' }}>({trayOf(h).max} {trayOf(h).label})</span></td>
+                <td style={tdNum}>
+                  {fmt(h.remaining_kg)} kg
+                  <div style={{ fontSize: 10, color: 'var(--text-sub)', fontWeight: 400 }}>
+                    {trayOf(h).collected} plateaux collectés · <b style={{ color: 'var(--neon)' }}>{trayOf(h).max}</b> dispo
+                  </div>
+                </td>
                 <td style={td}>
                   <input type="number" placeholder="0" min={0} max={trayOf(h).max}
                     value={picks[h.id] ?? ''}
