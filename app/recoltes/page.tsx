@@ -419,9 +419,10 @@ export default function RecoltesPage() {
 
   // ─── CRUD récolte (saisie en plateaux → poids estimé) ───
   const saveNew = async () => {
-    // Lignes de plateaux valides
+    // Lignes de plateaux valides — OBLIGATOIRE (la récolte se saisit en plateaux)
     const validLines = formNew.trayLines.filter(l => l.tray_type_code && Number(l.nb) > 0)
-    if (!formNew.campaign_planting_id || !formNew.harvest_date || validLines.length === 0) return
+    if (!formNew.campaign_planting_id || !formNew.harvest_date) return
+    if (validLines.length === 0) { setError('Ajoute au moins un plateau (type + nombre) — la récolte se saisit obligatoirement en plateaux.'); return }
     // Garde-fou plage de récolte (miroir du trigger DB, pour un message immédiat)
     const win = harvestWindowOf(formNew.campaign_planting_id)
     if (win.start && formNew.harvest_date < win.start) {

@@ -90,7 +90,7 @@ const T: Translations = {
   voice_save_all:      { fr: '✅ Tout enregistrer', en: '✅ Save all', ar: '✅ حفظ الكل', darija: '✅ سجل كولشي' },
   voice_continue:      { fr: '🔁 Continuer la dictée', en: '🔁 Continue dictating', ar: '🔁 متابعة الإملاء', darija: '🔁 كمل الديكتي' },
   voice_cancel_session:{ fr: '✗ Annuler la session', en: '✗ Cancel session', ar: '✗ إلغاء الجلسة', darija: '✗ إلغاء السيسيون' },
-  voice_extracted_unclear: { fr: '🎤 <i>"{{transcription}}"</i>\n\n❓ Je n\'ai pas pu extraire de récolte exploitable. Réessaye en disant clairement <b>quantité, serre et variété</b>.', en: '🎤 <i>"{{transcription}}"</i>\n\n❓ I couldn\'t extract a usable harvest. Try again saying clearly <b>quantity, greenhouse and variety</b>.', ar: '🎤 <i>"{{transcription}}"</i>\n\n❓ لم أستطع استخراج محصول صالح. حاول مرة أخرى بقول <b>الكمية، البيت والصنف</b> بوضوح.', darija: '🎤 <i>"{{transcription}}"</i>\n\n❓ ما قدرتش نخرج ركولت من لي قلتي. عاود قول بوضوح <b>الكمية، السير والصنف</b>.' },
+  voice_extracted_unclear: { fr: '🎤 <i>"{{transcription}}"</i>\n\n❓ Je n\'ai pas pu extraire de récolte. La récolte se saisit en <b>plateaux</b> — redis clairement le <b>nombre de plateaux, la serre et la variété</b> (ex. « 10 plateaux sur serre 1 marquise »).', en: '🎤 <i>"{{transcription}}"</i>\n\n❓ I couldn\'t extract a harvest. Harvest is recorded in <b>trays</b> — say clearly the <b>number of trays, greenhouse and variety</b> (e.g. "10 trays on greenhouse 1 marquise").', ar: '🎤 <i>"{{transcription}}"</i>\n\n❓ لم أستطع استخراج محصول. المحصول يُسجَّل بالصناديق — قل بوضوح <b>عدد الصناديق، البيت والصنف</b>.', darija: '🎤 <i>"{{transcription}}"</i>\n\n❓ ما قدرتش نخرج ركولت. الركولت كتسجل بالبلاطو — قول بوضوح <b>شحال د البلاطو، السير والصنف</b> (مثال : « 10 بلاطو فالسير 1 مركيز »).' },
   compose_no_harvest_available: { fr: '❌ Aucune récolte récente avec quantité disponible.', en: '❌ No recent harvest with available quantity.', ar: '❌ لا توجد محاصيل حديثة بكمية متوفرة.', darija: '❌ ما كاينة والو ركولت جديدة عندها كمية ديسبو.' },
   compose_lot_unavailable: { fr: '❌ Lot indisponible.', en: '❌ Lot unavailable.', ar: '❌ الدفعة غير متاحة.', darija: '❌ اللوطاج ما ديسبوش.' },
   compose_lot_already_added: { fr: 'Ce lot est déjà ajouté. Annule via /menu pour recommencer.', en: 'This lot is already added. Cancel via /menu to restart.', ar: 'هذه الدفعة مضافة بالفعل. ألغي عبر /menu للبدء من جديد.', darija: 'اللوطاج داخل ديجا. عاود /menu باش تبدا من جديد.' },
@@ -145,6 +145,7 @@ const T: Translations = {
   tray_total:          { fr: '<b>Total estimé : {{total}} kg</b>', en: '<b>Estimated total: {{total}} kg</b>', ar: '<b>المجموع التقديري: {{total}} كغ</b>', darija: '<b>المجموع تقديري : {{total}} كيلو</b>' },
   trays_done_btn:      { fr: '✅ Terminer & enregistrer', en: '✅ Finish & save', ar: '✅ إنهاء وحفظ', darija: '✅ سالي و سجل' },
   trays_empty:         { fr: '❌ Aucun plateau saisi. Ajoute au moins un type.', en: '❌ No tray entered. Add at least one type.', ar: '❌ لم تُدخل أي صندوق. أضف نوعاً واحداً على الأقل.', darija: '❌ ما دخلتي حتى بلاطو. زيد على الأقل نوع واحد.' },
+  no_tray_types_configured: { fr: '❌ Aucun type de plateau configuré. La récolte se saisit en plateaux — contacte l\'admin.', en: '❌ No tray type configured. Harvest is recorded in trays — contact the admin.', ar: '❌ لا يوجد نوع صندوق مُعرَّف. المحصول يُسجَّل بالصناديق — تواصل مع المسؤول.', darija: '❌ ما كاين حتى نوع د البلاطو. الركولت كتسجل بالبلاطو — عيط للمسؤول.' },
   harvest_saved_est:   { fr: '✅ <b>Récolte enregistrée (plateaux)</b>\nLot : <code>{{lot}}</code>\nPoids estimé : {{qty}} kg\nDate : {{date}}\n\n⚖️ Le poids réel sera confirmé à la pesée station.', en: '✅ <b>Harvest saved (trays)</b>\nLot: <code>{{lot}}</code>\nEstimated weight: {{qty}} kg\nDate: {{date}}\n\n⚖️ Real weight will be confirmed at station weighing.', ar: '✅ <b>تم تسجيل المحصول (صناديق)</b>\nالدفعة: <code>{{lot}}</code>\nالوزن التقديري: {{qty}} كغ\nالتاريخ: {{date}}\n\n⚖️ سيتم تأكيد الوزن الحقيقي عند وزن المحطة.', darija: '✅ <b>الركولت تسجلات (بلاطوات)</b>\nاللوطاج : <code>{{lot}}</code>\nالوزن تقديري : {{qty}} كيلو\nالنهار : {{date}}\n\n⚖️ الوزن الحقيقي غادي يتأكد فالبيصاج ديال الستاسيون.' },
 }
 
@@ -689,9 +690,9 @@ async function continueHarvestPickPlanting(user: any, plantingId: string) {
 
   const types = await listTrayTypes()
   if (types.length === 0) {
-    // Fallback : aucun type de plateau configuré → saisie directe en kg (legacy).
-    await updateSession(user.id, { intent: 'new_harvest', step: 'ask_qty', planting_id: plantingId })
-    await sendMessage(user.channel_user_id, t(lang, 'ask_quantity', { label }))
+    // La récolte se saisit OBLIGATOIREMENT en plateaux : pas de repli kg.
+    await updateSession(user.id, {})
+    await sendMessage(user.channel_user_id, t(lang, 'no_tray_types_configured'), buildMainMenu(lang))
     return
   }
 
@@ -1243,36 +1244,24 @@ async function handleVoiceMessage(user: any, voice: any): Promise<void> {
     const rejected: any[] = []
     for (const h of payload.harvests) {
       const nbTrays = Number(h.nb_trays) || 0
-      const directKg = Number(h.qty_kg) || 0
-      const hasTrays = nbTrays > 0
-      const hasKg = directKg > 0
-      if (h.planting_id && (hasTrays || hasKg)) {
-        // Vérifie le planting et récupère le label
+      // La récolte se saisit OBLIGATOIREMENT en plateaux → on exige nb_trays > 0
+      // (une dictée en kg seul est rejetée).
+      if (h.planting_id && nbTrays > 0) {
         const { data: p } = await supabase.from('campaign_plantings')
           .select('id, greenhouses(code), varieties(code, commercial_name)')
           .eq('id', h.planting_id)
           .maybeSingle()
         if (p) {
           const pa: any = p
-          // Priorité aux plateaux : résout le type (poids dicté sinon défaut), poids estimé = nb × poids
-          let qty = directKg
-          let tray: PendingHarvest['tray'] = null
-          if (hasTrays) {
-            const ty = resolveTrayType(trayTypes, Number(h.tray_poids_kg) || null)
-            if (ty) {
-              tray = { code: ty.code, label: ty.label, poids: ty.poids, nb: nbTrays }
-              qty = nbTrays * ty.poids
-            } else if (!hasKg) {
-              rejected.push(h); continue   // plateaux dictés mais aucun type configuré ni poids direct
-            }
-          }
+          const ty = resolveTrayType(trayTypes, Number(h.tray_poids_kg) || null)
+          if (!ty) { rejected.push(h); continue }   // aucun type de plateau configuré
           valid.push({
             planting_id: h.planting_id,
-            qty_kg: qty,
+            qty_kg: nbTrays * ty.poids,
             planting_label: `${pa.greenhouses?.code ?? '?'} / ${pa.varieties?.commercial_name ?? '?'}`,
             notes: h.notes ?? null,
             transcription: payload.transcription,
-            tray,
+            tray: { code: ty.code, label: ty.label, poids: ty.poids, nb: nbTrays },
           })
         } else { rejected.push(h) }
       } else { rejected.push(h) }
