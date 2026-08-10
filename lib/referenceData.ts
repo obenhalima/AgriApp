@@ -187,6 +187,7 @@ const USAGE_MAP: Record<string, { table: string; column: string }[]> = {
   greenhouse_type:     [{ table: 'greenhouses', column: 'type' }],
   greenhouse_status:   [{ table: 'greenhouses', column: 'status' }],
   campaign_status:     [{ table: 'campaigns', column: 'status' }],
+  destination_rejet:   [{ table: 'harvest_lots', column: 'destination_rejet' }],
 }
 
 /**

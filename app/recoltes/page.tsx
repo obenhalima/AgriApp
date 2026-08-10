@@ -42,6 +42,7 @@ export default function RecoltesPage() {
   const [markets, setMarkets] = useState<any[]>([])
   const [alertes, setAlertes] = useState<any[]>([])
   const [settlementCount, setSettlementCount] = useState(0)
+  const [trayByHarvest, setTrayByHarvest] = useState<Map<string, any[]>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -94,7 +95,7 @@ export default function RecoltesPage() {
     try {
       const since14 = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10)
       const since30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
-      const [hRes, dRes, sRes, pRes, mRes, alRes, srRes, stRes] = await Promise.all([
+      const [hRes, dRes, sRes, pRes, mRes, alRes, srRes, stRes, tlRes] = await Promise.all([
         supabase.from('harvests')
           .select('id, lot_number, harvest_date, total_qty, estimated_kg, actual_kg, recorded_by, recorded_by_name, notes, campaign_planting_id, campaign_plantings(*, greenhouses(code, name, farm_id, farms(name)), varieties(commercial_name, code), campaigns(name))')
           .order('harvest_date', { ascending: false })
@@ -117,6 +118,10 @@ export default function RecoltesPage() {
           .order('harvest_date', { ascending: false }),
         // Compteur de bordereaux station (pour le badge d'onglet)
         supabase.from('station_settlements').select('id', { count: 'exact', head: true }),
+        // Lignes de plateaux (pour afficher plateaux + type dans la liste)
+        supabase.from('harvest_tray_lines')
+          .select('harvest_id, tray_type_code, tray_type_label, nb_trays, poids_unitaire_kg, line_kg')
+          .gte('created_at', since30),
       ])
       if (hRes.error) throw hRes.error
       setHarvests(hRes.data ?? [])
@@ -127,6 +132,12 @@ export default function RecoltesPage() {
       setAlertes(alRes.data ?? [])
       setStockRetour(srRes.data ?? [])
       setSettlementCount(stRes.count ?? 0)
+      const trayMap = new Map<string, any[]>()
+      for (const l of (tlRes.data ?? [])) {
+        const arr = trayMap.get(l.harvest_id) ?? []
+        arr.push(l); trayMap.set(l.harvest_id, arr)
+      }
+      setTrayByHarvest(trayMap)
     } catch (e: any) { setError(e.message || String(e)) }
     setLoading(false)
   }, [])
@@ -179,8 +190,15 @@ export default function RecoltesPage() {
       const arr = sourcesByLot.get(s.harvest_lot_id) ?? []
       arr.push(s); sourcesByLot.set(s.harvest_lot_id, arr)
     })
-    return dispatches.map((d: any) => ({ ...d, sources: sourcesByLot.get(d.id) ?? [] }))
-  }, [dispatches, sources])
+    // Récolte d'origine (pour décrire un envoi non composé au lieu de « simple »)
+    const harvestById = new Map<string, any>()
+    harvests.forEach((h: any) => harvestById.set(h.id, h))
+    return dispatches.map((d: any) => ({
+      ...d,
+      sources: sourcesByLot.get(d.id) ?? [],
+      parent_harvest: d.harvest_id ? harvestById.get(d.harvest_id) ?? null : null,
+    }))
+  }, [dispatches, sources, harvests])
 
   // ─── Application des filtres globaux ───
   // Filtres : date_from, date_to, farm, greenhouse, variety
@@ -730,6 +748,7 @@ export default function RecoltesPage() {
       {/* Tab contents */}
       {tab === 'liste' && <ListeTab
         harvests={harvestsSorted}
+        trayByHarvest={trayByHarvest}
         sortKey={sortKey} sortDir={sortDir}
         onSort={(k) => {
           if (k === sortKey) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -802,10 +821,28 @@ export default function RecoltesPage() {
 
 type SortKey = 'lot_number' | 'harvest_date' | 'greenhouse' | 'variety' | 'total_qty' | 'used_kg' | 'remaining_kg'
 
-function ListeTab({ harvests, sortKey, sortDir, onSort, onEdit, onDelete, onBulkDelete, loading }: {
-  harvests: any[]; sortKey: SortKey; sortDir: 'asc' | 'desc'; onSort: (k: SortKey) => void;
+function ListeTab({ harvests, trayByHarvest, sortKey, sortDir, onSort, onEdit, onDelete, onBulkDelete, loading }: {
+  harvests: any[]; trayByHarvest: Map<string, any[]>; sortKey: SortKey; sortDir: 'asc' | 'desc'; onSort: (k: SortKey) => void;
   onEdit: (h: any) => void; onDelete: (h: any) => void; onBulkDelete: (ids: string[]) => void; loading: boolean
 }) {
+  // Rend une cellule « Plateaux » : total plateaux + détail par type (tooltip)
+  const renderTrays = (h: any) => {
+    const lines = trayByHarvest.get(h.id) ?? []
+    if (lines.length === 0) return <span style={{ color: 'var(--text-muted)' }}>—</span>
+    const totalTrays = lines.reduce((s, l) => s + Number(l.nb_trays || 0), 0)
+    const detail = lines.map((l: any) => `${l.nb_trays}× ${l.tray_type_label || l.tray_type_code}`).join(' · ')
+    // Type principal = la ligne au plus grand nb de plateaux
+    const main = lines.reduce((a: any, b: any) => (Number(b.nb_trays) > Number(a.nb_trays) ? b : a), lines[0])
+    const label = main.tray_type_label || main.tray_type_code
+    return (
+      <span title={detail} style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 1.25 }}>
+        <span style={{ fontWeight: 600 }}>{totalTrays} pl.</span>
+        <span style={{ fontSize: 10, color: 'var(--text-sub)' }}>
+          {label}{lines.length > 1 ? ` +${lines.length - 1}` : ''}
+        </span>
+      </span>
+    )
+  }
   // Helper : cellule header cliquable avec indicateur de tri
   const sortHeader = (label: string, key: SortKey) => {
     const isActive = sortKey === key
@@ -877,6 +914,7 @@ function ListeTab({ harvests, sortKey, sortDir, onSort, onEdit, onDelete, onBulk
           sortHeader('Lot', 'lot_number'),
           sortHeader('Date', 'harvest_date'),
           <span key="gv">{sortHeader('Serre', 'greenhouse')} / {sortHeader('Variété', 'variety')}</span>,
+          'Plateaux',
           sortHeader('Total', 'total_qty'),
           sortHeader('Engagé', 'used_kg'),
           sortHeader('Restant', 'remaining_kg'),
@@ -897,6 +935,7 @@ function ListeTab({ harvests, sortKey, sortDir, onSort, onEdit, onDelete, onBulk
             <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{h.lot_number}</td>
             <td style={td}>{h.harvest_date}</td>
             <td style={td}>{h.campaign_plantings?.greenhouses?.code} / {h.campaign_plantings?.varieties?.code}</td>
+            <td style={td}>{renderTrays(h)}</td>
             <td style={tdNum}>{fmt(h.total_qty)}</td>
             <td style={{ ...tdNum, color: 'var(--text-sub)' }}>{fmt(h.used_kg)}</td>
             <td style={{ ...tdNum, color: h.remaining_kg > 0 ? 'var(--neon)' : 'var(--text-muted)', fontWeight: h.remaining_kg > 0 ? 700 : 400 }}>
@@ -1020,7 +1059,11 @@ function APeserTab({ dispatches, onPick, loading }: { dispatches: any[]; onPick:
             <td style={{ ...td, fontSize: 11, color: 'var(--text-sub)' }}>
               {(d.sources?.length ?? 0) > 0
                 ? d.sources.map((s: any) => `${s.harvests?.lot_number ?? '?'} (${fmt(s.qty_contributed_kg)})`).join(', ')
-                : <em>simple</em>}
+                : <em style={{ color: 'var(--text-sub)' }} title="Envoi issu d'une seule récolte (non composé)">
+                    {d.parent_harvest?.lot_number
+                      ? `Récolte directe · ${d.parent_harvest.lot_number}`
+                      : 'Récolte directe'}
+                  </em>}
             </td>
             <td style={tdNum}>{fmt(d.estimated_kg ?? d.quantity_kg)}</td>
             <td style={td}>
@@ -1124,7 +1167,11 @@ function ATrierTab({ dispatches, onPick, loading }: { dispatches: any[]; onPick:
             <td style={{ ...td, fontSize: 11, color: 'var(--text-sub)' }}>
               {(d.sources?.length ?? 0) > 0
                 ? d.sources.map((s: any) => `${s.harvests?.lot_number ?? '?'} (${fmt(s.qty_contributed_kg)})`).join(', ')
-                : <em>simple</em>}
+                : <em style={{ color: 'var(--text-sub)' }} title="Envoi issu d'une seule récolte (non composé)">
+                    {d.parent_harvest?.lot_number
+                      ? `Récolte directe · ${d.parent_harvest.lot_number}`
+                      : 'Récolte directe'}
+                  </em>}
             </td>
             <td style={tdNum}>{fmt(d.quantity_kg)}</td>
             <td style={td}>
@@ -1831,13 +1878,25 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
 }
 
 function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () => void; onDone: () => void }) {
+  // Destinations d'écart paramétrables (référentiel no-code 'destination_rejet')
+  const { values: destValues, defaultCode: destDefault } = useReferenceList('destination_rejet')
   const [freinte, setFreinte] = useState(String(dispatch.freinte_pct ?? '0'))
   const [ecart, setEcart] = useState(String(dispatch.ecart_pct ?? '0'))
-  const [destination, setDestination] = useState<'destruction' | 'retour_stock' | 'vente_industrie' | 'dons' | 'vente_ecart'>(
-    (dispatch.destination_rejet ?? 'vente_ecart') as any
-  )
+  const [destination, setDestination] = useState<string>(dispatch.destination_rejet ?? '')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+
+  // Sélection par défaut = la valeur par défaut du référentiel (une fois chargé)
+  useEffect(() => {
+    if (!destination && (destDefault || destValues[0])) {
+      setDestination(destDefault ?? destValues[0].code)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [destDefault, destValues])
+
+  // Comportement lié à la destination sélectionnée (metadata.behavior)
+  const selectedDest = destValues.find(v => v.code === destination)
+  const selectedBehavior: string = selectedDest?.metadata?.behavior ?? 'none'
 
   // Pré-remplit freinte/écart avec les valeurs par défaut paramétrables
   // (business_params) au premier tri seulement (si pas déjà saisis).
@@ -1865,14 +1924,6 @@ function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () =>
   const qtyFreinte = Math.round((qtyB - qtyN) * 100) / 100  // freinte en kg (détruite)
   const qtyRejet = qtyEcart  // pour compat avec le code existant : rejet = écart
 
-  const destinationLabel: Record<string, { label: string; desc: string; color: string; icon: string }> = {
-    vente_ecart:     { label: 'Vente client écart', desc: 'Le client écart configuré passe récupérer (recommandé)', color: '#3b82f6',  icon: '🤝' },
-    destruction:     { label: 'Destruction',      desc: 'Perte sèche — produit non récupérable', color: 'var(--red)',    icon: '🗑️' },
-    retour_stock:    { label: 'Retour au stock',  desc: 'Ré-envoi possible vers un autre marché', color: 'var(--neon)',  icon: '🔄' },
-    vente_industrie: { label: 'Vente industrie',  desc: 'Vendu direct prix réduit (transformation, jus)', color: 'var(--amber)', icon: '🏭' },
-    dons:            { label: 'Dons',             desc: 'Banque alimentaire, associations', color: '#a855f7',  icon: '🎁' },
-  }
-
   const save = async () => {
     setErr('')
     if (fr < 0 || fr > 100 || ec < 0 || ec > 100) { setErr('Freinte et écart entre 0 et 100.'); return }
@@ -1889,8 +1940,8 @@ function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () =>
       }).eq('id', dispatch.id)
       if (error) throw error
 
-      // 2a. Si vente_ecart : appeler la RPC pour creer le dispatch enfant vers le marche ecart
-      if (destination === 'vente_ecart' && qtyEcart > 0) {
+      // 2a. Si behavior=vente_ecart : appeler la RPC pour creer le dispatch enfant vers le marche ecart
+      if (selectedBehavior === 'vente_ecart' && qtyEcart > 0) {
         const { error: ecartErr } = await supabase.rpc('create_ecart_dispatch', {
           p_parent_lot_id: dispatch.id,
           p_ecart_qty_kg: qtyEcart,
@@ -1910,8 +1961,8 @@ function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () =>
         }
       }
 
-      // 2b. Si retour_stock : créer le harvest_lot enfant disponible pour ré-envoi
-      if (destination === 'retour_stock' && qtyEcart > 0) {
+      // 2b. Si behavior=retour_stock : créer le harvest_lot enfant disponible pour ré-envoi
+      if (selectedBehavior === 'retour_stock' && qtyEcart > 0) {
         const childLotNumber = `${dispatch.lot_number}-RETOUR`
         const { error: childErr } = await supabase.from('harvest_lots').insert({
           lot_number: childLotNumber,
@@ -1964,28 +2015,33 @@ function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () =>
             🎯 Destination de l'écart ({fmt(qtyEcart)} kg)
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
-            {(Object.keys(destinationLabel) as Array<keyof typeof destinationLabel>).map(k => {
-              const opt = destinationLabel[k]
-              const selected = destination === k
+            {destValues.length === 0 && (
+              <div style={{ gridColumn: '1 / -1', fontSize: 11.5, color: 'var(--text-sub)', padding: 8 }}>
+                Aucune destination configurée. Ajoutez-en dans <strong>Admin → Référentiels → « Destinations d'écart »</strong>.
+              </div>
+            )}
+            {destValues.map(opt => {
+              const color = opt.color || 'var(--bd-2)'
+              const selected = destination === opt.code
               return (
-                <button key={k} type="button" onClick={() => setDestination(k as any)}
+                <button key={opt.code} type="button" onClick={() => setDestination(opt.code)}
                   style={{
                     textAlign: 'left', padding: 10, borderRadius: 7,
-                    background: selected ? `color-mix(in srgb, ${opt.color} 12%, transparent)` : 'transparent',
-                    border: `1.5px solid ${selected ? opt.color : 'var(--bd-1)'}`,
+                    background: selected ? `color-mix(in srgb, ${color} 12%, transparent)` : 'transparent',
+                    border: `1.5px solid ${selected ? color : 'var(--bd-1)'}`,
                     color: 'var(--text-main)', cursor: 'pointer',
                   }}>
                   <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 3 }}>
                     {opt.icon} {opt.label}
                   </div>
                   <div style={{ fontSize: 10.5, color: 'var(--text-sub)', lineHeight: 1.4 }}>
-                    {opt.desc}
+                    {opt.metadata?.desc ?? ''}
                   </div>
                 </button>
               )
             })}
           </div>
-          {destination === 'retour_stock' && (
+          {selectedBehavior === 'retour_stock' && (
             <div style={{ marginTop: 8, padding: 8, background: 'color-mix(in srgb, var(--neon) 8%, transparent)', borderRadius: 6, fontSize: 11, color: 'var(--text-sub)' }}>
               💡 Un nouveau lot <code>{dispatch.lot_number}-RETOUR</code> sera créé avec <strong>{fmt(qtyRejet)} kg</strong>, disponible pour un nouvel envoi vers un autre marché.
             </div>

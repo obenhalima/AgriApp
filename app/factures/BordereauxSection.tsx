@@ -466,6 +466,14 @@ function SettlementMatrixModal({
     }))
   }
 
+  // Remplit la quantité de TOUTES les lignes avec le stock disponible
+  const fillAll = () => {
+    setRows((prev) => prev.map((r) => {
+      const q = Number(r.available_kg) || 0
+      return { ...r, qty_kg: q, amount: q * Number(r.price_per_kg || 0) }
+    }))
+  }
+
   const totalKg = useMemo(() => rows.reduce((acc, r) => acc + Number(r.qty_kg || 0), 0), [rows])
   const totalAmount = useMemo(() => rows.reduce((acc, r) => acc + Number(r.amount || 0), 0), [rows])
 
@@ -677,15 +685,26 @@ function SettlementMatrixModal({
                         {isReadOnly ? (
                           <span className="font-mono">{Number(r.qty_kg).toLocaleString('fr-FR')}</span>
                         ) : (
-                          <TInput
-                            type="number"
-                            inputMode="decimal"
-                            step="0.01"
-                            min="0"
-                            value={r.qty_kg || ''}
-                            onChange={(e) => setRow(r.key, { qty_kg: Number(e.target.value) })}
-                            className={`h-7 text-right w-28 font-mono ${overflow ? 'border-danger' : ''}`}
-                          />
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setRow(r.key, { qty_kg: Number(r.available_kg) })}
+                              disabled={Number(r.available_kg) <= 0}
+                              title="Remplir avec toute la quantité disponible"
+                              className="text-[10px] px-1.5 py-0.5 rounded border border-border text-fg-secondary hover:text-fg-primary hover:border-info disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              tout
+                            </button>
+                            <TInput
+                              type="number"
+                              inputMode="decimal"
+                              step="0.01"
+                              min="0"
+                              value={r.qty_kg || ''}
+                              onChange={(e) => setRow(r.key, { qty_kg: Number(e.target.value) })}
+                              className={`h-7 text-right w-28 font-mono ${overflow ? 'border-danger' : ''}`}
+                            />
+                          </div>
                         )}
                       </TD>
                       <TD right>
@@ -759,6 +778,9 @@ function SettlementMatrixModal({
             </>
           ) : (
             <>
+              <Button variant="ghost" onClick={fillAll} disabled={rows.length === 0} title="Remplir chaque ligne avec toute la quantité disponible">
+                Tout remplir (dispo)
+              </Button>
               <Button variant="secondary" onClick={handleSave} disabled={saving || rows.length === 0}>
                 {saving ? 'Enregistrement…' : 'Enregistrer brouillon'}
               </Button>
