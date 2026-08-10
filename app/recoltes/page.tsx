@@ -621,9 +621,9 @@ export default function RecoltesPage() {
               textDecoration: 'none',
               display: 'inline-flex', alignItems: 'center', gap: 4,
             }}
-            title="Saisir le bordereau hebdomadaire de la station"
+            title="Saisir les prix via le bordereau de la station"
           >
-            🚚 BORDEREAUX STATION
+            📑 BORDEREAUX PRIX
           </Link>
           <button onClick={() => setModalAlerte(true)} className="btn-ghost" style={{ fontSize: 11, color: 'var(--red)', borderColor: 'color-mix(in srgb,var(--red) 25%,transparent)' }}>
             ⚠ SANS RÉCOLTE
@@ -1210,9 +1210,9 @@ function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, onGotoBorderea
               border: 'none', cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 4,
             }}
-            title="Saisir le bordereau hebdomadaire envoyé par la station (méthode recommandée)"
+            title="Saisir les prix via le bordereau envoyé par la station (méthode recommandée)"
           >
-            🚚 BORDEREAU STATION
+            📑 BORDEREAUX PRIX
           </button>
           <button onClick={onOpenPeriod} disabled={dispatches.length === 0} className="btn-ghost" style={{ fontSize: 11.5, padding: '6px 12px', color: '#a855f7', borderColor: 'color-mix(in srgb,#a855f7 30%,transparent)' }}>
             📅 TARIF PAR PÉRIODE
