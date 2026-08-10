@@ -19,6 +19,7 @@ import {
   ChevronLeft, ChevronRight, FileText, Printer, CalendarClock,
 } from 'lucide-react'
 
+import { supabase } from '@/lib/supabase'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -39,7 +40,7 @@ import {
   validateSettlement,
   unvalidateSettlement,
   deleteSettlement,
-  getIsoWeekNumber,
+  marketWeekLabel,
   isoWeekStringToRange,
   dateToIsoWeekString,
   computeExpectedPaymentDate,
@@ -53,6 +54,8 @@ export function BordereauxSection() {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [settlements, setSettlements] = useState<Settlement[]>([])
+  const [markets, setMarkets] = useState<Array<{ id: string; code: string; name: string; week1_start_date: string | null }>>([])
+  const [selectedMarketId, setSelectedMarketId] = useState<string>('')
   const [editTarget, setEditTarget] = useState<Settlement | null>(null)
   // Sélecteur de période (input HTML5 type=week, format 'YYYY-Www')
   const [selectedWeek, setSelectedWeek] = useState<string>(() => dateToIsoWeekString(new Date()))
@@ -60,8 +63,12 @@ export function BordereauxSection() {
   const load = async () => {
     setLoading(true)
     try {
-      const list = await listSettlements()
+      const [list, mRes] = await Promise.all([
+        listSettlements(),
+        supabase.from('markets').select('id, code, name, week1_start_date').eq('is_active', true).order('name'),
+      ])
       setSettlements(list)
+      setMarkets((mRes.data ?? []) as any[])
     } catch (e: any) {
       toast.error(`Chargement échoué : ${e.message ?? e}`)
     } finally {
@@ -71,28 +78,40 @@ export function BordereauxSection() {
 
   useEffect(() => { load() }, [])
 
-  // Aperçu de la période sélectionnée (lundi → dimanche + numéro S)
+  const selectedMarket = useMemo(
+    () => markets.find((m) => m.id === selectedMarketId) ?? null,
+    [markets, selectedMarketId],
+  )
+
+  // Aperçu de la période sélectionnée (lundi → dimanche + numéro S du marché)
   const weekPreview = useMemo(() => {
     const r = isoWeekStringToRange(selectedWeek)
     if (!r) return null
     return {
-      label: `S${String(r.week).padStart(2, '0')}`,
+      label: marketWeekLabel(r.monday, selectedMarket?.week1_start_date ?? null),
+      isoLabel: `S${String(r.week).padStart(2, '0')}`,
       year: r.year,
       monday: r.monday,
       sunday: r.sunday,
     }
-  }, [selectedWeek])
+  }, [selectedWeek, selectedMarket])
 
-  // Bordereau existant pour la semaine sélectionnée (pour le badge "déjà créé")
+  // Bordereau existant pour la semaine × marché sélectionnés (badge "déjà créé")
   const existingForSelected = useMemo(() => {
     if (!weekPreview) return null
     const ps = weekPreview.monday.toISOString().slice(0, 10)
-    return settlements.find((s) => s.period_start === ps) ?? null
-  }, [weekPreview, settlements])
+    return settlements.find(
+      (s) => s.period_start === ps && (s.market_id ?? '') === (selectedMarketId || ''),
+    ) ?? null
+  }, [weekPreview, settlements, selectedMarketId])
 
   const handleCreate = async () => {
     if (!weekPreview) {
       toast.error('Sélectionnez une semaine valide')
+      return
+    }
+    if (!selectedMarketId) {
+      toast.error('Sélectionnez d\'abord un marché')
       return
     }
     // Si déjà existant, on l'ouvre direct sans appel API
@@ -102,8 +121,8 @@ export function BordereauxSection() {
     }
     setCreating(true)
     try {
-      const s = await createSettlementForWeek(selectedWeek)
-      toast.success(`Bordereau ${s.code} créé pour ${weekPreview.label}`)
+      const s = await createSettlementForWeek(selectedWeek, selectedMarketId)
+      toast.success(`Bordereau ${s.code} créé (${weekPreview.label} · ${selectedMarket?.name ?? ''})`)
       await load()
       setEditTarget(s)
     } catch (e: any) {
@@ -185,6 +204,21 @@ export function BordereauxSection() {
                 </Button>
               </div>
 
+              {/* Sélecteur de marché (B1 : un bordereau par marché) */}
+              <Field label="Marché *">
+                <select
+                  value={selectedMarketId}
+                  onChange={(e) => setSelectedMarketId(e.target.value)}
+                  className="form-input"
+                  style={{ minWidth: 180 }}
+                >
+                  <option value="">— choisir un marché —</option>
+                  {markets.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </Field>
+
               {/* Input semaine */}
               <Field label="Semaine ISO">
                 <input
@@ -220,11 +254,22 @@ export function BordereauxSection() {
                       {weekPreview.sunday.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                     </strong>
                   </div>
+                  {selectedMarket && !selectedMarket.week1_start_date && (
+                    <div className="text-[10.5px] text-fg-tertiary mt-0.5">
+                      S1 non paramétrée pour <strong>{selectedMarket.name}</strong> → numérotation ISO.
+                      Configure-la dans <strong>Marchés → Début S1</strong>.
+                    </div>
+                  )}
+                  {selectedMarket?.week1_start_date && (
+                    <div className="text-[10.5px] text-fg-tertiary mt-0.5">
+                      {weekPreview.label} selon la S1 de <strong>{selectedMarket.name}</strong> (ISO {weekPreview.isoLabel}).
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Action */}
-              <Button onClick={handleCreate} variant="primary" disabled={creating || !weekPreview}>
+              <Button onClick={handleCreate} variant="primary" disabled={creating || !weekPreview || !selectedMarketId}>
                 <Plus size={14} strokeWidth={2.5} />
                 {creating
                   ? 'Création…'
@@ -287,6 +332,7 @@ export function BordereauxSection() {
             <THead>
               <TR>
                 <TH>Code</TH>
+                <TH>Marché</TH>
                 <TH>Période</TH>
                 <TH>Reçu le</TH>
                 <TH right>Quantité (kg)</TH>
@@ -297,12 +343,17 @@ export function BordereauxSection() {
             </THead>
             <tbody>
               {settlements.map((s) => {
-                const { week } = getIsoWeekNumber(new Date(s.period_start))
+                const wLabel = marketWeekLabel(new Date(s.period_start), s.markets?.week1_start_date ?? null)
                 return (
                   <TR key={s.id}>
                     <TD>
                       <div className="font-mono text-body-sm font-semibold">{s.code}</div>
-                      <div className="font-mono text-[10px] text-fg-tertiary">S{String(week).padStart(2, '0')}</div>
+                      <div className="font-mono text-[10px] text-fg-tertiary">{wLabel}</div>
+                    </TD>
+                    <TD>
+                      {s.markets?.name
+                        ? <span className="text-body-sm">{s.markets.name}</span>
+                        : <span className="text-body-sm text-fg-tertiary italic">tous marchés</span>}
                     </TD>
                     <TD>
                       <div className="text-body-sm">
@@ -393,7 +444,7 @@ function SettlementMatrixModal({
   const refresh = async () => {
     setLoading(true)
     try {
-      const m = await buildMatrix(settlement.id)
+      const m = await buildMatrix(settlement.id, settlement.market_id ?? null)
       setRows(m)
     } catch (e: any) {
       toast.error(`Chargement matrice : ${e.message ?? e}`)

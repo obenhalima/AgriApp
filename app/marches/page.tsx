@@ -34,7 +34,7 @@ export default function MarchesPage() {
     code: '', name: '', type: 'local', country: 'Maroc', currency: 'MAD',
     avg_price_per_kg: '', avg_logistics_cost_per_kg: '', export_fees_per_kg: '',
     payment_terms: '', payment_terms_days: '30', client_id: '',
-    bordereau_frequency: 'monthly',
+    bordereau_frequency: 'monthly', week1_start_date: '',
     is_ecart_market: false, requirements: '', notes: '',
   } as any)
   const upd = (k: string) => (e: any) => setForm((f: any) => ({ ...f, [k]: e.target.value }))
@@ -101,7 +101,7 @@ export default function MarchesPage() {
       country: 'Maroc', currency: 'MAD',
       avg_price_per_kg: '', avg_logistics_cost_per_kg: '', export_fees_per_kg: '',
       payment_terms: '', payment_terms_days: '30', client_id: '',
-      bordereau_frequency: 'monthly',
+      bordereau_frequency: 'monthly', week1_start_date: '',
       is_ecart_market: false, requirements: '', notes: '',
     } as any)
     setModal(true)
@@ -124,6 +124,7 @@ export default function MarchesPage() {
       payment_terms_days: m.payment_terms_days != null ? String(m.payment_terms_days) : '30',
       client_id: m.client_id ?? '',
       bordereau_frequency: m.bordereau_frequency ?? defaultFreq,
+      week1_start_date: m.week1_start_date ?? '',
       is_ecart_market: !!m.is_ecart_market,
       requirements: m.requirements ?? '',
       notes: m.notes ?? '',
@@ -145,6 +146,7 @@ export default function MarchesPage() {
         payment_terms_days: form.payment_terms_days ? Number(form.payment_terms_days) : 30,
         client_id: form.client_id || null,
         bordereau_frequency: (form as any).bordereau_frequency || 'monthly',
+        week1_start_date: form.week1_start_date || null,
         is_ecart_market: !!(form as any).is_ecart_market,
         requirements: form.requirements || null,
         notes: form.notes || null,
@@ -185,6 +187,11 @@ export default function MarchesPage() {
       if (resp.error && /bordereau_frequency.*schema cache|bordereau_frequency.*does not exist/i.test(resp.error.message)) {
         toast.warning('Colonne bordereau_frequency absente (migration 049 a appliquer).', { duration: 6000 })
         resp = await retryWithout('bordereau_frequency')
+      }
+      // Retry sans week1_start_date si pas applique (migration 071)
+      if (resp.error && /week1_start_date.*schema cache|week1_start_date.*does not exist/i.test(resp.error.message)) {
+        toast.warning('Colonne week1_start_date absente (migration 071 a appliquer). Sauvegarde sans S1.', { duration: 6000 })
+        resp = await retryWithout('week1_start_date')
       }
       if (resp.error) throw resp.error
 
@@ -272,13 +279,18 @@ export default function MarchesPage() {
                   </div>
                 )}
               </Field>
-              <Field label="Cadence du bordereau" hint="Période de regroupement des dispatches pour facturation">
-                <TSelect value={(form as any).bordereau_frequency ?? 'monthly'} onChange={upd('bordereau_frequency')}>
-                  <option value="weekly">Hebdomadaire (lundi → dimanche) — recommandé pour Export</option>
-                  <option value="monthly">Mensuel (1er → fin du mois) — recommandé pour Local</option>
-                  <option value="none">Aucun (facture par dispatch direct, sans regroupement)</option>
-                </TSelect>
-              </Field>
+              <div className="grid grid-cols-2 gap-md">
+                <Field label="Cadence du bordereau" hint="Période de regroupement des dispatches pour facturation">
+                  <TSelect value={(form as any).bordereau_frequency ?? 'monthly'} onChange={upd('bordereau_frequency')}>
+                    <option value="weekly">Hebdomadaire (lundi → dimanche) — recommandé pour Export</option>
+                    <option value="monthly">Mensuel (1er → fin du mois) — recommandé pour Local</option>
+                    <option value="none">Aucun (facture par dispatch direct, sans regroupement)</option>
+                  </TSelect>
+                </Field>
+                <Field label="Début S1 (station)" hint="Lundi de la 1ʳᵉ semaine station. Numérote les bordereaux S1, S2… au lieu de la semaine ISO.">
+                  <TInput type="date" value={form.week1_start_date} onChange={upd('week1_start_date')} />
+                </Field>
+              </div>
               <div className="rounded-md border border-warning/30 bg-warning/5 p-md">
                 <label className="flex items-start gap-sm cursor-pointer">
                   <input

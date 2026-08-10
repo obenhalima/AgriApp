@@ -33,6 +33,8 @@ export interface Settlement {
   total_amount: number
   total_qty_kg: number
   notes?: string | null
+  market_id?: string | null
+  markets?: { id: string; code: string; name: string; week1_start_date?: string | null } | null
   validated_at?: string | null
   validated_by?: string | null
   created_by?: string | null
@@ -150,16 +152,65 @@ export function getIsoWeekNumber(date: Date): { year: number; week: number } {
 }
 
 // ───────────────────────────────────────────────────────────
+// Semaine « station » relative à la S1 du marché (B4)
+// ───────────────────────────────────────────────────────────
+
+/**
+ * Numéro de semaine relatif à la S1 définie par le marché.
+ * Si `week1Start` (date du lundi de la S1) est fourni et que la période est
+ * à/après cette S1, renvoie 1 + floor((lundi_période − lundi_S1)/7).
+ * Sinon retombe sur la semaine ISO (marketRelative=false).
+ */
+export function marketWeekNumber(
+  monday: Date,
+  week1Start?: string | null,
+): { year: number; week: number; marketRelative: boolean } {
+  if (week1Start) {
+    // Aligne la S1 sur SON lundi (au cas où une autre date de la semaine est saisie)
+    const w1 = new Date(`${week1Start}T00:00:00Z`)
+    if (!isNaN(w1.getTime())) {
+      const w1Day = w1.getUTCDay() || 7
+      if (w1Day !== 1) w1.setUTCDate(w1.getUTCDate() - (w1Day - 1))
+      const mUTC = new Date(Date.UTC(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate()))
+      const diffDays = Math.round((mUTC.getTime() - w1.getTime()) / 86400000)
+      const week = Math.floor(diffDays / 7) + 1
+      if (week >= 1) return { year: mUTC.getUTCFullYear(), week, marketRelative: true }
+    }
+    // avant la S1 (ou date invalide) → ISO
+  }
+  const iso = getIsoWeekNumber(monday)
+  return { year: iso.year, week: iso.week, marketRelative: false }
+}
+
+/** Libellé court « S07 » calculé pour un marché. */
+export function marketWeekLabel(monday: Date, week1Start?: string | null): string {
+  const { week } = marketWeekNumber(monday, week1Start)
+  return `S${String(week).padStart(2, '0')}`
+}
+
+// ───────────────────────────────────────────────────────────
 // Listing & lecture
 // ───────────────────────────────────────────────────────────
 
 export async function listSettlements(limit = 50): Promise<Settlement[]> {
   const { data, error } = await supabase
     .from('station_settlements')
-    .select('*')
+    .select('*, markets(id, code, name, week1_start_date)')
     .order('period_start', { ascending: false })
     .limit(limit)
-  if (error) throw error
+  if (error) {
+    // Fallback : migration 071 (market_id) pas encore appliquée → on lit sans le join
+    if (/market_id|week1_start_date|relationship|schema cache|does not exist/i.test(error.message ?? '')) {
+      const { data: d2, error: e2 } = await supabase
+        .from('station_settlements')
+        .select('*')
+        .order('period_start', { ascending: false })
+        .limit(limit)
+      if (e2) throw e2
+      return (d2 ?? []) as Settlement[]
+    }
+    throw error
+  }
   return (data ?? []) as Settlement[]
 }
 
@@ -203,8 +254,8 @@ export async function getSettlementAllocations(settlementId: string): Promise<Se
  * Récupère le stock de lots triés non tarifés, agrégé par (market × variety × farm).
  * Utilisé pour pré-remplir la matrice de saisie du bordereau.
  */
-export async function getUnpricedLotsSummary(): Promise<UnpricedLotSummary[]> {
-  const { data, error } = await supabase
+export async function getUnpricedLotsSummary(marketId?: string | null): Promise<UnpricedLotSummary[]> {
+  let query = supabase
     .from('harvest_lots')
     .select(`
       id,
@@ -219,6 +270,8 @@ export async function getUnpricedLotsSummary(): Promise<UnpricedLotSummary[]> {
     `)
     .eq('tri_status', 'tried')
     .eq('category', 'station_dispatch')
+  if (marketId) query = query.eq('market_id', marketId)  // B1 : stock du marché seul
+  const { data, error } = await query
 
   if (error) throw error
 
@@ -266,6 +319,7 @@ export async function createSettlement(params: {
   period_end: string
   received_date?: string
   notes?: string
+  market_id?: string | null
 }): Promise<Settlement> {
   const { data, error } = await supabase
     .from('station_settlements')
@@ -274,10 +328,11 @@ export async function createSettlement(params: {
       period_end: params.period_end,
       received_date: params.received_date ?? new Date().toISOString().slice(0, 10),
       notes: params.notes,
+      market_id: params.market_id ?? null,
       status: 'brouillon',
       // code laissé NULL : auto-généré par trigger trg_settlement_gen_code
     })
-    .select()
+    .select('*, markets(id, code, name, week1_start_date)')
     .single()
   if (error) throw error
   return data as Settlement
@@ -289,8 +344,14 @@ export async function createSettlement(params: {
  *
  * Accepte soit une chaîne ISO 'YYYY-Www', soit une Date quelconque
  * (sera arrondie au lundi de sa semaine ISO).
+ *
+ * `marketId` (B1) : rattache le bordereau à un marché. Un bordereau distinct
+ * est créé par (semaine × marché) ; l'idempotence tient compte du marché.
  */
-export async function createSettlementForWeek(input: string | Date): Promise<Settlement> {
+export async function createSettlementForWeek(
+  input: string | Date,
+  marketId?: string | null,
+): Promise<Settlement> {
   let monday: Date
   let sunday: Date
 
@@ -308,17 +369,18 @@ export async function createSettlementForWeek(input: string | Date): Promise<Set
   const ps = formatDateOnly(monday)
   const pe = formatDateOnly(sunday)
 
-  // Cherche un existant pour cette semaine
-  const { data: existing } = await supabase
+  // Cherche un existant pour cette semaine × marché
+  let q = supabase
     .from('station_settlements')
-    .select('*')
+    .select('*, markets(id, code, name, week1_start_date)')
     .eq('period_start', ps)
     .eq('period_end', pe)
-    .maybeSingle()
+  q = marketId ? q.eq('market_id', marketId) : q.is('market_id', null)
+  const { data: existing } = await q.maybeSingle()
 
   if (existing) return existing as Settlement
 
-  return createSettlement({ period_start: ps, period_end: pe })
+  return createSettlement({ period_start: ps, period_end: pe, market_id: marketId ?? null })
 }
 
 /**
@@ -469,9 +531,9 @@ export interface MatrixRow {
  *   - le stock disponible (UnpricedLotsSummary)
  *   - les lignes déjà saisies dans le bordereau (si édition)
  */
-export async function buildMatrix(settlementId: string | null): Promise<MatrixRow[]> {
+export async function buildMatrix(settlementId: string | null, marketId?: string | null): Promise<MatrixRow[]> {
   const [stock, lines] = await Promise.all([
-    getUnpricedLotsSummary(),
+    getUnpricedLotsSummary(marketId),
     settlementId ? getSettlementLines(settlementId) : Promise.resolve([] as SettlementLine[]),
   ])
 
