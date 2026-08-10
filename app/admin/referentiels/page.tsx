@@ -12,7 +12,7 @@ import { List, Plus, Trash2, Save, GripVertical, Star, Eye, EyeOff, RefreshCw, X
 import {
   type ReferenceList, type ReferenceValue,
   listReferenceLists, listReferenceValues,
-  createReferenceValue, updateReferenceValue, deleteReferenceValue,
+  createReferenceValue, updateReferenceValue, deleteReferenceValue, hardDeleteReferenceValue,
   createReferenceList, countUsage, exportReferentielsXlsx, importReferentielsXlsx,
 } from '@/lib/referenceData'
 import { useAuth } from '@/lib/auth'
@@ -161,6 +161,33 @@ export default function ReferentielsPage() {
       if (!ok) return
     }
     applyToggle(v)
+  }
+
+  // Suppression définitive — autorisée uniquement si la valeur n'est utilisée nulle part.
+  // Sinon on redirige vers la désactivation (préserve les données existantes).
+  const handleDelete = async (v: ReferenceValue) => {
+    let used = -1
+    try { used = await countUsage(selectedKey, v.code) } catch { used = -1 }
+    if (used > 0) {
+      toast.error(
+        `« ${v.label} » est utilisé par ${used} enregistrement(s) — impossible de supprimer. ` +
+        `Désactive-la (👁) à la place : elle disparaît des listes mais l'historique est préservé.`,
+        { duration: 8000 },
+      )
+      return
+    }
+    const note = used === 0
+      ? 'Cette valeur n\'est utilisée nulle part.'
+      : 'L\'usage de cette liste n\'est pas tracé — vérifie qu\'elle n\'est pas référencée ailleurs.'
+    if (!window.confirm(`Supprimer définitivement « ${v.label} » ?\n\n${note}\nSuppression irréversible.`)) return
+    try {
+      await hardDeleteReferenceValue(v.id)
+      setValues(prev => prev.filter(x => x.id !== v.id))
+      await loadLists()  // rafraîchit le compteur de la liste
+      toast.success('Valeur supprimée')
+    } catch (e: any) {
+      toast.error(`Suppression échouée : ${e.message ?? e}`)
+    }
   }
 
   // P4 — drag & drop : réordonne `values` et persiste les nouveaux order_idx
@@ -374,10 +401,19 @@ export default function ReferentielsPage() {
                       {/* Actif */}
                       <button
                         onClick={() => handleToggleActive(v)}
-                        title={v.is_active ? 'Désactiver' : 'Réactiver'}
+                        title={v.is_active ? 'Désactiver (masque la valeur, garde l\'historique)' : 'Réactiver'}
                         className="text-fg-tertiary hover:text-fg-primary"
                       >
                         {v.is_active ? <Eye size={16} /> : <EyeOff size={16} />}
+                      </button>
+
+                      {/* Supprimer définitivement (si non utilisée) */}
+                      <button
+                        onClick={() => handleDelete(v)}
+                        title="Supprimer définitivement (uniquement si non utilisée)"
+                        className="text-fg-tertiary hover:text-danger"
+                      >
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   ))}
@@ -387,7 +423,8 @@ export default function ReferentielsPage() {
               <div className="px-md py-sm border-t border-border text-caption text-fg-tertiary">
                 💡 Le <strong>code</strong> est immuable (utilisé en base). Modifie seulement le <strong>libellé affiché</strong>.
                 Glisse les lignes <GripVertical size={11} className="inline -mt-0.5" /> pour réordonner.
-                Désactive 👁 plutôt que supprimer pour préserver les données existantes.
+                <strong>Désactiver</strong> <Eye size={11} className="inline -mt-0.5" /> masque la valeur mais garde l'historique (recommandé si elle a déjà servi).
+                <strong>Supprimer</strong> <Trash2 size={11} className="inline -mt-0.5" /> l'efface définitivement — possible seulement si elle n'est utilisée nulle part.
                 Pour éditer en masse : <strong>Exporter Excel</strong> → modifier dans Excel → <strong>Importer Excel</strong>.
               </div>
             </>
