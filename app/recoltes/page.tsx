@@ -41,6 +41,7 @@ export default function RecoltesPage() {
   const [plantings, setPlantings] = useState<any[]>([])
   const [markets, setMarkets] = useState<any[]>([])
   const [alertes, setAlertes] = useState<any[]>([])
+  const [settlementCount, setSettlementCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -93,7 +94,7 @@ export default function RecoltesPage() {
     try {
       const since14 = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10)
       const since30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
-      const [hRes, dRes, sRes, pRes, mRes, alRes, srRes] = await Promise.all([
+      const [hRes, dRes, sRes, pRes, mRes, alRes, srRes, stRes] = await Promise.all([
         supabase.from('harvests')
           .select('id, lot_number, harvest_date, total_qty, estimated_kg, actual_kg, recorded_by, recorded_by_name, notes, campaign_planting_id, campaign_plantings(*, greenhouses(code, name, farm_id, farms(name)), varieties(commercial_name, code), campaigns(name))')
           .order('harvest_date', { ascending: false })
@@ -114,6 +115,8 @@ export default function RecoltesPage() {
           .eq('category', 'stock_retour')
           .eq('tri_status', 'pending')
           .order('harvest_date', { ascending: false }),
+        // Compteur de bordereaux station (pour le badge d'onglet)
+        supabase.from('station_settlements').select('id', { count: 'exact', head: true }),
       ])
       if (hRes.error) throw hRes.error
       setHarvests(hRes.data ?? [])
@@ -123,6 +126,7 @@ export default function RecoltesPage() {
       setMarkets(mRes.data ?? [])
       setAlertes(alRes.data ?? [])
       setStockRetour(srRes.data ?? [])
+      setSettlementCount(stRes.count ?? 0)
     } catch (e: any) { setError(e.message || String(e)) }
     setLoading(false)
   }, [])
@@ -706,7 +710,7 @@ export default function RecoltesPage() {
           ['a_tarifer', '🔬 À tarifer', aTarifer.length],
           ['confirmes', '✅ Confirmés', confirmes.length],
           ['ca', '💰 CA réalisé', caData.rows.length],
-          ['bordereaux', '📑 Bordereaux station', 0],
+          ['bordereaux', '📑 Bordereaux station', settlementCount],
           ['stock_retour', '🔄 Stock retour', stockRetour.length],
           ['alertes', '⚠ Alertes', alertesActives.length],
         ] as [Tab, string, number][]).map(([k, l, c]) => (
