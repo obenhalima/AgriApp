@@ -21,12 +21,14 @@ import { Input as TInput, Select as TSelect, Textarea, Field } from '@/component
 import { Modal, ModalFooter } from '@/components/ui/Modal'
 import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { MoneyDisplay } from '@/components/display'
+import { useAuth } from '@/lib/auth'
 
 type StockItem = { id: string; code: string; name: string; unit: string | null }
 type NewLine = { itemDescription: string; unit: string; quantity: string; unitPrice: string; stockItemId: string }
 const EMPTY_NEW_LINE: NewLine = { itemDescription: '', unit: '', quantity: '', unitPrice: '', stockItemId: '' }
 
 export default function PurchaseOrderDetailPage() {
+  const { activeDomain } = useAuth()
   const params = useParams<{ id: string }>()
   const poId = params?.id as string
 
@@ -48,12 +50,13 @@ export default function PurchaseOrderDetailPage() {
   const [receptionRef, setReceptionRef] = useState('')
 
   const load = async () => {
+    if (!activeDomain) { setPo(null); setLines([]); setStockItems([]); setLoading(false); return }
     try {
       setLoading(true)
       const [p, l, s] = await Promise.all([
-        supabase.from('purchase_orders').select('*, suppliers(name,category), campaigns(name), greenhouses(code,name)').eq('id', poId).maybeSingle(),
-        getPurchaseOrderLines(poId),
-        supabase.from('stock_items').select('id,code,name,unit').eq('is_active', true).order('name'),
+        supabase.from('purchase_orders').select('*, suppliers(name,category), campaigns(name), greenhouses(code,name)').eq('domain_id', activeDomain.domain_id).eq('id', poId).maybeSingle(),
+        getPurchaseOrderLines(poId, activeDomain.domain_id),
+        supabase.from('stock_items').select('id,code,name,unit').eq('domain_id', activeDomain.domain_id).eq('is_active', true).order('name'),
       ])
       if (p.error) throw p.error
       setPo(p.data as any)
@@ -62,7 +65,7 @@ export default function PurchaseOrderDetailPage() {
     } catch (e: any) { setError(e.message) }
     finally { setLoading(false) }
   }
-  useEffect(() => { if (poId) load() }, [poId])
+  useEffect(() => { if (poId) load() }, [poId, activeDomain?.domain_id])
 
   const editable = po?.status === 'brouillon'
   const canReceive = po?.status === 'envoye' || po?.status === 'partiellement_recu'
@@ -91,7 +94,7 @@ export default function PurchaseOrderDetailPage() {
       })
       setLines(prev => [...prev, created])
       setNewLine({ ...EMPTY_NEW_LINE })
-      const { data: p } = await supabase.from('purchase_orders').select('*, suppliers(name,category), campaigns(name), greenhouses(code,name)').eq('id', poId).maybeSingle()
+      const { data: p } = await supabase.from('purchase_orders').select('*, suppliers(name,category), campaigns(name), greenhouses(code,name)').eq('domain_id', activeDomain!.domain_id).eq('id', poId).maybeSingle()
       if (p) setPo(p as any)
       toast.success('Ligne ajoutée')
     } catch (e: any) { toast.error('Erreur : ' + e.message) }
@@ -99,7 +102,8 @@ export default function PurchaseOrderDetailPage() {
   }
 
   const handleStockCreated = async (item: { id: string; name: string; unit: string; category: string; code: string }) => {
-    const { data } = await supabase.from('stock_items').select('id,code,name,unit').eq('is_active', true).order('name')
+    if (!activeDomain) return
+    const { data } = await supabase.from('stock_items').select('id,code,name,unit').eq('domain_id', activeDomain.domain_id).eq('is_active', true).order('name')
     setStockItems((data ?? []) as StockItem[])
     if (stockModalTarget?.kind === 'new') {
       setNewLine(n => ({ ...n, stockItemId: item.id, itemDescription: n.itemDescription || item.name, unit: n.unit || item.unit }))

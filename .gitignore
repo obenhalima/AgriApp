@@ -36,6 +36,18 @@ next-env.d.ts
 # Claude Code session cache
 .claude/
 
+# Supabase CLI local cache (peut contenir les identifiants du projet lié)
+/supabase/.temp/
+
+# Sauvegardes locales de base de données
+/backup*.sql
+
+# Documents de travail locaux à la racine
+/*.docx
+/*.xlsx
+/*.pptx
+/*.pdf
+
 # Excel lock files (fichiers temporaires d'Excel ouverts)
 ~$*.xlsx
 ~$*.xls

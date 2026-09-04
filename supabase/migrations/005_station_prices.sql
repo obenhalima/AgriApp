@@ -1,4 +1,4 @@
--- Table prix station (prix reçu après envoi à la station)
+-- Migration 005 : table prix station (prix reçu après envoi à la station)
 CREATE TABLE IF NOT EXISTS harvest_station_prices (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   harvest_id      UUID NOT NULL REFERENCES harvests(id) ON DELETE CASCADE,

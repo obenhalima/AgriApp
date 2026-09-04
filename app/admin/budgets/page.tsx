@@ -16,6 +16,7 @@ import {
   computeGrid, gridKey, monthKey,
 } from '@/lib/budgets'
 import { BudgetImportModal } from '@/components/budget/BudgetImportModal'
+import { useAuth } from '@/lib/auth'
 import { GenerateSalesBudgetModal } from '@/components/budget/GenerateSalesBudgetModal'
 import {
   createWorkbook, applyTitleRow, styleHeaderRow, styleSubHeaderRow,
@@ -34,6 +35,7 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function BudgetsAdminPage() {
+  const { activeDomain } = useAuth()
   const [campaigns, setCampaigns]   = useState<Campaign[]>([])
   const [farms, setFarms]           = useState<Farm[]>([])
   const [greenhouses, setGreenhouses] = useState<Greenhouse[]>([])
@@ -77,12 +79,14 @@ export default function BudgetsAdminPage() {
 
   // ── Chargement des référentiels ──
   useEffect(() => {
+    setCampaignId(''); setVersionId(''); setFarmId(''); setGreenhouseId(''); setLines([])
+    if (!activeDomain) { setCampaigns([]); setFarms([]); setGreenhouses([]); setLoadingRefs(false); return }
     (async () => {
       try {
         const [c, f, g, cat] = await Promise.all([
-          supabase.from('campaigns').select('id, name, code, preparation_start, planting_start, farm_id').order('preparation_start', { ascending: false, nullsFirst: false }),
-          supabase.from('farms').select('id, name, code').eq('is_active', true).order('name'),
-          supabase.from('greenhouses').select('id, farm_id, name, code').order('code'),
+          supabase.from('campaigns').select('id, name, code, preparation_start, planting_start, farm_id').eq('domain_id', activeDomain.domain_id).order('preparation_start', { ascending: false, nullsFirst: false }),
+          supabase.from('farms').select('id, name, code').eq('domain_id', activeDomain.domain_id).eq('is_active', true).order('name'),
+          supabase.from('greenhouses').select('id, farm_id, name, code, farms!inner(domain_id)').eq('farms.domain_id', activeDomain.domain_id).order('code'),
           listAccountCategories(),
         ])
         setCampaigns((c.data ?? []) as Campaign[])
@@ -97,7 +101,7 @@ export default function BudgetsAdminPage() {
         toast.error('Erreur chargement référentiels : ' + e.message)
       } finally { setLoadingRefs(false) }
     })()
-  }, [])
+  }, [activeDomain?.domain_id])
 
   // Versions d'une campagne
   useEffect(() => {

@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, Sun, Moon, LogOut, ChevronRight, HelpCircle, Plus, Activity,
   ChevronDown, RefreshCw, AlertCircle, Menu,
+  Globe2,
 } from 'lucide-react'
 
 import { getTheme, setTheme } from '@/lib/theme'
@@ -25,13 +26,14 @@ import { useRealtimeReload } from '@/lib/useRealtimeReload'
 export function Topbar() {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, profile, role, signOut } = useAuth()
+  const { user, profile, role, domains, activeDomain, switchDomain, signOut } = useAuth()
 
   const [out, setOut] = useState(false)
   const [theme, setThemeState] = useState<'dark' | 'light'>('light')
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [isMac, setIsMac] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [switchingDomain, setSwitchingDomain] = useState(false)
   const [liveCampaign, setLiveCampaign] = useState<{ id: string; code: string; name: string; source: 'manual' | 'auto' } | null>(null)
 
   // Charge la campagne live (manuelle prioritaire, sinon status=en_cours)
@@ -59,6 +61,19 @@ export function Topbar() {
     // 2. Notifie les pages qui veulent recharger leurs données client-side
     window.dispatchEvent(new CustomEvent('app:refresh-data'))
     setTimeout(() => setRefreshing(false), 700)
+  }
+
+  const handleDomainChange = async (domainId: string) => {
+    if (domainId === activeDomain?.domain_id || switchingDomain) return
+    setSwitchingDomain(true)
+    try {
+      await switchDomain(domainId)
+      // Les pages actuelles chargent leurs données côté client : un rechargement
+      // garantit qu'aucune donnée de l'ancien domaine ne reste affichée.
+      window.location.reload()
+    } finally {
+      setSwitchingDomain(false)
+    }
   }
 
   useEffect(() => {
@@ -150,6 +165,24 @@ export function Topbar() {
 
       {/* ─── Right : Actions ─── */}
       <div className="flex items-center gap-xs sm:gap-sm flex-shrink-0">
+
+        {/* Domaine actif — le rôle et les permissions suivent cette sélection. */}
+        {activeDomain && domains.length > 1 && (
+          <div className="flex items-center gap-xs" title={`Domaine actif : ${activeDomain.domain_name}`}>
+            <Globe2 size={14} className="hidden sm:block text-fg-tertiary flex-shrink-0" />
+            <select
+              aria-label="Domaine actif"
+              value={activeDomain.domain_id}
+              onChange={e => handleDomainChange(e.target.value)}
+              disabled={switchingDomain}
+              className="h-8 w-[112px] sm:w-auto sm:max-w-[210px] rounded-md border border-border bg-surface-sunk/50 px-xs sm:px-sm text-caption font-semibold text-fg-secondary outline-none hover:border-border-strong disabled:opacity-60"
+            >
+              {domains.map(domain => (
+                <option key={domain.domain_id} value={domain.domain_id}>{domain.domain_code} — {domain.domain_name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Search / Cmd+K trigger */}
         <button

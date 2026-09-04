@@ -20,18 +20,22 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 })
 
 /* ── FERMES ── */
-export const getFarms = async () => {
-  const { data, error } = await supabase.from('farms').select('*').eq('is_active', true).order('name')
+export const getFarms = async (domainId?: string) => {
+  let query = supabase.from('farms').select('*').eq('is_active', true)
+  if (domainId) query = query.eq('domain_id', domainId)
+  const { data, error } = await query.order('name')
   if (error) throw error; return data ?? []
 }
-export const createFarm = async (p: { code:string; name:string; city?:string; region?:string; total_area?:number }) => {
+export const createFarm = async (p: { code:string; name:string; city?:string; region?:string; total_area?:number; domain_id:string }) => {
   const { data, error } = await supabase.from('farms').insert({ ...p, is_active: true, country: 'Maroc' }).select().single()
   if (error) throw error; return data
 }
 
 /* ── SERRES ── */
-export const getSerres = async () => {
-  const { data, error } = await supabase.from('greenhouses').select('*, farms(name)').order('code')
+export const getSerres = async (domainId?: string) => {
+  let query = supabase.from('greenhouses').select('*, farms!inner(name, domain_id)')
+  if (domainId) query = query.eq('farms.domain_id', domainId)
+  const { data, error } = await query.order('code')
   if (error) throw error; return data ?? []
 }
 export const createSerre = async (p: { farm_id:string; code:string; name:string; type:string; status:string; total_area:number; exploitable_area:number; notes?:string }) => {
@@ -58,8 +62,10 @@ export const deleteVariete = async (id: string) => {
 }
 
 /* ── CAMPAGNES ── */
-export const getCampagnes = async () => {
-  const { data, error } = await supabase.from('campaigns').select('*, farms(name)').order('created_at', { ascending: false })
+export const getCampagnes = async (domainId?: string) => {
+  let query = supabase.from('campaigns').select('*, farms(name)')
+  if (domainId) query = query.eq('domain_id', domainId)
+  const { data, error } = await query.order('created_at', { ascending: false })
   if (error) throw error; return data ?? []
 }
 export const createCampagne = async (p: { farm_id:string; code:string; name:string; planting_start?:string; harvest_start?:string; campaign_end?:string; budget_total?:number; production_target_kg?:number }) => {
@@ -92,21 +98,25 @@ export const deleteClient = async (id: string) => {
 }
 
 /* ── FOURNISSEURS ── */
-export const getFournisseurs = async () => {
-  const { data, error } = await supabase.from('suppliers').select('*').eq('is_active', true).order('name')
+export const getFournisseurs = async (domainId?: string) => {
+  let query = supabase.from('suppliers').select('*').eq('is_active', true)
+  if (domainId) query = query.eq('domain_id', domainId)
+  const { data, error } = await query.order('name')
   if (error) throw error; return data ?? []
 }
-export const createFournisseur = async (p: { code:string; name:string; category:string; city?:string; email?:string; phone?:string; payment_terms_days?:number; notes?:string }) => {
+export const createFournisseur = async (p: { code:string; name:string; category:string; city?:string; email?:string; phone?:string; payment_terms_days?:number; notes?:string; domain_id:string }) => {
   const { data, error } = await supabase.from('suppliers').insert({ ...p, is_active: true, currency: 'MAD' }).select().single()
   if (error) throw error; return data
 }
 
 /* ── STOCKS ── */
-export const getStocks = async () => {
-  const { data, error } = await supabase.from('stock_items').select('*').eq('is_active', true).order('name')
+export const getStocks = async (domainId?: string) => {
+  let query = supabase.from('stock_items').select('*').eq('is_active', true)
+  if (domainId) query = query.eq('domain_id', domainId)
+  const { data, error } = await query.order('name')
   if (error) throw error; return data ?? []
 }
-export const createStockItem = async (p: { code:string; name:string; category:string; unit:string; min_qty:number; unit_cost?:number; location?:string }) => {
+export const createStockItem = async (p: { code:string; name:string; category:string; unit:string; min_qty:number; unit_cost?:number; location?:string; domain_id:string }) => {
   const { data, error } = await supabase.from('stock_items').insert({ ...p, current_qty: 0, is_active: true }).select().single()
   if (error) throw error; return data
 }
@@ -167,12 +177,12 @@ export const payerFacture = async (p: { invoice_id:string; amount:number; paymen
   if (e2) throw e2
 }
 
-export const getFacturesFournisseurs = async () => {
-  const { data, error } = await supabase
+export const getFacturesFournisseurs = async (domainId?: string) => {
+  let query = supabase
     .from('supplier_invoices')
     .select('*, suppliers(name,category), campaigns(name), greenhouses(code,name), purchase_orders(po_number, total_amount)')
-    .order('invoice_date', { ascending: false })
-    .limit(100)
+  if (domainId) query = query.eq('domain_id', domainId)
+  const { data, error } = await query.order('invoice_date', { ascending: false }).limit(100)
   if (error) throw error; return data ?? []
 }
 export const createFactureFournisseur = async (p: {

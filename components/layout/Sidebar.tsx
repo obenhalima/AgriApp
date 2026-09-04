@@ -24,7 +24,7 @@ import { useRealtimeReload } from '@/lib/useRealtimeReload'
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { canAccessModule, loading: authLoading } = useAuth()
+  const { canAccessModule, isPlatformAdmin, loading: authLoading } = useAuth()
 
   const [collapsed, setCollapsed] = useState(false)
   const [pinned, setPinned] = useState(true)
@@ -59,9 +59,9 @@ export function Sidebar() {
   const filteredNav = useMemo(() => {
     if (authLoading) return []
     return NAV
-      .map(group => ({ ...group, items: group.items.filter(item => canAccessModule(item.moduleCode)) }))
+      .map(group => ({ ...group, items: group.items.filter(item => canAccessModule(item.moduleCode) && (!item.platformOnly || isPlatformAdmin)) }))
       .filter(group => group.items.length > 0)
-  }, [authLoading, canAccessModule])
+  }, [authLoading, canAccessModule, isPlatformAdmin])
 
   const activeSection = useMemo(() => {
     return filteredNav.find(g => g.items.some(i => i.href === pathname))?.section

@@ -30,7 +30,7 @@ function computeUsed(harvestId: string, sources: any[], legacyDirect: any[]): nu
 
 export default function RecoltesPage() {
   const { values: trayTypes } = useReferenceList('tray_type')
-  const { profile } = useAuth()
+  const { profile, activeDomain } = useAuth()
   const myId = profile?.id ?? null
   const myName = profile?.full_name || profile?.email || 'Moi'
   const [tab, setTab] = useState<Tab>('liste')
@@ -92,6 +92,10 @@ export default function RecoltesPage() {
   // ─── Chargement ───
   const load = useCallback(async () => {
     setLoading(true); setError('')
+    if (!activeDomain) {
+      setHarvests([]); setDispatches([]); setSources([]); setPlantings([]); setStockRetour([]); setLoading(false)
+      return
+    }
     try {
       const since14 = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10)
       const since30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
@@ -99,28 +103,33 @@ export default function RecoltesPage() {
         supabase.from('harvests')
           .select('id, lot_number, harvest_date, total_qty, estimated_kg, actual_kg, recorded_by, recorded_by_name, notes, campaign_planting_id, campaign_plantings(*, greenhouses(code, name, farm_id, farms(name)), varieties(commercial_name, code), campaigns(name))')
           .order('harvest_date', { ascending: false })
+          .eq('domain_id', activeDomain.domain_id)
           .limit(300),
         supabase.from('harvest_lots')
           .select('id, lot_number, harvest_id, harvest_date, quantity_kg, estimated_kg, weighed_kg, weighed_at, market_id, markets(name, currency), variety_id, varieties(code, commercial_name), tri_status, freinte_pct, ecart_pct, qty_nette_kg, qty_acceptee_kg, qty_priced_kg, price_per_kg, ca_amount, station_ref, certificate_number, notes, destination_rejet, rejet_qty_kg, parent_dispatch_id, campaign_planting_id, greenhouse_id, greenhouses(farm_id, farms(name)), category')
           .eq('category', 'station_dispatch')
+          .eq('domain_id', activeDomain.domain_id)
           .gte('harvest_date', since30)
           .order('harvest_date', { ascending: false }),
         supabase.from('harvest_lot_sources')
-          .select('harvest_lot_id, harvest_id, qty_contributed_kg, harvests(lot_number, harvest_date, recorded_by, recorded_by_name)'),
-        supabase.from('campaign_plantings').select('id, variety_id, greenhouse_id, first_harvest_date, last_harvest_date, greenhouses(code, name, farm_id, farms(name)), varieties(commercial_name, code), campaigns(name, harvest_start, harvest_end)'),
+          .select('harvest_lot_id, harvest_id, qty_contributed_kg, harvests!inner(lot_number, harvest_date, recorded_by, recorded_by_name, domain_id)')
+          .eq('harvests.domain_id', activeDomain.domain_id),
+        supabase.from('campaign_plantings').select('id, variety_id, greenhouse_id, first_harvest_date, last_harvest_date, greenhouses(code, name, farm_id, farms(name)), varieties(commercial_name, code), campaigns(name, harvest_start, harvest_end)').eq('domain_id', activeDomain.domain_id),
         supabase.from('markets').select('id, code, name, currency, type').eq('is_active', true).order('name'),
         supabase.from('alerts').select('*').eq('type', 'no_harvest').order('created_at', { ascending: false }).limit(100),
         // Stock de retour : lots créés via tri (destination = retour_stock) pas encore consommés
         supabase.from('harvest_lots')
           .select('id, lot_number, harvest_date, quantity_kg, variety_id, varieties(code, commercial_name), greenhouse_id, parent_dispatch_id, tri_status, notes')
           .eq('category', 'stock_retour')
+          .eq('domain_id', activeDomain.domain_id)
           .eq('tri_status', 'pending')
           .order('harvest_date', { ascending: false }),
         // Compteur de bordereaux station (pour le badge d'onglet)
         supabase.from('station_settlements').select('id', { count: 'exact', head: true }),
         // Lignes de plateaux (pour afficher plateaux + type dans la liste)
         supabase.from('harvest_tray_lines')
-          .select('harvest_id, tray_type_code, tray_type_label, nb_trays, poids_unitaire_kg, line_kg')
+          .select('harvest_id, tray_type_code, tray_type_label, nb_trays, poids_unitaire_kg, line_kg, harvests!inner(domain_id)')
+          .eq('harvests.domain_id', activeDomain.domain_id)
           .gte('created_at', since30),
       ])
       if (hRes.error) throw hRes.error
@@ -140,7 +149,7 @@ export default function RecoltesPage() {
       setTrayByHarvest(trayMap)
     } catch (e: any) { setError(e.message || String(e)) }
     setLoading(false)
-  }, [])
+  }, [activeDomain?.domain_id])
 
   useEffect(() => { load() }, [load])
 

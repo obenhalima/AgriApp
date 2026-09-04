@@ -388,6 +388,7 @@ export async function bulkUpdateCostEntries(ids: string[], patch: Partial<{
 // LOAD : liste des coûts avec jointures
 // ============================================================
 export async function listCostEntries(filters?: {
+  domainId?: string
   campaignId?: string
   farmId?: string
   isPlanned?: boolean
@@ -398,6 +399,7 @@ export async function listCostEntries(filters?: {
     .order('entry_date', { ascending: false })
     .limit(filters?.limit ?? 500)
   if (filters?.campaignId) q = q.eq('campaign_id', filters.campaignId)
+  if (filters?.domainId) q = q.eq('domain_id', filters.domainId)
   if (filters?.isPlanned !== undefined) q = q.eq('is_planned', filters.isPlanned)
   const { data, error } = await q
   if (error) throw error

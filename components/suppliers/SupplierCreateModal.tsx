@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter } from '@/components/ui/Modal'
+import { useAuth } from '@/lib/auth'
 
 export type SupplierCategory =
   | 'semences' | 'engrais' | 'phytosanitaires' | 'irrigation'
@@ -41,6 +42,7 @@ export function SupplierCreateModal(props: {
   onCreated: (supplier: CreatedSupplier) => void
   initialCategory?: SupplierCategory
 }) {
+  const { activeDomain } = useAuth()
   const { open, onClose, onCreated, initialCategory = 'autre' } = props
 
   const [name, setName] = useState('')
@@ -73,10 +75,12 @@ export function SupplierCreateModal(props: {
 
   const submit = async () => {
     setError('')
+    if (!activeDomain) { setError('Aucun domaine actif'); return }
     if (!name.trim() || !code.trim()) { setError('Nom et code sont requis'); return }
     setSaving(true)
     try {
       const { data, error: e } = await supabase.from('suppliers').insert({
+        domain_id: activeDomain.domain_id,
         code: code.trim(),
         name: name.trim(),
         category,

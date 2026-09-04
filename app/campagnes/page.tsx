@@ -26,6 +26,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Input as TInput, Select as TSelect, Textarea, Field } from '@/components/ui/Input'
 import { Modal, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { MoneyDisplay, VolumeDisplay, DateDisplay } from '@/components/display'
+import { useAuth } from '@/lib/auth'
 
 const EMPTY_FORM = {
   code: '', name: '', farm_id: '', status: 'planification',
@@ -40,6 +41,7 @@ const EMPTY_FORM = {
 // (en_cours = campagne active) — éditer les libellés/couleurs, pas les codes.
 
 export default function CampagnesPage() {
+  const { activeDomain } = useAuth()
   const { values: CAMP_STATUS } = useReferenceList('campaign_status')
   const statusColor = (code: string) => CAMP_STATUS.find(v => v.code === code)?.color || '#64748b'
   const [items, setItems] = useState<any[]>([])
@@ -57,17 +59,18 @@ export default function CampagnesPage() {
   const closeModal = () => { setModal(false); setDone(false); setEditingId(null); setForm(EMPTY_FORM) }
 
   const load = async () => {
+    if (!activeDomain) { setItems([]); setFarms([]); setLoading(false); return }
     try {
       const [c, f] = await Promise.all([
-        supabase.from('campaigns').select('*, farms(name)').order('created_at', { ascending: false }),
-        getFarms(),
+        supabase.from('campaigns').select('*, farms(name)').eq('domain_id', activeDomain.domain_id).order('created_at', { ascending: false }),
+        getFarms(activeDomain.domain_id),
       ])
       setItems(c.data || [])
       setFarms(f)
     } catch (e) { /* silent */ }
     setLoading(false)
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [activeDomain?.domain_id])
 
   const filtered = useMemo(() => items.filter(c => {
     if (statusFilter !== 'all' && c.status !== statusFilter) return false

@@ -48,6 +48,8 @@ export type NavItem = {
   shortcut?: string[]
   /** Petite description pour la palette / tooltip */
   description?: string
+  /** Reserve aux super-administrateurs de la plateforme */
+  platformOnly?: boolean
 }
 
 export type NavSection = {
@@ -201,6 +203,7 @@ export const NAV: NavSection[] = [
     icon: ShieldAlert,
     color: '#ef4444',
     items: [
+      { href: '/admin/domaines', moduleCode: 'users', label: 'Domaines', icon: Globe, color: '#8b5cf6', keywords: ['clients', 'tenants', 'domaines', 'plateforme'], description: 'Clients et domaines FarmPilot', platformOnly: true },
       { href: '/admin/parametres',  moduleCode: 'users',  label: 'Paramètres globaux',  icon: Settings,    color: '#ef4444', keywords: ['settings', 'organisation', 'domaine', 'campagne live', 'identite', 'logo'], description: 'Identité du domaine, campagne live, options d\'affichage' },
       { href: '/admin/referentiels', moduleCode: 'users', label: 'Référentiels',        icon: List,        color: '#ef4444', keywords: ['listes', 'deroulantes', 'types', 'categories', 'unites', 'devises', 'no-code', 'referentiel'], description: 'Listes déroulantes paramétrables (types, catégories, unités) sans code' },
       { href: '/admin/users',       moduleCode: 'users',  label: 'Utilisateurs',        icon: UserCog,     color: '#ef4444', description: 'Comptes utilisateurs' },

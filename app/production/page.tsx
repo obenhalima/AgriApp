@@ -14,6 +14,7 @@ import { Input as TInput, Select as TSelect, Field } from '@/components/ui/Input
 import { Modal, FormGroup, FormRow, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { AreaDisplay, VolumeDisplay, MoneyDisplay, DateDisplay } from '@/components/display'
+import { useAuth } from '@/lib/auth'
 
 const emptyForm = {
   campaign_id: '', farm_id: '', greenhouse_id: '', variety_id: '',
@@ -25,6 +26,7 @@ const emptyForm = {
 }
 
 export default function ProductionPage() {
+  const { activeDomain } = useAuth()
   const [items, setItems] = useState<any[]>([])
   const [campagnes, setCampagnes] = useState<any[]>([])
   const [fermes, setFermes] = useState<any[]>([])
@@ -65,17 +67,18 @@ export default function ProductionPage() {
   }
 
   const load = async () => {
+    if (!activeDomain) { setItems([]); setCampagnes([]); setFermes([]); setSerres([]); setLoading(false); return }
     const [p, c, f, sr, v] = await Promise.all([
-      supabase.from('campaign_plantings').select('*, campaigns(name), greenhouses(code,name,exploitable_area), varieties(commercial_name,type)').order('created_at', { ascending: false }),
-      supabase.from('campaigns').select('id,name,code,farm_id').order('name'),
-      supabase.from('farms').select('id,code,name').eq('is_active', true).order('name'),
-      supabase.from('greenhouses').select('id,code,name,farm_id,total_area,exploitable_area').order('code'),
+      supabase.from('campaign_plantings').select('*, campaigns(name), greenhouses(code,name,exploitable_area), varieties(commercial_name,type)').eq('domain_id', activeDomain.domain_id).order('created_at', { ascending: false }),
+      supabase.from('campaigns').select('id,name,code,farm_id').eq('domain_id', activeDomain.domain_id).order('name'),
+      supabase.from('farms').select('id,code,name').eq('domain_id', activeDomain.domain_id).eq('is_active', true).order('name'),
+      supabase.from('greenhouses').select('id,code,name,farm_id,total_area,exploitable_area,farms!inner(domain_id)').eq('farms.domain_id', activeDomain.domain_id).order('code'),
       supabase.from('varieties').select('id,commercial_name,type,theoretical_yield_per_m2,theoretical_cost_per_m2,avg_price_export,avg_price_local').eq('is_active', true).order('commercial_name'),
     ])
     setItems(p.data || []); setCampagnes(c.data || []); setFermes(f.data || []); setSerres(sr.data || []); setVarietes(v.data || [])
     setLoading(false)
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [activeDomain?.domain_id])
 
   const onChangeCampaign = (campaignId: string) => {
     const camp = campagnes.find(c => c.id === campaignId)

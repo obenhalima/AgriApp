@@ -14,6 +14,7 @@ import { Input as TInput, Select as TSelect, Textarea, Field } from '@/component
 import { Modal, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { useReferenceList } from '@/lib/useReferenceList'
+import { useAuth } from '@/lib/auth'
 
 // ─── Formulaire partagé (HORS du composant parent pour éviter remount/focus loss) ───
 function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e: any) => void }) {
@@ -41,6 +42,7 @@ function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e:
 }
 
 export default function FournisseursPage() {
+  const { activeDomain } = useAuth()
   const { values: CATS } = useReferenceList('supplier_category')
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -56,8 +58,8 @@ export default function FournisseursPage() {
   const upd = (k: string) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }))
   const updE = (k: string) => (e: any) => setFormE(f => ({ ...f, [k]: e.target.value }))
 
-  const load = () => getFournisseurs().then(d => { setItems(d); setLoading(false) }).catch(() => setLoading(false))
-  useEffect(() => { load() }, [])
+  const load = () => activeDomain ? getFournisseurs(activeDomain.domain_id).then(d => { setItems(d); setLoading(false) }).catch(() => setLoading(false)) : (setItems([]), setLoading(false))
+  useEffect(() => { load() }, [activeDomain?.domain_id])
 
   const filtered = useMemo(() => items.filter(f => {
     if (catFilter !== 'all' && f.category !== catFilter) return false
@@ -100,7 +102,8 @@ export default function FournisseursPage() {
         payment_terms_days: Number(form.payment_terms_days) || 30,
       }
       console.log('[fournisseurs.save] payload', payload)
-      const n = await createFournisseur(payload)
+      if (!activeDomain) throw new Error('Aucun domaine actif')
+      const n = await createFournisseur({ ...payload, domain_id: activeDomain.domain_id })
       console.log('[fournisseurs.save] created', n)
       setItems(p => [n, ...p])
       setDone(true)

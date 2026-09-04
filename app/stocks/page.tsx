@@ -16,8 +16,10 @@ import { Modal, FormGroup, FormRow, ModalFooter, SuccessMessage } from '@/compon
 import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { MoneyDisplay } from '@/components/display'
 import { useReferenceList } from '@/lib/useReferenceList'
+import { useAuth } from '@/lib/auth'
 
 export default function StocksPage() {
+  const { activeDomain } = useAuth()
   const { values: CATS } = useReferenceList('stock_category')
   const { values: UNITS } = useReferenceList('unit')
   const [items, setItems] = useState<any[]>([])
@@ -38,8 +40,8 @@ export default function StocksPage() {
   const sae = (k: string) => (e: any) => setFormAE(f => ({ ...f, [k]: e.target.value }))
   const sm = (k: string) => (e: any) => setFormM(f => ({ ...f, [k]: e.target.value }))
 
-  const load = () => getStocks().then(d => { setItems(d); setLoading(false) }).catch(() => setLoading(false))
-  useEffect(() => { load() }, [])
+  const load = () => activeDomain ? getStocks(activeDomain.domain_id).then(d => { setItems(d); setLoading(false) }).catch(() => setLoading(false)) : (setItems([]), setLoading(false))
+  useEffect(() => { load() }, [activeDomain?.domain_id])
 
   const filtered = useMemo(() => items.filter(i => {
     if (catFilter !== 'all' && i.category !== catFilter) return false
@@ -67,7 +69,8 @@ export default function StocksPage() {
     if (!formA.name) return
     setSaving(true)
     try {
-      const n = await createStockItem({ ...formA, min_qty: Number(formA.min_qty) || 0, unit_cost: formA.unit_cost ? Number(formA.unit_cost) : undefined })
+      if (!activeDomain) throw new Error('Aucun domaine actif')
+      const n = await createStockItem({ ...formA, domain_id: activeDomain.domain_id, min_qty: Number(formA.min_qty) || 0, unit_cost: formA.unit_cost ? Number(formA.unit_cost) : undefined })
       setItems(p => [n, ...p]); setDone(true)
       toast.success(`Article "${n.name}" créé`)
       setTimeout(() => { setModalArticle(false); setDone(false) }, 1200)

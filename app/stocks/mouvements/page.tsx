@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Input as TInput, Select as TSelect, Field } from '@/components/ui/Input'
 import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { DateDisplay } from '@/components/display'
+import { useAuth } from '@/lib/auth'
 
 type Movement = {
   id: string
@@ -36,6 +37,7 @@ const TYPE_LABELS: Record<string, string> = { entree: 'Entrée', sortie: 'Sortie
 const TYPE_ICONS: Record<string, any> = { entree: ArrowUpCircle, sortie: ArrowDownCircle, ajustement: Settings2, transfert: ArrowLeftRight }
 
 export default function MouvementsStockPage() {
+  const { activeDomain } = useAuth()
   const { values: STOCK_CATS } = useReferenceList('stock_category')
   const [movements, setMovements] = useState<Movement[]>([])
   const [items, setItems] = useState<Item[]>([])
@@ -50,18 +52,21 @@ export default function MouvementsStockPage() {
   const [reference, setReference] = useState('')
 
   useEffect(() => {
+    if (!activeDomain) { setItems([]); return }
     (async () => {
-      const { data } = await supabase.from('stock_items').select('id, code, name, category, unit').eq('is_active', true).order('name')
+      const { data } = await supabase.from('stock_items').select('id, code, name, category, unit').eq('domain_id', activeDomain.domain_id).eq('is_active', true).order('name')
       setItems((data ?? []) as Item[])
     })()
-  }, [])
+  }, [activeDomain?.domain_id])
 
   const fetchMovements = async () => {
+    if (!activeDomain) { setMovements([]); setLoading(false); return }
     setLoading(true); setError('')
     try {
       let q = supabase.from('stock_movements')
         .select('*, stock_items(code,name,unit,category), purchase_orders(po_number)')
         .order('movement_date', { ascending: false }).order('created_at', { ascending: false }).limit(500)
+        .eq('domain_id', activeDomain.domain_id)
       if (stockItemId) q = q.eq('stock_item_id', stockItemId)
       if (movementType) q = q.eq('movement_type', movementType)
       if (dateFrom) q = q.gte('movement_date', dateFrom)
@@ -75,7 +80,7 @@ export default function MouvementsStockPage() {
     } catch (e: any) { setError(e.message) }
     finally { setLoading(false) }
   }
-  useEffect(() => { fetchMovements() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [])
+  useEffect(() => { fetchMovements() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeDomain?.domain_id])
 
   const resetFilters = () => { setStockItemId(''); setCategory(''); setMovementType(''); setDateFrom(''); setDateTo(''); setReference('') }
 

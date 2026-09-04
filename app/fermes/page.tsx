@@ -22,8 +22,10 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Input as TInput, Textarea, Field } from '@/components/ui/Input'
 import { Modal, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { AreaDisplay } from '@/components/display'
+import { useAuth } from '@/lib/auth'
 
 export default function FermesPage() {
+  const { activeDomain } = useAuth()
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
@@ -36,8 +38,11 @@ export default function FermesPage() {
   })
   const upd = (k: string) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }))
 
-  const load = () => getFarms().then(d => { setItems(d); setLoading(false) }).catch(() => setLoading(false))
-  useEffect(() => { load() }, [])
+  const load = () => {
+    if (!activeDomain) { setItems([]); setLoading(false); return }
+    getFarms(activeDomain.domain_id).then(d => { setItems(d); setLoading(false) }).catch(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [activeDomain?.domain_id])
 
   const filtered = useMemo(() => {
     if (!search) return items
@@ -70,10 +75,11 @@ export default function FermesPage() {
   }
 
   const save = async () => {
-    if (!form.name) return
+    if (!form.name || !activeDomain) return
     setSaving(true)
     try {
       const { data, error } = await supabase.from('farms').insert({
+        domain_id: activeDomain.domain_id,
         code: form.code, name: form.name, address: form.address, city: form.city,
         region: form.region, country: form.country || 'Maroc',
         total_area: form.total_area ? Number(form.total_area) : null,

@@ -27,7 +27,7 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const router = useRouter()
-  const { canAccessModule, signOut } = useAuth()
+  const { canAccessModule, isPlatformAdmin, signOut } = useAuth()
 
   // Raccourci clavier global
   useEffect(() => {
@@ -50,8 +50,8 @@ export function CommandPalette() {
 
   // Items de nav filtrés par permissions
   const navItems = useMemo(() => {
-    return flattenNav().filter(({ item }) => canAccessModule(item.moduleCode))
-  }, [canAccessModule])
+    return flattenNav().filter(({ item }) => canAccessModule(item.moduleCode) && (!item.platformOnly || isPlatformAdmin))
+  }, [canAccessModule, isPlatformAdmin])
 
   const quickActions = useMemo(() => {
     return QUICK_ACTIONS.filter(qa => !qa.moduleCode || canAccessModule(qa.moduleCode))
@@ -158,7 +158,7 @@ export function CommandPalette() {
 
                     {/* ─── Pages (regroupées par section) ─── */}
                     {NAV.map(section => {
-                      const items = section.items.filter(it => canAccessModule(it.moduleCode))
+                      const items = section.items.filter(it => canAccessModule(it.moduleCode) && (!it.platformOnly || isPlatformAdmin))
                       if (items.length === 0) return null
                       return (
                         <Command.Group

@@ -87,9 +87,10 @@ export function createDirectPurchase(input: {
 }
 
 /** CRUD simple des lignes d'un bon d'achat (parcours BO formel). */
-export async function getPurchaseOrderLines(poId: string): Promise<PurchaseOrderLine[]> {
-  const { data, error } = await supabase
-    .from('purchase_order_lines').select('*').eq('po_id', poId).order('id')
+export async function getPurchaseOrderLines(poId: string, domainId?: string): Promise<PurchaseOrderLine[]> {
+  let query = supabase.from('purchase_order_lines').select('*').eq('po_id', poId)
+  if (domainId) query = query.eq('domain_id', domainId)
+  const { data, error } = await query.order('id')
   if (error) throw error
   return (data ?? []) as PurchaseOrderLine[]
 }

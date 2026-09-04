@@ -353,8 +353,8 @@ export function buildPivot(rows: PlantingRow[], opts: {
 }
 
 // ─── Charge la liste complète des serres pour le calcul "serres vides" ───────
-export async function loadAllGreenhouses(farmId?: string | null): Promise<{ id: string; code: string; name: string; total_area: number; farm_id: string; type: string }[]> {
-  let q = supabase.from('greenhouses').select('id, code, name, total_area, farm_id, type')
+export async function loadAllGreenhouses(domainId: string, farmId?: string | null): Promise<{ id: string; code: string; name: string; total_area: number; farm_id: string; type: string }[]> {
+  let q = supabase.from('greenhouses').select('id, code, name, total_area, farm_id, type, farms!inner(domain_id)').eq('farms.domain_id', domainId)
   if (farmId) q = q.eq('farm_id', farmId)
   const { data, error } = await q.order('code')
   if (error) throw error

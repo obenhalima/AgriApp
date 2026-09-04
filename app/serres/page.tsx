@@ -27,6 +27,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Input as TInput, Select as TSelect, Textarea, Field } from '@/components/ui/Input'
 import { Modal, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { AreaDisplay } from '@/components/display'
+import { useAuth } from '@/lib/auth'
 
 // Type & statut de serre : référentiels no-code greenhouse_type /
 // greenhouse_status (hooks appelés dans les composants). Le statut porte sa
@@ -86,6 +87,7 @@ function FormBlock({
 }
 
 export default function SerresPage() {
+  const { activeDomain } = useAuth()
   const { values: GH_STATUS } = useReferenceList('greenhouse_status')
   const statusColor = (code: string) => GH_STATUS.find(v => v.code === code)?.color || '#64748b'
   const [serres, setSerres] = useState<any[]>([])
@@ -112,10 +114,11 @@ export default function SerresPage() {
 
   const load = async () => {
     setLoading(true)
-    const [sr, fr] = await Promise.all([getSerres(), getFarms()])
+    if (!activeDomain) { setSerres([]); setFarms([]); setLoading(false); return }
+    const [sr, fr] = await Promise.all([getSerres(activeDomain.domain_id), getFarms(activeDomain.domain_id)])
     setSerres(sr); setFarms(fr); setLoading(false)
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [activeDomain?.domain_id])
 
   // Filtrage live
   const filtered = useMemo(() => {

@@ -25,10 +25,12 @@ import { Input as TInput, Select as TSelect, Textarea, Field } from '@/component
 import { Modal, FormGroup, FormRow, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { MoneyDisplay, DateDisplay } from '@/components/display'
+import { useAuth } from '@/lib/auth'
 
 const ENTITY_TYPE = 'purchase_order'
 
 export default function AchatsPage() {
+  const { activeDomain } = useAuth()
   const { values: CURRENCIES } = useReferenceList('currency')
   const { values: CATS } = useReferenceList('purchase_category')
   const [items, setItems] = useState<any[]>([])
@@ -66,20 +68,23 @@ export default function AchatsPage() {
   const [supplierModalTarget, setSupplierModalTarget] = useState<null | 'po' | 'direct'>(null)
 
   const refreshSuppliers = async () => {
-    const { data } = await supabase.from('suppliers').select('id,name,category').eq('is_active', true).order('name')
+    if (!activeDomain) return
+    const { data } = await supabase.from('suppliers').select('id,name,category').eq('domain_id', activeDomain.domain_id).eq('is_active', true).order('name')
     setSuppliers(data ?? [])
   }
   const refreshStockItems = async () => {
-    const { data } = await supabase.from('stock_items').select('id,code,name,unit').eq('is_active', true).order('name')
+    if (!activeDomain) return
+    const { data } = await supabase.from('stock_items').select('id,code,name,unit').eq('domain_id', activeDomain.domain_id).eq('is_active', true).order('name')
     setStockItems((data ?? []) as StockItemLite[])
   }
 
   const load = useCallback(async () => {
+    if (!activeDomain) { setItems([]); setSuppliers([]); setCampagnes([]); setSerres([]); setStockItems([]); setLoading(false); return }
     const [o, sup, c, ser, def] = await Promise.all([
-      supabase.from('purchase_orders').select('*, suppliers(name,category), campaigns(name)').order('order_date', { ascending: false }).limit(100),
-      supabase.from('suppliers').select('id,name,category').eq('is_active', true).order('name'),
-      supabase.from('campaigns').select('id,name').order('name'),
-      supabase.from('greenhouses').select('id,code,name').order('code'),
+      supabase.from('purchase_orders').select('*, suppliers(name,category), campaigns(name)').eq('domain_id', activeDomain.domain_id).order('order_date', { ascending: false }).limit(100),
+      supabase.from('suppliers').select('id,name,category').eq('domain_id', activeDomain.domain_id).eq('is_active', true).order('name'),
+      supabase.from('campaigns').select('id,name').eq('domain_id', activeDomain.domain_id).order('name'),
+      supabase.from('greenhouses').select('id,code,name,farms!inner(domain_id)').eq('farms.domain_id', activeDomain.domain_id).order('code'),
       getDefaultDefinition(ENTITY_TYPE),
     ])
     setItems(o.data || []); setSuppliers(sup.data || []); setCampagnes(c.data || []); setSerres(ser.data || [])
@@ -93,7 +98,7 @@ export default function AchatsPage() {
       setAllTrans((tr.data ?? []) as WorkflowTransition[])
     }
     setLoading(false)
-  }, [])
+  }, [activeDomain?.domain_id])
   useEffect(() => { load() }, [load])
 
   // Realtime : statuts achats + factures fournisseur changent en cascade

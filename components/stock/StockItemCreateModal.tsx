@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, ModalFooter } from '@/components/ui/Modal'
+import { useAuth } from '@/lib/auth'
 
 export type StockCategory =
   | 'semences' | 'plants' | 'engrais' | 'phytosanitaires'
@@ -41,6 +42,7 @@ export function StockItemCreateModal(props: {
   initialUnit?: string
   initialCategory?: StockCategory
 }) {
+  const { activeDomain } = useAuth()
   const { open, onClose, onCreated, initialName = '', initialUnit = '', initialCategory = 'consommables' } = props
 
   const [name, setName] = useState(initialName)
@@ -70,12 +72,14 @@ export function StockItemCreateModal(props: {
 
   const submit = async () => {
     setError('')
+    if (!activeDomain) { setError('Aucun domaine actif'); return }
     if (!name.trim() || !code.trim() || !unit.trim()) {
       setError('Nom, code et unité sont requis'); return
     }
     setSaving(true)
     try {
       const { data, error: e } = await supabase.from('stock_items').insert({
+        domain_id: activeDomain.domain_id,
         code: code.trim(),
         name: name.trim(),
         category,

@@ -12,6 +12,7 @@ import {
   SurfaceDistributionGreenhouse,
 } from '@/lib/costEntries'
 import { BulkEditCostsModal } from '@/components/costs/BulkEditCostsModal'
+import { useAuth } from '@/lib/auth'
 
 type Mode = 'single' | 'monthly' | 'surface'
 type Tab = 'actual' | 'budget'
@@ -24,6 +25,7 @@ type Greenhouse = { id: string; code: string; name: string; farm_id: string; exp
 const CHARGE_TYPES = ['charge_variable', 'charge_fixe', 'amortissement'] as const
 
 export default function CoutsPage() {
+  const { activeDomain } = useAuth()
   // ── Données ──
   const [items, setItems] = useState<any[]>([])
   const [campagnes, setCampagnes] = useState<Campaign[]>([])
@@ -109,12 +111,13 @@ export default function CoutsPage() {
 
   // ── Chargement initial ──
   const load = useCallback(async () => {
+    if (!activeDomain) { setItems([]); setCampagnes([]); setFarms([]); setGreenhouses([]); setLoading(false); return }
     try {
       const [entries, camps, flist, ghs, cats] = await Promise.all([
-        listCostEntries({ limit: 300 }),
-        supabase.from('campaigns').select('id, name, code, farm_id').order('planting_start', { ascending: false }),
-        supabase.from('farms').select('id, code, name').eq('is_active', true).order('name'),
-        supabase.from('greenhouses').select('id, code, name, farm_id, exploitable_area, total_area').order('code'),
+        listCostEntries({ domainId: activeDomain.domain_id, limit: 300 }),
+        supabase.from('campaigns').select('id, name, code, farm_id').eq('domain_id', activeDomain.domain_id).order('planting_start', { ascending: false }),
+        supabase.from('farms').select('id, code, name').eq('domain_id', activeDomain.domain_id).eq('is_active', true).order('name'),
+        supabase.from('greenhouses').select('id, code, name, farm_id, exploitable_area, total_area, farms!inner(domain_id)').eq('farms.domain_id', activeDomain.domain_id).order('code'),
         listAccountCategories(),
       ])
       setItems(entries)
@@ -124,7 +127,7 @@ export default function CoutsPage() {
       setCategories(cats)
     } catch (e: any) { console.error(e) }
     setLoading(false)
-  }, [])
+  }, [activeDomain?.domain_id])
   useEffect(() => { load() }, [load])
 
   // Realtime : coûts créés par génération budget ou bot

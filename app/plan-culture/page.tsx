@@ -18,6 +18,7 @@ import {
   PlantingRow, PivotAxis, PivotMetric, PivotChannel, monthsBetween, monthKey,
 } from '@/lib/plantingPlan'
 import { MONTH_LABELS_FR } from '@/lib/budgets'
+import { useAuth } from '@/lib/auth'
 
 // Tabs
 import { DashboardTab } from '@/components/plan-culture/DashboardTab'
@@ -38,6 +39,7 @@ type Greenhouse = { id: string; code: string; name: string; farm_id: string; tot
 type Tab = 'dashboard' | 'plan' | 'volumes' | 'gantt'
 
 export default function PlanCulturePage() {
+  const { activeDomain } = useAuth()
   // ─── Référentiels ───
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [farms, setFarms] = useState<Farm[]>([])
@@ -59,14 +61,19 @@ export default function PlanCulturePage() {
 
   // ─── Chargement référentiels ───
   useEffect(() => {
+    setCampaignId('')
+    setFarmFilter('all')
+    setRows([])
+    if (!activeDomain) { setCampaigns([]); setFarms([]); setAllGreenhouses([]); setLoadingRefs(false); return }
     (async () => {
       const [c, f, v, g] = await Promise.all([
         supabase.from('campaigns')
           .select('id, name, code, farm_id, preparation_start, planting_start, harvest_start, harvest_end, campaign_end')
+          .eq('domain_id', activeDomain.domain_id)
           .order('preparation_start', { ascending: false, nullsFirst: false }),
-        supabase.from('farms').select('id, code, name').eq('is_active', true).order('name'),
+        supabase.from('farms').select('id, code, name').eq('domain_id', activeDomain.domain_id).eq('is_active', true).order('name'),
         supabase.from('varieties').select('id, code, commercial_name, type').eq('is_active', true).order('commercial_name'),
-        loadAllGreenhouses(),
+        loadAllGreenhouses(activeDomain.domain_id),
       ])
       const camps = (c.data ?? []) as Campaign[]
       setCampaigns(camps)
@@ -76,7 +83,7 @@ export default function PlanCulturePage() {
       if (camps.length > 0) setCampaignId(camps[0].id)
       setLoadingRefs(false)
     })()
-  }, [])
+  }, [activeDomain?.domain_id])
 
   // ─── Chargement plan de culture (réactif aux filtres campagne+ferme) ───
   useEffect(() => {

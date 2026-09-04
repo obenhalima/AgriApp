@@ -37,6 +37,7 @@ import { Modal, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { MoneyDisplay, DateDisplay } from '@/components/display'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { useAuth } from '@/lib/auth'
 
 type InvoiceTab = 'clients' | 'fournisseurs'
 type ModalType = 'facture_client' | 'paiement_client' | 'facture_fournisseur' | 'paiement_fournisseur' | null
@@ -76,6 +77,7 @@ const STATUS_CONFIG: Record<string, { variant: 'success' | 'warning' | 'danger' 
 
 // ════════════════════════════════════════════════════════════════════════════
 export default function FacturesPage() {
+  const { activeDomain } = useAuth()
   const { values: PAY_METHODS } = useReferenceList('payment_method')
   const [tab, setTab] = useState<InvoiceTab>('clients')
   const [modal, setModal] = useState<ModalType>(null)
@@ -113,15 +115,18 @@ export default function FacturesPage() {
 
   const searchParams = useSearchParams()
 
-  const load = useCallback(() =>
+  const load = useCallback(() => {
+    if (!activeDomain) { setSupplierInvoices([]); setSuppliers([]); setCampagnes([]); setSerres([]); setLoading(false); return Promise.resolve() }
+    return (
     // Promise.allSettled : si une requete echoue, les autres aboutissent quand meme
     // (avant : une requete echouee effacait TOUTES les factures de l'UI)
     Promise.allSettled([
-      getFactures(), getFacturesFournisseurs(), getClients(), getFournisseurs(), getCampagnes(), getSerres(),
+      getFactures(), getFacturesFournisseurs(activeDomain.domain_id), getClients(), getFournisseurs(activeDomain.domain_id), getCampagnes(activeDomain.domain_id), getSerres(activeDomain.domain_id),
       // Charge les POs réceptionnés (entièrement ou partiellement) qui n'ont pas encore de facture
       // NOTE : la colonne est po_number, pas code (regression du schema initial)
       supabase.from('purchase_orders')
         .select('id, po_number, supplier_id, total_amount, currency, status, order_date, campaign_id, greenhouse_id, suppliers(name)')
+        .eq('domain_id', activeDomain.domain_id)
         .in('status', ['recu', 'partiellement_recu', 'envoye'])
         .order('order_date', { ascending: false })
         .limit(100),
@@ -180,7 +185,8 @@ export default function FacturesPage() {
         console.error('[factures] load error:', e)
         setLoading(false)
       })
-  , [])
+    )
+  }, [activeDomain?.domain_id])
   useEffect(() => { load() }, [load])
 
   // Realtime : synchro auto factures + paiements + bordereaux + achats
