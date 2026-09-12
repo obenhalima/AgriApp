@@ -29,6 +29,8 @@ export type Profile = {
   activated_at: string | null
   last_login_at: string | null
   is_platform_admin: boolean
+  must_change_password: boolean
+  password_changed_at: string | null
 }
 
 export type Permission = {
@@ -215,6 +217,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = useCallback(async () => {
+    // Shared phones: unsubscribe locally even if the server is temporarily unavailable.
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.getRegistration('/')
+        const subscription = await registration?.pushManager?.getSubscription()
+        if (subscription) {
+          await subscription.unsubscribe()
+          await supabase.from('mobile_push_subscriptions').delete().eq('endpoint', subscription.endpoint).abortSignal(AbortSignal.timeout(5000))
+        }
+      } catch { /* Signing out must not be blocked by the notification service. */ }
+    }
     await supabase.auth.signOut()
   }, [])
 

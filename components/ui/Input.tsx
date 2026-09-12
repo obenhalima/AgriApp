@@ -87,7 +87,7 @@ export function Label({
 export function Field({
   label, htmlFor, required, error, hint, children, className,
 }: {
-  label: string
+  label: React.ReactNode
   htmlFor?: string
   required?: boolean
   error?: string

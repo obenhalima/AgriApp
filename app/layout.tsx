@@ -6,6 +6,9 @@ import { AuthProvider } from '@/lib/auth'
 export const metadata: Metadata = {
   title: 'Domaine BENHALIMA — Production MES',
   description: 'Pilotage de production agricole — Domaine BENHALIMA',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: { capable: true, title: 'FarmPilot', statusBarStyle: 'default' },
+  icons: { apple: '/pwa/apple.png' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

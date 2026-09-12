@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState, useMemo } from 'react'
+import Link from 'next/link'
 import { toast } from 'sonner'
-import { FlaskConical, Plus, Search, X, Droplets, Thermometer, Users } from 'lucide-react'
+import { FlaskConical, Plus, Search, X, Droplets, ShieldCheck } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -155,7 +156,7 @@ export default function AgronomePage() {
       <PageHeader
         title="Journal agronomique" subtitle="Cultural" icon={FlaskConical} iconColor="#06b6d4"
         description={`${items.length} intervention${items.length > 1 ? 's' : ''} enregistrée${items.length > 1 ? 's' : ''}`}
-        actions={<Button onClick={() => setModal(true)} variant="primary"><Plus size={14} strokeWidth={2.5} /> Nouvelle intervention</Button>}
+        actions={<div className="flex gap-xs"><Link href="/agronomie/produits"><Button variant="ghost"><FlaskConical size={14} /> Produits phyto</Button></Link><Link href="/agronomie/traitements"><Button variant="secondary"><ShieldCheck size={14} /> Demandes de traitement</Button></Link><Button onClick={() => setModal(true)} variant="primary"><Plus size={14} strokeWidth={2.5} /> Nouvelle intervention</Button></div>}
         stats={loading ? [] : [
           { label: 'Total', value: String(stats.count), icon: FlaskConical, color: '#06b6d4' },
           { label: 'Types', value: String(stats.types), icon: FlaskConical, color: '#a855f7' },

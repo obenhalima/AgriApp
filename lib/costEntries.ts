@@ -68,7 +68,7 @@ export type MonthlyDistribution = {
 }
 
 export async function createCostEntriesMonthly(
-  base: Omit<CostEntryInput, 'entry_date'> & { total_amount: number },
+  base: Omit<CostEntryInput, 'entry_date' | 'amount'> & { total_amount: number },
   dist: MonthlyDistribution
 ): Promise<{ created: CostEntry[]; totalDistributed: number }> {
   const total = Number(base.total_amount) || 0
@@ -128,7 +128,7 @@ export async function createCostEntriesMonthly(
 //    Pour chaque serre dans ce mois : part = quote-part × (surface_serre / surface_totale)
 // ============================================================
 export async function createCostEntriesMonthlyBySurface(
-  base: Omit<CostEntryInput, 'entry_date' | 'greenhouse_id'> & { total_amount: number },
+  base: Omit<CostEntryInput, 'entry_date' | 'greenhouse_id' | 'amount'> & { total_amount: number },
   dist: MonthlyDistribution,
   greenhouses: { id: string; code: string; name: string; exploitable_area: number | null; total_area: number | null }[],
   selectedIds?: string[]
@@ -228,7 +228,7 @@ export async function getGreenhousesForSurfaceDistribution(farmId: string): Prom
 }
 
 export async function createCostEntriesBySurface(
-  base: Omit<CostEntryInput, 'greenhouse_id'> & { total_amount: number },
+  base: Omit<CostEntryInput, 'greenhouse_id' | 'amount'> & { total_amount: number },
   greenhouses: SurfaceDistributionGreenhouse[],
   selectedIds?: string[]   // si fourni, restreint à ces serres
 ): Promise<{ created: CostEntry[]; breakdown: { greenhouse_id: string; surface: number; amount: number }[] }> {

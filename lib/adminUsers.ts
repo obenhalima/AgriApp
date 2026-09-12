@@ -45,18 +45,17 @@ export async function replaceUserDomainMemberships(userId: string, memberships: 
   if (error) throw error
 }
 
-export async function listUserProfiles(): Promise<UserProfile[]> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*, roles(code, name, is_admin)')
-    .order('created_at', { ascending: false })
+export async function setUserMembershipInManagedDomain(userId: string, domainId: string, roleId: string, enabled: boolean): Promise<void> {
+  const { error } = await supabase.rpc('set_user_membership_in_managed_domain', {
+    p_user_id: userId, p_domain_id: domainId, p_role_id: roleId || null, p_enabled: enabled,
+  })
   if (error) throw error
-  return (data ?? []).map((r: any) => ({
-    ...r,
-    role_name: r.roles?.name ?? null,
-    role_code: r.roles?.code ?? null,
-    is_admin:  Boolean(r.roles?.is_admin),
-  }))
+}
+
+export async function listUserProfiles(): Promise<UserProfile[]> {
+  const { data, error } = await supabase.rpc('list_managed_user_profiles')
+  if (error) throw error
+  return (data ?? []).map((r: any) => ({ ...r, is_admin: Boolean(r.is_admin) }))
 }
 
 export async function updateProfileRole(userId: string, roleId: string | null): Promise<void> {
@@ -104,6 +103,7 @@ export async function createUser(input: {
   password: string
   full_name?: string
   role_id?: string
+  memberships: Array<{ domain_id: string; role_id: string; is_default: boolean }>
 }): Promise<{ id: string; email: string }> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -150,4 +150,57 @@ export async function createUser(input: {
   }
   if (parsed.error) throw new Error(parsed.error)
   return parsed
+}
+
+export async function sendUserPasswordReset(targetUserId: string): Promise<void> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const { data: { session } } = await supabase.auth.getSession()
+
+  if (!session) throw new Error('Session expirée. Reconnecte-toi puis réessaie.')
+
+  let response: Response
+  try {
+    response = await fetch(`${url}/functions/v1/admin-send-password-reset`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: key,
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        target_user_id: targetUserId,
+        redirect_to: `${window.location.origin}/reset-password`,
+      }),
+    })
+  } catch (networkError: any) {
+    throw new Error(`Impossible de joindre le service de réinitialisation : ${networkError?.message ?? networkError}`)
+  }
+
+  const raw = await response.text()
+  let result: any
+  try { result = JSON.parse(raw) } catch { result = { error: raw } }
+  if (!response.ok || result.error) throw new Error(result.error || `Erreur ${response.status}`)
+}
+
+export async function setTemporaryUserPassword(targetUserId: string, temporaryPassword: string): Promise<void> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Session expirée. Reconnecte-toi puis réessaie.')
+
+  let response: Response
+  try {
+    response = await fetch(`${url}/functions/v1/admin-set-temporary-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: key, Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ target_user_id: targetUserId, temporary_password: temporaryPassword }),
+    })
+  } catch (networkError: any) {
+    throw new Error(`Impossible de joindre le service de mot de passe temporaire : ${networkError?.message ?? networkError}`)
+  }
+  const raw = await response.text()
+  let result: any
+  try { result = JSON.parse(raw) } catch { result = { error: raw } }
+  if (!response.ok || result.error) throw new Error(result.error || `Erreur ${response.status}`)
 }

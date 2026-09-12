@@ -179,7 +179,8 @@ async function listRecipients(targetUserIds?: string[]) {
   return (data ?? []).filter((u: any) => u.channel === 'telegram')
 }
 
-Deno.serve(async (req) => {
+// Ancienne agrégation globale : non exposée tant que l'isolation par ferme n'est pas migrée.
+async function legacyDailyRecap(req: Request) {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
   try {
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {}
@@ -220,4 +221,10 @@ Deno.serve(async (req) => {
       status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders },
     })
   }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
+  return new Response(JSON.stringify({ error: 'Récapitulatifs Telegram suspendus : isolation client/ferme à finaliser.' }),
+    { status: 503, headers: { 'Content-Type': 'application/json', ...corsHeaders } })
 })

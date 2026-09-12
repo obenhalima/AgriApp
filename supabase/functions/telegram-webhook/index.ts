@@ -17,6 +17,7 @@
 // ============================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createSecurePilot } from './secure-pilot.ts'
 
 // ============================================================
 // ═══════ i18n — Traductions multilingues (inline) ══════════
@@ -1990,7 +1991,8 @@ async function showMyLots(user: any) {
 }
 
 // ─── Webhook handler ─────────────────────────────────────────
-Deno.serve(async (req) => {
+// Conservé pour la migration progressive des parcours ; NON exposé par Deno.serve.
+async function legacyWebhook(req: Request) {
   // Vérification du secret Telegram (correctif sécurité C4 : fail-closed).
   // Le secret DOIT être configuré ET correspondre — sinon on refuse. Sans ça,
   // n'importe qui connaissant l'URL pouvait forger un update au nom d'un ouvrier.
@@ -2333,4 +2335,7 @@ Deno.serve(async (req) => {
     console.error('[telegram] error:', e)
     return new Response('Internal error', { status: 500 })
   }
-})
+}
+
+Deno.serve(createSecurePilot(supabase, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET,
+  Deno.env.get('TELEGRAM_PILOT_ENABLED') === 'true'))

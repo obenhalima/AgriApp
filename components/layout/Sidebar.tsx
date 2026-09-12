@@ -59,7 +59,7 @@ export function Sidebar() {
   const filteredNav = useMemo(() => {
     if (authLoading) return []
     return NAV
-      .map(group => ({ ...group, items: group.items.filter(item => canAccessModule(item.moduleCode) && (!item.platformOnly || isPlatformAdmin)) }))
+      .map(group => ({ ...group, items: group.items.filter(item => (!item.moduleCode || canAccessModule(item.moduleCode)) && (!item.platformOnly || isPlatformAdmin)) }))
       .filter(group => group.items.length > 0)
   }, [authLoading, canAccessModule, isPlatformAdmin])
 

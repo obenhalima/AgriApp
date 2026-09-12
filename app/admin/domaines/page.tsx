@@ -58,11 +58,11 @@ export default function DomainsAdminPage() {
     try {
       if (editing === 'new') await createDomain(form)
       else if (editing) await updateDomain(editing.id, form)
-      toast.success(editing === 'new' ? 'Domaine créé' : 'Domaine modifié')
+      toast.success(editing === 'new' ? 'Client / Société créé' : 'Client / Société modifié')
       setEditing(null)
       await load()
     } catch (e: any) {
-      const msg = e?.code === '23505' ? 'Ce code de domaine existe déjà.' : e.message
+      const msg = e?.code === '23505' ? 'Ce code de société existe déjà.' : e.message
       toast.error(msg)
     } finally { setSaving(false) }
   }
@@ -73,9 +73,9 @@ export default function DomainsAdminPage() {
   return (
     <div>
       <PageHeader
-        title="Domaines" subtitle="Administration plateforme" icon={Globe2} iconColor="#8b5cf6"
+        title="Clients / Sociétés" subtitle="Administration plateforme" icon={Globe2} iconColor="#8b5cf6"
         description={`${items.length} client${items.length > 1 ? 's' : ''} FarmPilot`}
-        actions={<Button onClick={openNew}><Plus size={14} /> Nouveau domaine</Button>}
+        actions={<Button onClick={openNew}><Plus size={14} /> Nouvelle société</Button>}
         stats={loading ? [] : [
           { label: 'Total', value: String(items.length), icon: Globe2, color: '#8b5cf6' },
           { label: 'Actifs', value: String(stats.active), icon: ShieldCheck, color: '#10b981' },
@@ -86,7 +86,7 @@ export default function DomainsAdminPage() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-md">{[1,2,3].map(i => <Skeleton key={i} className="h-52" />)}</div>
       ) : items.length === 0 ? (
-        <EmptyState icon={Globe2} title="Aucun domaine" action={<Button onClick={openNew}>Créer le premier domaine</Button>} />
+        <EmptyState icon={Globe2} title="Aucun client / société" action={<Button onClick={openNew}>Créer la première société</Button>} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-md">
           {items.map(d => (
@@ -111,7 +111,7 @@ export default function DomainsAdminPage() {
       )}
 
       {editing && (
-        <Modal title={editing === 'new' ? 'NOUVEAU DOMAINE' : `MODIFIER — ${editing.name}`} onClose={() => setEditing(null)} size="lg">
+        <Modal title={editing === 'new' ? 'NOUVEAU CLIENT / SOCIÉTÉ' : `MODIFIER — ${editing.name}`} onClose={() => setEditing(null)} size="lg">
           <div className="space-y-md">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
               <Field label="Code" required><TInput value={form.code} onChange={e => set('code', e.target.value)} placeholder="DOM-CLIENT" /></Field>
@@ -139,4 +139,3 @@ export default function DomainsAdminPage() {
     </div>
   )
 }
-

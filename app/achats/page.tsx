@@ -1,9 +1,9 @@
 'use client'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { useRealtimeReload } from '@/lib/useRealtimeReload'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { ShoppingCart, Plus, Zap, Package, History, ArrowRight, AlertCircle, Search, X } from 'lucide-react'
+import { ShoppingCart, Plus, Zap, Package, History, ArrowRight, AlertCircle, Search, X, Check, ShieldCheck } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 import { supabase } from '@/lib/supabase'
@@ -28,9 +28,17 @@ import { MoneyDisplay, DateDisplay } from '@/components/display'
 import { useAuth } from '@/lib/auth'
 
 const ENTITY_TYPE = 'purchase_order'
+const formatPurchaseQuantity = (value: unknown) => {
+  if (value == null || value === '') return '—'
+  const quantity = Number(value)
+  return Number.isFinite(quantity)
+    ? quantity.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/\s/g, ' ')
+    : '—'
+}
 
 export default function AchatsPage() {
-  const { activeDomain } = useAuth()
+  const directRequestId = useRef('')
+  const { activeDomain, user, isAdmin, isPlatformAdmin } = useAuth()
   const { values: CURRENCIES } = useReferenceList('currency')
   const { values: CATS } = useReferenceList('purchase_category')
   const [items, setItems] = useState<any[]>([])
@@ -66,6 +74,8 @@ export default function AchatsPage() {
 
   const [invoicePo, setInvoicePo] = useState<{ po: any; transition: WorkflowTransition } | null>(null)
   const [supplierModalTarget, setSupplierModalTarget] = useState<null | 'po' | 'direct'>(null)
+  const [approvals, setApprovals] = useState<any[]>([])
+  const [approvalPolicies, setApprovalPolicies] = useState<any[]>([])
 
   const refreshSuppliers = async () => {
     if (!activeDomain) return
@@ -80,14 +90,19 @@ export default function AchatsPage() {
 
   const load = useCallback(async () => {
     if (!activeDomain) { setItems([]); setSuppliers([]); setCampagnes([]); setSerres([]); setStockItems([]); setLoading(false); return }
-    const [o, sup, c, ser, def] = await Promise.all([
-      supabase.from('purchase_orders').select('*, suppliers(name,category), campaigns(name)').eq('domain_id', activeDomain.domain_id).order('order_date', { ascending: false }).limit(100),
+    const [o, sup, c, ser, def, approvalsRes, policiesRes] = await Promise.all([
+      supabase.from('purchase_orders').select('*, suppliers(name,category), campaigns(name), purchase_order_lines(id,stock_item_id,item_description,quantity,unit)').eq('domain_id', activeDomain.domain_id).order('order_date', { ascending: false }).limit(100),
       supabase.from('suppliers').select('id,name,category').eq('domain_id', activeDomain.domain_id).eq('is_active', true).order('name'),
       supabase.from('campaigns').select('id,name').eq('domain_id', activeDomain.domain_id).order('name'),
       supabase.from('greenhouses').select('id,code,name,farms!inner(domain_id)').eq('farms.domain_id', activeDomain.domain_id).order('code'),
       getDefaultDefinition(ENTITY_TYPE),
+      supabase.from('approval_requests').select('*').eq('domain_id',activeDomain.domain_id).eq('process_code','purchase_order'),
+      supabase.from('approval_policies').select('*').eq('domain_id',activeDomain.domain_id).in('process_code',['purchase_order','direct_purchase']).eq('is_active',true),
     ])
-    setItems(o.data || []); setSuppliers(sup.data || []); setCampagnes(c.data || []); setSerres(ser.data || [])
+    if (o.error) toast.error(`Chargement des bons et articles : ${o.error.message}`)
+    else setItems(o.data || [])
+    setSuppliers(sup.data || []); setCampagnes(c.data || []); setSerres(ser.data || [])
+    setApprovals(approvalsRes.data||[]);setApprovalPolicies(policiesRes.data||[])
     await refreshStockItems()
     if (def) {
       const [st, tr] = await Promise.all([
@@ -148,6 +163,10 @@ export default function AchatsPage() {
     finally { setTransitingId(null) }
   }
 
+  const approvalFor=(poId:string)=>approvals.find(a=>a.entity_id===poId)
+  const submitForApproval=async(po:any)=>{const {error}=await supabase.rpc('submit_approval_request',{p_process:'purchase_order',p_type:po.purchase_type||'standard',p_entity:po.id,p_reference:po.po_number,p_amount:Number(po.total_amount||0),p_comment:po.notes||null});if(error)toast.error(error.message);else{toast.success('Bon soumis au responsable');load()}}
+  const reviewApproval=async(requestId:string,approve:boolean)=>{const comment=approve?null:prompt('Motif obligatoire du rejet :');if(!approve&&!comment)return;const {error}=await supabase.rpc('review_approval_request',{p_request:requestId,p_approve:approve,p_comment:comment});if(error)toast.error(error.message);else{toast.success(approve?'Bon approuvé':'Bon rejeté');load()}}
+
   const onInvoiceCreated = async () => {
     if (!invoicePo) return
     const { po, transition } = invoicePo
@@ -192,7 +211,7 @@ export default function AchatsPage() {
       }))
       const { error: le } = await supabase.from('purchase_order_lines').insert(lineInserts)
       if (le) throw le
-      setItems(p => [po, ...p]); setDonePO(true)
+      setItems(p => [{ ...po, purchase_order_lines: lineInserts }, ...p.filter(existing => existing.id !== po.id)]); setDonePO(true)
       toast.success(`Bon ${num} créé`)
       setTimeout(() => {
         setModalPO(false); setDonePO(false)
@@ -211,8 +230,10 @@ export default function AchatsPage() {
     }))
     if (lines.length === 0) { toast.error('Au moins une ligne requise'); return }
     setSavingDirect(true)
+    if (!directRequestId.current) directRequestId.current = crypto.randomUUID()
     try {
       const res = await createDirectPurchase({
+        requestId: directRequestId.current,
         supplierId: direct.supplier_id, orderDate: direct.order_date, costCategory: direct.cost_category,
         campaignId: direct.campaign_id || undefined, greenhouseId: direct.greenhouse_id || undefined,
         currency: direct.currency, reference: direct.reference || undefined, notes: direct.notes || undefined, lines,
@@ -220,6 +241,7 @@ export default function AchatsPage() {
       if (res.warnings?.length) toast.warning(`Achat ${res.po_number} créé — ${res.warnings.join(', ')}`)
       else toast.success(`Achat ${res.po_number} créé · stock mis à jour`)
       setDoneDirect(true)
+      directRequestId.current = ''
       setTimeout(async () => {
         setModalDirect(false); setDoneDirect(false)
         setDirect({ supplier_id: '', order_date: '', cost_category: 'semences', campaign_id: '', greenhouse_id: '', currency: 'MAD', reference: '', notes: '' })
@@ -362,7 +384,7 @@ export default function AchatsPage() {
         description={`${items.length} bon${items.length > 1 ? 's' : ''}`}
         actions={
           <div className="flex gap-xs">
-            <Button onClick={() => setModalDirect(true)} variant="secondary"><Zap size={14} strokeWidth={2.5} /> Achat direct</Button>
+            <Button onClick={() => setModalDirect(true)} variant="secondary" disabled={approvalPolicies.some(p=>p.process_code==='direct_purchase'&&p.validation_enabled)} title={approvalPolicies.some(p=>p.process_code==='direct_purchase'&&p.validation_enabled)?'Désactivez la validation Achat direct ou utilisez un bon standard':''}><Zap size={14} strokeWidth={2.5} /> Achat direct</Button>
             <Button onClick={() => setModalPO(true)} variant="primary"><Plus size={14} strokeWidth={2.5} /> Bon d'achat</Button>
           </div>
         }
@@ -399,7 +421,7 @@ export default function AchatsPage() {
             icon={ShoppingCart} title="Aucun bon d'achat"
             action={
               <div className="flex gap-xs">
-                <Button onClick={() => setModalDirect(true)} variant="secondary"><Zap size={14} /> Achat direct</Button>
+                <Button onClick={() => setModalDirect(true)} variant="secondary" disabled={approvalPolicies.some(p=>p.process_code==='direct_purchase'&&p.validation_enabled)}><Zap size={14} /> Achat direct</Button>
                 <Button onClick={() => setModalPO(true)}><Plus size={14} /> Bon d'achat</Button>
               </div>
             }
@@ -407,7 +429,7 @@ export default function AchatsPage() {
         ) : (
           <DataTable minWidth={1300}>
             <THead>
-              <TR><TH>N° BA</TH><TH>Fournisseur</TH><TH>Catégorie</TH><TH>Date</TH><TH>Livraison</TH><TH right>Total</TH><TH>Statut</TH><TH>Actions workflow</TH><TH right>Détails</TH></TR>
+              <TR><TH>N° BA</TH><TH>Fournisseur</TH><TH>Articles</TH><TH>Catégorie</TH><TH>Date</TH><TH>Livraison</TH><TH right>Total</TH><TH>Statut</TH><TH>Actions workflow</TH><TH right>Détails</TH></TR>
             </THead>
             <tbody>
               {filtered.map((o, i) => {
@@ -416,10 +438,25 @@ export default function AchatsPage() {
                 const label = st?.label ?? o.status
                 const available = transitionsFor(o.status)
                 const isLoading = transitingId === o.id
+                const approval = approvalFor(o.id)
+                const responsible = isAdmin || isPlatformAdmin || approvalPolicies.some(p=>p.id===approval?.policy_id&&p.responsible_role_id===activeDomain?.role_id)
+                const approvalRequired = approvalPolicies.some(p=>p.process_code==='purchase_order'&&p.validation_enabled&&(p.operation_type==='*'||p.operation_type===(o.purchase_type||'standard')))
+                const workflowAvailable = !approvalRequired || approval?.status==='approuvee'
                 return (
                   <TR key={o.id} animate delay={0.04 + i * 0.02}>
                     <TD><Link href={`/achats/${o.id}`} className="font-mono text-caption font-bold text-brand hover:underline">{o.po_number}</Link></TD>
                     <TD className="font-display font-semibold text-fg-primary">{o.suppliers?.name || '—'}</TD>
+                    <TD>
+                      <div className="min-w-[200px] space-y-1">
+                        {(o.purchase_order_lines || []).map((line: any, index: number) => (
+                          <div key={line.id || `${o.id}-${index}`} className="text-caption">
+                            <div className="font-semibold">{line.item_description || stockItems.find(article=>article.id===line.stock_item_id)?.name || 'Article non renseigné'}</div>
+                            <div className="font-mono whitespace-nowrap text-fg-secondary">{formatPurchaseQuantity(line.quantity)} {line.unit || stockItems.find(article=>article.id===line.stock_item_id)?.unit || '—'}</div>
+                          </div>
+                        ))}
+                        {!o.purchase_order_lines?.length && <span className="text-caption text-fg-tertiary">Aucune ligne disponible</span>}
+                      </div>
+                    </TD>
                     <TD><Badge variant="warning" size="sm">{o.cost_category || '—'}</Badge></TD>
                     <TD mono className="text-caption"><DateDisplay value={o.order_date} variant="compact" /></TD>
                     <TD mono className="text-caption"><DateDisplay value={o.expected_delivery} variant="compact" /></TD>
@@ -431,7 +468,7 @@ export default function AchatsPage() {
                       </span>
                     </TD>
                     <TD>
-                      {available.length === 0 ? <span className="text-caption text-fg-tertiary font-mono">—</span> : (
+                      {approvalRequired&&!approval ? <Button size="xs" variant="secondary" onClick={()=>submitForApproval(o)}><ShieldCheck size={12}/> Soumettre</Button> : approval?.status==='soumise' ? <div className="flex gap-1"><Badge variant="warning">À valider</Badge>{responsible&&approval.requested_by!==user?.id&&<><Button size="xs" onClick={()=>reviewApproval(approval.id,true)}><Check size={12}/> Valider</Button><Button size="xs" variant="ghost" onClick={()=>reviewApproval(approval.id,false)}><X size={12}/></Button></>}</div> : approval?.status==='rejetee' ? <Badge variant="danger">Rejeté</Badge> : !workflowAvailable ? <Badge variant="warning">Validation requise</Badge> : available.length === 0 ? <span className="text-caption text-fg-tertiary font-mono">—</span> : (
                         <div className="flex flex-wrap gap-1">
                           {available.map(t => {
                             const tgt = toStateOf(t)

@@ -1,0 +1,3 @@
+SELECT jsonb_agg(to_jsonb(c)) AS columns FROM (SELECT table_name,column_name,data_type FROM information_schema.columns
+WHERE table_schema='public' AND table_name IN ('cost_entries','purchase_receipts','purchase_order_lines','treatment_application_products','treatment_request_targets','warehouse_stocks') ORDER BY table_name,ordinal_position) c
+UNION ALL SELECT jsonb_agg(jsonb_build_object('trigger',tgname,'definition',pg_get_triggerdef(oid))) FROM pg_trigger WHERE NOT tgisinternal AND tgrelid IN ('public.stock_movements'::regclass,'public.cost_entries'::regclass,'public.stock_items'::regclass);

@@ -53,18 +53,31 @@ async function invokeExtractingError<T = any>(fnName: string, body: unknown): Pr
 /** Réception (partielle ou totale) d'un bon d'achat existant. */
 export function receivePurchaseOrder(input: {
   poId: string
+  receiptId: string
+  warehouseId: string
+  exchangeRate?: number
   receptionDate?: string
   reference?: string
   notes?: string
   lines: { lineId: string; qtyReceived: number }[]
 }) {
-  return invokeExtractingError<{ new_status: string; lines_updated: number; movements_created: number; warnings: string[] }>(
-    'purchase-order-receive', input
-  )
+  return (async () => {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 25000)
+    try {
+      const { data, error } = await supabase.rpc('receive_costed_purchase', { p_po: input.poId, p_receipt: {
+        id: input.receiptId, warehouse_id: input.warehouseId, date: input.receptionDate,
+        reference: input.reference, notes: input.notes, exchange_rate: input.exchangeRate, lines: input.lines,
+      } }).abortSignal(controller.signal)
+      if (error) throw error
+      return data as { new_status: string; lines_updated: number; movements_created: number; warnings: string[] }
+    } finally { clearTimeout(timer) }
+  })()
 }
 
 /** Crée un bon d'achat directement en état 'recu' (parcours achat direct). */
 export function createDirectPurchase(input: {
+  requestId: string
   supplierId: string
   orderDate?: string
   costCategory?: string
@@ -81,9 +94,11 @@ export function createDirectPurchase(input: {
     stockItemId?: string | null
   }[]
 }) {
-  return invokeExtractingError<{ po_id: string; po_number: string; movements_created: number; warnings: string[] }>(
-    'purchase-order-direct', input
-  )
+  return (async () => {
+    const { data, error } = await supabase.rpc('create_costed_direct_order', { p_input: input })
+    if (error) throw error
+    return data as { po_id: string; po_number: string; movements_created: number; warnings: string[] }
+  })()
 }
 
 /** CRUD simple des lignes d'un bon d'achat (parcours BO formel). */

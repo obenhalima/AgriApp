@@ -59,9 +59,9 @@ export function FormRow({ children }: { children: ReactNode }) {
   return <div className="form-row">{children}</div>
 }
 
-export function Input({ type='text', value, onChange, placeholder, autoFocus, step, min, max }: {
-  type?:string; value?:string; onChange?:(e:any)=>void;
-  placeholder?:string; autoFocus?:boolean; step?:string; min?:string; max?:string
+export function Input({ type='text', value, onChange, placeholder, autoFocus, step, min, max, disabled }: {
+  type?:string; value?:string | number; onChange?:(e:any)=>void;
+  placeholder?:string; autoFocus?:boolean; step?:string | number; min?:string | number; max?:string | number; disabled?:boolean
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -81,6 +81,7 @@ export function Input({ type='text', value, onChange, placeholder, autoFocus, st
       <div style={{ position:'relative' }}>
         <input
           ref={inputRef}
+          disabled={disabled}
           className="form-input"
           type={type}
           value={value}
@@ -95,6 +96,7 @@ export function Input({ type='text', value, onChange, placeholder, autoFocus, st
         <button
           type="button"
           onClick={openDatePicker}
+          disabled={disabled}
           aria-label="Ouvrir le calendrier"
           style={{
             position:'absolute',
@@ -119,12 +121,12 @@ export function Input({ type='text', value, onChange, placeholder, autoFocus, st
     )
   }
 
-  return <input className="form-input" type={type} value={value} onChange={onChange}
+  return <input className="form-input" type={type} value={value} onChange={onChange} disabled={disabled}
     placeholder={placeholder} autoFocus={autoFocus} step={step} min={min} max={max} />
 }
 
-export function Select({ value, onChange, children }: { value?:string; onChange?:(e:any)=>void; children:ReactNode }) {
-  return <select className="form-input" value={value} onChange={onChange}>{children}</select>
+export function Select({ value, onChange, children, disabled }: { value?:string; onChange?:(e:any)=>void; children:ReactNode; disabled?:boolean }) {
+  return <select className="form-input" value={value} onChange={onChange} disabled={disabled}>{children}</select>
 }
 
 export function Textarea({ rows=3, value, onChange, placeholder }: { rows?:number; value?:string; onChange?:(e:any)=>void; placeholder?:string }) {

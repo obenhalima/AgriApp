@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Settings, Building2, CalendarRange, Save, RefreshCw } from 'lucide-react'
+import { Settings, Building2, CalendarRange, Save, RefreshCw, Droplets } from 'lucide-react'
 
 import {
   type OrganizationSettings,
@@ -51,7 +51,7 @@ interface CampaignLite {
 }
 
 export default function ParametresPage() {
-  const { isAdmin, loading: authLoading } = useAuth()
+  const { isAdmin, loading: authLoading, activeDomain } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -63,6 +63,8 @@ export default function ParametresPage() {
   const [rates, setRates] = useState<ExchangeRate[]>([])
   const [rateEdits, setRateEdits] = useState<Record<string, string>>({})  // from_currency → nouveau taux
   const [biz, setBiz] = useState<BusinessParams | null>(null)
+  const [defaultSprayVolume, setDefaultSprayVolume] = useState(1000)
+  const [requireReentryDelay, setRequireReentryDelay] = useState(true)
 
   const MONTHS = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
@@ -86,12 +88,18 @@ export default function ParametresPage() {
       setDefaults(def)
       setRates(rts)
       setBiz(bp)
+      if (activeDomain) {
+        const phyto = await supabase.from('phyto_compliance_settings').select('default_spray_volume_l_ha,require_reentry_delay').eq('domain_id', activeDomain.domain_id).maybeSingle()
+        if (phyto.error) throw phyto.error
+        setRequireReentryDelay(phyto.data?.require_reentry_delay !== false)
+        setDefaultSprayVolume(Number(phyto.data?.default_spray_volume_l_ha) || 1000)
+      }
     } catch (e: any) {
       toast.error(`Chargement : ${e.message ?? e}`)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [activeDomain?.domain_id])
 
   useEffect(() => { load() }, [load])
 
@@ -172,6 +180,25 @@ export default function ParametresPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleSaveSprayVolume = async () => {
+    if (!activeDomain || !Number.isFinite(defaultSprayVolume) || defaultSprayVolume <= 0) {
+      toast.error('Le volume de bouillie doit être supérieur à zéro')
+      return
+    }
+    setSaving(true)
+    try {
+    const { error } = await supabase.from('phyto_compliance_settings').upsert({
+      domain_id: activeDomain.domain_id,
+      default_spray_volume_l_ha: defaultSprayVolume,
+      require_reentry_delay: requireReentryDelay,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'domain_id' })
+    if (error) throw error
+    toast.success('Paramètres phytosanitaires enregistrés')
+    } catch (error: any) { toast.error(`Enregistrement : ${error.message}`) }
+    finally { setSaving(false) }
   }
 
   if (authLoading) {
@@ -399,6 +426,27 @@ export default function ParametresPage() {
             </div>
           </div>
         )}
+      </Card>
+
+      {/* ─── Paramètres phytosanitaires ─── */}
+      <Card animate delay={0.35}>
+        <div className="flex items-center gap-sm mb-md pb-sm border-b border-border">
+          <Droplets size={18} className="text-info" strokeWidth={2.5} />
+          <div>
+            <h2 className="font-display text-heading-sm font-bold text-fg-primary">Paramètres phytosanitaires</h2>
+            <p className="text-body-sm text-fg-secondary">Valeur utilisée lorsqu’aucun volume spécifique n’est défini sur l’usage du produit.</p>
+          </div>
+        </div>
+        <div className="space-y-md">
+          <label className="flex items-center gap-sm"><input type="checkbox" checked={requireReentryDelay} onChange={e=>setRequireReentryDelay(e.target.checked)}/> Bloquer l’application si le délai de rentrée est absent</label>
+          {!requireReentryDelay&&<p className="text-warning">La confirmation sera autorisée avec un avertissement conservé dans l’historique. Un délai inconnu n’est pas égal à zéro et n’autorise pas la rentrée dans la serre.</p>}
+          <Field label="Volume de bouillie par défaut (L/ha)" hint="Valeur initiale : 1 000 L/ha. Elle reste modifiable lors de l’application réelle.">
+            <TInput type="number" min="1" step="1" value={String(defaultSprayVolume)} onChange={(e) => setDefaultSprayVolume(Number(e.target.value))} />
+          </Field>
+          <div className="flex justify-end pt-sm border-t border-border">
+            <Button variant="primary" onClick={handleSaveSprayVolume} disabled={saving}><Save size={14} /> Enregistrer</Button>
+          </div>
+        </div>
       </Card>
 
       {/* ─── Taux de change ─── */}

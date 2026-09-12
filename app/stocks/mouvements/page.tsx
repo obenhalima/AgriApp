@@ -27,6 +27,7 @@ type Movement = {
   created_at: string
   stock_items?: { code: string; name: string; unit: string | null; category: string }
   purchase_orders?: { po_number: string }
+  warehouses?: {name:string}
 }
 type Item = { id: string; code: string; name: string; category: string; unit: string | null }
 
@@ -64,7 +65,7 @@ export default function MouvementsStockPage() {
     setLoading(true); setError('')
     try {
       let q = supabase.from('stock_movements')
-        .select('*, stock_items(code,name,unit,category), purchase_orders(po_number)')
+        .select('*, stock_items(code,name,unit,category), purchase_orders(po_number), warehouses(name)')
         .order('movement_date', { ascending: false }).order('created_at', { ascending: false }).limit(500)
         .eq('domain_id', activeDomain.domain_id)
       if (stockItemId) q = q.eq('stock_item_id', stockItemId)
@@ -184,6 +185,7 @@ export default function MouvementsStockPage() {
                     <TD>
                       <div className="font-display font-semibold text-fg-primary">{m.stock_items?.name ?? '—'}</div>
                       {m.stock_items?.code && <div className="font-mono text-caption text-fg-tertiary">{m.stock_items.code}</div>}
+                      <div className="text-caption text-fg-tertiary">{m.warehouses?.name||'Entrepôt historique'}</div>
                     </TD>
                     <TD><Badge variant="default" size="sm">{m.stock_items?.category ?? '—'}</Badge></TD>
                     <TD right mono className={`font-bold ${TYPE_VARIANT[m.movement_type] === 'success' ? 'text-success' : TYPE_VARIANT[m.movement_type] === 'danger' ? 'text-danger' : 'text-fg-primary'}`}>

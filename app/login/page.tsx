@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Sprout, AlertCircle, LogIn } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
@@ -17,7 +18,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!authLoading && user) router.replace('/')
+    if (!authLoading && user) router.replace(new URLSearchParams(window.location.search).get('next') === 'validations' ? '/validations' : '/')
   }, [user, authLoading, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,7 +27,7 @@ export default function LoginPage() {
     setLoading(true); setError('')
     try {
       await signIn(email, password)
-      router.replace('/')
+      router.replace(new URLSearchParams(window.location.search).get('next') === 'validations' ? '/validations' : '/')
     } catch (err: any) {
       setError(err?.message?.includes('Invalid') ? 'Email ou mot de passe incorrect' : (err?.message ?? 'Erreur de connexion'))
     } finally { setLoading(false) }
@@ -78,6 +79,7 @@ export default function LoginPage() {
               <TInput type="password" value={password} onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••" required />
             </Field>
+            <div className="text-right"><Link href="/forgot-password" className="text-caption font-semibold text-brand hover:underline">Mot de passe oublié ?</Link></div>
 
             {error && (
               <motion.div

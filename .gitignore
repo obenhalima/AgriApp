@@ -8,6 +8,8 @@
 
 # next.js
 /.next/
+/.next-costing-check/
+/.next-mobile-check/
 /out/
 
 # production
@@ -43,6 +45,10 @@ next-env.d.ts
 /backup*.sql
 
 # Documents de travail locaux à la racine
+/tmp/
+/livrables/
+/.codex*.log
+/.codex-remote-schema.sql
 /*.docx
 /*.xlsx
 /*.pptx

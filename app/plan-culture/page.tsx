@@ -25,6 +25,7 @@ import { DashboardTab } from '@/components/plan-culture/DashboardTab'
 import { PlanTab } from '@/components/plan-culture/PlanTab'
 import { VolumesTab } from '@/components/plan-culture/VolumesTab'
 import { GanttTab } from '@/components/plan-culture/GanttTab'
+import { FarmMapTab } from '@/components/plan-culture/FarmMapTab'
 
 type Campaign = {
   id: string; name: string; code: string; farm_id: string
@@ -36,9 +37,14 @@ type Farm = { id: string; code: string; name: string }
 type Variety = { id: string; code: string; commercial_name: string; type: string }
 type Greenhouse = { id: string; code: string; name: string; farm_id: string; total_area: number; type: string }
 
-type Tab = 'dashboard' | 'plan' | 'volumes' | 'gantt'
+type Tab = 'dashboard' | 'plan' | 'volumes' | 'gantt' | 'map'
 
 export default function PlanCulturePage() {
+  const { activeDomain } = useAuth()
+  return <PlanCultureContent key={activeDomain?.domain_id ?? 'none'} />
+}
+
+function PlanCultureContent() {
   const { activeDomain } = useAuth()
   // ─── Référentiels ───
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
@@ -58,6 +64,8 @@ export default function PlanCulturePage() {
 
   // ─── Onglet actif ───
   const [tab, setTab] = useState<Tab>('dashboard')
+  const [mapDirty, setMapDirty] = useState(false)
+  const leaveMap = () => !mapDirty || window.confirm('Abandonner les modifications non enregistrées du plan ?')
 
   // ─── Chargement référentiels ───
   useEffect(() => {
@@ -164,7 +172,7 @@ export default function PlanCulturePage() {
           </div>
           <div>
             <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>FERME</div>
-            <select value={farmFilter} onChange={e => setFarmFilter(e.target.value)}
+            <select value={farmFilter} onChange={e => { if (leaveMap()) { setMapDirty(false); setFarmFilter(e.target.value) } }}
               style={{ width: '100%', padding: 8, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 6 }}>
               <option value="all">Toutes les fermes</option>
               {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -181,16 +189,17 @@ export default function PlanCulturePage() {
         </div>
 
         {/* ─── ONGLETS ─── */}
-        <div style={{ marginTop: 12, display: 'flex', gap: 4, borderBottom: '1px solid var(--bd-1)' }}>
+        <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 4, borderBottom: '1px solid var(--bd-1)' }}>
           {([
             { v: 'dashboard', l: '📊 Dashboard',     col: '#10b981' },
             { v: 'plan',      l: '🌱 Plan de culture', col: '#a855f7' },
             { v: 'volumes',   l: '📦 Volumes',       col: '#3b82f6' },
             { v: 'gantt',     l: '🗓️ Vue Domaine',   col: '#f59e0b' },
+            { v: 'map',       l: 'Plan de la ferme', col: '#14b8a6' },
           ] as const).map(t => {
             const active = tab === t.v
             return (
-              <button key={t.v} onClick={() => setTab(t.v)}
+              <button key={t.v} onClick={() => { if (t.v === tab || leaveMap()) { setTab(t.v); if (t.v !== tab) setMapDirty(false) } }}
                 style={{
                   padding: '10px 16px',
                   background: active ? `color-mix(in srgb, ${t.col} 12%, transparent)` : 'transparent',
@@ -211,6 +220,10 @@ export default function PlanCulturePage() {
       </div>
 
       {/* ─── CONTENU DE L'ONGLET ─── */}
+      {tab === 'map' && (activeDomain && farmFilter !== 'all' && farms.some(f => f.id === farmFilter) ? (
+        <FarmMapTab key={`${activeDomain.domain_id}:${farmFilter}`} domainId={activeDomain.domain_id}
+          farmId={farmFilter} campaignId={campaignId} greenhouses={allGreenhouses} onDirtyChange={setMapDirty} />
+      ) : <div className="rounded border p-6">Sélectionnez une ferme dans le filtre ci-dessus pour consulter ou dessiner son plan.</div>)}
       {tab === 'dashboard' && (
         <DashboardTab
           rows={filteredRows}

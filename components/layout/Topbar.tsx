@@ -166,12 +166,12 @@ export function Topbar() {
       {/* ─── Right : Actions ─── */}
       <div className="flex items-center gap-xs sm:gap-sm flex-shrink-0">
 
-        {/* Domaine actif — le rôle et les permissions suivent cette sélection. */}
+        {/* Société active — le rôle et les permissions suivent cette sélection. */}
         {activeDomain && domains.length > 1 && (
-          <div className="flex items-center gap-xs" title={`Domaine actif : ${activeDomain.domain_name}`}>
+          <div className="flex items-center gap-xs" title={`Société active : ${activeDomain.domain_name}`}>
             <Globe2 size={14} className="hidden sm:block text-fg-tertiary flex-shrink-0" />
             <select
-              aria-label="Domaine actif"
+              aria-label="Société active"
               value={activeDomain.domain_id}
               onChange={e => handleDomainChange(e.target.value)}
               disabled={switchingDomain}

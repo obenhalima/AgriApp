@@ -552,7 +552,7 @@ export default function BudgetsAdminPage() {
   // depth 0 = niveau 1 (Type), depth 1 = L2, depth 2 = L3
   // On agrège toujours les enfants pour l'affichage total, mais on ne rend
   // les sous-lignes que si (depth + 1) < displayDepth.
-  const renderCategoryRow = (node: AccountCategoryNode, depth: number) => {
+  const renderCategoryRow = (node: AccountCategoryNode, depth: number): React.ReactNode => {
     const hasChildren = node.children.length > 0
     const color = TYPE_COLORS[node.type]
     const rowTotal = grid.totalByCategory[node.id] ?? 0

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { toast } from 'sonner'
@@ -48,6 +48,19 @@ export default function PurchaseOrderDetailPage() {
   const [receptionDate, setReceptionDate] = useState(new Date().toISOString().slice(0, 10))
   const [receptionNotes, setReceptionNotes] = useState('')
   const [receptionRef, setReceptionRef] = useState('')
+  const [warehouses, setWarehouses] = useState<any[]>([])
+  const [warehouseId, setWarehouseId] = useState('')
+  const [exchangeRate, setExchangeRate] = useState('')
+  const [savingReceipt, setSavingReceipt] = useState(false)
+  const receiptId = useRef('')
+  useEffect(() => {
+    setWarehouseId(''); setWarehouses([])
+    if (!activeDomain) return
+    let stop = false
+    supabase.from('warehouses').select('id,name,farms(name)').eq('domain_id', activeDomain.domain_id).eq('is_active', true).not('farm_id', 'is', null)
+      .then(r => { if (!stop) { if (r.error) toast.error(r.error.message); else setWarehouses(r.data ?? []) } })
+    return () => { stop = true }
+  }, [activeDomain?.domain_id])
 
   const load = async () => {
     if (!activeDomain) { setPo(null); setLines([]); setStockItems([]); setLoading(false); return }
@@ -141,16 +154,22 @@ export default function PurchaseOrderDetailPage() {
   const closeReception = () => { setReceiving(false); setReceptionQtys({}); setReceptionNotes(''); setReceptionRef('') }
 
   const submitReception = async () => {
+    if (savingReceipt) return
+    if (!warehouseId) { toast.error('Sélectionnez l’entrepôt destinataire'); return }
     const linesInput = Object.entries(receptionQtys)
       .map(([lineId, qty]) => ({ lineId, qtyReceived: Number(qty) }))
       .filter(l => Number.isFinite(l.qtyReceived) && l.qtyReceived > 0)
     if (linesInput.length === 0) { toast.error('Aucune quantité à réceptionner'); return }
+    setSavingReceipt(true)
+    if (!receiptId.current) receiptId.current = crypto.randomUUID()
     try {
-      const res = await receivePurchaseOrder({ poId, receptionDate, reference: receptionRef || undefined, notes: receptionNotes || undefined, lines: linesInput })
+      const res = await receivePurchaseOrder({ poId, receiptId: receiptId.current, warehouseId, exchangeRate: Number(exchangeRate), receptionDate, reference: receptionRef || undefined, notes: receptionNotes || undefined, lines: linesInput })
       toast.success(`Réception OK · état ${res.new_status} · ${res.movements_created} mvts stock${res.warnings?.length ? ` ⚠ ${res.warnings.length} alerte(s)` : ''}`)
       closeReception()
+      receiptId.current = ''
       await load()
-    } catch (e: any) { toast.error('Erreur réception : ' + e.message) }
+    } catch (e: any) { toast.error('Réception non confirmée : ' + e.message + '. Réessayez sans recréer la réception en cas de délai dépassé.') }
+    finally { setSavingReceipt(false) }
   }
 
   if (loading) {
@@ -278,6 +297,8 @@ export default function PurchaseOrderDetailPage() {
       {receiving && (
         <Modal title={`RÉCEPTIONNER — ${po.po_number}`} onClose={closeReception} size="lg">
           <div className="space-y-md">
+            <Field label="Entrepôt destinataire" required><TSelect value={warehouseId} onChange={e => setWarehouseId(e.target.value)} disabled={savingReceipt}><option value="">Choisir l’entrepôt de la ferme</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name} — {w.farms?.name}</option>)}</TSelect></Field>
+            {po.currency !== 'MAD' && <Field label={`Taux : 1 ${po.currency} = … MAD`} required><TInput type="number" min="0" step="0.000001" value={exchangeRate} onChange={e => setExchangeRate(e.target.value)} /></Field>}
             <div className="grid grid-cols-2 gap-md">
               <Field label="Date *"><TInput type="date" value={receptionDate} onChange={(e) => setReceptionDate(e.target.value)} /></Field>
               <Field label="Référence (BL...)"><TInput value={receptionRef} onChange={(e) => setReceptionRef(e.target.value)} /></Field>
@@ -307,7 +328,7 @@ export default function PurchaseOrderDetailPage() {
               </tbody>
             </DataTable>
             <Field label="Notes"><Textarea rows={2} value={receptionNotes} onChange={(e) => setReceptionNotes(e.target.value)} /></Field>
-            <ModalFooter onCancel={closeReception} onSave={submitReception} saveLabel="VALIDER LA RÉCEPTION" />
+            <ModalFooter onCancel={closeReception} onSave={submitReception} loading={savingReceipt} disabled={!warehouseId} saveLabel="VALIDER LA RÉCEPTION" />
           </div>
         </Modal>
       )}

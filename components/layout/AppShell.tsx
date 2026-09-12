@@ -22,7 +22,8 @@ import { AIAssistantFAB } from '@/components/ai/AIAssistantFAB'
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
-  const { user, loading } = useAuth()
+  const { user, profile, loading } = useAuth()
+  const isPublicAuthPage = ['/login','/forgot-password','/reset-password','/change-password'].includes(pathname)
   const [sidebarW, setSidebarW] = useState(240)
   const [isDesktop, setIsDesktop] = useState(true)
   const [theme, setThemeState] = useState<'dark' | 'light'>('light')
@@ -64,9 +65,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Redirection auth
   useEffect(() => {
     if (loading) return
-    if (!user && pathname !== '/login') router.replace('/login')
-    else if (user && pathname === '/login') router.replace('/')
-  }, [loading, user, pathname, router])
+    if (!user && !isPublicAuthPage) router.replace(pathname === '/validations' ? '/login?next=validations' : '/login')
+    else if (user && profile?.must_change_password && pathname !== '/change-password') router.replace('/change-password')
+    else if (user && !profile?.must_change_password && (pathname === '/login' || pathname === '/change-password')) router.replace(new URLSearchParams(window.location.search).get('next') === 'validations' ? '/validations' : '/')
+  }, [loading, user, profile?.must_change_password, pathname, router, isPublicAuthPage])
 
   // Loader d'initialisation
   if (loading) {
@@ -97,7 +99,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   // Page login → rendu nu
-  if (pathname === '/login' || !user) return <>{children}</>
+  if (isPublicAuthPage || !user) return <>{children}</>
 
   return (
     <div className="flex min-h-screen bg-surface-base transition-colors duration-300">
@@ -120,7 +122,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <CommandPalette />
 
       {/* IA Assistant FAB (globale) */}
-      <AIAssistantFAB />
+      {!pathname.startsWith('/validations') && <AIAssistantFAB />}
 
       {/* Toaster Sonner (notifications) */}
       <Toaster

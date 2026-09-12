@@ -31,12 +31,14 @@
     "framer-motion": "^12.38.0",
     "lucide-react": "^0.330.0",
     "next": "^14.2.33",
+    "pdfjs-dist": "^4.10.38",
     "react": "^18",
     "react-dom": "^18",
     "recharts": "^2.10.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
     "tailwindcss-animate": "^1.0.7",
+    "web-push": "^3.6.7",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
@@ -44,6 +46,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.0.1",
     "dotenv": "^17.4.2",
     "eslint": "^8",

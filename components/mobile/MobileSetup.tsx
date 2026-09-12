@@ -1,0 +1,39 @@
+'use client'
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth'
+
+export function MobileSetup() {
+ const { user } = useAuth()
+ const [message,setMessage]=useState(''),[busy,setBusy]=useState(false),[ready,setReady]=useState(false),[code,setCode]=useState(''),[linked,setLinked]=useState(false),[configured,setConfigured]=useState(false)
+ useEffect(()=>{let stopped=false;setCode('');setLinked(false);if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js',{scope:'/'}).then(()=>{if(!stopped)setReady(true)}).catch(()=>{if(!stopped)setMessage('Installation du service mobile impossible.')});fetch('/api/mobile/config',{signal:AbortSignal.timeout(15000)}).then(r=>r.json()).then(c=>{if(!stopped)setConfigured(!!c.publicKey)}).catch(()=>{}); if(user) supabase.from('mobile_telegram_links').select('linked_at').eq('user_id',user.id).maybeSingle().then(r=>{if(!stopped)setLinked(!!r.data?.linked_at)});return()=>{stopped=true}},[user])
+ async function enablePush(){
+  setBusy(true);setMessage('')
+  try {
+   if(!user || !('PushManager' in window) || !('Notification' in window)) throw Error('Sur iPhone : iOS 16.4 minimum et FarmPilot ajouté à l’écran d’accueil. Ouvrez ensuite cette icône.')
+   // Permission requested directly from a click, before any network wait (iOS).
+   if(await Notification.requestPermission()!=='granted') throw Error('Notifications non autorisées. Vérifiez les réglages du téléphone.')
+   const response=await fetch('/api/mobile/config',{signal:AbortSignal.timeout(15000)});const config=await response.json()
+   if(!response.ok || !config.publicKey) throw Error('Le serveur de notifications n’est pas encore configuré.')
+   const registration=await navigator.serviceWorker.ready
+   const existing=await registration.pushManager.getSubscription()
+   const subscription=existing || await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:config.publicKey})
+   const json=subscription.toJSON()
+   const result=await supabase.from('mobile_push_subscriptions').upsert({user_id:user.id,endpoint:json.endpoint,keys:json.keys},{onConflict:'endpoint'}).abortSignal(AbortSignal.timeout(20000))
+   if(result.error){await subscription.unsubscribe();throw Error('Impossible de rattacher ce téléphone. Réessayez pour créer un abonnement personnel.')}
+   const pref=await supabase.from('mobile_notification_preferences').upsert({user_id:user.id,push_enabled:true}).abortSignal(AbortSignal.timeout(20000))
+   if(pref.error) throw pref.error
+   setMessage('Téléphone enregistré. La réception effective dépend du service d’envoi et des réglages du téléphone.')
+  }catch(e:any){setMessage(e.message)}finally{setBusy(false)}
+ }
+ async function disablePush(){setBusy(true);try{const registration=await navigator.serviceWorker.ready;const sub=await registration.pushManager.getSubscription();if(sub){const r=await supabase.from('mobile_push_subscriptions').delete().eq('endpoint',sub.endpoint);if(r.error)throw r.error;await sub.unsubscribe()}setMessage('Notifications désactivées sur cet appareil.')}catch(e:any){setMessage(e.message)}finally{setBusy(false)}}
+ async function telegram(){setBusy(true);try{const r=await supabase.rpc('mobile_telegram_invite').abortSignal(AbortSignal.timeout(20000));if(r.error)throw r.error;setCode(r.data);setMessage('Envoyez la commande ci-dessous au bot FarmPilot en conversation privée. Code personnel valable 15 minutes : ne le partagez pas.');const p=await supabase.from('mobile_notification_preferences').upsert({user_id:user!.id,telegram_enabled:true}).abortSignal(AbortSignal.timeout(20000));if(p.error)throw p.error}catch(e:any){setMessage(e.message)}finally{setBusy(false)}}
+ return <details className="rounded-xl border p-4 bg-white text-slate-900"><summary className="cursor-pointer font-semibold">Installer FarmPilot / Notifications</summary><div className="space-y-3 pt-3 text-sm">
+  <p>Android : menu Chrome → Installer l’application. iPhone : Safari → Partager → Sur l’écran d’accueil ; ouvrez l’icône FarmPilot, puis activez les notifications (iOS 16.4 minimum).</p>
+  <p>Une connexion Internet est obligatoire pour consulter et décider. Aucune approbation n’est enregistrée hors ligne.</p>
+  {!configured&&<p className="rounded bg-amber-50 p-2">L’envoi push n’est pas encore configuré sur ce serveur. L’installation et les validations restent disponibles.</p>}
+  <div className="flex flex-wrap gap-2"><button className="rounded bg-green-800 text-white p-3 disabled:opacity-50" disabled={busy||!ready||!configured} onClick={enablePush}>Activer sur ce téléphone</button><button className="rounded border p-3" disabled={busy||!ready} onClick={disablePush}>Désactiver sur ce téléphone</button><button className="rounded border p-3" disabled={busy} onClick={telegram}>{linked?'Relier un autre compte Telegram':'Relier Telegram'}</button>
+  <button className="rounded border p-3" disabled={busy} onClick={async()=>{const r=await supabase.rpc('mobile_telegram_disconnect');setMessage(r.error?r.error.message:'Telegram déconnecté');setLinked(false);setCode('')}}>Déconnecter Telegram</button></div>
+  {code&&<><code className="block break-all select-all rounded bg-slate-100 p-3">/start FP_{code}</code><a className="underline" href={`https://t.me/BenhalimaFarm_bot?start=FP_${code}`} target="_blank" rel="noopener noreferrer">Ouvrir @BenhalimaFarm_bot dans Telegram</a></>}{message&&<p role="status">{message}</p>}
+ </div></details>
+}

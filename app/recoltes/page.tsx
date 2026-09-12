@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import Link from 'next/link'
+import { HarvestDarNotice } from '@/components/HarvestDarNotice'
 import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { BordereauxSection } from '@/app/factures/BordereauxSection'
@@ -1595,6 +1596,7 @@ function NewHarvestModal({ form, setForm, plantings, trayTypes, estimate, emptyT
               </div>
             )}
           </FormGroup>
+          <HarvestDarNotice plantingId={form.campaign_planting_id} date={form.harvest_date} />
 
           {/* Saisie en plateaux */}
           <FormGroup label="Plateaux récoltés *">
@@ -1664,6 +1666,7 @@ function EditHarvestModal({ harvest, form, setForm, plantings, saving, done, err
             <FormGroup label="Date récolte"><Input type="date" value={form.harvest_date} onChange={f('harvest_date')} /></FormGroup>
             <FormGroup label="Quantité (kg)"><Input type="number" value={form.total_qty} onChange={f('total_qty')} /></FormGroup>
           </FormRow>
+          <HarvestDarNotice plantingId={form.campaign_planting_id} date={form.harvest_date} />
           <FormGroup label="Notes"><Textarea value={form.notes} onChange={f('notes')} /></FormGroup>
           {error && <ErrorBox msg={error} />}
           <ModalFooter onCancel={onClose} onSave={onSave} loading={saving} saveLabel="ENREGISTRER" />

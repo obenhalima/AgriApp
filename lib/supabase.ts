@@ -116,18 +116,13 @@ export const getStocks = async (domainId?: string) => {
   const { data, error } = await query.order('name')
   if (error) throw error; return data ?? []
 }
-export const createStockItem = async (p: { code:string; name:string; category:string; unit:string; min_qty:number; unit_cost?:number; location?:string; domain_id:string }) => {
+export const createStockItem = async (p: { code:string; name:string; category:string; unit:string; min_qty:number; unit_cost?:number; location?:string; domain_id:string; plant_protection_product_id?:string }) => {
   const { data, error } = await supabase.from('stock_items').insert({ ...p, current_qty: 0, is_active: true }).select().single()
   if (error) throw error; return data
 }
-export const createMouvement = async (p: { stock_item_id:string; movement_type:string; quantity:number; movement_date:string; reference?:string; notes?:string }) => {
+export const createMouvement = async (p: { stock_item_id:string; warehouse_id?:string; movement_type:string; quantity:number; movement_date:string; reference?:string; notes?:string }) => {
   const { data, error } = await supabase.from('stock_movements').insert(p).select().single()
   if (error) throw error
-  const item = await supabase.from('stock_items').select('current_qty').eq('id', p.stock_item_id).single()
-  if (item.data) {
-    const delta = p.movement_type === 'sortie' ? -p.quantity : p.quantity
-    await supabase.from('stock_items').update({ current_qty: (item.data.current_qty || 0) + delta }).eq('id', p.stock_item_id)
-  }
   return data
 }
 

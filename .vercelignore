@@ -1,0 +1,14 @@
+.env*
+.codex*
+.agents
+tmp
+livrables
+docs
+supabase/.temp
+backup*.sql
+.next*
+node_modules
+*.log
+*.pptx
+*.docx
+*.pdf
