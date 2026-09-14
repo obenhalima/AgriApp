@@ -13,8 +13,8 @@ describe('Plan schématique de ferme', () => {
   })
   it('normalise les dimensions invalides', () => {
     const shape = normalizeShape({ greenhouse_id: 'a', x: NaN, y: Infinity, width: -5, height: 900, rotation: 450 })
-    expect(shape.width).toBe(60)
-    expect(shape.height).toBe(300)
+    expect(shape.width).toBe(12)
+    expect(shape.height).toBe(760)
     expect(shape.rotation).toBe(90)
     expect(Number.isFinite(shape.x)).toBe(true)
   })

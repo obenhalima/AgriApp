@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { FarmShape, newShape, normalizeShape, formatPlanNumber as fmt } from '@/lib/farmLayout'
 import { ProductionCostReport } from '@/components/costs/ProductionCostReport'
+import { ImportFarmPlan } from './ImportFarmPlan'
 
 type Greenhouse = { id: string; code: string; name: string; farm_id: string; total_area: number }
 type Planting = { id: string; greenhouse_id: string; variety_id: string; planted_area: number; planting_date: string | null; status: string; target_total_production: number | null; target_yield_per_m2: number | null }
@@ -155,6 +156,11 @@ export function FarmMapTab({ domainId, farmId, campaignId, greenhouses, onDirtyC
     {message && <p role="status" className="rounded border p-3">{message}</p>}
     {dataError && <p role="alert" className="rounded bg-amber-50 p-3 text-amber-900">{dataError} Les couleurs de culture ne sont pas disponibles.</p>}
     {error ? <p role="alert" className="rounded bg-amber-50 p-3 text-amber-900">{error}</p> : busy ? <p>Chargement du plan…</p> : <>
+      {canEdit && <ImportFarmPlan key={`${domainId}:${farmId}:${reload}`} greenhouses={scopeGreenhouses} disabled={saving} onApply={layout=>{
+        if(shapes.length&&!window.confirm('Remplacer la disposition actuelle par celle du fichier ? Les données des serres restent inchangées.'))return false
+        setShapes(layout);setSelected('');setEditing(true);setDirty(true);setMessage('Disposition importée. Vérifiez le plan puis cliquez sur Enregistrer.')
+        return true
+      }}/>}
       {editing && <div className="flex flex-wrap gap-2">
         <select className={control} aria-label="Serre à placer" value={toAdd} disabled={saving} onChange={e => setToAdd(e.target.value)}>
           <option value="">Choisir une serre existante ({missing.length} à placer)</option>

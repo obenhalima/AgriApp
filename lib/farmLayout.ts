@@ -3,10 +3,10 @@ export const PLAN_WIDTH = 1200
 export const PLAN_HEIGHT = 800
 export function normalizeShape(s: FarmShape): FarmShape {
   const safe = (n: number, fallback: number) => Number.isFinite(n) ? n : fallback
-  const width = Math.max(60, Math.min(300, safe(s.width, 140)))
-  const height = Math.max(40, Math.min(300, safe(s.height, 80)))
   const rotation = ((Math.round(safe(s.rotation, 0) / 90) * 90) % 360 + 360) % 360
   const rotated = rotation === 90 || rotation === 270
+  const width = Math.max(12, Math.min(rotated ? 760 : 1160, safe(s.width, 140)))
+  const height = Math.max(12, Math.min(760, safe(s.height, 80)))
   const halfW = (rotated ? height : width) / 2
   const halfH = (rotated ? width : height) / 2
   return { ...s, width, height, rotation,
