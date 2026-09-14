@@ -198,16 +198,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supabase.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', session.user.id).then()
     })()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // Never await Supabase calls inside its auth notification. Token refresh
+    // waits for subscribers; those calls in turn wait for the same refresh.
+    let disposed = false
+    let authVersion = 0
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const version = ++authVersion
       if (event === 'SIGNED_OUT' || !session?.user) {
         setState({ user: null, profile: null, role: null, permissions: new Set(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null, loading: false })
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        const preferred = localStorage.getItem(`farmpilot_active_domain_${session.user.id}`)
-        const data = await loadAuthData(session.user.id, preferred)
-        setState({ user: session.user, ...data, loading: false })
+        setTimeout(() => {
+          if (disposed || version !== authVersion) return
+          const preferred = localStorage.getItem(`farmpilot_active_domain_${session.user.id}`)
+          void loadAuthData(session.user.id, preferred).then(data => {
+            if (!disposed && version === authVersion) setState({ user: session.user, ...data, loading: false })
+          }).catch(() => {
+            // Retain the current profile while a transient reload is unavailable.
+            if (!disposed && version === authVersion) setState(s => ({ ...s, loading: false }))
+          })
+        }, 0)
       }
     })
-    return () => subscription.unsubscribe()
+    return () => { disposed = true; authVersion++; subscription.unsubscribe() }
   }, [])
 
   const signIn = useCallback(async (email: string, password: string) => {

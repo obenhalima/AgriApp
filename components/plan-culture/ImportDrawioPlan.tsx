@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useReferenceList } from '@/lib/useReferenceList'
 import { canonicalGreenhouseCode, DrawioPlan, initialPlanLinks, officialArea, readDrawioPlan } from '@/lib/drawioFarmPlan'
 import { PlanGraphics } from './PlanGraphics'
+import { withDeadline } from '@/lib/withDeadline'
 
 type Draft={link:string;code:string;name:string;type:string;status:string;area:string;usable:string;notes:string}
 type Props={farmId:string;farmName:string;revision:number;hasPlan:boolean;disabled:boolean;canCreate:boolean;
@@ -46,9 +47,8 @@ export function ImportDrawioPlan({farmId,farmName,revision,hasPlan,disabled,canC
   if(!attempt&&!window.confirm(`Enregistrer le plan sur « ${farmName} » et créer ${rows.filter(r=>r.link==='new').length} serre(s) ?${hasPlan?' La disposition actuelle sera remplacée. Les serres existantes ne seront pas modifiées.':''}`))return
   const request=attempt||{id:crypto.randomUUID(),payload:{p_farm:farmId,p_revision:revision,p_elements:plan.elements,p_rows:plan.greenhouses.map((g,i)=>({source_id:g.source_id,x:g.x,y:g.y,width:g.width,height:g.height,rotation:g.rotation,...(rows[i].link==='new'?{new_greenhouse:{code:rows[i].code.trim(),name:rows[i].name.trim(),type:rows[i].type,status:rows[i].status,total_area:officialArea(rows[i].area),exploitable_area:officialArea(rows[i].usable||rows[i].area),notes:rows[i].notes}}:{greenhouse_id:rows[i].link})}))}}
   setAttempt(request);setBusy(true);setError('')
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000)
   try{
-   const result=await supabase.rpc('import_farm_drawio_plan',{...request.payload,p_import_id:request.id}).abortSignal(controller.signal)
+   const result=await withDeadline(signal=>supabase.rpc('import_farm_drawio_plan',{...request.payload,p_import_id:request.id}).abortSignal(signal),30000,'La session ou le serveur ne répond pas après 30 secondes')
    if(result.error){
     // Server SQL failures roll back the whole import. Network/timeouts may have committed:
     // retain the same id and frozen payload in that case for an idempotent retry.
@@ -57,9 +57,9 @@ export function ImportDrawioPlan({farmId,farmName,revision,hasPlan,disabled,canC
    }
    if(!alive.current)return
    setPlan(null);setRows([]);setAttempt(null);onDraftChange(false)
-   try{await onCommitted()}catch{setError('Import enregistré. Actualisez la page pour recharger les nouvelles serres.')}
+   try{await withDeadline(()=>onCommitted(),20000,'Actualisation trop longue')}catch{setError('Import enregistré. Actualisez la page pour recharger les nouvelles serres.')}
   }catch(e:any){if(alive.current)setError(`Enregistrement non confirmé : ${e.message||'connexion interrompue'}. En cas de délai dépassé, utilisez Réessayer : aucune serre ne sera créée en double.`)}
-  finally{clearTimeout(timer);if(alive.current)setBusy(false)}
+  finally{if(alive.current)setBusy(false)}
  }
  return <section className="space-y-3 rounded-xl border border-indigo-200 bg-indigo-50/40 p-4" aria-label="Importer un plan draw.io">
   <h3 className="font-semibold">Importer un plan draw.io — Ferme : {farmName}</h3>
@@ -91,7 +91,9 @@ export function ImportDrawioPlan({farmId,farmName,revision,hasPlan,disabled,canC
     </div>)}
    </fieldset>
    {!canCreate&&<p>Vous pouvez rattacher les serres existantes. L’habilitation « Serres : créer » est nécessaire pour en ajouter.</p>}
-   <div className="flex flex-wrap gap-3"><button className="rounded bg-indigo-600 px-4 py-2 text-white disabled:opacity-40" disabled={busy||(!attempt&&invalid)||disabled} onClick={()=>void commit()}>{attempt?'Réessayer le même import':'Enregistrer le plan et les serres'}</button>
+   {busy&&<p role="status" className="rounded bg-indigo-100 p-3">Enregistrement en cours… Attente limitée à 30 secondes. Vos champs restent conservés en cas d’erreur.</p>}
+   {error&&<p role="alert" className="rounded border border-red-400 bg-red-50 p-3 text-red-800">{error}</p>}
+   <div className="flex flex-wrap gap-3"><button className="rounded bg-indigo-600 px-4 py-2 text-white disabled:opacity-40" disabled={busy||(!attempt&&invalid)||disabled} onClick={()=>void commit()}>{busy?'Enregistrement…':attempt?'Réessayer le même import':'Enregistrer le plan et les serres'}</button>
     <button className="rounded border px-4 py-2" disabled={busy} onClick={()=>{if(attempt&&!window.confirm('Le précédent enregistrement a peut-être abouti. Quitter puis actualiser le plan avant tout nouvel import ?'))return;setPlan(null);setRows([]);setAttempt(null);setError('')}}>Fermer l’import</button></div>
   </>}
  </section>

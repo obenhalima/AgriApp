@@ -27,10 +27,11 @@ try{
  let greenhouses=plan.greenhouses.slice(0,-1).map((g,i)=>({id:`55555555-5555-4555-8555-${String(i).padStart(12,'0')}`,code:g.code,name:g.code,farm_id:farm,total_area:1000}))
  let calls=0,stored=null,payload=null,failOnce=true
  const context=await browser.newContext({viewport:{width:1400,height:1000},serviceWorkers:'block'})
- await context.addInitScript(({key,session})=>localStorage.setItem(key,JSON.stringify(session)),{key:`sb-${host.split('.')[0]}-auth-token`,session:{access_token:token,refresh_token:'qa',expires_at:Math.floor(Date.now()/1000)+3600,expires_in:3600,token_type:'bearer',user}})
+ await context.addInitScript(({key,session})=>localStorage.setItem(key,JSON.stringify(session)),{key:`sb-${host.split('.')[0]}-auth-token`,session:{access_token:token,refresh_token:'qa',expires_at:Math.floor(Date.now()/1000)+(process.argv.includes('--expired-session')?-1:3600),expires_in:3600,token_type:'bearer',user}})
  await context.route(`https://${host}/**`,async route=>{
   const url=new URL(route.request().url());let data=[]
   if(url.pathname==='/auth/v1/user')data=user
+  else if(url.pathname==='/auth/v1/token')data={access_token:token,refresh_token:'qa-new',expires_in:3600,token_type:'bearer',user}
   else if(url.pathname.endsWith('/profiles'))data=[{...user,full_name:'QA',role_id:role,is_active:true,must_change_password:false}]
   else if(url.pathname.endsWith('/domain_memberships'))data=[{domain_id:domain,role_id:role,is_default:true,domains:{name:'Recette',code:'QA'},roles:{name:'Admin'}}]
   else if(url.pathname.endsWith('/roles'))data=[{id:role,name:'Admin',is_admin:true,is_active:true}]
@@ -67,7 +68,7 @@ try{
  if(await save.isEnabled())throw Error('Missing surface not blocked')
  await page.getByLabel(`Surface officielle ${last}`,{exact:true}).fill('7 360,25')
  if(calls)throw Error('Import wrote before confirmation')
- await save.click();await page.getByRole('alert').filter({hasText:'Enregistrement non confirmé'}).waitFor()
+ await save.click();await page.getByRole('alert').filter({hasText:'Enregistrement non confirmé'}).first().waitFor()
  await page.getByRole('button',{name:'Réessayer le même import',exact:true}).click()
  await page.getByText('Plan importé et serres rattachées.',{exact:true}).waitFor()
  await page.getByRole('button',{name:`Consulter ${last}`,exact:true}).waitFor()
