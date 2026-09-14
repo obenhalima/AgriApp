@@ -33,3 +33,13 @@ Au clic : charges directes/communes, catégories, montants des consommations imp
 - Aucun changement des traitements, récoltes, prix, stocks ou coûts sources.
 - Tests : 103 unitaires, TypeScript, recette SQL annulée (périmètre, période, refus anonyme), navigateur PC/mobile avec backend simulé (filtres sans réaffectation, trois niveaux, détail, suspension classement).
 - Scripts : `scripts/check-performance-sql.mjs`, `scripts/test-performance-report.mjs`.
+
+## Refonte visuelle du dashboard — 14 septembre 2026
+
+- Trame du Dashboard existant : cartes KPI à accents colorés, typographie et couleurs du thème, panneaux compacts et filtres visibles.
+- KPI : récolte, avancement de l’objectif (hors période partielle), rendement pondéré, coût/kg, charges, CA et marge selon habilitation.
+- Filtres campagne, dates, ferme, variété ; comparaison variétés / serres / fermes et critère de classement. Mise à jour des KPI et graphiques sur le même périmètre.
+- Courbe de récoltes hebdomadaire / mensuelle, cumulée / par période, avec tableau accessible ; périodes intermédiaires sans récolte à zéro. Aucune date de charge inventée pour construire une courbe financière.
+- Comparatif graphique des huit premiers éligibles, accès au détail et répartition des charges par catégorie.
+- Exclusions des cycles en cours par défaut et contrôles de qualité financière conservés. Aucune nouvelle migration SQL.
+- Vérifications : 106 tests unitaires, TypeScript, parcours navigateur simulé ordinateur/mobile, filtres et courbes. Aucun changement des données métier pendant les tests.

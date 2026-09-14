@@ -11,7 +11,7 @@ plantings:[{id:'p1',campaign_id:'c1',greenhouse_id:'s1',variety_id:'v1',farm_id:
 metadata:[{id:'p1',variety_name:'Variété A',status:'termine',start:'2026-01-01',end:'2026-08-01',price_export:10,price_local:5,export_share:70},{id:'p2',variety_name:'Variété B',status:'en_cours',start:'2026-01-01',end:null,price_export:10,price_local:5,export_share:70}],
 costs:[{id:'c',campaign_id:'c1',greenhouse_id:null,variety_id:null,amount:1000,planned:false,category:'charges'}],
 harvests:[{planting_id:'p1',gross_kg:1000,sorted_kg:1000},{planting_id:'p2',gross_kg:2000,sorted_kg:2000}],
-harvest_details:[{id:'h1',planting_id:'p1',date:'2026-07-01',kg:1000,cat1:1000,local_kg:0},{id:'h2',planting_id:'p2',date:'2026-07-01',kg:2000,cat1:2000,local_kg:0}],
+harvest_details:[{id:'h0',planting_id:'p1',date:'2026-05-01',kg:100,cat1:100,local_kg:0},{id:'h01',planting_id:'p1',date:'2026-06-01',kg:300,cat1:300,local_kg:0},{id:'h1',planting_id:'p1',date:'2026-07-01',kg:600,cat1:600,local_kg:0},{id:'h2',planting_id:'p2',date:'2026-07-01',kg:2000,cat1:2000,local_kg:0}],
 station_lots:[{id:'l1',planting_id:'p1',date:'2026-07-01',amount:9000,priced_kg:1000,accepted_kg:1000}]}
 let pending=false,calls=0
 const browser=await chromium.launch({channel:'msedge',headless:true})
@@ -35,6 +35,11 @@ try{
  await page.getByLabel('Ferme',{exact:true}).selectOption('f1')
  const row=page.getByRole('row').filter({hasText:'Variété A'})
  if(!(await row.innerText()).includes('250,00'))throw Error('Filter reallocated shared costs')
+ await page.getByRole('region',{name:'Progression des récoltes'}).getByText('Données de la courbe').click()
+ if(!(await page.getByRole('region',{name:'Progression des récoltes'}).innerText()).includes('1\u202f000,00'))throw Error('Chart did not follow farm filter')
+ await page.getByLabel('Granularité des courbes').selectOption('week')
+ await page.getByRole('button',{name:'Cumulé',exact:true}).click()
+ await page.getByRole('button',{name:'Par période',exact:true}).waitFor()
  await row.getByRole('button',{name:'Voir le détail'}).click()
  await page.getByRole('region',{name:'Détail de performance'}).waitFor()
  await page.getByLabel('Ferme',{exact:true}).selectOption('')
@@ -43,11 +48,16 @@ try{
  await page.getByLabel('Comparer',{exact:true}).selectOption('farm')
  await page.getByLabel('Trier par',{exact:true}).selectOption('costKg')
  pending=true;await page.getByRole('button',{name:'Actualiser',exact:true}).click()
- await page.getByText('Aucun classement fiable pour ce critère',{exact:true}).waitFor()
+ await page.getByText('Aucun classement fiable pour ce critère.',{exact:false}).waitFor()
  if(calls<2||errors.length)throw Error(errors.join('\n')||'Refresh not requested')
+ pending=false;await page.getByRole('button',{name:'Actualiser',exact:true}).click()
+ await page.getByText('Meilleur résultat observé — provisoire :',{exact:false}).waitFor()
+ await page.getByLabel('Trier par',{exact:true}).selectOption('yield')
  fs.mkdirSync('tmp/performance',{recursive:true});await page.screenshot({path:'tmp/performance/desktop.png',fullPage:true})
  await page.setViewportSize({width:390,height:844})
  await page.getByLabel('Comparer',{exact:true}).selectOption('variety')
+ await page.evaluate(()=>window.scrollTo(0,0))
+ if(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1))throw Error('Mobile horizontal overflow')
  await page.screenshot({path:'tmp/performance/mobile.png',fullPage:true})
  console.log('PASS: domain scope, three comparison levels, allocation before filtering, detail, missing-cost ranking protection, desktop/mobile; no real writes.')
 }finally{await browser.close()}
