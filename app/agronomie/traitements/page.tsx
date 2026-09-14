@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { StationReview } from "@/components/phyto/StationReview";
 import { validateTreatmentDates } from "@/lib/treatmentScheduleDates";
 import { toast } from "sonner";
 import {
@@ -521,7 +522,9 @@ export default function TraitementsPage() {
       setSaving(false);
     }
   };
+  const [stationReview, setStationReview] = useState<{id:string;readOnly:boolean}|null>(null);
   const review = async (id: string, approve: boolean) => {
+    if (approve) { setStationReview({id,readOnly:false}); return; }
     const reason = approve ? null : prompt("Motif obligatoire du rejet :");
     if (!approve && !reason) return;
     const { error } = await supabase.rpc("review_treatment_request", {
@@ -714,6 +717,7 @@ export default function TraitementsPage() {
         }
       />
 
+      {stationReview && <StationReview key={stationReview.id} requestId={stationReview.id} readOnly={stationReview.readOnly} onClose={()=>setStationReview(null)} onDone={(approved)=>{setStationReview(null);toast.success(approved?"Prescription validée et confirmations enregistrées":"Prescription refusée");load();}} />}
       {requestOpen && (
         <Modal
           title="NOUVELLE PRESCRIPTION"
@@ -1577,7 +1581,7 @@ export default function TraitementsPage() {
                       </div>
                     ))}
                   </TD>
-                  <TD>{r.target_name}</TD>
+                  <TD>{r.target_name}<button className="block text-xs underline mt-1" onClick={()=>setStationReview({id:r.id,readOnly:r.status!=="soumise"})}>Couleurs / accords Station</button></TD>
                   <TD>
                     {(r.treatment_request_products || []).map((p: any) => (
                       <div key={p.id}>

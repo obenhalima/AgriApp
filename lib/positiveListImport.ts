@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import {stationRisk} from "./stationRisk";
 
 export type PositiveListRow = {
   source_page?: number;
@@ -96,7 +97,7 @@ export async function parsePositiveList(
         target_label: currentTarget,
         commercial_name: commercial,
         active_substances: find(r, ["matière active", "matiere active"]),
-        risk_class: find(r, ["classe"]),
+        risk_class: find(r, ["couleur", "classe", "risque"]),
         phi_days: numberOrNull(find(r, ["dar"])),
         dose_text: find(r, ["dose"]),
         treatment_mode: find(r, ["mode"]),
@@ -117,6 +118,8 @@ export async function parsePositiveList(
     validated_by_label: "",
     rows,
     warnings: [
+      "Les codes de classe sont importés. Vérifiez les couleurs dans l’aperçu ; une couleur uniquement graphique sans code doit être renseignée manuellement.",
+      ...(rows.some(r=>stationRisk(r.risk_class)==="unknown")?["Certaines couleurs Station sont à contrôler avant validation des prescriptions."]:[]),
       ...(!rows.length ? ["Aucune ligne reconnue. Vérifiez les en-têtes du fichier Excel/CSV."] : []),
       ...(ignoredWithoutTarget ? [`${ignoredWithoutTarget} ligne(s) ignorée(s), car aucune cible n’a pu être déterminée.`] : []),
     ],
@@ -172,7 +175,7 @@ async function parsePdf(file: File): Promise<PositiveListPreview> {
       if (
         !commercial ||
         /nom commercial|liste positive|section/i.test(commercial) ||
-        !/^(V|O|R\*?|R)$/i.test(risk)
+        !/^(V|O|J|R\*?|R)$/i.test(risk)
       )
         continue;
       if (invalidTarget || !currentTarget) {
