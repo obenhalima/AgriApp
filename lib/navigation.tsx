@@ -504,6 +504,11 @@ export const NAV: NavSection[] = [
         description: "Coûts consolidés et stock valorisé",
       },
       {
+        href: "/couts/performance", moduleCode: "couts", label: "Performance & rentabilité",
+        icon: TrendingUp, color: "#06b6d4", keywords: ["rendement", "classement", "variété", "serre", "marge", "coût/kg"],
+        description: "Comparer variétés, serres et fermes",
+      },
+      {
         href: "/admin/amortissements",
         moduleCode: "amortissements",
         label: "Amortissements",

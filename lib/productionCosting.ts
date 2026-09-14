@@ -5,6 +5,26 @@ export type CostData = { basis: 'surface' | 'production'; plantings: CostPlantin
 export type CostSummary = { id: string; name: string; farm_id?: string; direct: number; shared: number; planned: number; gross: number; sorted: number; target: number; targetMissing: boolean; provisional: boolean }
 const round = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100
 export const costRatio = (amount: number, kg: number) => kg > 0 ? amount / kg : null
+export type ProductionAllocation = { plantingId:string; costId:string; amount:number; planned:boolean; shared:boolean; provisional:boolean; category:string; source?:string }
+// Allocate on the full campaign perimeter, before any farm/variety display filter.
+export function allocateProductionCosts(data:CostData){
+  const allocations:ProductionAllocation[]=[]
+  const harvests=new Map(data.harvests.map(h=>[h.planting_id,h]))
+  let unallocated=0,plannedUnallocated=0
+  for(const c of data.costs){
+    const targets=data.plantings.filter(p=>p.campaign_id===c.campaign_id&&(!c.greenhouse_id||p.greenhouse_id===c.greenhouse_id)&&(!c.variety_id||p.variety_id===c.variety_id)).sort((a,b)=>a.id.localeCompare(b.id))
+    const weights=targets.map(p=>c.greenhouse_id||data.basis==='surface'?Number(p.area):Number(harvests.get(p.id)?.gross_kg??0))
+    const total=weights.reduce((s,v)=>s+v,0)
+    if(total<=0){if(c.planned)plannedUnallocated+=Number(c.amount);else unallocated+=Number(c.amount);continue}
+    let allocated=0
+    targets.forEach((p,i)=>{
+      const amount=i===targets.length-1?round(Number(c.amount)-allocated):round(Number(c.amount)*weights[i]/total)
+      allocated=round(allocated+amount)
+      allocations.push({plantingId:p.id,costId:c.id,amount,planned:c.planned,shared:!c.greenhouse_id,provisional:c.quality==='provisional',category:c.category,source:c.source})
+    })
+  }
+  return {allocations,unallocated:round(unallocated),plannedUnallocated:round(plannedUnallocated)}
+}
 export function buildProductionCosts(data: CostData) {
   const rows = new Map<string, CostSummary>()
   const harvests = new Map(data.harvests.map(h => [h.planting_id, h]))
@@ -14,23 +34,14 @@ export function buildProductionCosts(data: CostData) {
     row.gross += Number(h?.gross_kg ?? 0); row.sorted += Number(h?.sorted_kg ?? 0)
     row.target += Number(p.target_kg ?? 0); row.targetMissing ||= p.target_kg == null
   }
-  let unallocated = 0, plannedUnallocated = 0
-  for (const c of data.costs) {
-    const targets = data.plantings.filter(p => p.campaign_id === c.campaign_id && (!c.greenhouse_id || p.greenhouse_id === c.greenhouse_id) && (!c.variety_id || p.variety_id === c.variety_id)).sort((a, b) => a.id.localeCompare(b.id))
-    // A direct cost is never spread onto unrelated greenhouses if its target is missing.
-    const weights = targets.map(p => c.greenhouse_id || data.basis === 'surface' ? Number(p.area) : Number(harvests.get(p.id)?.gross_kg ?? 0))
-    const total = weights.reduce((s, v) => s + v, 0)
-    if (total <= 0) { if (c.planned) plannedUnallocated += Number(c.amount); else unallocated += Number(c.amount); continue }
-    let allocated = 0
-    targets.forEach((p, i) => {
-      const share = i === targets.length - 1 ? round(Number(c.amount) - allocated) : round(Number(c.amount) * weights[i] / total)
-      allocated = round(allocated + share)
-      const row = rows.get(p.greenhouse_id)!
-      if (c.planned) row.planned = round(row.planned + share)
-      else if (c.greenhouse_id) row.direct = round(row.direct + share)
-      else row.shared = round(row.shared + share)
-      row.provisional ||= !c.planned && c.quality === 'provisional'
-    })
+  const {allocations,unallocated,plannedUnallocated}=allocateProductionCosts(data)
+  const plantingMap=new Map(data.plantings.map(p=>[p.id,p]))
+  for(const c of allocations){
+    const row=rows.get(plantingMap.get(c.plantingId)!.greenhouse_id)!
+    if(c.planned)row.planned=round(row.planned+c.amount)
+    else if(c.shared)row.shared=round(row.shared+c.amount)
+    else row.direct=round(row.direct+c.amount)
+    row.provisional ||= !c.planned&&c.provisional
   }
   const aggregate = (id: string, name: string, input: CostSummary[]): CostSummary => input.reduce((r, v) => ({ ...r,
     direct: round(r.direct + v.direct), shared: round(r.shared + v.shared), planned: round(r.planned + v.planned), gross: r.gross + v.gross,
