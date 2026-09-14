@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { buildProductionCosts, costRatio, CostData, CostSummary } from '@/lib/productionCosting'
 import { formatPlanNumber as fmt } from '@/lib/farmLayout'
+import { InventoryValuationDialog, type ValuationItem } from './InventoryValuationDialog'
 
 const field = 'rounded border border-slate-300 bg-white p-2 text-sm text-slate-900 disabled:opacity-50'
 export function ProductionCostReport({ fixedCampaign, fixedGreenhouse, compact = false }: { fixedCampaign?: string; fixedGreenhouse?: string; compact?: boolean }) {
@@ -24,8 +25,13 @@ export function ProductionCostReport({ fixedCampaign, fixedGreenhouse, compact =
   const [reviewPlanting, setReviewPlanting] = useState('')
   const [reviewPrice, setReviewPrice] = useState('')
   const [reviewReason, setReviewReason] = useState('')
+  const [valuationItem, setValuationItem] = useState<ValuationItem|null>(null)
+  const [valuationMessage, setValuationMessage] = useState('')
+  const [inventoryOpen, setInventoryOpen] = useState(false)
   useEffect(() => {
     setCampaign(''); setFarm(''); setData(null)
+    setValuationItem(null); setValuationMessage('')
+    setInventoryOpen(false)
     if (!domain || compact) return
     let stop = false
     supabase.from('campaigns').select('id,name').eq('domain_id', domain).order('name').then(r => { if (!stop) { setCampaigns(r.data ?? []); if (r.error) setError(r.error.message) } })
@@ -91,20 +97,15 @@ export function ProductionCostReport({ fixedCampaign, fixedGreenhouse, compact =
             }}>Confirmer l’imputation</button><button className={field} onClick={() => setReviewId('')}>Annuler</button>
           </div>}
         </details>
-        <details className="rounded border p-3"><summary>Stock actuel au bilan de gestion — hors filtre campagne/période</summary>
+        <details className="rounded border p-3" open={inventoryOpen} onToggle={e=>setInventoryOpen(e.currentTarget.open)}><summary>Stock actuel au bilan de gestion — hors filtre campagne/période</summary>
+          {valuationMessage&&<p role="status" className="my-2 rounded bg-green-50 p-3 text-green-800">{valuationMessage}</p>}
           <p className="my-2 text-sm">Valeur connue en entrepôts : {fmt(data.inventory.reduce((s, i) => s + Number(i.value ?? 0), 0))} DH. En transit (valeur connue) : {fmt(Number(data.transit))} DH. {data.inventory.filter(i => Number(i.qty) > 0 && (!i.verified || i.value == null)).length} solde(s) à confirmer. Ce relevé n’est pas un bilan comptable arrêté.</p>
           <div className="overflow-auto"><table className="w-full text-sm"><thead><tr>{['Entrepôt', 'Article', 'Quantité', 'CUMP DH', 'Valeur DH', 'Contrôle'].map(h => <th className="p-2 text-left" key={h}>{h}</th>)}</tr></thead><tbody>{data.inventory.map(i => <tr className="border-t" key={`${i.warehouse_id}:${i.stock_item_id}`}><td className="p-2">{i.warehouse_name}</td><td className="p-2">{i.item_name}</td><td className="p-2">{fmt(Number(i.qty))} {i.unit}</td><td className="p-2">{fmt(i.value == null ? null : costRatio(Number(i.value), Number(i.qty)))}</td><td className="p-2">{fmt(i.value == null ? null : Number(i.value))}</td><td className="p-2">{i.verified ? 'Confirmé' : 'À valoriser / confirmer'} {hasPermission('couts', 'edit') && Number(i.qty) > 0 && <button disabled={updating} className={field} onClick={async () => {
-            const raw = window.prompt(`Coût unitaire en MAD par ${i.unit}. Cette correction du solde actuel ne recalcule pas les anciennes consommations.`, i.value == null ? '' : String(Number(i.value) / Number(i.qty)))
-            if (raw == null) return
-            const price = Number(raw.replace(/\s/g, '').replace(',', '.'))
-            if (!raw.trim() || !Number.isFinite(price) || price < 0) { setError('Prix invalide'); return }
-            const reason = window.prompt('Justificatif de la valorisation (source du prix, inventaire…)')
-            if (!reason || reason.trim().length < 5) return
-            setUpdating(true)
-            try { const r = await supabase.rpc('confirm_inventory_value', { p_warehouse: i.warehouse_id, p_item: i.stock_item_id, p_expected_qty: Number(i.qty), p_unit_cost: price, p_reason: reason }); if (r.error) throw r.error; setRevision(v => v + 1) } catch (e: any) { setError(e.message) } finally { setUpdating(false) }
+            setValuationMessage(''); setValuationItem(i)
           }}>Valoriser</button>}</td></tr>)}</tbody></table></div>
         </details>
       </>}
     </>}
+    {valuationItem&&<InventoryValuationDialog key={`${valuationItem.warehouse_id}:${valuationItem.stock_item_id}`} item={valuationItem} onClose={()=>setValuationItem(null)} onConfirmed={()=>{setValuationMessage(`Valorisation confirmée pour ${valuationItem.item_name}.`);setValuationItem(null);setRevision(v=>v+1)}}/>}
   </section>
 }
