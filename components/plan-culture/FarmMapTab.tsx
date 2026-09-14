@@ -6,19 +6,25 @@ import { useAuth } from '@/lib/auth'
 import { FarmShape, newShape, normalizeShape, formatPlanNumber as fmt } from '@/lib/farmLayout'
 import { ProductionCostReport } from '@/components/costs/ProductionCostReport'
 import { ImportFarmPlan } from './ImportFarmPlan'
+import { ImportDrawioPlan } from './ImportDrawioPlan'
+import { PlanGraphics } from './PlanGraphics'
+import type { PlanGraphic } from '@/lib/drawioFarmPlan'
 
 type Greenhouse = { id: string; code: string; name: string; farm_id: string; total_area: number }
 type Planting = { id: string; greenhouse_id: string; variety_id: string; planted_area: number; planting_date: string | null; status: string; target_total_production: number | null; target_yield_per_m2: number | null }
 type Harvest = { id: string; campaign_planting_id: string; total_qty: number; harvest_date: string }
-type Props = { domainId: string; farmId: string; campaignId: string; greenhouses: Greenhouse[]; onDirtyChange: (dirty: boolean) => void }
+type Props = { domainId: string; farmId: string; farmName: string; campaignId: string; greenhouses: Greenhouse[]; onDirtyChange: (dirty: boolean) => void; onReferencesChanged: () => Promise<void> }
 const control = 'rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed'
 const statusLabel: Record<string, string> = { planifie: 'Planifiée', en_cours: 'En cours', termine: 'Terminée', terminee: 'Terminée', recolte: 'En récolte', annule: 'Annulée' }
 
-export function FarmMapTab({ domainId, farmId, campaignId, greenhouses, onDirtyChange }: Props) {
+export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses, onDirtyChange, onReferencesChanged }: Props) {
   const { hasPermission } = useAuth()
   const canEdit = hasPermission('fermes', 'edit')
   const [shapes, setShapes] = useState<FarmShape[]>([])
   const [saved, setSaved] = useState<FarmShape[]>([])
+  const [elements, setElements] = useState<PlanGraphic[]>([])
+  const [savedElements, setSavedElements] = useState<PlanGraphic[]>([])
+  const [importDirty, setImportDirty] = useState(false)
   const [revision, setRevision] = useState(0)
   const [selected, setSelected] = useState('')
   const [toAdd, setToAdd] = useState('')
@@ -40,19 +46,20 @@ export function FarmMapTab({ domainId, farmId, campaignId, greenhouses, onDirtyC
   const missing = scopeGreenhouses.filter(g => !shapes.some(s => s.greenhouse_id === g.id))
   const greenhouse = scopeGreenhouses.find(g => g.id === selected)
   const shape = shapes.find(s => s.greenhouse_id === selected)
-  useEffect(() => { onDirtyChange(dirty) }, [dirty, onDirtyChange])
+  useEffect(() => { onDirtyChange(dirty || importDirty) }, [dirty, importDirty, onDirtyChange])
 
   useEffect(() => {
     const controller = new AbortController()
     let cancelled = false
     const timeout = setTimeout(() => controller.abort(), 20000)
     setBusy(true); setError('')
-    Promise.resolve(supabase.from('farm_schematic_plans').select('shapes,revision').eq('domain_id', domainId).eq('farm_id', farmId)
+    Promise.resolve(supabase.from('farm_schematic_plans').select('shapes,revision,elements').eq('domain_id', domainId).eq('farm_id', farmId)
       .abortSignal(controller.signal).maybeSingle()).then(({ data, error: err }) => {
         if (cancelled) return
-        if (err) { setError(`Chargement du plan impossible : ${err.message}. Vérifiez que la migration 114 est appliquée.`); return }
+        if (err) { setError(`Chargement du plan impossible : ${err.message}. Vérifiez que les migrations 114 à 128 du plan sont appliquées.`); return }
         const layout = (data?.shapes ?? []) as FarmShape[]
         setShapes(layout); setSaved(layout); setRevision(data?.revision ?? 0); setDirty(false); setEditing(false)
+        setElements(data?.elements ?? []); setSavedElements(data?.elements ?? []); setImportDirty(false)
       }).catch((e: any) => { if (!cancelled) setError(`Chargement du plan impossible : ${e.message}`) })
       .finally(() => { clearTimeout(timeout); if (!cancelled) setBusy(false) })
     return () => { cancelled = true; controller.abort(); clearTimeout(timeout) }
@@ -104,11 +111,11 @@ export function FarmMapTab({ domainId, farmId, campaignId, greenhouses, onDirtyC
   }, [campaignId, domainId, farmId, reload])
 
   useEffect(() => {
-    if (!dirty) return
+    if (!dirty && !importDirty) return
     const beforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
     window.addEventListener('beforeunload', beforeUnload)
     return () => window.removeEventListener('beforeunload', beforeUnload)
-  }, [dirty])
+  }, [dirty, importDirty])
 
   function update(patch: Partial<FarmShape>) {
     setShapes(items => items.map(s => s.greenhouse_id === selected ? normalizeShape({ ...s, ...patch }) : s))
@@ -119,9 +126,10 @@ export function FarmMapTab({ domainId, farmId, campaignId, greenhouses, onDirtyC
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 20000)
     try {
-      const result = await supabase.rpc('save_farm_schematic_plan', { p_farm: farmId, p_revision: revision, p_shapes: shapes }).abortSignal(controller.signal)
+      const result = await supabase.rpc('save_farm_schematic_plan_with_elements', { p_farm: farmId, p_revision: revision, p_shapes: shapes, p_elements: elements }).abortSignal(controller.signal)
       if (result.error) throw result.error
       setRevision(result.data); setSaved(shapes); setDirty(false); setEditing(false); setMessage('Plan enregistré.')
+      setSavedElements(elements)
     } catch (e: any) { setMessage(`Sauvegarde non confirmée : ${e.message ?? 'délai dépassé'}. Rechargez le plan avant de réessayer.`) }
     finally { clearTimeout(timeout); setSaving(false) }
   }
@@ -140,14 +148,14 @@ export function FarmMapTab({ domainId, farmId, campaignId, greenhouses, onDirtyC
   return <section className="space-y-3">
     <div className="flex flex-wrap items-center gap-2">
       <strong>Plan schématique — {editing ? 'Modification' : 'Consultation'}</strong>
-      <button className={control} disabled={busy || saving} onClick={() => {
+      <button className={control} disabled={busy || saving || importDirty} onClick={() => {
         if (!dirty || window.confirm('Abandonner les modifications non enregistrées et recharger ?')) setReload(n => n + 1)
       }}>Actualiser</button>
-      {canEdit && !editing && <button className={control} disabled={busy || !!error} onClick={() => setEditing(true)}>Modifier le plan</button>}
+      {canEdit && !editing && <button className={control} disabled={busy || !!error || importDirty} onClick={() => setEditing(true)}>Modifier le plan</button>}
       {editing && <>
         <button className={control} disabled={saving || !dirty} onClick={save}>{saving ? 'Enregistrement…' : 'Enregistrer'}</button>
         <button className={control} disabled={saving} onClick={() => {
-          if (!dirty || window.confirm('Abandonner les modifications du plan ?')) { setShapes(saved); setDirty(false); setEditing(false) }
+          if (!dirty || window.confirm('Abandonner les modifications du plan ?')) { setShapes(saved); setElements(savedElements); setDirty(false); setEditing(false) }
         }}>Annuler</button>
       </>}
       {dirty && <span role="status" className="text-amber-700">Modifications non enregistrées : enregistrez avant de changer de ferme, de société ou de page.</span>}
@@ -156,9 +164,12 @@ export function FarmMapTab({ domainId, farmId, campaignId, greenhouses, onDirtyC
     {message && <p role="status" className="rounded border p-3">{message}</p>}
     {dataError && <p role="alert" className="rounded bg-amber-50 p-3 text-amber-900">{dataError} Les couleurs de culture ne sont pas disponibles.</p>}
     {error ? <p role="alert" className="rounded bg-amber-50 p-3 text-amber-900">{error}</p> : busy ? <p>Chargement du plan…</p> : <>
-      {canEdit && <ImportFarmPlan key={`${domainId}:${farmId}:${reload}`} greenhouses={scopeGreenhouses} disabled={saving} onApply={layout=>{
+      {canEdit && <ImportDrawioPlan key={`drawio:${domainId}:${farmId}:${reload}`} farmId={farmId} farmName={farmName} revision={revision} hasPlan={!!shapes.length || !!elements.length}
+        greenhouses={scopeGreenhouses} disabled={saving || editing} canCreate={hasPermission('serres','create')} onDraftChange={setImportDirty}
+        onCommitted={async()=>{await onReferencesChanged();setImportDirty(false);setMessage('Plan importé et serres rattachées.');setSelected('');setReload(n=>n+1)}}/>}
+      {canEdit && <ImportFarmPlan key={`${domainId}:${farmId}:${reload}`} greenhouses={scopeGreenhouses} disabled={saving || importDirty} onApply={layout=>{
         if(shapes.length&&!window.confirm('Remplacer la disposition actuelle par celle du fichier ? Les données des serres restent inchangées.'))return false
-        setShapes(layout);setSelected('');setEditing(true);setDirty(true);setMessage('Disposition importée. Vérifiez le plan puis cliquez sur Enregistrer.')
+        setShapes(layout);setElements([]);setSelected('');setEditing(true);setDirty(true);setMessage('Disposition importée. Vérifiez le plan puis cliquez sur Enregistrer.')
         return true
       }}/>}
       {editing && <div className="flex flex-wrap gap-2">
@@ -184,6 +195,7 @@ export function FarmMapTab({ domainId, farmId, campaignId, greenhouses, onDirtyC
             }} onPointerUp={() => { drag.current = null }} onPointerCancel={() => { drag.current = null }}>
             <defs><pattern id="farm-grid" width="25" height="25" patternUnits="userSpaceOnUse"><path d="M25 0H0V25" fill="none" stroke="#cbd5e1" strokeWidth="0.6" /></pattern></defs>
             <rect width="1200" height="800" fill="url(#farm-grid)" />
+            <PlanGraphics elements={elements} />
             {shapes.map(s => {
               const g = scopeGreenhouses.find(g => g.id === s.greenhouse_id)
               const occupied = plantings.some(p => p.greenhouse_id === s.greenhouse_id)

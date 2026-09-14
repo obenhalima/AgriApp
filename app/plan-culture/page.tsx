@@ -222,7 +222,8 @@ function PlanCultureContent() {
       {/* ─── CONTENU DE L'ONGLET ─── */}
       {tab === 'map' && (activeDomain && farmFilter !== 'all' && farms.some(f => f.id === farmFilter) ? (
         <FarmMapTab key={`${activeDomain.domain_id}:${farmFilter}`} domainId={activeDomain.domain_id}
-          farmId={farmFilter} campaignId={campaignId} greenhouses={allGreenhouses} onDirtyChange={setMapDirty} />
+          farmId={farmFilter} farmName={farms.find(f=>f.id===farmFilter)?.name || 'Ferme sélectionnée'} campaignId={campaignId} greenhouses={allGreenhouses} onDirtyChange={setMapDirty}
+          onReferencesChanged={async()=>{setAllGreenhouses(await loadAllGreenhouses(activeDomain.domain_id))}} />
       ) : <div className="rounded border p-6">Sélectionnez une ferme dans le filtre ci-dessus pour consulter ou dessiner son plan.</div>)}
       {tab === 'dashboard' && (
         <DashboardTab

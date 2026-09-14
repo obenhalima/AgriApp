@@ -25,7 +25,7 @@ try{
   else if(url.pathname.endsWith('/farms'))data=[{id:farm,code:'QA',name:'Ferme de recette'}]
   else if(url.pathname.endsWith('/greenhouses'))data=references?greenhouses:[]
   else if(url.pathname.endsWith('/farm_schematic_plans'))data=stored.length?{shapes:stored,revision:1}:null
-  else if(url.pathname.endsWith('/save_farm_schematic_plan')){
+  else if(url.pathname.endsWith('/save_farm_schematic_plan_with_elements')){
    const body=route.request().postDataJSON()
    if(body.p_farm!==farm||body.p_shapes.length!==plan.rectangles.length)throw Error('Unexpected save payload')
    if(body.p_shapes.some(r=>'total_area' in r))throw Error('Must not change surfaces')
