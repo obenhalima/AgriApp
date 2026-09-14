@@ -34,6 +34,7 @@ export function StationReview({ requestId, readOnly = false, onClose, onDone }: 
         {!data.can_review && <p className="text-red-700">Fonction Responsable d’exploitation active et habilitation de validation requises. Le demandeur ne peut pas valider sa propre prescription.</p>}
         {lines.map((line: any) => <section key={line.line_id} className="border rounded p-3 space-y-2">
           <h3 className="font-bold">{line.product}</h3><span className={`inline-block border rounded px-2 py-1 text-sm ${stationRiskStyles[line.risk as StationRisk]}`}>{stationRiskLabels[line.risk as StationRisk]}</span>
+          <p className="text-sm">Cible : {line.prescribed.target_name || data.snapshot.request.target_name}</p>
           <p className="text-sm">{line.prescribed.dose} {line.prescribed.dose_unit} · Quantité prévue : {Number(line.prescribed.planned_quantity).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · DAR : {line.prescribed.phi_days ?? '—'} j</p>
           <p className="text-xs">{(line.sources || []).map((s: any) => `Liste ${s.version}${s.restriction_until ? ` · validité : ${s.restriction_until}` : ''}`).join(' ; ')}</p>
           {line.expired && <p className="text-red-700">Restriction expirée à la date prévue. Une consigne actualisée est nécessaire.</p>}

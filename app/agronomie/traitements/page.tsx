@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { StationReview } from "@/components/phyto/StationReview";
 import { validateTreatmentDates } from "@/lib/treatmentScheduleDates";
+import { duplicateTreatmentProduct, resetLineTarget, treatmentTargetsSummary } from "@/lib/treatmentTargets";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -43,6 +44,8 @@ const STATUS: Record<
   annulee: { label: "Non réalisée", variant: "default" },
 };
 const emptyProduct = () => ({
+  biological_target_id: "",
+  target_name: "",
   catalog_product_id: "",
   stock_item_id: "",
   dose: "",
@@ -66,8 +69,6 @@ const blankRequest = () => ({
   starts_at: "",
   ends_at: "",
   occurrence_count: "",
-  target_name: "",
-  custom_target: "",
   diagnosis: "",
   justification: "",
   treated_area_m2: "",
@@ -331,7 +332,6 @@ export default function TraitementsPage() {
     ['suspendu','retire','expire'].includes(p.authorization_status)?"Produit suspendu, retiré ou expiré":!hasStationCompliance(p,target)&&(p.authorization_status!=="autorise"||!p.safety_data_verified)?"ONSSA à vérifier":null,
     !getAuthorizedUse(p,target)?"Usage pour cette cible à compléter":!getAuthorizedUse(p,target).is_active&&!hasStationCompliance(p,target)?"Données importées préremplies — usage à vérifier":null,
   ].filter(Boolean).join(" · ");
-  const currentTargetName = (value:any) => value.target_name === "__other__" ? value.custom_target : value.target_name;
 
   const changeProduct = (index: number, key: string, value: any) =>
     setForm((current) => ({
@@ -369,11 +369,8 @@ export default function TraitementsPage() {
     });
   const setTargets = (ids: string[]) =>
     setForm((current) => {
-      const area = selectedArea(ids),
-        reference = getAuthorizedUse(products.find(
-          (p: any) => p.stock_item_id === current.products[0]?.stock_item_id,
-        ), currentTargetName(current))?.spray_volume_reference_l_ha;
-      const volumePerHa = Number(reference) || defaultSprayVolumeLHa;
+      const area = selectedArea(ids);
+      const volumePerHa = parseLocalizedNumber(current.spray_volume_l_ha) || defaultSprayVolumeLHa;
       const water = area ? Math.round(((area * volumePerHa) / 10000) * 100) / 100 : 0;
       return {
         ...current,
@@ -386,12 +383,12 @@ export default function TraitementsPage() {
     });
   const chooseProduct = (index: number, catalogProductId: string) => {
     const item = products.find((p: any) => p.catalog_product_id === catalogProductId),
-      use = getAuthorizedUse(item, currentTargetName(form));
+      use = getAuthorizedUse(item, form.products[index]?.target_name || "");
     setForm((current) => {
       const dose =
           use?.dose_min ?? use?.recommended_dose ?? use?.dose_max ?? "",
         area = Number(current.treated_area_m2) || 0,
-        volumePerHa = Number(use?.spray_volume_reference_l_ha) || defaultSprayVolumeLHa,
+        volumePerHa = parseLocalizedNumber(current.spray_volume_l_ha) || Number(use?.spray_volume_reference_l_ha) || defaultSprayVolumeLHa,
         water = area ? Math.round(((area * volumePerHa) / 10000) * 100) / 100 : 0;
       const line = {
         ...current.products[index],
@@ -403,6 +400,7 @@ export default function TraitementsPage() {
         rei_hours: use?.rei_hours ?? item?.default_rei_hours ?? "",
         quantity_is_manual: false,
         quantity_override_justification: "",
+        label_confirmed: false,
       };
       line.planned_quantity = plannedQuantity(
         dose,
@@ -418,15 +416,16 @@ export default function TraitementsPage() {
           ? String(water)
           : current.water_volume_liters,
         spray_volume_l_ha: String(volumePerHa),
-        products: current.products.map((old: any, i: number) =>
+        products: recalcLines(current.products.map((old: any, i: number) =>
           i === index ? line : old,
-        ),
+        ), area, water),
       };
     });
   };
-  const chooseTarget = (target: string) => {
-    // Une nouvelle cible impose un choix explicite et de nouvelles doses vérifiées.
-    setForm(current=>current.target_name===target?current:{...current,target_name:target,products:[emptyProduct()]});
+  const chooseTarget = (index: number, name: string) => {
+    // Seule la ligne modifiée est réinitialisée, les autres produits restent inchangés.
+    setForm(current=>({...current,products:current.products.map((line,i)=>i===index
+      ? resetLineTarget(emptyProduct(), targetId(name) || "", name) : line)}));
   };
   const submit = async () => {
     if (saving) return;
@@ -436,14 +435,18 @@ export default function TraitementsPage() {
       toast.error("Corrigez les dates de planification signalées en rouge.");
       return;
     }
-    const effectiveTarget = currentTargetName(form);
+    const effectiveTarget = treatmentTargetsSummary(form.products);
+    if (duplicateTreatmentProduct(form.products)) {
+      toast.error("Un produit ne doit figurer qu’une fois dans la prescription pour éviter un double dosage.");
+      return;
+    }
     if (!form.farm_id || !warehouses.some(w=>w.id===form.warehouse_id&&w.is_active&&w.farm_id===form.farm_id)) {
       toast.error("Sélectionnez un entrepôt actif rattaché à la ferme de la prescription.");
       return;
     }
     if(productLoadError||form.products.some(line=>{
       const item=products.find(p=>line.catalog_product_id?p.catalog_product_id===line.catalog_product_id:!!line.stock_item_id&&p.stock_item_id===line.stock_item_id);
-      return !item||!item.is_active||!getAuthorizedUse(item,effectiveTarget)||!isStationEligible(item,effectiveTarget);
+      return !line.biological_target_id||!item||!item.is_active||!getAuthorizedUse(item,line.target_name)||!isStationEligible(item,line.target_name);
     })){
       toast.error("Complétez ou retirez les produits signalés avant de soumettre la prescription.");
       return;
@@ -483,7 +486,7 @@ export default function TraitementsPage() {
       ends_at: validatedDates.ends_at,
       occurrence_count: form.occurrence_count,
     };
-    const { error } = await supabase.rpc("submit_treatment_schedule", {
+    const { error } = await supabase.rpc("submit_treatment_schedule_multitarget", {
       p_schedule: schedule,
       p_request: {
         domain_id: activeDomain.domain_id,
@@ -988,26 +991,9 @@ export default function TraitementsPage() {
               >
                 <Input type="number" value={form.treated_area_m2} disabled />
               </Field>
-              <Field
-                label={
-                  <span>
-                    Cible biologique
-                    <FieldHelp text="Ravageur, maladie ou problème observé, par exemple Tuta absoluta, aleurode ou botrytis." />
-                  </span>
-                }
-                required
-              >
-                <Select
-                  value={form.target_name}
-                  onChange={(e) =>
-                    chooseTarget(e.target.value)
-                  }
-                ><option value="">Sélectionner une cible</option>{targetOptions.map(target=><option key={target} value={target}>{target}</option>)}<option value="__other__">Autre cible / non identifiée</option></Select>
-              </Field>
             </div>
-            {form.target_name === "__other__" && <Field label="Autre cible" required><Input value={form.custom_target} onChange={e=>setForm(v=>({...v,custom_target:e.target.value,products:[emptyProduct()]}))}/></Field>}
             <div className="grid grid-cols-2 gap-md">
-              <Field label={<span>Volume de bouillie estimé (L/ha)<FieldHelp text="Valeur de référence du produit ou, à défaut, valeur paramétrée pour le client. Toute modification recalcule le volume global et les quantités prévues." /></span>}>
+              <Field label={<span>Volume de bouillie estimé (L/ha)<FieldHelp text="Volume commun à toutes les lignes, initialisé avec la valeur du client. Vérifiez son adéquation aux produits choisis. Toute modification recalcule le volume global et les quantités prévues." /></span>}>
                 <Input type="text" value={form.spray_volume_l_ha} onChange={(e)=>setForm((v)=>{const perHa=parseLocalizedNumber(e.target.value),area=parseLocalizedNumber(v.treated_area_m2),water=area&&perHa?Math.round(((area*perHa)/10000)*100)/100:0;return{...v,spray_volume_l_ha:e.target.value,water_volume_liters:water?String(water):'',products:recalcLines(v.products,area,water)}})}/>
               </Field>
               <Field label={<span>Volume global calculé (L)<FieldHelp text="Surface totale sélectionnée × volume de bouillie par hectare." /></span>}>
@@ -1068,49 +1054,49 @@ export default function TraitementsPage() {
             </div>
             {productLoadError&&<p className="text-danger">Chargement des produits impossible : {productLoadError}</p>}
             <p className="text-caption text-warning">La planification est possible sans stock. Les articles manquants et les ruptures seront signalés par occurrence. Le stock et la conformité réglementaire restent obligatoires avant l’application réelle.</p>
-            {form.target_name && form.target_name !== "__other__" && !productLoadError && (
-              <div className="rounded-md border border-border p-sm space-y-1">
-                <p className="text-caption">Choisissez les produits à utiliser parmi ceux liés à la cible. Utilisez « + Produit » pour en ajouter. Changer de cible réinitialise les produits sélectionnés.</p>
-              </div>
-            )}
-            {form.target_name && form.target_name !== "__other__" && !productLoadError && productsForTarget(form.target_name).length===0 && (
-              <div className="rounded-md border border-warning/30 bg-warning/10 px-md py-sm text-body-sm text-warning">
-                {hasActiveStationList?"Aucun produit validé de la liste Station active n’est lié à cette cible. Vérifiez les associations dans les listes positives.":"Aucune liste Station active : aucun usage autorisé actif ne correspond à cette cible. Vérifiez les usages ou activez la liste positive validée."}
-              </div>
-            )}
+            <p className="text-caption">Choisissez une cible puis un produit sur chaque ligne. Changer de cible efface uniquement cette ligne. Un produit ne peut être ajouté qu’une fois. L’association aux cibles ne garantit pas la compatibilité du mélange : à vérifier par le prescripteur.</p>
             {form.products.map((line: any, index: number) => {
               const selected = products.find(
                   (p: any) => line.catalog_product_id?p.catalog_product_id===line.catalog_product_id:!!line.stock_item_id&&p.stock_item_id === line.stock_item_id,
                 ),
-                use = getAuthorizedUse(selected, currentTargetName(form)),
+                use = getAuthorizedUse(selected, line.target_name),
                 unit = doseUnits.find((x) => x.code === line.dose_unit);
               return (
                 <div
                   key={index}
                   className="rounded-md border border-border p-sm space-y-sm"
                 >
+                  <Field label={`Cible biologique ${index + 1}`} required>
+                    <Select aria-label={`Cible biologique ${index + 1}`} value={line.target_name} onChange={e=>chooseTarget(index,e.target.value)}>
+                      <option value="">Sélectionner une cible</option>
+                      {targetOptions.map(target=><option key={target} value={target}>{target}</option>)}
+                    </Select>
+                  </Field>
+                  {line.target_name&&!productLoadError&&productsForTarget(line.target_name).length===0&&<p className="text-warning text-caption">Aucun produit éligible associé à cette cible. Vérifiez la liste positive et les usages autorisés.</p>}
                   <div className="grid grid-cols-[1fr_auto] gap-sm">
                     <Field label={`Produit ${index + 1}${selected ? " — "+selected.name : ""}`} required>
-                      {selected&&productUnavailableReason(selected,currentTargetName(form))&&<p className="text-warning text-caption">{productUnavailableReason(selected,currentTargetName(form))}</p>}
+                      {selected&&productUnavailableReason(selected,line.target_name)&&<p className="text-warning text-caption">{productUnavailableReason(selected,line.target_name)}</p>}
                       <Select
+                        aria-label={`Produit ${index + 1}`}
+                        disabled={!line.biological_target_id || !!productLoadError}
                         value={line.catalog_product_id || selected?.catalog_product_id || ""}
                         onChange={(e) => chooseProduct(index, e.target.value)}
                       >
                         <option value="">Sélectionner un produit lié à la cible</option>
-                        {(currentTargetName(form) ? productsForTarget(currentTargetName(form)) : []).map((p: any) => (
+                        {(line.target_name ? productsForTarget(line.target_name) : []).map((p: any) => (
                           <option
                             key={p.catalog_product_id}
                             value={p.catalog_product_id}
-                            disabled={!!productLoadError||!p.is_active||!getAuthorizedUse(p,currentTargetName(form))}
+                            disabled={!!productLoadError||!p.is_active||!getAuthorizedUse(p,line.target_name)||form.products.some((other,i)=>i!==index&&other.catalog_product_id===p.catalog_product_id)}
                           >
                             {p.name} —{" "}
                             {p.stock_item_id
                               ? `article lié · unité ${p.unit}`
                               : "à lier au stock"}
-                            {hasStationCompliance(p,currentTargetName(form)) ? " — Validé par la station" : p.authorization_status !== "autorise"
+                            {hasStationCompliance(p,line.target_name) ? " — Validé par la station" : p.authorization_status !== "autorise"
                               ? ` — ${p.authorization_status}`
                               : ""}
-                            {productUnavailableReason(p,currentTargetName(form))?` — ${productUnavailableReason(p,currentTargetName(form))}`:""}
+                            {productUnavailableReason(p,line.target_name)?` — ${productUnavailableReason(p,line.target_name)}`:""}
                           </option>
                         ))}
                       </Select>
@@ -1422,6 +1408,7 @@ export default function TraitementsPage() {
                 </div>
                 {confirming.treatment_request_products.map((p: any) => (
                   <Card key={p.id} padding="sm">
+                    <p className="text-caption">Cible : {p.target_name || confirming.target_name}</p>
                     <Field label={`Quantité réelle calculée — ${p.stock_items?.name || p.product_name} (${p.stock_items?.unit || p.quantity_unit})`}>
                       <Input type="text" value={confirmation.actual_products[p.id] || ""} disabled={!confirmation.actual_product_overrides[p.id]} onChange={(e)=>setConfirmation((v:any)=>({...v,actual_products:{...v.actual_products,[p.id]:e.target.value}}))}/>
                     </Field>
@@ -1587,6 +1574,7 @@ export default function TraitementsPage() {
                       <div key={p.id}>
                         {p.stock_items?.name || p.product_name} · {formatQuantity(p.planned_quantity)}{" "}
                         {p.stock_items?.unit || p.quantity_unit}
+                        <span className="text-caption"> · Cible : {p.target_name || r.target_name}</span>
                         {!p.stock_item_id&&<span className="text-warning"> · Article de stock à créer</span>}
                       </div>
                     ))}
