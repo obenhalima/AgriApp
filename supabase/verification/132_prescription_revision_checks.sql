@@ -1,0 +1,38 @@
+DO $$
+DECLARE s purchase_phyto_substitutions%ROWTYPE; actor uuid; farm uuid; preview jsonb; candidate jsonb; source treatment_requests%ROWTYPE;
+ products jsonb; plantings jsonb; selected_id uuid; kept_id uuid; past_id uuid; batch uuid:=gen_random_uuid(); payload jsonb; result jsonb; new_id uuid; before_stock bigint; before_apps bigint;
+BEGIN
+ IF has_table_privilege('authenticated','treatment_substitution_revisions','UPDATE') OR has_function_privilege('anon','preview_substitution_prescriptions(uuid,numeric)','EXECUTE') THEN RAISE EXCEPTION 'Unsafe privileges'; END IF;
+ SELECT * INTO s FROM purchase_phyto_substitutions WHERE status='receptionne' ORDER BY requested_at DESC LIMIT 1;
+ SELECT farm_id INTO farm FROM warehouses WHERE id=s.warehouse_id;
+ SELECT p.id INTO actor FROM profiles p JOIN domain_memberships m ON m.user_id=p.id AND m.domain_id=s.domain_id AND m.is_active WHERE p.is_active AND NOT coalesce(p.must_change_password,false) AND has_domain_permission(s.domain_id,p.id,'agronomie','create') AND has_business_capability(s.domain_id,p.id,'treatment.prescribe',farm) LIMIT 1;
+ IF actor IS NULL THEN RAISE EXCEPTION 'No test prescriber'; END IF;
+ PERFORM set_config('request.jwt.claim.sub','',true);
+ BEGIN PERFORM preview_substitution_prescriptions(s.id); RAISE EXCEPTION 'Anonymous accepted'; EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT LIKE 'Prescription : habilitation%' THEN RAISE; END IF; END;
+ PERFORM set_config('request.jwt.claim.sub',actor::text,true);
+ preview:=preview_substitution_prescriptions(s.id);
+ SELECT value INTO candidate FROM jsonb_array_elements(preview->'candidates') LIMIT 1;
+ IF candidate IS NULL THEN RAISE EXCEPTION 'No future matching source available for rollback fixture'; END IF;
+ SELECT * INTO source FROM treatment_requests WHERE id=(candidate->>'id')::uuid;
+ SELECT jsonb_agg(to_jsonb(p)) INTO products FROM treatment_request_products p WHERE p.treatment_request_id=source.id;
+ SELECT jsonb_agg(campaign_planting_id) INTO plantings FROM treatment_request_targets WHERE treatment_request_id=source.id;
+ selected_id:=submit_treatment_request(to_jsonb(source)||jsonb_build_object('planned_at',now()+interval '30 days','target_planting_ids',plantings),products);
+ kept_id:=submit_treatment_request(to_jsonb(source)||jsonb_build_object('planned_at',now()+interval '31 days','target_planting_ids',plantings),products);
+ past_id:=submit_treatment_request(to_jsonb(source)||jsonb_build_object('planned_at',now()-interval '1 day','target_planting_ids',plantings),products);
+ preview:=preview_substitution_prescriptions(s.id);
+ IF EXISTS(SELECT 1 FROM jsonb_array_elements(preview->'candidates') WHERE value->>'id'=past_id::text) THEN RAISE EXCEPTION 'Past request offered'; END IF;
+ SELECT value INTO candidate FROM jsonb_array_elements(preview->'candidates') WHERE value->>'id'=selected_id::text;
+ payload:=jsonb_build_object('dose',preview->'dose','source_fingerprint',preview->'source_fingerprint','reason','Recette révision annulée','confirmed',true,'occurrences',jsonb_build_array(jsonb_build_object('id',selected_id,'fingerprint',candidate->>'fingerprint')));
+ BEGIN PERFORM revise_substitution_prescriptions(batch,s.id,payload||jsonb_build_object('source_fingerprint','obsolete')); RAISE EXCEPTION 'Changed use accepted'; EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT LIKE 'Usage du remplaçant modifié%' THEN RAISE; END IF; END;
+ BEGIN PERFORM revise_substitution_prescriptions(batch,s.id,payload||jsonb_build_object('occurrences',jsonb_build_array(jsonb_build_object('id',past_id,'fingerprint','obsolete')))); RAISE EXCEPTION 'Past revision accepted'; EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT LIKE 'Occurrence modifiée%' THEN RAISE; END IF; END;
+ SELECT count(*) INTO before_stock FROM stock_movements; SELECT count(*) INTO before_apps FROM treatment_applications;
+ result:=revise_substitution_prescriptions(batch,s.id,payload);
+ IF revise_substitution_prescriptions(batch,s.id,payload)<>result THEN RAISE EXCEPTION 'Retry not idempotent'; END IF;
+ new_id:=(result->0->>'new_request_id')::uuid;
+ IF (SELECT status FROM treatment_requests WHERE id=new_id)<>'soumise' OR (SELECT approved_by FROM treatment_requests WHERE id=new_id) IS NOT NULL THEN RAISE EXCEPTION 'Validation carried forward'; END IF;
+ IF (SELECT status FROM treatment_requests WHERE id=selected_id)<>'annulee' OR (SELECT status FROM treatment_requests WHERE id=kept_id)<>'soumise' THEN RAISE EXCEPTION 'Partial selection not respected'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM treatment_request_products WHERE treatment_request_id=new_id AND stock_item_id=s.replacement_stock_item_id AND planned_quantity=(candidate->>'new_quantity')::numeric AND phi_days=(preview->>'phi_days')::integer) THEN RAISE EXCEPTION 'New product quantity or DAR incorrect'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM treatment_request_products WHERE treatment_request_id=kept_id AND stock_item_id=s.original_stock_item_id) THEN RAISE EXCEPTION 'Unselected product changed'; END IF;
+ IF (SELECT count(*) FROM stock_movements)<>before_stock OR (SELECT count(*) FROM treatment_applications)<>before_apps THEN RAISE EXCEPTION 'Revision consumed stock or created an application'; END IF;
+END $$;
+SELECT 'PASS: revision subset, dose/quantity/DAR, new approval mandatory, past denied, stale use rejected, idempotency and no stock/application effects; ROLLBACK' AS verification;

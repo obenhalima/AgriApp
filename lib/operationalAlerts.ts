@@ -1,7 +1,7 @@
 export const alertDefaults = { stock_enabled: true, treatment_enabled: true, harvest_enabled: true, treatment_horizon_days: 15, treatment_delay_hours: 0, no_harvest_days: 3 }
 export type AlertSettings = typeof alertDefaults
-export type OperationalAlert = { id: string; type: 'stock' | 'treatment_stock' | 'treatment_late' | 'no_harvest'; urgent: boolean; title: string; detail: string; farmId: string; warehouseId?: string; location: string; href: string }
-export const alertLabels = { stock: 'Stock faible / épuisé', treatment_stock: 'Traitement : stock manquant', treatment_late: 'Traitement en retard', no_harvest: 'Absence de récolte' }
+export type OperationalAlert = { id: string; type: 'stock' | 'treatment_stock' | 'treatment_late' | 'no_harvest' | 'cultural_stock' | 'cultural_late'; urgent: boolean; title: string; detail: string; farmId: string; warehouseId?: string; location: string; href: string }
+export const alertLabels = { stock: 'Stock faible / épuisé', treatment_stock: 'Traitement : stock manquant', treatment_late: 'Traitement en retard', no_harvest: 'Absence de récolte',cultural_stock:'Intervention culturale : stock manquant',cultural_late:'Intervention culturale en retard' }
 const one = (x: any) => Array.isArray(x) ? x[0] : x
 const fmt = (n: any) => Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 export function dayInMorocco(now: Date) {

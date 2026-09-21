@@ -161,7 +161,9 @@ export default function StocksPage() {
     if (error) toast.error(error.message); else { toast.success('Sortie exécutée'); load() }
   }
 
-  const ArtForm = ({ vals, onChange }: any) => (
+  // Render as a helper: a nested component type would remount every input on
+  // each keystroke and reapply the Name field's autofocus.
+  const renderArticleForm = ({ vals, onChange }: any) => (
     <div className="space-y-md">
       <div className="grid grid-cols-2 gap-md">
         <Field label="Code"><TInput value={vals.code} onChange={onChange('code')} /></Field>
@@ -184,12 +186,12 @@ export default function StocksPage() {
     <div>
       {modalArticle && (
         <Modal title="NOUVEL ARTICLE" onClose={() => { setModalArticle(false); setDone(false) }}>
-          {done ? <SuccessMessage message="Article créé !" /> : (<><ArtForm vals={formA} onChange={sa} /><ModalFooter onCancel={() => setModalArticle(false)} onSave={saveArticle} loading={saving} disabled={!formA.name} saveLabel="CRÉER L'ARTICLE" /></>)}
+          {done ? <SuccessMessage message="Article créé !" /> : (<>{renderArticleForm({ vals: formA, onChange: sa })}<ModalFooter onCancel={() => setModalArticle(false)} onSave={saveArticle} loading={saving} disabled={!formA.name} saveLabel="CRÉER L'ARTICLE" /></>)}
         </Modal>
       )}
       {modalEditArt && (
         <Modal title={`MODIFIER — ${modalEditArt.name}`} onClose={() => { setModalEditArt(null); setDone(false) }}>
-          {done ? <SuccessMessage message="Article modifié !" /> : (<><ArtForm vals={formAE} onChange={sae} /><ModalFooter onCancel={() => setModalEditArt(null)} onSave={saveEditArt} loading={saving} disabled={!formAE.name} saveLabel="ENREGISTRER" /></>)}
+          {done ? <SuccessMessage message="Article modifié !" /> : (<>{renderArticleForm({ vals: formAE, onChange: sae })}<ModalFooter onCancel={() => setModalEditArt(null)} onSave={saveEditArt} loading={saving} disabled={!formAE.name} saveLabel="ENREGISTRER" /></>)}
         </Modal>
       )}
       {modalMvt && (

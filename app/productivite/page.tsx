@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { Ruler, Sprout, Coins, Users, Info, AlertCircle, Gauge, Timer } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useReferenceList } from '@/lib/useReferenceList'
@@ -107,6 +108,7 @@ export default function ProductivitePage() {
 
   return (
     <div>
+      <Link href="/pointage/recolte" className="inline-block mb-4 rounded-lg border border-brand/30 bg-brand/10 px-4 py-3 text-brand font-semibold">Productivité par personne à la récolte et objectifs →</Link>
       <PageHeader
         title="Productivité" subtitle="Production" icon={Gauge} iconColor="#8b5cf6"
         description="Rendement et coûts au mètre linéaire de culture — par variété"

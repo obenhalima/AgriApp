@@ -6,18 +6,25 @@ import { supabase } from '@/lib/supabase'
 import { withDeadline } from '@/lib/withDeadline'
 import { formatPlanNumber } from '@/lib/farmLayout'
 import { PerformanceDashboard } from '@/components/costs/PerformanceDashboard'
+import { ProductionExplorer } from '@/components/costs/ProductionExplorer'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { BarChart3 } from 'lucide-react'
+import { useAnalyticalEntry } from '@/lib/useAnalyticalEntry'
+import { analyticalHref, type AnalyticalScope } from '@/lib/analyticalNavigation'
 import { buildFarmPerformance, performanceValue, rankedPerformance, type PerformanceData, type PerformanceMetric, type RevenueBasis } from '@/lib/farmPerformance'
 const field='input'
 const fmt=(n:number|null)=>n==null?'Non calculable':n!==0&&Math.abs(n)<.005?(n<0?'> −0,01':'< 0,01'):formatPlanNumber(n)
 const metricLabels:Record<PerformanceMetric,string>={yield:'Rendement kg/m²',costKg:'Coût réel DH/kg',marginKg:'Marge DH/kg',marginArea:'Marge DH/m²',margin:'Marge totale DH',revenue:'CA DH'}
-export default function PerformancePage(){const {activeDomain}=useAuth();return <PerformanceReport key={activeDomain?.domain_id||'none'}/>}
-function PerformanceReport(){
+export default function PerformancePage(){const {activeDomain}=useAuth();const entry=useAnalyticalEntry(activeDomain?.domain_id);if(!activeDomain)return <p>Sélectionnez un client.</p>;if(!entry)return <p>Chargement du périmètre…</p>;return <PerformanceReport key={activeDomain.domain_id+JSON.stringify(entry)} entry={entry}/>}
+function PerformanceReport({entry}:{entry:AnalyticalScope}){
  const {activeDomain,hasPermission}=useAuth(),domain=activeDomain?.domain_id,allowed=hasPermission('couts','view')
- const [campaigns,setCampaigns]=useState<{id:string;name:string}[]>([]),[campaign,setCampaign]=useState(''),[start,setStart]=useState(''),[end,setEnd]=useState('')
- const [farm,setFarm]=useState(''),[variety,setVariety]=useState(''),[level,setLevel]=useState<'variety'|'greenhouse'|'farm'>('variety')
- const [metric,setMetric]=useState<PerformanceMetric>('yield'),[basis,setBasis]=useState<RevenueBasis>('estimate'),[includeOpen,setIncludeOpen]=useState(false)
+ const [campaigns,setCampaigns]=useState<{id:string;name:string}[]>([]),[campaign,setCampaign]=useState(entry.campaign),[start,setStart]=useState(entry.start),[end,setEnd]=useState(entry.end)
+ const [farm,setFarm]=useState(entry.farm),[variety,setVariety]=useState(''),[level,setLevel]=useState<'variety'|'greenhouse'|'farm'>(['variety','greenhouse','farm'].includes(entry.level)?entry.level as 'variety'|'greenhouse'|'farm':'variety')
+ const [metric,setMetric]=useState<PerformanceMetric>(Object.keys(metricLabels).includes(entry.metric)?entry.metric as PerformanceMetric:'yield'),[basis,setBasis]=useState<RevenueBasis>('estimate'),[includeOpen,setIncludeOpen]=useState(false)
  const [data,setData]=useState<PerformanceData|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[reload,setReload]=useState(0),[selected,setSelected]=useState('')
  const detailRef=useRef<HTMLElement>(null)
+ const [mode,setMode]=useState<'explore'|'compare'>('explore')
+ const [advanced,setAdvanced]=useState(!!(entry.start||entry.end))
  useEffect(()=>{if(selected){detailRef.current?.scrollIntoView({behavior:'smooth',block:'start'});detailRef.current?.focus({preventScroll:true})}},[selected])
  useEffect(()=>{
   if(!domain||!allowed)return
@@ -47,26 +54,41 @@ function PerformanceReport(){
  if(!allowed)return <p>Droit de consultation des coûts requis.</p>
  if(!domain)return <p>Sélectionnez un client / une société.</p>
  return <section className="performance-report space-y-4" style={{color:'var(--tx-1)'}}>
-  <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-mono text-[10px] uppercase tracking-widest" style={{color:'var(--tx-3)'}}>Pilotage analytique · {activeDomain?.domain_name}</p><h1 className="font-display text-2xl font-extrabold">Performance & rentabilité</h1><p className="mt-1 text-xs" style={{color:'var(--tx-3)'}}>De la récolte à la marge : comparez vos variétés, serres et fermes.</p></div><Link href="/couts/pilotage" className="btn btn-secondary">Contrôler les coûts</Link></div>
-  <div className="card grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-6">
+  <nav aria-label="Parcours analytique" className="flex flex-wrap gap-3 text-sm"><Link className="text-brand underline" href={analyticalHref('/agronomie/dashboard',domain,{campaign,farm})}>← Vue de mon exploitation</Link><Link className="text-brand underline" href={analyticalHref('/couts/pilotage',domain,{campaign,farm,start,end})}>Détail des charges du même périmètre →</Link></nav>
+  <PageHeader title="Performance & rentabilité" subtitle={`Pilotage analytique · ${activeDomain?.domain_name}`} icon={BarChart3} iconColor="#8b5cf6" description="De la vue d’ensemble à l’écriture source : explorez votre exploitation." actions={<Link href={analyticalHref('/couts/pilotage',domain,{campaign,farm,start,end})} className="btn btn-secondary">Contrôler les coûts</Link>}/>
+  <nav aria-label="Mode analytique" className="flex flex-wrap gap-2 rounded-xl border border-border bg-surface-raised p-2"><button className={`btn ${mode==='explore'?'btn-primary':'btn-secondary'}`} aria-pressed={mode==='explore'} onClick={()=>setMode('explore')}>Explorer les chiffres</button><button className={`btn ${mode==='compare'?'btn-primary':'btn-secondary'}`} aria-pressed={mode==='compare'} onClick={()=>setMode('compare')}>Comparer et classer</button></nav>
+  <section aria-label="Filtres analytiques" className="card space-y-3 p-4">
+   <div className="grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-4">
    <label>Campagne <select aria-label="Campagne" className={field} value={campaign} onChange={e=>{setCampaign(e.target.value);setFarm('');setVariety('')}}><option value="">Toutes les campagnes</option>{campaigns.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-   <label>Du <input className={field} type="date" value={start} onChange={e=>setStart(e.target.value)}/></label><label>Au <input className={field} type="date" value={end} min={start||undefined} onChange={e=>setEnd(e.target.value)}/></label>
    <label>Ferme <select aria-label="Ferme" className={field} value={farm} onChange={e=>{setFarm(e.target.value);setVariety('');changeScope()}}><option value="">Toutes les fermes</option>{farms.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
-   <label>Variété <select aria-label="Variété" className={field} value={variety} onChange={e=>{setVariety(e.target.value);changeScope()}}><option value="">Toutes les variétés</option>{varieties.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
    <div className="flex items-end gap-2"><button className="btn btn-primary" disabled={busy} onClick={()=>setReload(r=>r+1)}>Actualiser</button><button className="btn btn-secondary" title="Réinitialiser les filtres" onClick={()=>{setCampaign('');setStart('');setEnd('');setFarm('');setVariety('');setSelected('')}}>Effacer</button></div>
-  </div>
-  <div className="card flex flex-wrap items-end gap-3 p-4">
+    <button className="btn btn-secondary" aria-expanded={advanced} aria-controls="analytical-extra-filters" onClick={()=>setAdvanced(v=>!v)}>{advanced?'Masquer les filtres avancés':'Plus de filtres'}{[start,end,variety].filter(Boolean).length>0?` · ${[start,end,variety].filter(Boolean).length} actif(s)`: ''}</button>
+   </div>
+   {(start||end||variety)&&<div aria-label="Filtres supplémentaires actifs" className="flex flex-wrap gap-2 text-xs text-brand">{start&&<span className="rounded-full bg-brand/10 px-3 py-1">Depuis le {start}</span>}{end&&<span className="rounded-full bg-brand/10 px-3 py-1">Jusqu’au {end}</span>}{variety&&<span className="rounded-full bg-brand/10 px-3 py-1">Variété : {varieties.find(([id])=>id===variety)?.[1]||variety}</span>}</div>}
+   {advanced&&<div id="analytical-extra-filters" className="grid gap-4 border-t border-border pt-4 md:grid-cols-2">
+    <fieldset className="min-w-0"><legend className="mb-2 text-xs font-semibold text-fg-secondary">Période d’analyse</legend><div className="grid gap-3 sm:grid-cols-2">
+   <label>Du <input className={field} type="date" value={start} onChange={e=>setStart(e.target.value)}/></label><label>Au <input className={field} type="date" value={end} min={start||undefined} onChange={e=>setEnd(e.target.value)}/></label>
+    </div></fieldset>
+    <fieldset className="min-w-0"><legend className="mb-2 text-xs font-semibold text-fg-secondary">Culture</legend>
+   <label>Variété <select aria-label="Variété" className={field} value={variety} onChange={e=>{setVariety(e.target.value);changeScope()}}><option value="">Toutes les variétés</option>{varieties.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
+    </fieldset>
+   </div>}
+  </section>
+  {mode==='compare'&&<div className="card flex flex-wrap items-end gap-3 p-4">
+   <p className="w-full text-xs text-fg-secondary">Réglages du mode « Comparer et classer ». L’exploration utilise tous les cycles du périmètre sélectionné.</p>
    <label>Comparer <select aria-label="Comparer" className={field} value={level} onChange={e=>{setLevel(e.target.value as typeof level);changeScope()}}><option value="variety">Les variétés</option><option value="greenhouse">Les serres</option><option value="farm">Les fermes</option></select></label>
    <label>Trier par <select aria-label="Trier par" className={field} value={metric} onChange={e=>setMetric(e.target.value as PerformanceMetric)}>{Object.entries(metricLabels).filter(([k])=>data?.revenue_available||['yield','costKg'].includes(k)).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
    {data?.revenue_available&&<label>Base du CA <select className={field} value={basis} onChange={e=>setBasis(e.target.value as RevenueBasis)}><option value="estimate">CA estimé des récoltes</option><option value="station">CA saisi en station</option></select></label>}
    <label className="text-sm"><input type="checkbox" checked={includeOpen} onChange={e=>setIncludeOpen(e.target.checked)}/> Inclure les cycles en cours dans le classement</label>
-  </div>
+  </div>}
   <details className="text-xs" style={{color:'var(--tx-3)'}}><summary className="cursor-pointer">Méthode de calcul et limites de comparaison</summary><p className="mt-2">Surface = cumul des surfaces plantées des cycles retenus, pas la surface cadastrale. Kg = toutes les catégories récoltées, déchets inclus. {start||end?'Les coûts et récoltes sont limités à la période : ce ne sont pas des marges de cycle complet.':'Comparaison des cycles complets et en cours selon le filtre ci-dessus.'} Les cycles non terminés sont exclus du classement par défaut, mais restent visibles dans le tableau. Les ratios sont pondérés par les quantités ou surfaces, jamais moyennés entre eux.</p>
   {data?.revenue_available&&<p className="text-sm text-slate-500">CA estimé = catégories récoltées × prix saisis (export/local). CA station = montants renseignés sur les lots, datés par leur récolte ; ce n’est ni le CA facturé ni les encaissements. Montants interprétés en DH selon les données saisies ; vérifier les devises et les tarifs avant toute décision. Une tarification station absente ou partielle empêche le calcul de sa marge.</p>}
   </details>
   <p className="rounded-lg border p-3 text-xs" style={{borderColor:'color-mix(in srgb, #f59e0b 35%, transparent)',background:'color-mix(in srgb, #f59e0b 7%, transparent)',color:'var(--tx-2)'}}>Analyse provisoire : un faible coût/kg peut provenir de charges manquantes. {result&&`${result.pendingCount} sortie(s) à rapprocher ; ${fmt(result.unallocated)} DH de coûts et ${fmt(result.plannedUnallocated)} DH de budget non répartis.`} {unresolved&&'Classements financiers suspendus tant que ces écarts ne sont pas traités.'} <Link className="underline" href="/couts/pilotage">Contrôler les imputations</Link></p>
   {busy&&<p role="status">Chargement des performances…</p>}{error&&<p role="alert" className="rounded bg-red-50 p-3 text-red-800">{error}</p>}
-  {result&&<>
+
+  {data&&mode==='explore'&&<ProductionExplorer key={`${campaign}:${start}:${end}:${farm}:${variety}`} partialPeriod={!!(start||end)} data={data} farm={farm} variety={variety} client={activeDomain?.domain_name||'Client'} onFarm={setFarm}/>}
+  {result&&mode==='compare'&&<>
    {data&&<PerformanceDashboard data={data} rows={rows} ranked={ranked} basis={basis} metric={metric} metricLabel={metricLabels[metric]} partialPeriod={!!(start||end)} onSelect={setSelected}/>}
    <div className="card overflow-hidden"><div className="flex items-center justify-between p-4"><h2 className="font-semibold">Comparatif détaillé</h2><span className="text-xs" style={{color:'var(--tx-3)'}}>{rows.length} ligne(s) · {ranked.length} classée(s)</span></div><div className="overflow-x-auto"><table className="w-full whitespace-nowrap text-right text-xs"><thead style={{background:'var(--bg-3)',color:'var(--tx-3)'}}><tr>{['Rang','Périmètre','Surface m²','Récolté kg','kg/m²','Coûts réels DH','DH/kg',basis==='estimate'?'CA estimé DH':'CA station saisi DH','Marge DH','Marge DH/kg','Marge DH/m²','Budget saisi DH','Budget/kg cible','Qualité','Détail'].map(h=><th key={h} className="p-3">{h}</th>)}</tr></thead><tbody>{rows.map(r=>{
     const rank=ranked.findIndex(x=>x.id===r.id)

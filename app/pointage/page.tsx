@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { toast } from 'sonner'
 import { Clock, Plus, Trash2, Users, User, AlertCircle, Timer, Coins } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -136,6 +137,7 @@ export default function PointagePage() {
 
   return (
     <div>
+      <Link href="/pointage/recolte" className="inline-block mb-4 rounded-lg border border-brand/30 bg-brand/10 px-4 py-3 text-brand font-semibold">Récolte : productivité par personne et objectifs →</Link>
       <PageHeader
         title="Pointage" subtitle="Production" icon={Clock} iconColor="#0ea5e9"
         description="Heures de travail par serre, culture et tâche — base de la productivité MO réelle"

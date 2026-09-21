@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { withDeadline } from './withDeadline'
 
 export type PurchaseOrderLine = {
   id: string
@@ -59,19 +60,15 @@ export function receivePurchaseOrder(input: {
   receptionDate?: string
   reference?: string
   notes?: string
-  lines: { lineId: string; qtyReceived: number }[]
+  lines: { lineId: string; qtyReceived: number; substitutionId?:string }[]
 }) {
   return (async () => {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 25000)
-    try {
-      const { data, error } = await supabase.rpc('receive_costed_purchase', { p_po: input.poId, p_receipt: {
+      const { data, error } = await withDeadline(signal=>supabase.rpc('receive_costed_purchase', { p_po: input.poId, p_receipt: {
         id: input.receiptId, warehouse_id: input.warehouseId, date: input.receptionDate,
         reference: input.reference, notes: input.notes, exchange_rate: input.exchangeRate, lines: input.lines,
-      } }).abortSignal(controller.signal)
+      } }).abortSignal(signal),25000,'Réception non confirmée : réessayez avec le même identifiant de réception.')
       if (error) throw error
       return data as { new_status: string; lines_updated: number; movements_created: number; warnings: string[] }
-    } finally { clearTimeout(timer) }
   })()
 }
 

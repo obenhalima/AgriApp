@@ -1,4 +1,6 @@
 'use client'
+import { HarvestPeopleFields } from '@/components/harvest/HarvestPeopleFields'
+import { harvestPeopleInput } from '@/lib/harvestPeople'
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { HarvestDarNotice } from '@/components/HarvestDarNotice'
@@ -59,7 +61,7 @@ export default function RecoltesPage() {
 
   // ─── Form: nouvelle récolte (saisie en plateaux) ───
   const emptyTrayLine = () => ({ tray_type_code: '', nb: '' })
-  const [formNew, setFormNew] = useState<{ campaign_planting_id: string; harvest_date: string; notes: string; trayLines: { tray_type_code: string; nb: string }[] }>(
+  const [formNew, setFormNew] = useState<{ harvest_people?:string;harvest_hours?:string;harvest_full_day?:boolean;campaign_planting_id: string; harvest_date: string; notes: string; trayLines: { tray_type_code: string; nb: string }[] }>(
     { campaign_planting_id: '', harvest_date: '', notes: '', trayLines: [emptyTrayLine()] }
   )
 
@@ -102,7 +104,7 @@ export default function RecoltesPage() {
       const since30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
       const [hRes, dRes, sRes, pRes, mRes, alRes, srRes, stRes, tlRes] = await Promise.all([
         supabase.from('harvests')
-          .select('id, lot_number, harvest_date, total_qty, estimated_kg, actual_kg, recorded_by, recorded_by_name, notes, campaign_planting_id, campaign_plantings(*, greenhouses(code, name, farm_id, farms(name)), varieties(commercial_name, code), campaigns(name))')
+          .select('*, campaign_plantings(*, greenhouses(code, name, farm_id, farms(name)), varieties(commercial_name, code), campaigns(name))')
           .order('harvest_date', { ascending: false })
           .eq('domain_id', activeDomain.domain_id)
           .limit(300),
@@ -471,6 +473,7 @@ export default function RecoltesPage() {
       //    qty_category_1 (bridge) pour que total_qty/dashboards restent cohérents
       //    tant que la pesée station (Lot 2) ne prend pas le relais.
       const { data: created, error } = await supabase.from('harvests').insert({
+        ...harvestPeopleInput(formNew),
         campaign_planting_id: formNew.campaign_planting_id,
         harvest_date: formNew.harvest_date,
         estimated_kg: estimated,
@@ -506,7 +509,7 @@ export default function RecoltesPage() {
   }
 
   const openEdit = (h: any) => {
-    setFormEdit({ campaign_planting_id: h.campaign_planting_id, harvest_date: h.harvest_date, total_qty: String(h.total_qty || ''), notes: h.notes || '' })
+    setFormEdit({ harvest_people:h.harvest_people==null?'':String(h.harvest_people),harvest_hours:h.harvest_hours==null?'':String(h.harvest_hours),harvest_full_day:!!h.harvest_full_day,campaign_planting_id: h.campaign_planting_id, harvest_date: h.harvest_date, total_qty: String(h.total_qty || ''), notes: h.notes || '' })
     setModalEdit(h); setDone(false); setError('')
   }
   const saveEdit = async () => {
@@ -517,6 +520,7 @@ export default function RecoltesPage() {
       // On synchronise estimated_kg et le miroir qty_category_1.
       const qty = Number(formEdit.total_qty) || 0
       const { error } = await supabase.from('harvests').update({
+        ...harvestPeopleInput(formEdit),
         campaign_planting_id: formEdit.campaign_planting_id,
         harvest_date: formEdit.harvest_date,
         estimated_kg: qty,
@@ -1640,6 +1644,7 @@ function NewHarvestModal({ form, setForm, plantings, trayTypes, estimate, emptyT
           </div>
           <div className="text-[11px] text-gray-500 -mt-1 mb-1">Estimation au champ. Le poids réel sera confirmé à la pesée station.</div>
 
+          <HarvestPeopleFields form={form} setForm={setForm} kg={estimate}/>
           <FormGroup label="Notes"><Textarea value={form.notes} onChange={f('notes')} placeholder="Optionnel" /></FormGroup>
           {error && <ErrorBox msg={error} />}
           <ModalFooter onCancel={onClose} onSave={onSave} loading={saving} saveLabel="CRÉER" disabled={!form.campaign_planting_id || !form.harvest_date || !hasValidLine} />
@@ -1667,6 +1672,7 @@ function EditHarvestModal({ harvest, form, setForm, plantings, saving, done, err
             <FormGroup label="Quantité (kg)"><Input type="number" value={form.total_qty} onChange={f('total_qty')} /></FormGroup>
           </FormRow>
           <HarvestDarNotice plantingId={form.campaign_planting_id} date={form.harvest_date} />
+          <HarvestPeopleFields form={form} setForm={setForm} kg={Number(form.total_qty)||0}/>
           <FormGroup label="Notes"><Textarea value={form.notes} onChange={f('notes')} /></FormGroup>
           {error && <ErrorBox msg={error} />}
           <ModalFooter onCancel={onClose} onSave={onSave} loading={saving} saveLabel="ENREGISTRER" />

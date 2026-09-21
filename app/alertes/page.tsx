@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { alertDefaults, alertLabels, AlertSettings, buildOperationalAlerts, OperationalAlert } from '@/lib/operationalAlerts'
+import { culturalAlerts } from '@/lib/cultural'
 
 // Paginer pour ne pas masquer une récolte derrière la limite PostgREST.
 async function allRows(table: string, select: string, domain: string, signal: AbortSignal) {
@@ -58,6 +59,9 @@ export default function AlertesPage() {
       }
       const config = await supabase.from('operational_alert_settings').select('*').eq('domain_id', domain).abortSignal(controller.signal).maybeSingle()
       result.forecast = forecastRows
+      const cultural = await supabase.rpc('cultural_workspace',{p_domain:domain}).abortSignal(controller.signal)
+      if(cultural.error) warnings.push(`Interventions culturales indisponibles : ${cultural.error.message}`)
+      else result.cultural=cultural.data
       if (config.error) warnings.push(`Paramétrage indisponible : valeurs par défaut utilisées. ${config.error.message}`)
       // Ne pas générer de fausses alertes à partir de sources non chargées.
       if (warnings.some(w => w.startsWith('harvests :'))) result.plantings = []
@@ -70,7 +74,7 @@ export default function AlertesPage() {
     load().catch(e => { if (!cancelled) { setErrors([String(e.message)]); setData(null); setLoading(false) } }).finally(() => clearTimeout(timeout))
     return () => { cancelled = true; clearTimeout(timeout); controller.abort() }
   }, [domain, reload])
-  const alerts: OperationalAlert[] = data && loadedDomain === domain ? buildOperationalAlerts(data, settings, now) : []
+  const alerts: OperationalAlert[] = data && loadedDomain === domain ? [...buildOperationalAlerts(data, settings, now),...(data.cultural?culturalAlerts(data.cultural,now):[])] : []
   const visible = alerts.filter(a => (!category || a.type === category) && (!farm || a.farmId === farm) && (!wh || a.warehouseId === wh))
   const farms = Array.from(new Map(alerts.filter(a => a.farmId).map(a => [a.farmId, a.location.split(' · ')[0]])).entries())
   async function save() {

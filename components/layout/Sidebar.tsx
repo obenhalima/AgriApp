@@ -19,12 +19,14 @@ import {
 import { useAuth } from '@/lib/auth'
 import { cn } from '@/lib/cn'
 import { NAV } from '@/lib/navigation'
+import {useProfileNavigation} from '@/lib/useProfileNavigation'
 import { getOrganization, type OrganizationSettings } from '@/lib/appSettings'
 import { useRealtimeReload } from '@/lib/useRealtimeReload'
 
 export function Sidebar() {
   const pathname = usePathname()
   const { canAccessModule, isPlatformAdmin, loading: authLoading } = useAuth()
+  const {nav:profileNav,config:menuConfig}=useProfileNavigation()
 
   const [collapsed, setCollapsed] = useState(false)
   const [pinned, setPinned] = useState(true)
@@ -58,10 +60,10 @@ export function Sidebar() {
   // Filtrage permissions
   const filteredNav = useMemo(() => {
     if (authLoading) return []
-    return NAV
+    return profileNav
       .map(group => ({ ...group, items: group.items.filter(item => (!item.moduleCode || canAccessModule(item.moduleCode)) && (!item.platformOnly || isPlatformAdmin)) }))
       .filter(group => group.items.length > 0)
-  }, [authLoading, canAccessModule, isPlatformAdmin])
+  }, [authLoading, canAccessModule, isPlatformAdmin,profileNav])
 
   const activeSection = useMemo(() => {
     return filteredNav.find(g => g.items.some(i => i.href === pathname))?.section
@@ -90,6 +92,7 @@ export function Sidebar() {
   }, [])
 
   // Auto-déplie la section active
+  useEffect(()=>{if(menuConfig)setExpandedSections(new Set(menuConfig.expanded))},[menuConfig])
   useEffect(() => {
     if (!sectionsInitialized || !activeSection) return
     setExpandedSections(prev => {
@@ -149,13 +152,9 @@ export function Sidebar() {
   //   • Enfant (item)    : ton neutre gris-blanc → contraste visible avec parent
   const sectionLabel = isDark ? '#7dd09b' : 'rgba(255,255,255,.92)'      // parent : vert + saturé
   const sectionLabelHover = isDark ? '#a8e8be' : '#fff'
-  const sectionLabelActive = isDark ? 'var(--neon)' : '#fff'
   const sectionTagline = isDark ? 'rgba(125,208,155,.5)' : 'rgba(255,255,255,.55)'
   const itemColor = isDark ? '#d0d8db' : 'rgba(255,255,255,.75)'         // enfant : gris neutre (plus de vert)
   const itemHoverColor = isDark ? '#ffffff' : '#fff'
-  const itemActiveColor = isDark ? 'var(--neon)' : '#fff'
-  // Ligne verticale guide entre les enfants et le bord gauche
-  const childGuideColor = isDark ? 'rgba(125,208,155,.18)' : 'rgba(255,255,255,.14)'
 
   return (
     <>
@@ -302,6 +301,9 @@ export function Sidebar() {
             const hasActive = group.items.some(i => i.href === pathname)
             const SectionIcon = group.icon
             const sectionColor = group.color ?? '#64748b'
+            // Sidebar sombre dans les deux thèmes : teinte claire pour le texte.
+            const accent = `color-mix(in srgb, ${sectionColor} 48%, white)`
+            const headerBackground = `color-mix(in srgb, ${sectionColor} ${hasActive ? 22 : 12}%, transparent)`
 
             return (
               <div key={gi} className="mb-1">
@@ -309,27 +311,27 @@ export function Sidebar() {
                 {!collapsed && (
                   <button
                     onClick={() => toggleSection(group.section)}
+                    aria-expanded={isExpanded}
                     className="group/section w-full flex items-center gap-sm px-md py-2 mt-2 transition-all"
                     style={{
-                      background: hasActive && !isExpanded
-                        ? (isDark ? `color-mix(in srgb, ${sectionColor} 8%, transparent)` : 'rgba(255,255,255,.06)')
-                        : 'transparent',
+                      background: headerBackground,
+                      borderLeft: `3px solid ${sectionColor}`,
                     }}
                     onMouseEnter={(e) => {
                       if (!(hasActive && !isExpanded)) {
-                        e.currentTarget.style.background = isDark ? 'rgba(255,255,255,.025)' : 'rgba(255,255,255,.04)'
+                        e.currentTarget.style.background = `color-mix(in srgb, ${sectionColor} 26%, transparent)`
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!(hasActive && !isExpanded)) {
-                        e.currentTarget.style.background = 'transparent'
+                        e.currentTarget.style.background = headerBackground
                       }
                     }}
                   >
                     <motion.span
                       animate={{ rotate: isExpanded ? 90 : 0 }}
                       transition={{ duration: 0.18 }}
-                      style={{ color: sectionLabel, opacity: 0.6 }}
+                      style={{ color: accent }}
                       className="flex-shrink-0"
                     >
                       <ChevronRight size={10} strokeWidth={2.5} />
@@ -341,9 +343,7 @@ export function Sidebar() {
                           background: hasActive
                             ? `color-mix(in srgb, ${sectionColor} 22%, transparent)`
                             : `color-mix(in srgb, ${sectionColor} 10%, transparent)`,
-                          color: hasActive
-                            ? sectionLabelActive
-                            : sectionLabel,
+                          color: accent,
                         }}
                       >
                         <SectionIcon size={11} strokeWidth={2.4} />
@@ -352,7 +352,7 @@ export function Sidebar() {
                     <div className="flex-1 text-left min-w-0">
                       <div
                         className="font-mono text-[9.5px] font-bold uppercase tracking-[1.4px] leading-tight transition-colors truncate"
-                        style={{ color: hasActive ? sectionLabelActive : sectionLabel }}
+                        style={{ color: accent }}
                       >
                         {group.section}
                       </div>
@@ -401,7 +401,7 @@ export function Sidebar() {
                       className="overflow-hidden"
                       style={!collapsed ? {
                         // Ligne verticale guide à gauche des enfants pour montrer la hierarchie
-                        borderLeft: `1px solid ${childGuideColor}`,
+                        borderLeft: `1px solid color-mix(in srgb, ${sectionColor} 45%, transparent)`,
                         marginLeft: 18,        // niveau d'indentation des enfants
                         paddingLeft: 4,
                         marginTop: 2,
@@ -418,14 +418,14 @@ export function Sidebar() {
                                 className="w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200"
                                 style={{
                                   background: active
-                                    ? `color-mix(in srgb, ${item.color} 18%, transparent)`
+                                    ? `color-mix(in srgb, ${sectionColor} 18%, transparent)`
                                     : 'transparent',
                                   border: active
-                                    ? `1px solid color-mix(in srgb, ${item.color} 45%, transparent)`
+                                    ? `1px solid color-mix(in srgb, ${sectionColor} 45%, transparent)`
                                     : '1px solid transparent',
-                                  color: active ? item.color : itemColor,
+                                  color: accent,
                                   boxShadow: active
-                                    ? `0 0 12px color-mix(in srgb, ${item.color} 30%, transparent)`
+                                    ? `0 0 12px color-mix(in srgb, ${sectionColor} 30%, transparent)`
                                     : 'none',
                                 }}
                                 onMouseEnter={(e) => {
@@ -437,7 +437,7 @@ export function Sidebar() {
                                 onMouseLeave={(e) => {
                                   if (!active) {
                                     e.currentTarget.style.background = 'transparent'
-                                    e.currentTarget.style.color = itemColor
+                                    e.currentTarget.style.color = accent
                                   }
                                 }}
                               >
@@ -453,16 +453,10 @@ export function Sidebar() {
                             className="group/item relative flex items-center gap-sm ml-1 mr-2 my-0.5 px-2 py-1.5 rounded-md transition-all duration-150"
                             style={{
                               background: active
-                                ? (isDark
-                                    ? `linear-gradient(90deg, color-mix(in srgb, ${item.color} 14%, transparent), transparent 80%)`
-                                    : 'rgba(255,255,255,.18)')
+                                ? `linear-gradient(90deg, color-mix(in srgb, ${sectionColor} 24%, transparent), color-mix(in srgb, ${sectionColor} 8%, transparent))`
                                 : 'transparent',
-                              color: active ? itemActiveColor : itemColor,
-                              boxShadow: active && isDark
-                                ? `inset 3px 0 0 ${item.color}`
-                                : active && !isDark
-                                ? 'inset 3px 0 0 #fff'
-                                : 'none',
+                              color: active ? '#ffffff' : itemColor,
+                              boxShadow: active ? `inset 3px 0 0 ${accent}` : 'none',
                             }}
                             onMouseEnter={(e) => {
                               if (!active) {
@@ -482,9 +476,9 @@ export function Sidebar() {
                               className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 transition-all"
                               style={{
                                 background: active
-                                  ? `color-mix(in srgb, ${item.color} 22%, transparent)`
+                                  ? `color-mix(in srgb, ${sectionColor} 22%, transparent)`
                                   : 'transparent',
-                                color: active ? item.color : 'currentColor',
+                                color: active ? accent : 'currentColor',
                               }}
                             >
                               <Icon size={14} strokeWidth={2.2} />
@@ -502,8 +496,8 @@ export function Sidebar() {
                                 layoutId="active-dot"
                                 className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                                 style={{
-                                  background: item.color,
-                                  boxShadow: `0 0 8px ${item.color}`,
+                                  background: accent,
+                                  boxShadow: `0 0 8px ${sectionColor}`,
                                 }}
                               />
                             )}

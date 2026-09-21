@@ -223,7 +223,25 @@ export const NAV: NavSection[] = [
         description: "kg/ml, coût/ml, coût MO/ml par culture",
       },
       {
-        href: "/agronomie",
+        href: "/interventions",
+        moduleCode: "agronomie",
+        label: "Interventions culturales",
+        icon: Leaf,
+        color: "#0891b2",
+        keywords: ["irrigation", "programme", "eau", "interventions", "fertigation", "auxiliaires", "travaux"],
+        description: "Irrigation et parcours culturaux : validation, stock réel et coûts",
+      },
+      {
+          href: "/agronomie/dashboard",
+          moduleCode: "agronomie",
+          label: "Mon exploitation",
+          icon: Leaf,
+          color: "#10b981",
+          keywords: ["dashboard", "360", "KPI", "pilotage", "ferme", "rendement"],
+          description: "Vue de pilotage : production, interventions, ressources et coûts",
+        },
+        {
+          href: "/agronomie",
         moduleCode: "agronomie",
         label: "Agronomie",
         icon: FlaskConical,
@@ -242,7 +260,7 @@ export const NAV: NavSection[] = [
     section: "PHYTOSANITAIRE",
     tagline: "Prescriptions · produits · listes positives",
     icon: ShieldCheck,
-    color: "#0d9488",
+    color: "#a855f7",
     items: [
       {
         href: "/agronomie/traitements",
@@ -318,7 +336,7 @@ export const NAV: NavSection[] = [
     section: "INFRASTRUCTURE",
     tagline: "Sites · serres · variétés",
     icon: SectionBuilding,
-    color: "#0ea5e9",
+    color: "#64748b",
     items: [
       {
         href: "/fermes",
@@ -373,7 +391,7 @@ export const NAV: NavSection[] = [
     section: "COMMERCIAL",
     tagline: "Clients · ventes · facturation",
     icon: SectionHandshake,
-    color: "#ec4899",
+    color: "#3b82f6",
     items: [
       {
         href: "/clients",
@@ -421,7 +439,7 @@ export const NAV: NavSection[] = [
     section: "APPROVISIONNEMENT",
     tagline: "Fournisseurs · achats · stocks",
     icon: SectionShopping,
-    color: "#f97316",
+    color: "#f59e0b",
     items: [
       {
         href: "/fournisseurs",
@@ -440,6 +458,15 @@ export const NAV: NavSection[] = [
         color: "#eab308",
         keywords: ["bons", "commande", "po", "achat direct"],
         description: "BO + achats directs",
+      },
+      {
+        href: "/achats/remplacements",
+        moduleCode: "agronomie",
+        label: "Remplacements phyto",
+        icon: Package,
+        color: "#f97316",
+        keywords: ["substitution", "équivalent", "fournisseur", "validation phyto"],
+        description: "Acceptation des produits de remplacement livrés",
       },
       {
         href: "/stocks",
@@ -478,7 +505,7 @@ export const NAV: NavSection[] = [
     section: "FINANCE",
     tagline: "Budgets · coûts · CPC · marges",
     icon: SectionWallet,
-    color: "#f59e0b",
+    color: "#14b8a6",
     items: [
       {
         href: "/admin/budgets",
@@ -554,7 +581,7 @@ export const NAV: NavSection[] = [
     section: "RESSOURCES HUMAINES",
     tagline: "Personnel · paie · CNSS",
     icon: SectionUsers,
-    color: "#0ea5e9",
+    color: "#ec4899",
     items: [
       {
         href: "/rh",
@@ -659,7 +686,7 @@ export const NAV: NavSection[] = [
     section: "ADMINISTRATION",
     tagline: "Comptes & permissions",
     icon: ShieldAlert,
-    color: "#ef4444",
+    color: "#64748b",
     items: [
       {
         href: "/admin/domaines",
@@ -713,6 +740,15 @@ export const NAV: NavSection[] = [
         icon: UserCog,
         color: "#ef4444",
         description: "Comptes utilisateurs",
+      },
+      {
+        href: "/admin/initialisation",
+        moduleCode: "users",
+        label: "Initialiser l’exploitation",
+        icon: ClipboardList,
+        color: "#8b5cf6",
+        keywords: ["wizard", "migration", "initialisation", "budget", "excel"],
+        description: "Dossier de reprise guidé, stocks et budget",
       },
       {
         href: "/admin/roles",

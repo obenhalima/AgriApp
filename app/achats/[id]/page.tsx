@@ -22,6 +22,8 @@ import { Modal, ModalFooter } from '@/components/ui/Modal'
 import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { MoneyDisplay } from '@/components/display'
 import { useAuth } from '@/lib/auth'
+import {PurchaseSubstitutions} from '@/components/purchases/PurchaseSubstitutions'
+import type {PurchaseSubstitution} from '@/lib/purchaseSubstitutions'
 
 type StockItem = { id: string; code: string; name: string; unit: string | null }
 type NewLine = { itemDescription: string; unit: string; quantity: string; unitPrice: string; stockItemId: string }
@@ -53,6 +55,8 @@ export default function PurchaseOrderDetailPage() {
   const [exchangeRate, setExchangeRate] = useState('')
   const [savingReceipt, setSavingReceipt] = useState(false)
   const receiptId = useRef('')
+  const [substitutions,setSubstitutions]=useState<PurchaseSubstitution[]>([])
+  const [receiptSubstitutions,setReceiptSubstitutions]=useState<Record<string,string>>({})
   useEffect(() => {
     setWarehouseId(''); setWarehouses([])
     if (!activeDomain) return
@@ -144,10 +148,11 @@ export default function PurchaseOrderDetailPage() {
 
   const openReception = () => {
     setReceiving(true)
+    setReceiptSubstitutions({})
     const qtys: Record<string, string> = {}
     lines.forEach(l => {
       const remaining = Number(l.quantity || 0) - Number(l.received_qty || 0)
-      qtys[l.id] = remaining > 0 ? String(remaining) : ''
+      qtys[l.id] = substitutions.some(s=>s.line_id===l.id&&['en_attente','approuve'].includes(s.status))?'':remaining > 0 ? String(remaining) : ''
     })
     setReceptionQtys(qtys)
   }
@@ -157,7 +162,7 @@ export default function PurchaseOrderDetailPage() {
     if (savingReceipt) return
     if (!warehouseId) { toast.error('Sélectionnez l’entrepôt destinataire'); return }
     const linesInput = Object.entries(receptionQtys)
-      .map(([lineId, qty]) => ({ lineId, qtyReceived: Number(qty) }))
+      .map(([lineId, qty]) => ({ lineId, qtyReceived: Number(qty),substitutionId:receiptSubstitutions[lineId]||undefined }))
       .filter(l => Number.isFinite(l.qtyReceived) && l.qtyReceived > 0)
     if (linesInput.length === 0) { toast.error('Aucune quantité à réceptionner'); return }
     setSavingReceipt(true)
@@ -293,6 +298,8 @@ export default function PurchaseOrderDetailPage() {
         </Card>
       )}
 
+      <PurchaseSubstitutions key={`${activeDomain?.domain_id}:${poId}:${po.status}`} poId={poId} lines={lines} warehouses={warehouses} canRequest={!!canReceive} onChange={setSubstitutions}/>
+
       {/* Modal réception */}
       {receiving && (
         <Modal title={`RÉCEPTIONNER — ${po.po_number}`} onClose={closeReception} size="lg">
@@ -315,12 +322,13 @@ export default function PurchaseOrderDetailPage() {
                       <TD>
                         <strong className="text-fg-primary">{l.item_description}</strong>
                         {l.stock_item_id && <Badge variant="info" size="xs" className="ml-2">↔ stock</Badge>}
+                        {substitutions.some(s=>s.line_id===l.id&&['en_attente','approuve'].includes(s.status))&&<div className="mt-2 space-y-2"><p className="text-xs text-warning">Un remplacement est en cours. Choisir l’accord correspondant ; sinon laisser cette ligne à zéro.</p><TSelect disabled={savingReceipt} value={receiptSubstitutions[l.id]||''} onChange={e=>{const sub=substitutions.find(s=>s.id===e.target.value);setReceiptSubstitutions(v=>({...v,[l.id]:e.target.value}));setReceptionQtys(v=>({...v,[l.id]:sub?String(sub.ordered_qty):''}));if(sub)setWarehouseId(sub.warehouse_id)}}><option value="">Ne pas réceptionner cette ligne</option>{substitutions.filter(s=>s.line_id===l.id&&s.status==='approuve').map(s=><option key={s.id} value={s.id}>{s.snapshot.replacement.name} · {s.delivered_qty} {s.snapshot.replacement.unit} réellement livrés</option>)}</TSelect></div>}
                       </TD>
                       <TD right mono className="text-info">{Number(l.quantity).toLocaleString('fr')} {l.unit ?? ''}</TD>
                       <TD right mono className="text-warning">{Number(l.received_qty || 0).toLocaleString('fr')}</TD>
                       <TD right mono className={remaining > 0 ? 'text-success font-bold' : 'text-fg-tertiary'}>{remaining.toLocaleString('fr')}</TD>
                       <TD right>
-                        <TInput type="number" value={receptionQtys[l.id] ?? ''} onChange={(e) => setReceptionQtys({ ...receptionQtys, [l.id]: e.target.value })} className="w-24 ml-auto" />
+                        <TInput type="number" disabled={savingReceipt||!!receiptSubstitutions[l.id]} value={receptionQtys[l.id] ?? ''} onChange={(e) => setReceptionQtys({ ...receptionQtys, [l.id]: e.target.value })} className="w-24 ml-auto" />
                       </TD>
                     </TR>
                   )

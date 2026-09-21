@@ -48,7 +48,7 @@ Deno.serve(async (req: Request) => {
     if (result.error) throw Error('delivery_record_failed')
     cancelled++; return
    }
-   const body = notificationBody(n.phase)
+   const body = notificationBody(n.phase,n.kind)
    if (n.channel === 'push') {
     const s = await db.from('mobile_push_subscriptions').select('*').eq('id', n.subscription_id).eq('user_id', n.user_id).single()
     if (s.error || !s.data || !allowedPushEndpoint(s.data.endpoint)) throw Error('invalid_subscription')

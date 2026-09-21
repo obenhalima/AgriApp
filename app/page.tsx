@@ -16,6 +16,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/lib/auth'
+import {useProfileNavigation} from '@/lib/useProfileNavigation'
 import { useRealtimeReload } from '@/lib/useRealtimeReload'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
@@ -111,6 +114,17 @@ const healthColor = (h: Health) => h === 'good' ? '#10b981' : h === 'warning' ? 
 // COMPOSANT PRINCIPAL
 // ════════════════════════════════════════════════════════════════════════════
 export default function DashboardPage() {
+  const { user, profile, loading, activeDomain, hasPermission } = useAuth()
+  const router = useRouter()
+  const {home,nav,loading:menuLoading}=useProfileNavigation()
+  const destination=home||(hasPermission('agronomie','view')&&nav.some(g=>g.items.some(i=>i.href==='/agronomie/dashboard'))?'/agronomie/dashboard':'/')
+  const redirect=!!user&&!profile?.must_change_password&&!!activeDomain&&destination!=='/'
+  useEffect(() => { if (!loading&&!menuLoading&&redirect) router.replace(destination) }, [loading,menuLoading,redirect,destination,router])
+  if (loading || menuLoading || redirect) return <p role="status" className="p-5 text-fg-secondary">Ouverture de votre tableau de bord…</p>
+  return <GeneralDashboard />
+}
+
+function GeneralDashboard() {
   const [data, setData] = useState<DashboardData>(EMPTY_DATA)
   const [loading, setLoading] = useState(true)
   const [time, setTime] = useState(new Date())

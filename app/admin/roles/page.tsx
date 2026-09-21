@@ -16,6 +16,7 @@ import {
   listModulesAndPermissions, listRolePermissions, saveRolePermissions,
 } from '@/lib/adminRoles'
 import { cn } from '@/lib/cn'
+import {ProfileMenuEditor} from '@/components/ProfileMenuEditor'
 
 const ACTIONS: { code: PermissionAction; label: string; color: string }[] = [
   { code: 'view', label: 'Voir', color: '#64748b' },
@@ -26,7 +27,7 @@ const ACTIONS: { code: PermissionAction; label: string; color: string }[] = [
 ]
 
 export default function RolesAdminPage() {
-  const { isAdmin } = useAuth()
+  const { isAdmin,activeDomain } = useAuth()
   const [roles, setRoles] = useState<Role[]>([])
   const [modules, setModules] = useState<Module[]>([])
   const [permissions, setPermissions] = useState<Permission[]>([])
@@ -185,6 +186,7 @@ export default function RolesAdminPage() {
                   )}
                 </div>
 
+                {activeDomain&&<ProfileMenuEditor key={`${activeDomain.domain_id}:${selectedRole.id}`} roleId={selectedRole.id} admin={selectedRole.is_admin} permissions={grantedCodes}/>}
                 {selectedRole.is_admin ? (
                   <div className="text-center py-xl text-body-sm text-fg-tertiary">
                     Le rôle <strong className="text-fg-primary">{selectedRole.name}</strong> a accès complet à toute l'application.

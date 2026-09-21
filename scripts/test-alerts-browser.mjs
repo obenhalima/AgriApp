@@ -1,5 +1,5 @@
 // Recette isolée : toutes les requêtes Supabase sont simulées, aucune donnée réelle modifiée.
-import { chromium } from '@playwright/test'
+import { chromium,expect } from '@playwright/test'
 import fs from 'node:fs'
 import dotenv from 'dotenv'
 const env=dotenv.parse(fs.readFileSync('.env.local')),host=new URL(env.NEXT_PUBLIC_SUPABASE_URL).hostname
@@ -26,6 +26,7 @@ try{
   else if(name==='warehouse_stocks')data=[{warehouse_id:'w',stock_item_id:'s',current_qty:0,min_qty:1}]
   else if(name==='treatment_requests')data=[{id:'r',planned_at:yesterday,status:'approuvee',target_name:'Cible QA',warehouse_id:'w'}]
   else if(name==='get_treatment_stock_forecast')data=[{request_id:'r',stock_status:'non_disponible',shortages:[{product:'Produit QA',missing:10,unit:'l'}]}]
+  else if(name==='cultural_workspace')data={families:[{code:'amendement',alert_days:15}],farms:[{id:'f',name:'Ferme QA'}],programs:[{id:'cp',title:'Amendement QA',family:'amendement',farm_id:'f',warehouse_id:'w',status:'approuvee',occurrences:[{id:'co',planned_at:yesterday}]}],forecast:[{occurrence_id:'co',product:'Engrais QA',missing:2,unit:'kg'}]}
   else if(name==='operational_alert_settings'){
    if(route.request().method()==='POST'){saved=route.request().postDataJSON();config=[saved]}
    data=config
@@ -42,7 +43,13 @@ try{
  await page.getByText('Paramètres enregistrés pour ce client.').waitFor()
  if(saved?.domain_id!==domain||saved?.treatment_horizon_days!==20)throw Error('Incorrect settings payload')
  await page.getByRole('combobox',{name:'Type d’alerte'}).selectOption('treatment_late')
- if(await page.locator('article').count()!==1)throw Error('Category filter failed')
+ await expect(page.locator('article')).toHaveCount(1)
+ await page.getByRole('combobox',{name:'Type d’alerte'}).selectOption('cultural_stock')
+ await expect(page.locator('article')).toHaveCount(1)
+ await expect(page.locator('article')).toContainText('Engrais QA : 2,00 kg')
+ await page.getByRole('combobox',{name:'Type d’alerte'}).selectOption('cultural_late')
+ await expect(page.locator('article')).toHaveCount(1)
+ await expect(page.locator('article')).toContainText('Amendement QA')
  if(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+2))throw Error('Horizontal mobile overflow')
  if(errors.length)throw Error(errors.join('\n'))
  fs.mkdirSync('tmp/alerts',{recursive:true});await page.screenshot({path:'tmp/alerts/mobile.png',fullPage:true})

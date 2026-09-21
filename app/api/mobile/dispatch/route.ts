@@ -31,7 +31,7 @@ export async function GET(req:Request){
    allowed=allowed&&rule.data?.enabled!==false
    allowed=allowed&&(n.channel==='push'?prefs.data?.push_enabled!==false:prefs.data?.telegram_enabled===true)
    if(!allowed){await db.from('mobile_notifications').update({cancelled:true,last_error:'No longer eligible',locked_until:null}).eq('id',n.id);cancelled++;return}
-   const body=notificationBody(n.phase)
+   const body=notificationBody(n.phase,n.kind)
    if(n.channel==='push'){
     const s=await db.from('mobile_push_subscriptions').select('*').eq('id',n.subscription_id).eq('user_id',n.user_id).single()
     if(!s.data||!allowedPushEndpoint(s.data.endpoint))throw Error('invalid_subscription')

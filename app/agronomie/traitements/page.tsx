@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { StationReview } from "@/components/phyto/StationReview";
+import { TreatmentCalendar } from "@/components/phyto/TreatmentCalendar";
+import { TreatmentWarnings } from "@/components/phyto/TreatmentWarnings";
 import { validateTreatmentDates } from "@/lib/treatmentScheduleDates";
 import { duplicateTreatmentProduct, resetLineTarget, treatmentTargetsSummary } from "@/lib/treatmentTargets";
 import { toast } from "sonner";
@@ -175,6 +177,7 @@ export default function TraitementsPage() {
     [saving, setSaving] = useState(false);
   const [form, setForm] = useState(blankRequest());
   const [datesAttempted, setDatesAttempted] = useState(false);
+  const [kpiSelection,setKpiSelection] = useState<{domain:string;status:string;stock:string;sequence:number}|null>(null);
   const dateValidation = validateTreatmentDates(form);
   const dateFieldProps = (key: string) => ({
     'aria-invalid': datesAttempted && !!dateValidation.errors[key],
@@ -690,7 +693,7 @@ export default function TraitementsPage() {
   );
   const stockSummary=useMemo(()=>{
     const groups=new Map<string,{name:string;total:number;available:number}>();
-    requests.filter(r=>r.stock_forecast).forEach(r=>{
+    requests.filter(r=>r.stock_forecast&&['soumise','approuvee'].includes(r.status)).forEach(r=>{
       const id=r.schedule_id||r.id;
       const value=groups.get(id)||{name:r.target_name,total:0,available:0};
       value.total++;if(r.stock_forecast.stock_status==="disponible")value.available++;
@@ -700,7 +703,7 @@ export default function TraitementsPage() {
   },[requests]);
 
   return (
-    <div>
+    <div className="space-y-4">
       <Link
         href="/agronomie"
         className="inline-flex items-center gap-1 text-caption text-fg-tertiary hover:text-fg-primary mb-2"
@@ -1534,16 +1537,25 @@ export default function TraitementsPage() {
         </Modal>
       )}
 
-      <div className="my-md"><Button variant="ghost" onClick={load}>Actualiser la disponibilité</Button>
-        {forecastError&&<p className="text-warning">Disponibilité non calculée : {forecastError}</p>}
-        {stockSummary.map(([id,s])=><p key={id} className="text-warning">{s.name} : {s.available}/{s.total} occurrences à venir couvertes ; {s.total-s.available} à approvisionner.</p>)}
-      </div>
-      <Card padding="none" className="overflow-hidden">
+      <section aria-label="Synthèse des traitements" className="space-y-3">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+          {[
+            {label:'À valider',value:pending,color:'text-warning',border:'border-l-warning'},
+            {label:'À confirmer',value:requests.filter(r=>r.status==='approuvee').length,color:'text-brand',border:'border-l-brand'},
+            {label:'Réalisés',value:requests.filter(r=>r.status==='executee').length,color:'text-success',border:'border-l-success'},
+            {label:'Stock manquant / partiel',value:requests.filter(r=>['soumise','approuvee'].includes(r.status)&&r.stock_forecast&&r.stock_forecast.stock_status!=='disponible').length,color:'text-warning',border:'border-l-warning'},
+          ].map((k,index)=><button type="button" key={k.label} aria-label={`Voir les traitements : ${k.label}`} className="text-left rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand group" onClick={()=>setKpiSelection(previous=>({domain:activeDomain?.domain_id||'',status:['soumise','approuvee','executee','actifs'][index],stock:index===3?'manquant':'',sequence:(previous?.sequence||0)+1}))}><Card className={`h-full border-l-[3px] ${k.border} transition-shadow group-hover:shadow-floating group-hover:border-brand/40`}><p className="font-mono text-caption uppercase tracking-wide text-fg-tertiary">{k.label}</p><p className={`text-3xl font-bold mt-3 ${k.color}`}>{k.value}</p><p className="text-caption text-fg-tertiary mt-1">occurrence(s) · Voir la liste →</p></Card></button>)}
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-caption text-fg-tertiary">Synthèse du client · toutes les dates, avant filtres</p><Button variant="secondary" size="sm" onClick={load}>Actualiser la disponibilité</Button></div>
+        {forecastError&&<div role="alert" className="rounded-lg border border-warning/30 bg-warning/5 p-3"><p className="font-semibold text-warning">Disponibilité du stock non calculée</p><p className="text-caption text-fg-secondary mt-1">{forecastError}</p></div>}
+        {!!stockSummary.length&&<details className="rounded-lg border border-warning/30 bg-warning/5"><summary className="cursor-pointer p-3 font-semibold text-warning text-body-sm">Approvisionnement à prévoir · {stockSummary.length} programme(s) concerné(s) <span className="font-normal text-caption">— Voir le détail</span></summary><div className="grid grid-cols-1 md:grid-cols-2 gap-2 px-3 pb-3">{stockSummary.map(([id,s])=><div key={id} className="rounded-lg border border-border bg-surface-raised p-3"><p className="font-semibold text-body-sm">{s.name}</p><p className="text-caption text-fg-secondary mt-1">{s.available} / {s.total} occurrences couvertes</p><p className="text-caption text-warning mt-1">{s.total-s.available} à approvisionner</p></div>)}</div></details>}
+      </section>
+      <TreatmentCalendar key={activeDomain?.domain_id || 'none'} selection={kpiSelection?.domain===activeDomain?.domain_id?kpiSelection:null} requests={requests} plantings={plantings}>{visibleRequests => <Card padding="none" className="overflow-hidden">
         <DataTable minWidth={1150}>
           <THead>
             <TR>
               <TH>Date prévue</TH>
-              <TH>Serres</TH>
+              <TH className="min-w-[190px]">Serres</TH>
               <TH>Cible</TH>
               <TH>Produits prévus</TH>
               <TH>Demandeur</TH>
@@ -1552,30 +1564,30 @@ export default function TraitementsPage() {
             </TR>
           </THead>
           <tbody>
-            {requests.map((r) => {
+            {visibleRequests.map((r) => {
               const st = STATUS[r.status] || STATUS.annulee;
               return (
                 <TR key={r.id}>
-                  <TD>
+                  <TD className="min-w-[140px] align-top">
                     <DateDisplay value={r.planned_at} />
                     {r.occurrence_number&&<div className="text-caption">Occurrence {r.occurrence_number}</div>}
                     <div className="text-caption">{warehouses.find(w=>w.id===r.warehouse_id)?.name||"Entrepôt non renseigné"}</div>
                   </TD>
-                  <TD>
-                    {(r.treatment_request_targets || []).map((t: any) => (
-                      <div key={t.id}>
-                        {t.campaign_plantings?.greenhouses?.name || "—"}
-                      </div>
+                  <TD className="min-w-[190px] align-top">
+                    <div className="flex flex-wrap gap-1.5 max-w-[250px]">
+                    {Array.from(new Set<string>((r.treatment_request_targets || []).map((t:any)=>t.campaign_plantings?.greenhouses?.name).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'fr',{numeric:true})).map(name=>(
+                      <span key={name} className="inline-flex whitespace-nowrap rounded-md border border-border bg-surface-sunk px-2 py-1 text-caption font-semibold">{name}</span>
                     ))}
+                    {!(r.treatment_request_targets || []).length && <span className="text-fg-tertiary">Non renseignée</span>}
+                    </div>
                   </TD>
-                  <TD>{r.target_name}<button className="block text-xs underline mt-1" onClick={()=>setStationReview({id:r.id,readOnly:r.status!=="soumise"})}>Couleurs / accords Station</button></TD>
-                  <TD>
+                  <TD className="min-w-[160px] align-top"><p className="font-semibold">{r.target_name}</p><button className="block text-xs text-brand hover:underline mt-2 text-left" onClick={()=>setStationReview({id:r.id,readOnly:r.status!=="soumise"})}>Couleurs / accords Station →</button></TD>
+                  <TD className="min-w-[250px] align-top">
                     {(r.treatment_request_products || []).map((p: any) => (
-                      <div key={p.id}>
-                        {p.stock_items?.name || p.product_name} · {formatQuantity(p.planned_quantity)}{" "}
-                        {p.stock_items?.unit || p.quantity_unit}
-                        <span className="text-caption"> · Cible : {p.target_name || r.target_name}</span>
-                        {!p.stock_item_id&&<span className="text-warning"> · Article de stock à créer</span>}
+                      <div key={p.id} className="mb-3 last:mb-0">
+                        <p className="font-semibold">{p.stock_items?.name || p.product_name}</p>
+                        <p className="text-caption text-fg-secondary mt-1">{formatQuantity(p.planned_quantity)} {p.stock_items?.unit || p.quantity_unit} · {p.target_name || r.target_name}</p>
+                        {!p.stock_item_id&&<span className="text-caption text-warning">Article de stock à créer</span>}
                       </div>
                     ))}
                   </TD>
@@ -1584,15 +1596,15 @@ export default function TraitementsPage() {
                       ? "Moi"
                       : r.requested_by.slice(0, 8)}
                   </TD>
-                  <TD>
+                  <TD className="min-w-[260px] max-w-[320px] align-top">
                     <Badge variant={st.variant}>{st.label}</Badge>
-                    {(Array.isArray(r.treatment_applications) ? r.treatment_applications : r.treatment_applications ? [r.treatment_applications] : []).flatMap((a:any)=>Array.isArray(a?.safety_warnings)?a.safety_warnings:[]).filter((warning:any)=>warning&&typeof warning.message==='string').map((warning:any,index:number)=><p key={index} className="text-warning text-caption">{typeof warning.product==='string'?warning.product:'Produit'} : {warning.message}</p>)}
                     {r.stock_forecast&&<div className="mt-1">
                       <Badge variant={r.stock_forecast.stock_status==="disponible"?"success":"warning"}>
                         {r.stock_forecast.stock_status==="disponible"?"Stock disponible":r.stock_forecast.stock_status==="partiel"?"Stock partiellement disponible":"Stock non disponible"}
                       </Badge>
-                      {(r.stock_forecast.shortages||[]).map((s:any)=><div key={s.stock_item_id||s.catalog_product_id} className="text-caption text-warning">{s.product} : {s.article_missing?"article à créer — ":""}manque {formatQuantity(s.missing)} {s.unit}</div>)}
                     </div>}
+                    {!r.stock_forecast&&['soumise','approuvee'].includes(r.status)&&<p className="text-caption text-fg-tertiary mt-2">Stock : disponibilité non calculée</p>}
+                    <TreatmentWarnings request={r}/>
                   </TD>
                   <TD right>
                     <div className="flex justify-end gap-xs">
@@ -1638,14 +1650,14 @@ export default function TraitementsPage() {
             })}
           </tbody>
         </DataTable>
-        {requests.length === 0 && (
+        {visibleRequests.length === 0 && (
           <EmptyState
             icon={FlaskConical}
             title="Aucun traitement"
-            description="Crée une prescription qui sera validée par une autre personne habilitée."
+            description="Aucun traitement ne correspond à la sélection. Modifiez les filtres ou créez une prescription."
           />
         )}
-      </Card>
+      </Card>}</TreatmentCalendar>
     </div>
   );
 }

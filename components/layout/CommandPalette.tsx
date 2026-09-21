@@ -21,6 +21,7 @@ import {
 import { cn } from '@/lib/cn'
 import { NAV, QUICK_ACTIONS, flattenNav } from '@/lib/navigation'
 import { useAuth } from '@/lib/auth'
+import {useProfileNavigation} from '@/lib/useProfileNavigation'
 import { getTheme, setTheme } from '@/lib/theme'
 
 export function CommandPalette() {
@@ -28,6 +29,7 @@ export function CommandPalette() {
   const [search, setSearch] = useState('')
   const router = useRouter()
   const { canAccessModule, isPlatformAdmin, signOut } = useAuth()
+  const {nav:profileNav}=useProfileNavigation()
 
   // Raccourci clavier global
   useEffect(() => {
@@ -50,12 +52,12 @@ export function CommandPalette() {
 
   // Items de nav filtrés par permissions
   const navItems = useMemo(() => {
-    return flattenNav().filter(({ item }) => canAccessModule(item.moduleCode) && (!item.platformOnly || isPlatformAdmin))
-  }, [canAccessModule, isPlatformAdmin])
+    return profileNav.flatMap(group=>group.items.map(item=>({section:group.section,item})))
+  }, [profileNav])
 
   const quickActions = useMemo(() => {
-    return QUICK_ACTIONS.filter(qa => !qa.moduleCode || canAccessModule(qa.moduleCode))
-  }, [canAccessModule])
+    return QUICK_ACTIONS.filter(qa => (!qa.moduleCode || canAccessModule(qa.moduleCode))&&profileNav.some(g=>g.items.some(i=>i.href===qa.href.split('?')[0])))
+  }, [canAccessModule,profileNav])
 
   const runCommand = (action: () => void) => {
     setOpen(false)
@@ -157,7 +159,7 @@ export function CommandPalette() {
                     )}
 
                     {/* ─── Pages (regroupées par section) ─── */}
-                    {NAV.map(section => {
+                    {profileNav.map(section => {
                       const items = section.items.filter(it => canAccessModule(it.moduleCode) && (!it.platformOnly || isPlatformAdmin))
                       if (items.length === 0) return null
                       return (

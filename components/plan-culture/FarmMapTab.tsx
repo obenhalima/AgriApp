@@ -4,18 +4,17 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { FarmShape, newShape, normalizeShape, formatPlanNumber as fmt } from '@/lib/farmLayout'
-import { ProductionCostReport } from '@/components/costs/ProductionCostReport'
+import { GreenhouseDetailsDialog } from './GreenhouseDetailsDialog'
 import { ImportFarmPlan } from './ImportFarmPlan'
 import { ImportDrawioPlan } from './ImportDrawioPlan'
 import { PlanGraphics } from './PlanGraphics'
 import type { PlanGraphic } from '@/lib/drawioFarmPlan'
 
-type Greenhouse = { id: string; code: string; name: string; farm_id: string; total_area: number }
-type Planting = { id: string; greenhouse_id: string; variety_id: string; planted_area: number; planting_date: string | null; status: string; target_total_production: number | null; target_yield_per_m2: number | null }
+type Greenhouse = { id: string; code: string; name: string; farm_id: string; total_area: number; type?: string }
+type Planting = { id: string; greenhouse_id: string; variety_id: string; planted_area: number; planting_date: string | null; status: string; target_total_production: number | null; target_yield_per_m2: number | null; harvest_start_date?:string|null; harvest_end_date?:string|null; first_harvest_date?:string|null; last_harvest_date?:string|null; plant_count?:number|null; actual_density?:number|null }
 type Harvest = { id: string; campaign_planting_id: string; total_qty: number; harvest_date: string }
 type Props = { domainId: string; farmId: string; farmName: string; campaignId: string; greenhouses: Greenhouse[]; onDirtyChange: (dirty: boolean) => void; onReferencesChanged: () => Promise<void> }
-const control = 'rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed'
-const statusLabel: Record<string, string> = { planifie: 'Planifiée', en_cours: 'En cours', termine: 'Terminée', terminee: 'Terminée', recolte: 'En récolte', annule: 'Annulée' }
+const control = 'rounded-md border border-border bg-surface-raised px-3 py-2 text-sm text-fg-primary hover:bg-surface-input focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-40 disabled:cursor-not-allowed'
 
 export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses, onDirtyChange, onReferencesChanged }: Props) {
   const { hasPermission } = useAuth()
@@ -27,6 +26,7 @@ export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses
   const [importDirty, setImportDirty] = useState(false)
   const [revision, setRevision] = useState(0)
   const [selected, setSelected] = useState('')
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const [toAdd, setToAdd] = useState('')
   const [editing, setEditing] = useState(false)
   const [dirty, setDirty] = useState(false)
@@ -46,6 +46,11 @@ export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses
   const missing = scopeGreenhouses.filter(g => !shapes.some(s => s.greenhouse_id === g.id))
   const greenhouse = scopeGreenhouses.find(g => g.id === selected)
   const shape = shapes.find(s => s.greenhouse_id === selected)
+  useEffect(() => { setDetailsOpen(false); setSelected('') }, [domainId, farmId, campaignId])
+  function selectGreenhouse(id: string) {
+    setSelected(id)
+    if (!editing) setDetailsOpen(true)
+  }
   useEffect(() => { onDirtyChange(dirty || importDirty) }, [dirty, importDirty, onDirtyChange])
 
   useEffect(() => {
@@ -76,7 +81,7 @@ export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses
         const ps: Planting[] = []
         for (let start = 0; ; start += 500) {
           const result = await supabase.from('campaign_plantings')
-            .select('id,greenhouse_id,variety_id,planted_area,planting_date,status,target_total_production,target_yield_per_m2,greenhouses!inner(farm_id)')
+            .select('id,greenhouse_id,variety_id,planted_area,planting_date,status,target_total_production,target_yield_per_m2,harvest_start_date,harvest_end_date,first_harvest_date,last_harvest_date,plant_count,actual_density,greenhouses!inner(farm_id)')
             .eq('domain_id', domainId).eq('campaign_id', campaignId).eq('greenhouses.farm_id', farmId)
             .order('id').range(start, start + 499).abortSignal(controller.signal)
           if (result.error) throw result.error
@@ -143,7 +148,6 @@ export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses
   const selectedPlantings = plantings.filter(p => p.greenhouse_id === selected)
   const selectedIds = new Set(selectedPlantings.map(p => p.id))
   const selectedHarvests = harvests.filter(h => selectedIds.has(h.campaign_planting_id))
-  const date = (value: string | null) => value ? new Date(value + 'T12:00:00').toLocaleDateString('fr-FR') : 'Non renseignée'
 
   return <section className="space-y-3">
     <div className="flex flex-wrap items-center gap-2">
@@ -183,8 +187,8 @@ export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses
         <span className="self-center text-sm text-slate-500">Glissez les serres ; ajustez leurs dimensions dans le panneau.</span>
       </div>}
       {!scopeGreenhouses.length && <p>Aucune serre dans cette ferme. Créez-les d’abord dans le <Link className="underline" href="/serres">référentiel des serres</Link>.</p>}
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="overflow-hidden rounded-xl border bg-slate-50">
+      <div className={editing ? 'grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]' : 'space-y-4'}>
+        <div className="overflow-hidden rounded-xl border border-border bg-surface-raised shadow-sm">
           {!shapes.length && <p className="p-4 text-slate-600">Aucune serre placée. {canEdit ? 'Cliquez sur « Modifier le plan » pour commencer.' : 'Une personne habilitée peut préparer ce plan.'}</p>}
           <svg ref={svgRef} viewBox="0 0 1200 800" className="w-full" aria-label="Plan interactif de la ferme" style={{ touchAction: editing ? 'none' : 'auto' }}
             onPointerMove={event => {
@@ -201,10 +205,11 @@ export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses
               const occupied = plantings.some(p => p.greenhouse_id === s.greenhouse_id)
               return <g key={s.greenhouse_id} transform={`translate(${s.x},${s.y}) rotate(${s.rotation})`} tabIndex={0} role="button"
                 aria-label={`Consulter ${g?.code ?? 'serre retirée du référentiel'}`} style={{ cursor: editing ? 'move' : 'pointer' }}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(s.greenhouse_id) } }}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectGreenhouse(s.greenhouse_id) } }}
+                onClick={() => selectGreenhouse(s.greenhouse_id)}
                 onPointerDown={e => {
-                  setSelected(s.greenhouse_id)
                   if (!editing || saving) return
+                  setSelected(s.greenhouse_id)
                   e.preventDefault(); const p = point(e); drag.current = { id: s.greenhouse_id, x: p.x, y: p.y, ox: s.x, oy: s.y }
                   e.currentTarget.setPointerCapture(e.pointerId)
                 }}>
@@ -216,7 +221,7 @@ export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses
           </svg>
           <p className="p-3 text-xs text-slate-600">Vert : plantation sur la campagne sélectionnée · Gris : aucune plantation chargée. {shapes.length} serre(s) placée(s), {missing.length} non placée(s).</p>
         </div>
-        <aside className="space-y-3 rounded-xl border p-4">
+        {editing && <aside className="space-y-3 rounded-xl border border-border bg-surface-raised p-4">
           {!shape ? <p>Sélectionnez une serre sur le plan.</p> : <>
             <h3 className="font-semibold">{greenhouse?.code} — {greenhouse?.name ?? 'Serre retirée du référentiel'}</h3>
             <p>Surface officielle : {greenhouse ? `${fmt(Number(greenhouse.total_area))} m²` : 'Indisponible'}</p>
@@ -233,28 +238,13 @@ export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses
                 }
               }}>Retirer du plan</button>
             </fieldset>}
-            <h4 className="border-t pt-3 font-semibold">Culture et production — campagne sélectionnée</h4>
-            {!campaignId ? <p>Sélectionnez une campagne.</p> : dataBusy ? <p>Chargement des cultures et récoltes…</p> : dataError ? <p role="alert" className="text-amber-700">{dataError}</p> : <>
-              {!selectedPlantings.length && <p>Aucune plantation sur cette campagne.</p>}
-              {selectedPlantings.map(p => <div key={p.id} className="space-y-1 rounded border p-2 text-sm">
-                <strong>{varieties[p.variety_id] ?? 'Variété non disponible'}</strong>
-                <p>{statusLabel[p.status] ?? p.status} · Plantation : {date(p.planting_date)}</p>
-                <p>Surface plantée : {fmt(Number(p.planted_area))} m²</p>
-                <p>Objectif : {fmt(p.target_total_production != null ? Number(p.target_total_production) : p.target_yield_per_m2 != null ? Number(p.target_yield_per_m2) * Number(p.planted_area) : null)} kg</p>
-              </div>)}
-              {!!selectedPlantings.length && <>
-                <p>Récolte enregistrée : <strong>{fmt(selectedHarvests.reduce((sum, h) => sum + Number(h.total_qty ?? 0), 0))} kg</strong></p>
-                <p className="text-xs text-slate-500">Toutes catégories, déchets inclus. {selectedHarvests.length} saisie(s). Une absence de saisie ne prouve pas l’absence de récolte.</p>
-              </>}
-            </>}
-            {campaignId && <ProductionCostReport compact fixedCampaign={campaignId} fixedGreenhouse={selected} />}
-            <Link className="block text-sm underline" href="/couts/pilotage">Synthèse des coûts par serre, ferme et société</Link>
-            <p className="text-sm text-slate-500">CA et marges au clic : restent à rapprocher des ventes et de leur devise.</p>
-            <Link className="block text-sm underline" href="/recoltes">Ouvrir les récoltes</Link>
-            <Link className="block text-sm underline" href="/serres">Ouvrir le référentiel des serres</Link>
+            {greenhouse && <button className={control} onClick={() => setDetailsOpen(true)}>Ouvrir la fiche complète</button>}
           </>}
-        </aside>
+        </aside>}
       </div>
     </>}
+    {detailsOpen && greenhouse && <GreenhouseDetailsDialog key={`${domainId}:${farmId}:${campaignId}:${selected}`} greenhouse={greenhouse} farmName={farmName}
+      domainId={domainId} farmId={farmId} campaignId={campaignId} plantings={selectedPlantings} harvests={selectedHarvests} varieties={varieties}
+      busy={dataBusy} error={dataError} onClose={() => setDetailsOpen(false)} />}
   </section>
 }
