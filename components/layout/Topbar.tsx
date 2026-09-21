@@ -4,6 +4,7 @@
  * smooth + user avatar dropdown.
  */
 import Link from 'next/link'
+import { BackButton } from './BackButton'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -121,6 +122,7 @@ export function Topbar() {
     >
       {/* ─── Left : hamburger (mobile) + Breadcrumbs ─── */}
       <div className="flex items-center gap-sm min-w-0 flex-1">
+        <BackButton />
         <button
           onClick={() => window.dispatchEvent(new CustomEvent('sidebar-mobile-toggle'))}
           className="lg:hidden -ml-1 w-8 h-8 rounded-md flex items-center justify-center text-fg-secondary hover:bg-surface-sunk hover:text-fg-primary transition-colors flex-shrink-0"
