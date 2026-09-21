@@ -13,6 +13,34 @@ Deno.serve(async (req: Request) => {
  if (req.method === 'GET') return Response.json({ publicKey: ready ? publicKey : null }, { headers: { 'Cache-Control': 'no-store' } })
  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
  const supplied = req.headers.get('authorization')?.replace(/^Bearer /, '') || ''
+ if(new URL(req.url).searchParams.get('action')==='test'){
+  if(!ready)return Response.json({error:'Service push non configuré.'},{status:503})
+  const testDb=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}})
+  const auth=await testDb.auth.getUser(supplied)
+  if(auth.error||!auth.data.user)return Response.json({error:'Session expirée. Reconnectez-vous.'},{status:401})
+  let input:any;try{input=await req.json()}catch{return Response.json({error:'Requête invalide.'},{status:400})}
+  if(typeof input.endpoint!=='string'||input.endpoint.length>4096||typeof input.domain!=='string')return Response.json({error:'Requête invalide.'},{status:400})
+  const uid=auth.data.user.id
+  const [profile,member,subscription]=await Promise.all([
+   testDb.from('profiles').select('is_active').eq('id',uid).single(),
+   testDb.rpc('is_domain_member',{p_domain_id:input.domain,p_user_id:uid}),
+   testDb.from('mobile_push_subscriptions').select('id,endpoint,keys').eq('user_id',uid).eq('endpoint',input.endpoint).maybeSingle()
+  ])
+  if(profile.error||!profile.data?.is_active||member.error||member.data!==true)return Response.json({error:'Accès non autorisé.'},{status:403})
+  const s=subscription.data
+  if(subscription.error||!s||!allowedPushEndpoint(s.endpoint))return Response.json({error:'Ce téléphone n’est pas enregistré pour ce compte. Cliquez sur Activer sur ce téléphone.'},{status:409})
+  // Durable per-device rate limit. Attempts=5 excludes test records from the business dispatcher.
+  const key=`push-test:${s.id}:${Math.floor(Date.now()/60000)}`
+  const record=await testDb.from('mobile_notifications').insert({user_id:uid,domain_id:input.domain,kind:'push_test',entity_id:s.id,phase:'test',channel:'push',subscription_id:s.id,dedupe_key:key,attempts:5}).select('id').single()
+  if(record.error)return Response.json({error:record.error.code==='23505'?'Un test a déjà été lancé cette minute. Patientez avant de réessayer.':'Impossible de journaliser le test.'},{status:record.error.code==='23505'?429:503})
+  try{
+   const details=webpush.generateRequestDetails({endpoint:s.endpoint,keys:s.keys},JSON.stringify({body:'Test push FarmPilot : votre téléphone reçoit les notifications du serveur.',tag:`test-${record.data.id}`}),{vapidDetails:{subject:base!,publicKey:publicKey!,privateKey:privateKey!},TTL:120,urgency:'high'})
+   const response=await fetch(details.endpoint,{method:details.method,headers:details.headers,body:details.body,signal:AbortSignal.timeout(10000)})
+   if(!response.ok){await testDb.from('mobile_notifications').update({last_error:`test_push_http_${response.status}`}).eq('id',record.data.id);return Response.json({error:[404,410].includes(response.status)?'Abonnement expiré : désactivez puis réactivez les notifications sur ce téléphone.':`Le service push a refusé l’envoi (HTTP ${response.status}).`},{status:502})}
+   await testDb.from('mobile_notifications').update({sent_at:new Date().toISOString()}).eq('id',record.data.id)
+   return Response.json({message:'Envoi accepté par le service push. Vérifiez l’iPhone : cela ne garantit pas l’affichage de la bannière.'})
+  }catch{await testDb.from('mobile_notifications').update({last_error:'test_delivery_unknown'}).eq('id',record.data.id);return Response.json({error:'Délai réseau dépassé : résultat de livraison inconnu.'},{status:503})}
+ }
  if (!secret || Buffer.byteLength(secret) !== Buffer.byteLength(supplied) || !timingSafeEqual(Buffer.from(secret), Buffer.from(supplied))) return new Response('Unauthorized', { status: 401 })
  if (!ready) return Response.json({ error: 'Not configured' }, { status: 503 })
  const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } })
