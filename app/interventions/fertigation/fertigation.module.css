@@ -1,0 +1,4 @@
+.page label { display: block; font-size: 12px; color: var(--tx-2); }
+.page label input, .page label select, .page label textarea { margin-top: 7px; }
+.page fieldset { min-width: 0; }
+.page h2 { color: var(--tx-1); }

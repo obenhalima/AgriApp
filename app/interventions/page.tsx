@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
+import CulturalPage from './programmes/page'
 
 function FormGroup({label,children}:{label:string;children:ReactNode}) {
   const id=useId()
@@ -45,8 +46,10 @@ function WaterFields({mode,setMode,values,setValues,actual=false}:{mode:WaterMod
 }
 export default function InterventionsPage(){
   const {activeDomain,user}=useAuth()
+  const [view,setView]=useState<'cultural'|'water'>('cultural')
+  useEffect(()=>{if(new URLSearchParams(window.location.search).has('programme'))setView('water')},[])
   if(!activeDomain||!user)return <p>Sélectionnez une société.</p>
-  return <IrrigationWorkspace key={`${activeDomain.domain_id}:${user.id}`} domain={activeDomain.domain_id} userId={user.id}/>
+  return <div className="space-y-4"><div className="flex flex-wrap gap-2"><Button variant={view==='cultural'?'primary':'secondary'} onClick={()=>setView('cultural')}>Fertigation et interventions</Button><Button variant={view==='water'?'primary':'secondary'} onClick={()=>setView('water')}>Irrigation — eau seule</Button></div>{view==='cultural'?<CulturalPage/>:<IrrigationWorkspace key={`${activeDomain.domain_id}:${user.id}`} domain={activeDomain.domain_id} userId={user.id}/>}</div>
 }
 function IrrigationWorkspace({domain,userId}:{domain:string;userId:string}){
   const [data,setData]=useState<Workspace|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(false)

@@ -18,8 +18,10 @@
  *
  * Connecteurs SVG entre niveaux pour matérialiser la hiérarchie.
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { PlantingRow } from '@/lib/plantingPlan'
+import {useAuth} from '@/lib/auth'
+import {ConnectedGreenhouseDialog} from './ConnectedGreenhouseDialog'
 import { MONTH_LABELS_FR } from '@/lib/budgets'
 
 type Campaign = {
@@ -54,6 +56,8 @@ export function GanttTab(props: {
   const { rows, greenhousesInScope, farms, campaign, loading } = props
   const [expandedFarms, setExpandedFarms] = useState<Set<string>>(new Set())  // toutes ouvertes par défaut via tout()
   const [selectedGh, setSelectedGh] = useState<string | null>(null)
+  const {activeDomain}=useAuth()
+  useEffect(()=>setSelectedGh(null),[activeDomain?.domain_id,campaign?.id])
   const [showTimeline, setShowTimeline] = useState(true)
 
   // ─── Couleur par variété ───
@@ -154,14 +158,7 @@ export function GanttTab(props: {
           ⇑ Tout replier
         </button>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 14, fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)' }}>
-          {Object.entries(PHASE_COLORS).map(([k, v]) => (
-            <span key={k} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ width: 10, height: 6, background: v, borderRadius: 2 }} />
-              {labelPhase(k)}
-            </span>
-          ))}
-        </div>
+        {showTimeline&&<div className="w-full rounded-lg border border-border bg-surface-input p-3 text-sm text-fg-secondary"><strong>Calendrier prévisionnel des serres</strong><p className="mt-1">Les couleurs représentent des durées, pas l’avancement réel. Les dates de la plantation sont utilisées, sinon celles de la campagne. Pour plusieurs plantations, la barre représente celle au plus grand volume cible.</p></div>}
       </div>
 
       {/* ─── DOMAINE (carte sommet) ─── */}
@@ -230,52 +227,7 @@ export function GanttTab(props: {
         )
       })}
 
-      {/* ─── Drawer détail serre ─── */}
-      {selectedGh && (() => {
-        const gh = greenhousesInScope.find(g => g.id === selectedGh)
-        if (!gh) return null
-        const ps = rows.filter(r => r.greenhouse_id === selectedGh)
-        return (
-          <div className="card" style={{ marginTop: 14, padding: 18, borderTop: '3px solid var(--neon)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--tx-1)' }}>🏗️ {gh.code} · {gh.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>
-                  {gh.type} · {Math.round(gh.total_area)} m² · {ps.length} plantation{ps.length > 1 ? 's' : ''}
-                </div>
-              </div>
-              <button onClick={() => setSelectedGh(null)}
-                style={{ padding: '5px 12px', background: 'transparent', border: '1px solid var(--bd-1)', borderRadius: 6, color: 'var(--tx-3)', cursor: 'pointer', fontSize: 11 }}>
-                ✕ Fermer
-              </button>
-            </div>
-            {ps.length === 0 ? (
-              <div style={{ fontSize: 12, color: 'var(--amber)' }}>⚠ Cette serre n'a aucune plantation budgétisée pour la campagne.</div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
-                {ps.map(p => (
-                  <div key={p.planting_id} style={{
-                    padding: 12, borderRadius: 8,
-                    background: `color-mix(in srgb, ${varietyColor.get(p.variety_id) ?? '#64748b'} 6%, var(--bg-card))`,
-                    border: `1px solid color-mix(in srgb, ${varietyColor.get(p.variety_id) ?? '#64748b'} 25%, transparent)`,
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <span style={{ width: 12, height: 12, borderRadius: 3, background: varietyColor.get(p.variety_id) }} />
-                      <span style={{ fontWeight: 700, fontSize: 13 }}>{p.variety_name}</span>
-                    </div>
-                    <KVRow label="Surface"  value={`${p.planted_area.toLocaleString('fr')} m²`} />
-                    <KVRow label="Volume"   value={`${p.target_total_production.toLocaleString('fr', { maximumFractionDigits: 0 })} kg`} />
-                    <KVRow label="CA Total" value={`${p.ca_total.toLocaleString('fr', { maximumFractionDigits: 0 })} MAD`} accent="var(--neon)" />
-                    <KVRow label="% Export" value={`${p.export_share_pct.toFixed(0)}%`} />
-                    <KVRow label="Plantation"  value={fmtDate(p.planting_date)} />
-                    <KVRow label="Récolte"     value={`${fmtDate(p.harvest_start_date)} → ${fmtDate(p.harvest_end_date)}`} />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )
-      })()}
+      {selectedGh&&activeDomain&&(()=>{const gh=greenhousesInScope.find(g=>g.id===selectedGh);if(!gh)return null;return <ConnectedGreenhouseDialog key={`${activeDomain.domain_id}:${campaign?.id}:${gh.id}`} greenhouse={gh} farmName={farms.find(f=>f.id===gh.farm_id)?.name||''} domainId={activeDomain.domain_id} farmId={gh.farm_id} campaignId={campaign?.id||''} onClose={()=>setSelectedGh(null)}/>})()}
     </div>
   )
 }
@@ -431,7 +383,7 @@ function GreenhouseCard(props: {
   }, [plantings, varietyColor])
 
   return (
-    <div onClick={onClick} className="card" style={{
+    <div onClick={onClick} role="button" tabIndex={0} aria-label={`Ouvrir la fiche serre ${gh.code}`} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onClick()}}} className="card" style={{
       padding: 0, overflow: 'hidden', cursor: 'pointer',
       transition: 'all .2s',
       transform: selected ? 'translateY(-2px)' : 'none',
@@ -564,7 +516,8 @@ function MiniTimeline(props: { plantings: PlantingRow[]; campaign: NonNullable<C
   const endP = pct(campaign.campaign_end)
 
   // "Aujourd'hui" pour curseur
-  const today = pct(new Date().toISOString())
+  const now=Date.now()
+  const today = now>=start&&now<=end?pct(new Date(now).toISOString()):null
 
   return (
     <div>
@@ -589,6 +542,10 @@ function MiniTimeline(props: { plantings: PlantingRow[]; campaign: NonNullable<C
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3, fontSize: 8, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)' }}>
         <span>{shortDate(campaign.preparation_start)}</span>
         <span>{shortDate(campaign.campaign_end)}</span>
+      </div>
+      <div aria-label="Légende du calendrier prévisionnel" className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-fg-secondary">
+        {Object.entries(PHASE_COLORS).map(([phase,color])=><span key={phase} className="inline-flex items-center gap-1"><span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-sm" style={{background:color}}/>{({preparation:'Préparation',growth:'Croissance',harvest:'Récolte prévue',post:'Après récolte'} as Record<string,string>)[phase]}</span>)}
+        <span className="inline-flex items-center gap-1"><span aria-hidden="true" className="h-3 w-0.5 bg-brand"/>Aujourd’hui{today===null?' (hors période)':''}</span>
       </div>
     </div>
   )

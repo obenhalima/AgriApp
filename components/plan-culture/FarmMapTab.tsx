@@ -9,6 +9,10 @@ import { ImportFarmPlan } from './ImportFarmPlan'
 import { ImportDrawioPlan } from './ImportDrawioPlan'
 import { PlanGraphics } from './PlanGraphics'
 import type { PlanGraphic } from '@/lib/drawioFarmPlan'
+import {GraphicEditor} from './GraphicEditor'
+import {newPlanGraphic,normalizeGraphic} from '@/lib/farmPlanPalette'
+import {resizePlanBox,type ResizeBox} from '@/lib/planResize'
+import {ResizeHandles} from './ResizeHandles'
 
 type Greenhouse = { id: string; code: string; name: string; farm_id: string; total_area: number; type?: string }
 type Planting = { id: string; greenhouse_id: string; variety_id: string; planted_area: number; planting_date: string | null; status: string; target_total_production: number | null; target_yield_per_m2: number | null; harvest_start_date?:string|null; harvest_end_date?:string|null; first_harvest_date?:string|null; last_harvest_date?:string|null; plant_count?:number|null; actual_density?:number|null }
@@ -26,6 +30,9 @@ export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses
   const [importDirty, setImportDirty] = useState(false)
   const [revision, setRevision] = useState(0)
   const [selected, setSelected] = useState('')
+  const [selectedGraphic,setSelectedGraphic]=useState('')
+  const graphicDrag=useRef<{element:PlanGraphic;x:number;y:number}|null>(null)
+  const resize=useRef<{id:string;graphic:boolean;box:ResizeBox;start:{x:number;y:number};sx:number;sy:number}|null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [toAdd, setToAdd] = useState('')
   const [editing, setEditing] = useState(false)
@@ -46,8 +53,9 @@ export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses
   const missing = scopeGreenhouses.filter(g => !shapes.some(s => s.greenhouse_id === g.id))
   const greenhouse = scopeGreenhouses.find(g => g.id === selected)
   const shape = shapes.find(s => s.greenhouse_id === selected)
-  useEffect(() => { setDetailsOpen(false); setSelected('') }, [domainId, farmId, campaignId])
+  useEffect(() => { setDetailsOpen(false); setSelected(''); setSelectedGraphic('') }, [domainId, farmId, campaignId])
   function selectGreenhouse(id: string) {
+    setSelectedGraphic('')
     setSelected(id)
     if (!editing) setDetailsOpen(true)
   }
@@ -126,6 +134,14 @@ export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses
     setShapes(items => items.map(s => s.greenhouse_id === selected ? normalizeShape({ ...s, ...patch }) : s))
     setDirty(true); setMessage('')
   }
+  function changeElements(next:PlanGraphic[]){setElements(next);setDirty(true);setMessage('')}
+  function beginResize(event:React.PointerEvent<SVGRectElement>,id:string,graphic:boolean,box:ResizeBox,sx:number,sy:number){
+    if(!editing||saving)return
+    event.preventDefault();event.stopPropagation();drag.current=null;graphicDrag.current=null
+    resize.current={id,graphic,box:{...box},start:point(event),sx,sy};event.currentTarget.setPointerCapture(event.pointerId)
+  }
+  function selectGraphic(id:string){setSelectedGraphic(id);setSelected('')}
+  function updateGraphic(patch:Partial<PlanGraphic>){changeElements(elements.map(e=>e.id===selectedGraphic?normalizeGraphic({...e,...patch}):e))}
   async function save() {
     setSaving(true); setMessage('')
     const controller = new AbortController()
@@ -182,24 +198,33 @@ export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses
           {missing.map(g => <option key={g.id} value={g.id}>{g.code} — {g.name}</option>)}
         </select>
         <button className={control} disabled={saving || !missing.some(g => g.id === toAdd) || shapes.length >= 500} onClick={() => {
-          setShapes(items => [...items, newShape(toAdd, items.length)]); setSelected(toAdd); setToAdd(''); setDirty(true)
+          setShapes(items => [...items, newShape(toAdd, items.length)]); setSelectedGraphic(''); setSelected(toAdd); setToAdd(''); setDirty(true)
         }}>Placer la serre</button>
-        <span className="self-center text-sm text-slate-500">Glissez les serres ; ajustez leurs dimensions dans le panneau.</span>
+        <span className="self-center text-sm text-slate-500">Sélectionnez une forme, puis tirez ses coins pour la redimensionner. Glissez son centre pour la déplacer.</span>
       </div>}
       {!scopeGreenhouses.length && <p>Aucune serre dans cette ferme. Créez-les d’abord dans le <Link className="underline" href="/serres">référentiel des serres</Link>.</p>}
       <div className={editing ? 'grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]' : 'space-y-4'}>
-        <div className="overflow-hidden rounded-xl border border-border bg-surface-raised shadow-sm">
+        <div className="self-start overflow-hidden rounded-xl border border-border bg-surface-raised shadow-sm">
           {!shapes.length && <p className="p-4 text-slate-600">Aucune serre placée. {canEdit ? 'Cliquez sur « Modifier le plan » pour commencer.' : 'Une personne habilitée peut préparer ce plan.'}</p>}
           <svg ref={svgRef} viewBox="0 0 1200 800" className="w-full" aria-label="Plan interactif de la ferme" style={{ touchAction: editing ? 'none' : 'auto' }}
             onPointerMove={event => {
-              if (!drag.current || !editing || saving) return
+              if (!editing || saving) return
+              if(resize.current){const d=resize.current,next=resizePlanBox(d.box,d.start,point(event),d.sx,d.sy,d.graphic?1:12);if(d.graphic)changeElements(elements.map(e=>e.id===d.id?normalizeGraphic({...e,...next}):e));else{setShapes(items=>items.map(s=>s.greenhouse_id===d.id?normalizeShape({...s,...next}):s));setDirty(true);setMessage('')}return}
+              if(graphicDrag.current){const p=point(event),d=graphicDrag.current;changeElements(elements.map(e=>e.id===d.element.id?normalizeGraphic({...d.element,x:d.element.x+p.x-d.x,y:d.element.y+p.y-d.y}):e));return}
+              if (!drag.current) return
               const p = point(event), d = drag.current
               setShapes(items => items.map(s => s.greenhouse_id === d.id ? normalizeShape({ ...s, x: d.ox + p.x - d.x, y: d.oy + p.y - d.y }) : s))
               setDirty(true)
-            }} onPointerUp={() => { drag.current = null }} onPointerCancel={() => { drag.current = null }}>
+            }} onPointerUp={() => { drag.current = null; graphicDrag.current=null;resize.current=null }} onPointerCancel={() => { drag.current = null; graphicDrag.current=null;resize.current=null }} onLostPointerCapture={()=>{drag.current=null;graphicDrag.current=null;resize.current=null}}>
             <defs><pattern id="farm-grid" width="25" height="25" patternUnits="userSpaceOnUse"><path d="M25 0H0V25" fill="none" stroke="#cbd5e1" strokeWidth="0.6" /></pattern></defs>
             <rect width="1200" height="800" fill="url(#farm-grid)" />
-            <PlanGraphics elements={elements} />
+            {elements.map(e=><g key={e.id} role={editing?'button':undefined} tabIndex={editing?0:undefined} aria-label={editing?`Modifier composant ${e.label||e.kind}`:undefined} style={{cursor:editing?'move':undefined}}
+              onClick={()=>{if(editing&&!saving)selectGraphic(e.id)}}
+              onKeyDown={event=>{if(editing&&!saving&&(event.key==='Enter'||event.key===' ')){event.preventDefault();selectGraphic(e.id)}}}
+              onPointerDown={event=>{if(!editing||saving)return;event.preventDefault();selectGraphic(e.id);const p=point(event);graphicDrag.current={element:e,x:p.x,y:p.y};event.currentTarget.setPointerCapture(event.pointerId)}}>
+              <PlanGraphics elements={[e]}/>
+              {editing&&<rect transform={`translate(${e.x},${e.y}) rotate(${e.rotation})`} x={-e.width/2} y={-Math.max(10,e.height)/2} width={e.width} height={Math.max(10,e.height)} fill="transparent" stroke={selectedGraphic===e.id?'#4f46e5':'none'} strokeWidth={2} strokeDasharray="5 3"/>}
+            </g>)}
             {shapes.map(s => {
               const g = scopeGreenhouses.find(g => g.id === s.greenhouse_id)
               const occupied = plantings.some(p => p.greenhouse_id === s.greenhouse_id)
@@ -218,10 +243,19 @@ export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses
                 <text textAnchor="middle" dominantBaseline="central" fill="#0f172a" fontSize={15} pointerEvents="none">{(g?.code ?? 'Retirée').slice(0, 18)}</text>
               </g>
             })}
+            {editing&&!saving&&shape&&!selectedGraphic&&<g transform={`translate(${shape.x},${shape.y}) rotate(${shape.rotation})`}><ResizeHandles width={shape.width} height={shape.height} label="serre" onStart={(e,sx,sy)=>beginResize(e,shape.greenhouse_id,false,shape,sx,sy)}/></g>}
+            {editing&&!saving&&elements.filter(e=>e.id===selectedGraphic&&e.shape!=='line').map(e=><g key={`resize:${e.id}`} transform={`translate(${e.x},${e.y}) rotate(${e.rotation})`}><ResizeHandles width={e.width} height={e.height} label="composant" onStart={(event,sx,sy)=>beginResize(event,e.id,true,e,sx,sy)}/></g>)}
           </svg>
           <p className="p-3 text-xs text-slate-600">Vert : plantation sur la campagne sélectionnée · Gris : aucune plantation chargée. {shapes.length} serre(s) placée(s), {missing.length} non placée(s).</p>
         </div>
         {editing && <aside className="space-y-3 rounded-xl border border-border bg-surface-raised p-4">
+          <GraphicEditor elements={elements} selected={selectedGraphic} disabled={saving} onSelect={selectGraphic}
+           onAdd={kind=>{if(elements.length>=1000)return;const e=newPlanGraphic(kind,crypto.randomUUID(),elements.length);changeElements([...elements,e]);selectGraphic(e.id)}}
+           onUpdate={updateGraphic}
+           onDuplicate={()=>{const e=elements.find(e=>e.id===selectedGraphic);if(!e||elements.length>=1000)return;const copy=normalizeGraphic({...e,id:crypto.randomUUID(),x:e.x+25,y:e.y+25});changeElements([...elements,copy]);selectGraphic(copy.id)}}
+           onRemove={()=>{if(window.confirm('Supprimer ce composant du dessin ? Les données métier sont conservées.')){changeElements(elements.filter(e=>e.id!==selectedGraphic));setSelectedGraphic('')}}}
+           onLayer={front=>{const e=elements.find(e=>e.id===selectedGraphic);if(e){const rest=elements.filter(v=>v.id!==e.id);changeElements(front?[...rest,e]:[e,...rest])}}}/>
+          <hr/>
           {!shape ? <p>Sélectionnez une serre sur le plan.</p> : <>
             <h3 className="font-semibold">{greenhouse?.code} — {greenhouse?.name ?? 'Serre retirée du référentiel'}</h3>
             <p>Surface officielle : {greenhouse ? `${fmt(Number(greenhouse.total_area))} m²` : 'Indisponible'}</p>
