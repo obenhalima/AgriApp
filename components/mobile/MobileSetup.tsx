@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 
-export function MobileSetup() {
+export function MobileSetup({expanded=false}:{expanded?:boolean}) {
  const { user, activeDomain } = useAuth()
  const [diagnostic,setDiagnostic]=useState('')
  async function testNotification(remote:boolean){
@@ -47,7 +47,7 @@ export function MobileSetup() {
  }
  async function disablePush(){setBusy(true);try{const registration=await navigator.serviceWorker.ready;const sub=await registration.pushManager.getSubscription();if(sub){const r=await supabase.from('mobile_push_subscriptions').delete().eq('endpoint',sub.endpoint);if(r.error)throw r.error;await sub.unsubscribe()}setMessage('Notifications désactivées sur cet appareil.')}catch(e:any){setMessage(e.message)}finally{setBusy(false)}}
  async function telegram(){setBusy(true);try{const r=await supabase.rpc('mobile_telegram_invite').abortSignal(AbortSignal.timeout(20000));if(r.error)throw r.error;setCode(r.data);setMessage('Envoyez la commande ci-dessous au bot FarmPilot en conversation privée. Code personnel valable 15 minutes : ne le partagez pas.');const p=await supabase.from('mobile_notification_preferences').upsert({user_id:user!.id,telegram_enabled:true}).abortSignal(AbortSignal.timeout(20000));if(p.error)throw p.error}catch(e:any){setMessage(e.message)}finally{setBusy(false)}}
- return <details className="rounded-xl border p-4 bg-white text-slate-900"><summary className="cursor-pointer font-semibold">Installer FarmPilot / Notifications</summary><div className="space-y-3 pt-3 text-sm">
+ return <details open={expanded||undefined} className="rounded-xl border border-border p-5 bg-surface-raised text-fg-primary"><summary className="cursor-pointer font-semibold">Installer FarmPilot / Notifications</summary><div className="space-y-4 pt-4 text-sm leading-relaxed">
   <p>Android : menu Chrome → Installer l’application. iPhone : Safari → Partager → Sur l’écran d’accueil ; ouvrez l’icône FarmPilot, puis activez les notifications (iOS 16.4 minimum).</p>
   <p>Une connexion Internet est obligatoire pour consulter et décider. Aucune approbation n’est enregistrée hors ligne.</p>
   <fieldset className="space-y-2 rounded-lg border p-3"><legend className="font-semibold">Tester les notifications</legend><p>1. Vérifiez l’affichage local. 2. Testez l’envoi serveur à ce téléphone uniquement. Une acceptation serveur ne prouve pas l’affichage sur iOS.</p><div className="flex flex-wrap gap-2"><button className="rounded border p-3 disabled:opacity-50" disabled={busy||!ready} onClick={()=>testNotification(false)}>1 · Tester l’affichage local</button><button className="rounded border p-3 disabled:opacity-50" disabled={busy||!ready||!configured} onClick={()=>testNotification(true)}>2 · Tester l’envoi push</button></div>{diagnostic&&<p role="status" className="break-words">{diagnostic}</p>}</fieldset>

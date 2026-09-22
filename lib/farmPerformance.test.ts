@@ -38,10 +38,12 @@ describe('Performance comparative',()=>{
   expect(rankedPerformance(rows,'costKg','estimate',true,true)).toHaveLength(0)
   expect(rankedPerformance(rows,'yield','estimate',true,true)).toHaveLength(2)
  })
- it('excludes unfinished cycles by default and orders low cost first',()=>{
+ it('excludes unfinished cycles only when requested and orders low cost first',()=>{
   const rows=buildFarmPerformance(fixture(),{level:'variety'}).rows
   expect(rankedPerformance(rows,'yield','estimate',false,false)).toHaveLength(1)
   expect(rankedPerformance(rows,'costKg','estimate',true,false)[0].id).toBe('v1')
+  expect(rankedPerformance(rows,'costKg','estimate',true,false)).toHaveLength(2)
+  expect(performanceValue(rows.find(r=>r.id==='v2')!,'costKg','estimate')).toBe(750/2000)
  })
  it('does not invent revenue when price or permission is absent',()=>{
   const d=fixture();d.metadata[0].price_export=null

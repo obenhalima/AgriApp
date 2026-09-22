@@ -641,6 +641,15 @@ export const NAV: NavSection[] = [
     color: "#64748b",
     items: [
       {
+        href: "/parametres/mobile",
+        moduleCode: "",
+        label: "Application et notifications",
+        icon: Bell,
+        color: "#0ea5e9",
+        keywords: ["installation", "pwa", "mobile", "push", "notifications"],
+        description: "Installer FarmPilot et configurer cet appareil",
+      },
+      {
         href: "/admin/account-categories",
         moduleCode: "plan_comptable",
         label: "Plan comptable",
