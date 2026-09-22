@@ -297,7 +297,7 @@ export function Sidebar() {
           )}
 
           {filteredNav.map((group, gi) => {
-            const isExpanded = collapsed ? true : expandedSections.has(group.section)
+            const isExpanded = !collapsed && expandedSections.has(group.section)
             const hasActive = group.items.some(i => i.href === pathname)
             const SectionIcon = group.icon
             const sectionColor = group.color ?? '#64748b'
@@ -386,13 +386,28 @@ export function Sidebar() {
                   </button>
                 )}
 
-                {collapsed && gi > 0 && (
-                  <div className="h-px mx-3 my-1.5" style={{ background: dividerColor }} />
+                {collapsed && (
+                  <button
+                    type="button"
+                    title={group.section}
+                    aria-label={`Ouvrir le menu ${group.section}`}
+                    aria-expanded={false}
+                    onClick={() => {
+                      const next = new Set([group.section])
+                      setExpandedSections(next)
+                      persistSections(next)
+                      toggleCollapse()
+                    }}
+                    className="mx-2 my-2 flex h-11 w-12 items-center justify-center rounded-lg transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+                    style={{color:accent, background:hasActive?headerBackground:undefined, borderLeft:`3px solid ${hasActive?sectionColor:'transparent'}`}}
+                  >
+                    {SectionIcon ? <SectionIcon size={21} strokeWidth={2}/> : <Sprout size={21}/>}
+                  </button>
                 )}
 
                 {/* ═══ Items ═══ */}
                 <AnimatePresence initial={false}>
-                  {isExpanded && (
+                  {!collapsed && isExpanded && (
                     <motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
@@ -411,41 +426,6 @@ export function Sidebar() {
                       {group.items.map((item) => {
                         const Icon = item.icon
                         const active = pathname === item.href
-                        if (collapsed) {
-                          return (
-                            <Link key={item.href} href={item.href} title={item.label} className="block px-2.5 py-1">
-                              <div
-                                className="w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200"
-                                style={{
-                                  background: active
-                                    ? `color-mix(in srgb, ${sectionColor} 18%, transparent)`
-                                    : 'transparent',
-                                  border: active
-                                    ? `1px solid color-mix(in srgb, ${sectionColor} 45%, transparent)`
-                                    : '1px solid transparent',
-                                  color: accent,
-                                  boxShadow: active
-                                    ? `0 0 12px color-mix(in srgb, ${sectionColor} 30%, transparent)`
-                                    : 'none',
-                                }}
-                                onMouseEnter={(e) => {
-                                  if (!active) {
-                                    e.currentTarget.style.background = isDark ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.08)'
-                                    e.currentTarget.style.color = itemHoverColor
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  if (!active) {
-                                    e.currentTarget.style.background = 'transparent'
-                                    e.currentTarget.style.color = accent
-                                  }
-                                }}
-                              >
-                                <Icon size={16} strokeWidth={2.2} />
-                              </div>
-                            </Link>
-                          )
-                        }
                         return (
                           <Link
                             key={item.href}
