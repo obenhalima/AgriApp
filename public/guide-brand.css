@@ -1,0 +1,31 @@
+@font-face{font-family:'ItriX Montserrat';src:url('itrix-corporate/Montserrat-Regular.ttf');font-display:swap}
+@font-face{font-family:'ItriX Montserrat';src:url('itrix-corporate/Montserrat-Medium.ttf');font-weight:500 800;font-display:swap}
+:root{--p:#0B3D2E;--pl:#edf3e7;--g:#2E7D32;--w:#D4A95C;--t:#1F2937;--m:#526855;--bg:#F6F4EB;--sb:#0B3D2E;--b:#dbe3d4}
+body{font-family:'ItriX Montserrat',system-ui,sans-serif}
+img{max-width:100%;height:auto} .sh{min-width:0}.sh>div{min-width:0} .ti{overflow-wrap:anywhere}.page,.toc{min-width:0}
+.cover{background:#0B3D2E;border-bottom:5px solid #D4A95C;min-height:75vh}
+.cover .lw{background:#fff;border-color:#D4A95C;color:#0B3D2E}
+.cover .lw:before{content:'';display:block;margin:0 auto 14px;width:min(250px,65vw);height:92px;background:url('itrix-logo.png') 50% 41%/350px auto no-repeat}
+.cover .pill{background:#244f35;border-color:#88C34A;color:#e4f3d3}
+.cover .meta{opacity:.85}
+.cover .sub{opacity:1}
+.toc h2{color:#0B3D2E;border-color:#D4A95C}
+.page{background:#fff;margin-block:28px;border-radius:16px;border-top:3px solid #2E7D32}
+.ib{background:#edf3e7;border-color:#bbccb8;border-inline-start:4px solid #2E7D32}
+.ib.wb{background:#faf5e8;border-color:#D4A95C}
+.sw{box-shadow:none}
+.si{background:#edf3e7!important;color:#0B3D2E}
+.cb{color:#1F2937}
+a{color:#0B3D2E}
+a:focus-visible{outline:2px solid #2E7D32;outline-offset:3px}
+@media(max-width:640px){.cover{padding:32px 20px}.cover h2{font-size:2.2rem}.page,.toc{padding:28px 18px}.st{font-size:1.6rem}.kg,.tc{grid-template-columns:1fr}table{display:block;overflow-x:auto}}
+@media print{.cover{print-color-adjust:exact;-webkit-print-color-adjust:exact}.page{border-radius:0;margin:0}}
+img{max-width:100%;height:auto}
+.sh,.sh>div,.page,.toc,.kg>*,.tc>*,.nm>*{min-width:0;overflow-wrap:anywhere}
+.nm{background:#0B3D2E}
+body{max-width:none!important}
+.page,.toc,.cover{max-width:1440px!important;width:100%;box-sizing:border-box}
+.sw{overflow:hidden;padding:16px;background:#f6f8f3}
+.sw img{width:auto!important;height:auto!important;max-width:100%!important;max-height:760px!important;object-fit:contain;margin-inline:auto}
+.sw button{display:flex!important;justify-content:center;align-items:center}
+@media(max-width:600px){.nm{grid-template-columns:1fr!important}}

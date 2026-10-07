@@ -41,7 +41,7 @@ export async function GET(req:Request){
     const token=process.env.TELEGRAM_BOT_TOKEN;if(!token)throw Error('telegram_not_configured')
     const link=await db.from('mobile_telegram_links').select('chat_id').eq('user_id',n.user_id).single()
     if(!link.data?.chat_id)throw Error('telegram_not_linked')
-    const response=await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(10000),body:JSON.stringify({chat_id:link.data.chat_id,text:body,reply_markup:{inline_keyboard:[[{text:'Ouvrir FarmPilot',url:base.replace(/\/$/,'')+'/validations'}]]}})})
+    const response=await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(10000),body:JSON.stringify({chat_id:link.data.chat_id,text:body,reply_markup:{inline_keyboard:[[{text:'Ouvrir ItriX Farm',url:base.replace(/\/$/,'')+'/validations'}]]}})})
     const result=await response.json();if(!response.ok||!result.ok)throw Error('telegram_delivery_failed')
    }
    const result=await db.from('mobile_notifications').update({sent_at:new Date().toISOString(),locked_until:null,last_error:null}).eq('id',n.id);if(result.error)throw Error('delivery_record_failed');sent++

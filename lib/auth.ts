@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode, createElement } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode, createElement } from 'react'
 import { supabase } from './supabase'
 import type { User } from '@supabase/supabase-js'
 
@@ -86,16 +86,18 @@ async function loadAuthData(userId: string, preferredDomainId?: string | null): 
   const { data: profile } = await supabase
     .from('profiles').select('*').eq('id', userId).maybeSingle()
 
-  if (!profile) {
+  if (!profile?.is_active) {
     return { profile: null, role: null, permissions: new Set(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null }
   }
 
   const isPlatformAdmin = Boolean(profile.is_platform_admin)
   const { data: membershipRows } = await supabase
     .from('domain_memberships')
-    .select('domain_id, role_id, is_default, domains(code, name), roles(name)')
+    .select('domain_id, role_id, is_default, domains!inner(code, name, is_active), roles!inner(name, is_active)')
     .eq('user_id', userId)
     .eq('is_active', true)
+    .eq('domains.is_active', true)
+    .eq('roles.is_active', true)
 
   let domains: DomainAccess[] = (membershipRows ?? []).map((row: any) => ({
     domain_id: row.domain_id,
@@ -131,10 +133,10 @@ async function loadAuthData(userId: string, preferredDomainId?: string | null): 
     const { data: roleData } = await supabase
       .from('roles').select('*').eq('id', effectiveRoleId).maybeSingle()
     role = roleData as Role | null
-    isAdmin = Boolean(role?.is_admin)
+    isAdmin = Boolean(role?.is_active && role?.is_admin)
 
     // Si pas admin, on charge les permissions du rôle
-    if (!isAdmin) {
+    if (!isAdmin && role?.is_active) {
       const { data: perms } = await supabase
         .from('role_permissions')
         .select('granted, permissions(code)')
@@ -161,6 +163,7 @@ async function loadAuthData(userId: string, preferredDomainId?: string | null): 
 // Provider
 // ============================================================
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const authVersion = useRef(0)
   const [state, setState] = useState<AuthState>({
     user: null,
     profile: null,
@@ -174,53 +177,73 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })
 
   const refresh = useCallback(async () => {
+    const version = ++authVersion.current
     const { data: { user } } = await supabase.auth.getUser()
+    if (version !== authVersion.current) return
     if (!user) {
       setState({ user: null, profile: null, role: null, permissions: new Set(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null, loading: false })
       return
     }
     const preferred = localStorage.getItem(`farmpilot_active_domain_${user.id}`)
     const data = await loadAuthData(user.id, preferred)
+    if (version !== authVersion.current) return
     setState({ user, ...data, loading: false })
   }, [])
 
   useEffect(() => {
+    let disposed = false
+    const initialVersion = ++authVersion.current;
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.user) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (disposed || initialVersion !== authVersion.current) return
+      if (!user) {
         setState(s => ({ ...s, loading: false }))
         return
       }
-      const preferred = localStorage.getItem(`farmpilot_active_domain_${session.user.id}`)
-      const data = await loadAuthData(session.user.id, preferred)
-      setState({ user: session.user, ...data, loading: false })
+      const preferred = localStorage.getItem(`farmpilot_active_domain_${user.id}`)
+      const data = await loadAuthData(user.id, preferred)
+      if (disposed || initialVersion !== authVersion.current) return
+      setState({ user, ...data, loading: false })
       // MAJ last_login_at (best-effort)
-      supabase.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', session.user.id).then()
-    })()
+      if (data.profile?.is_active) supabase.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', user.id).then()
+    })().catch(() => {
+      if (disposed || initialVersion !== authVersion.current) return
+      setState({ user: null, profile: null, role: null, permissions: new Set(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null, loading: false })
+    })
 
     // Never await Supabase calls inside its auth notification. Token refresh
     // waits for subscribers; those calls in turn wait for the same refresh.
-    let disposed = false
-    let authVersion = 0
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      const version = ++authVersion
+      if (event === 'INITIAL_SESSION') return // Initial getUser() performs server validation.
+      const version = ++authVersion.current
       if (event === 'SIGNED_OUT' || !session?.user) {
         setState({ user: null, profile: null, role: null, permissions: new Set(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null, loading: false })
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         setTimeout(() => {
-          if (disposed || version !== authVersion) return
+          if (disposed || version !== authVersion.current) return
           const preferred = localStorage.getItem(`farmpilot_active_domain_${session.user.id}`)
           void loadAuthData(session.user.id, preferred).then(data => {
-            if (!disposed && version === authVersion) setState({ user: session.user, ...data, loading: false })
+            if (!disposed && version === authVersion.current) setState({ user: session.user, ...data, loading: false })
           }).catch(() => {
-            // Retain the current profile while a transient reload is unavailable.
-            if (!disposed && version === authVersion) setState(s => ({ ...s, loading: false }))
+            // Fail closed: do not retain permissions after a failed identity reload.
+            if (!disposed && version === authVersion.current) setState({ user: null, profile: null, role: null, permissions: new Set(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null, loading: false })
           })
         }, 0)
       }
     })
-    return () => { disposed = true; authVersion++; subscription.unsubscribe() }
+    return () => { disposed = true; authVersion.current++; subscription.unsubscribe() }
   }, [])
+
+  // Recheck suspension/permissions in open tabs, including when returning from background.
+  useEffect(() => {
+    const check = () => { if (document.visibilityState === 'visible') void refresh().catch(() => {
+      setState({ user: null, profile: null, role: null, permissions: new Set(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null, loading: false })
+    }) }
+    const timer = window.setInterval(check, 60000)
+    window.addEventListener('focus', check)
+    document.addEventListener('visibilitychange', check)
+    return () => { clearInterval(timer); window.removeEventListener('focus', check); document.removeEventListener('visibilitychange', check) }
+  }, [refresh])
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -252,15 +275,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [state.user, state.domains])
 
   const hasPermission = useCallback((moduleCode: string, action: PermissionAction = 'view'): boolean => {
-    if (state.isAdmin) return true
+    if (!state.user || !state.profile?.is_active) return false
+    if (state.isPlatformAdmin || state.isAdmin) return true
     return state.permissions.has(`${moduleCode}.${action}`)
-  }, [state.isAdmin, state.permissions])
+  }, [state.user, state.profile, state.isPlatformAdmin, state.isAdmin, state.permissions])
 
   const canAccessModule = useCallback((moduleCode: string): boolean => {
-    if (state.isAdmin) return true
+    if (!state.user || !state.profile?.is_active) return false
+    if (state.isPlatformAdmin || state.isAdmin) return true
     // Peut accéder au module s'il a au moins la permission 'view'
     return state.permissions.has(`${moduleCode}.view`)
-  }, [state.isAdmin, state.permissions])
+  }, [state.user, state.profile, state.isPlatformAdmin, state.isAdmin, state.permissions])
 
   const value: AuthContextValue = {
     ...state,

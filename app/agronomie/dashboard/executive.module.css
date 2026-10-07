@@ -1,5 +1,5 @@
 .dashboard {
-  --neon: #16705b;
+  --neon: #1a603e;
   --neon-dim: #e6f3ed;
   --neon-2: #248a76;
   --bg-card: #ffffff;
@@ -13,7 +13,7 @@
   --tx-3: #6b8278;
   --tx-4: #85988f;
   color: var(--tx-1);
-  background: #f4f6f1;
+  background: #f5f7f2;
   padding: clamp(12px, 2vw, 28px);
   border-radius: 24px;
 }
@@ -27,7 +27,7 @@
 .kpi:focus-visible { outline: 2px solid #16705b; outline-offset: 3px; }
 .kpi::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--accent); }
 .kpiIcon { width: 34px; height: 34px; border-radius: 11px; display: flex; align-items: center; justify-content: center; color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, white); }
-.kpiValue { font-size: clamp(24px, 2.2vw, 34px); font-weight: 750; letter-spacing: -.045em; line-height: 1.25; font-variant-numeric: tabular-nums; color: var(--accent); overflow-wrap: anywhere; }
+.kpiValue { font-size: clamp(24px, 2.2vw, 34px); font-weight: 650; letter-spacing: -.045em; line-height: 1.25; font-variant-numeric: tabular-nums; color: #183b2d; overflow-wrap: anywhere; }
 .sectionLabel { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 700; letter-spacing: -.025em; }
 .sectionLabel::after { content: ''; height: 1px; flex: 1; background: #dfe8e2; }
 @media (prefers-reduced-motion: reduce) { .kpi { transition: none; } .kpi:hover { transform: none; } }

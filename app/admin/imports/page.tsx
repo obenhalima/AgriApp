@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { useAuth } from '@/lib/auth'
@@ -14,15 +16,17 @@ import {
 type Tab = 'templates' | 'dynamic'
 
 export default function ImportsPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { canAccessModule, hasPermission, loading: authLoading } = useAuth()
   const [tab, setTab] = useState<Tab>('templates')
 
-  if (authLoading) return <div style={{ padding: 40, color: 'var(--text-sub)' }}>Chargement…</div>
+  if (authLoading) return <div style={{ padding: 40, color: 'var(--text-sub)' }}>{_ui("Chargement…")}</div>
   if (!canAccessModule('imports')) {
     return (
       <div style={{ padding: 40, color: 'var(--text-main)' }}>
-        <h2>Accès refusé</h2>
-        <p>Vous n'avez pas la permission d'accéder au module Imports.</p>
+        <h2>{_ui("Accès refusé")}</h2>
+        <p>{_ui("Vous n'avez pas la permission d'accéder au module Imports.")}</p>
       </div>
     )
   }
@@ -33,11 +37,9 @@ export default function ImportsPage() {
     <div style={{ padding: '20px 24px', maxWidth: 1400 }}>
       <header style={{ marginBottom: 18 }}>
         <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--text-main)' }}>
-          📥 Imports
-        </h1>
+          {" "}{_ui("📥 Imports")}{" "}</h1>
         <div style={{ color: 'var(--text-sub)', fontSize: 12.5, marginTop: 4 }}>
-          Import de données via templates standardisés ou mapping dynamique depuis un Excel quelconque.
-        </div>
+          {" "}{_ui("Import de données via templates standardisés ou mapping dynamique depuis un Excel quelconque.")}{" "}</div>
       </header>
 
       {/* Onglets */}
@@ -55,15 +57,14 @@ export default function ImportsPage() {
               cursor: 'pointer', fontSize: 13, fontWeight: 500,
             }}
             title={t.desc}>
-            {t.label}
+            {_uiNode(t.label)}
           </button>
         ))}
       </div>
 
       {!canCreate && (
         <div style={{ padding: 12, marginBottom: 14, background: 'var(--amber-dim)', border: '1px solid var(--amber)', borderRadius: 6, color: 'var(--text-main)', fontSize: 12.5 }}>
-          ℹ️ Vous avez l'accès <strong>lecture seule</strong>. Vous pouvez télécharger les templates mais pas commiter un import.
-        </div>
+          {" "}{_ui("ℹ️ Vous avez l'accès")}{" "}<strong>{_ui("lecture seule")}</strong>{_ui(". Vous pouvez télécharger les templates mais pas commiter un import.")}{" "}</div>
       )}
 
       {tab === 'templates' && <TemplatesTab canCreate={canCreate} />}
@@ -76,34 +77,39 @@ export default function ImportsPage() {
 //  TAB 1 : TEMPLATES
 // ═════════════════════════════════════════════════════════════════════
 function TemplatesTab({ canCreate }: { canCreate: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: 14 }}>
       {IMPORT_TARGETS.map(t => (
         <TargetCard key={t.key} target={t} canCreate={canCreate} />
       ))}
       {/* Placeholder pour futur */}
-      <ComingSoonCard icon="🛒" label="Achats" description="Bons d'achat + lignes (phase suivante)" />
+      <ComingSoonCard icon="🛒" label={_ui("Achats")} description={_ui("Bons d'achat + lignes (phase suivante)")} />
     </div>
   )
 }
 
 function ComingSoonCard({ icon, label, description }: { icon: string; label: string; description: string }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <div style={{
       padding: 18, background: 'var(--bg-1)', border: '1px dashed var(--bd-2)',
       borderRadius: 10, opacity: .55,
     }}>
       <div style={{ fontSize: 26, marginBottom: 8 }}>{icon}</div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-main)' }}>{label}</div>
-      <div style={{ fontSize: 11.5, color: 'var(--text-sub)', marginTop: 4 }}>{description}</div>
+      <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-main)' }}>{_uiNode(label)}</div>
+      <div style={{ fontSize: 11.5, color: 'var(--text-sub)', marginTop: 4 }}>{_uiNode(description)}</div>
       <div style={{ marginTop: 10, fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-        BIENTÔT DISPONIBLE
-      </div>
+        {" "}{_ui("BIENTÔT DISPONIBLE")}{" "}</div>
     </div>
   )
 }
 
 function TargetCard({ target, canCreate }: { target: ImportTarget; canCreate: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const [downloading, setDownloading] = useState(false)
   const [flowOpen, setFlowOpen] = useState(false)
 
@@ -113,7 +119,7 @@ function TargetCard({ target, canCreate }: { target: ImportTarget; canCreate: bo
       const blob = await target.buildTemplate()
       downloadBlob(blob, `template_${target.key}.xlsx`)
     } catch (e: any) {
-      alert('Erreur : ' + e.message)
+      alert(_ui("Erreur :") + e.message)
     }
     setDownloading(false)
   }
@@ -126,8 +132,8 @@ function TargetCard({ target, canCreate }: { target: ImportTarget; canCreate: bo
       }}>
         <div>
           <div style={{ fontSize: 26, marginBottom: 6 }}>{target.icon}</div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-main)' }}>{target.label}</div>
-          <div style={{ fontSize: 11.5, color: 'var(--text-sub)', marginTop: 4 }}>{target.description}</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-main)' }}>{_uiNode(target.label)}</div>
+          <div style={{ fontSize: 11.5, color: 'var(--text-sub)', marginTop: 4 }}>{_uiNode(target.description)}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
           <button onClick={download} disabled={downloading}
@@ -136,7 +142,7 @@ function TargetCard({ target, canCreate }: { target: ImportTarget; canCreate: bo
               border: '1px solid var(--bd-2)', borderRadius: 6, color: 'var(--text-main)',
               cursor: downloading ? 'wait' : 'pointer', fontSize: 12,
             }}>
-            {downloading ? '…' : '⬇ Template'}
+            {downloading ? '…' : _ui("⬇ Template")}
           </button>
           <button onClick={() => setFlowOpen(true)} disabled={!canCreate}
             style={{
@@ -145,8 +151,7 @@ function TargetCard({ target, canCreate }: { target: ImportTarget; canCreate: bo
               color: canCreate ? 'var(--neon)' : 'var(--text-muted)',
               cursor: canCreate ? 'pointer' : 'not-allowed', fontSize: 12, fontWeight: 600,
             }}>
-            ⬆ Importer
-          </button>
+            {" "}{_ui("⬆ Importer")}{" "}</button>
         </div>
       </div>
       {flowOpen && (
@@ -160,6 +165,8 @@ function TargetCard({ target, canCreate }: { target: ImportTarget; canCreate: bo
 //  TAB 2 : DYNAMIC
 // ═════════════════════════════════════════════════════════════════════
 function DynamicTab({ canCreate }: { canCreate: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const [targetKey, setTargetKey] = useState('')
   const [flowOpen, setFlowOpen] = useState(false)
   const target = getTarget(targetKey)
@@ -168,11 +175,9 @@ function DynamicTab({ canCreate }: { canCreate: boolean }) {
     <div>
       <div style={{ padding: 16, background: 'var(--bg-1)', border: '1px solid var(--bd-1)', borderRadius: 10, marginBottom: 14 }}>
         <div style={{ fontSize: 14, color: 'var(--text-main)', marginBottom: 8, fontWeight: 600 }}>
-          Étape 1 — Choisir la cible
-        </div>
+          {" "}{_ui("Étape 1 — Choisir la cible")}{" "}</div>
         <div style={{ fontSize: 12, color: 'var(--text-sub)', marginBottom: 12 }}>
-          Dans quelle table de données ces lignes vont-elles être importées ? Les contrôles appliqués seront les mêmes qu'une saisie manuelle.
-        </div>
+          {" "}{_ui("Dans quelle table de données ces lignes vont-elles être importées ? Les contrôles appliqués seront les mêmes qu'une saisie manuelle.")}{" "}</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
           {IMPORT_TARGETS.map(t => (
             <button key={t.key} onClick={() => setTargetKey(t.key)}
@@ -183,8 +188,8 @@ function DynamicTab({ canCreate }: { canCreate: boolean }) {
                 borderRadius: 8, cursor: 'pointer', color: 'var(--text-main)',
               }}>
               <div style={{ fontSize: 20, marginBottom: 4 }}>{t.icon}</div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{t.label}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-sub)', marginTop: 2 }}>{t.description}</div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{_uiNode(t.label)}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-sub)', marginTop: 2 }}>{_uiNode(t.description)}</div>
             </button>
           ))}
         </div>
@@ -193,11 +198,9 @@ function DynamicTab({ canCreate }: { canCreate: boolean }) {
       {target && (
         <div style={{ padding: 16, background: 'var(--bg-1)', border: '1px solid var(--bd-1)', borderRadius: 10 }}>
           <div style={{ fontSize: 14, color: 'var(--text-main)', marginBottom: 4, fontWeight: 600 }}>
-            Étape 2 — Uploader votre fichier Excel
-          </div>
+            {" "}{_ui("Étape 2 — Uploader votre fichier Excel")}{" "}</div>
           <div style={{ fontSize: 12, color: 'var(--text-sub)', marginBottom: 12 }}>
-            Cible sélectionnée : <strong>{target.icon} {target.label}</strong>. Le moteur va détecter les onglets et proposer un mapping automatique des colonnes.
-          </div>
+            {" "}{_ui("Cible sélectionnée :")}{" "}<strong>{target.icon} {_uiNode(target.label)}</strong>{_ui(". Le moteur va détecter les onglets et proposer un mapping automatique des colonnes.")}{" "}</div>
           <button onClick={() => setFlowOpen(true)} disabled={!canCreate}
             style={{
               padding: '10px 18px', background: canCreate ? 'var(--neon-dim)' : 'var(--bg-2)',
@@ -205,8 +208,7 @@ function DynamicTab({ canCreate }: { canCreate: boolean }) {
               color: canCreate ? 'var(--neon)' : 'var(--text-muted)', cursor: canCreate ? 'pointer' : 'not-allowed',
               fontSize: 13, fontWeight: 600,
             }}>
-            Commencer l'import
-          </button>
+            {" "}{_ui("Commencer l'import")}{" "}</button>
         </div>
       )}
 
@@ -223,6 +225,8 @@ function DynamicTab({ canCreate }: { canCreate: boolean }) {
 type FlowMode = 'template' | 'dynamic'
 
 function ImportFlowModal({ target, mode, onClose }: { target: ImportTarget; mode: FlowMode; onClose: () => void }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const [step, setStep] = useState<'upload' | 'sheet' | 'mapping' | 'preview' | 'committing' | 'done'>('upload')
   const [wb, setWb] = useState<XLSX.WorkBook | null>(null)
   const [sheets, setSheets] = useState<SheetInfo[]>([])
@@ -325,8 +329,8 @@ function ImportFlowModal({ target, mode, onClose }: { target: ImportTarget; mode
       <div className="modal-box" style={{ maxWidth: 1100, width: '95%', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title">
-            {target.icon} Import {target.label} — <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--text-sub)' }}>{
-              mode === 'template' ? 'Mode template' : 'Mode dynamique'
+            {target.icon} {" "}{_ui("Import")}{" "}{_uiNode(target.label)} — <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--text-sub)' }}>{
+              mode === 'template' ? _ui("Mode template") : _ui("Mode dynamique")
             }</span>
           </div>
           <button className="modal-close" onClick={onClose}>x</button>
@@ -337,7 +341,7 @@ function ImportFlowModal({ target, mode, onClose }: { target: ImportTarget; mode
 
           {error && (
             <div style={{ margin: '12px 0', padding: 10, background: 'var(--red-dim)', border: '1px solid var(--red)', borderRadius: 6, color: 'var(--text-main)', fontSize: 12 }}>
-              ⚠ {error}
+              ⚠ {_uiNode(error)}
             </div>
           )}
 
@@ -360,7 +364,7 @@ function ImportFlowModal({ target, mode, onClose }: { target: ImportTarget; mode
           {step === 'committing' && (
             <div style={{ textAlign: 'center', padding: 40 }}>
               <div style={{ fontSize: 30, marginBottom: 10 }}>⏳</div>
-              <div style={{ color: 'var(--text-main)' }}>Import en cours…</div>
+              <div style={{ color: 'var(--text-main)' }}>{_ui("Import en cours…")}</div>
             </div>
           )}
           {step === 'done' && commitResult && (
@@ -375,6 +379,8 @@ function ImportFlowModal({ target, mode, onClose }: { target: ImportTarget; mode
 // ─── Sous-composants ───────────────────────────────────────────────────
 
 function StepIndicator({ step }: { step: string }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const steps = [
     { k: 'upload',  label: 'Fichier' },
     { k: 'sheet',   label: 'Onglet' },
@@ -393,7 +399,7 @@ function StepIndicator({ step }: { step: string }) {
           borderRadius: 4, fontWeight: i === activeIdx ? 600 : 400,
           border: `1px solid ${i <= activeIdx ? 'var(--neon)' : 'var(--bd-1)'}`,
         }}>
-          {i + 1}. {s.label}
+          {i + 1}. {_uiNode(s.label)}
         </div>
       ))}
     </div>
@@ -405,6 +411,8 @@ function UploadStep({ target, onFile, fileInputRef }: {
   onFile: (f: File) => void
   fileInputRef: React.RefObject<HTMLInputElement>
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const [dragOver, setDragOver] = useState(false)
   return (
     <div>
@@ -426,9 +434,8 @@ function UploadStep({ target, onFile, fileInputRef }: {
         }}>
         <div style={{ fontSize: 40, marginBottom: 8 }}>📄</div>
         <div style={{ fontSize: 14, color: 'var(--text-main)', marginBottom: 4 }}>
-          Glissez un fichier Excel ici, ou cliquez pour parcourir
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Formats acceptés : .xlsx, .xls</div>
+          {" "}{_ui("Glissez un fichier Excel ici, ou cliquez pour parcourir")}{" "}</div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{_ui("Formats acceptés : .xlsx, .xls")}</div>
       </div>
       <input ref={fileInputRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }}
         onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f) }} />
@@ -445,12 +452,13 @@ function SheetStep({ sheets, selected, onSelect, headerRowIndex, setHeaderRowInd
   onNext: () => void
   onBack: () => void
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const sel = sheets.find(s => s.name === selected)
   return (
     <div>
       <div style={{ fontSize: 13, color: 'var(--text-main)', marginBottom: 10, fontWeight: 600 }}>
-        {sheets.length} onglet(s) détecté(s) — sélectionnez celui à importer :
-      </div>
+        {sheets.length} {" "}{_ui("onglet(s) détecté(s) — sélectionnez celui à importer :")}{" "}</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 8, marginBottom: 16 }}>
         {sheets.map(s => (
           <button key={s.name} onClick={() => onSelect(s.name)}
@@ -462,8 +470,7 @@ function SheetStep({ sheets, selected, onSelect, headerRowIndex, setHeaderRowInd
             }}>
             <div style={{ fontSize: 13, fontWeight: 600 }}>{s.name}</div>
             <div style={{ fontSize: 10.5, color: 'var(--text-sub)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>
-              {s.rowCount} lignes × {s.columnCount} col.
-            </div>
+              {s.rowCount} {" "}{_ui("lignes ×")}{" "}{s.columnCount} {" "}{_ui("col.")}{" "}</div>
           </button>
         ))}
       </div>
@@ -471,8 +478,7 @@ function SheetStep({ sheets, selected, onSelect, headerRowIndex, setHeaderRowInd
       {sel && (
         <>
           <div style={{ fontSize: 12, color: 'var(--text-sub)', marginBottom: 6 }}>
-            Ligne d'en-tête (base 1) :
-            <input type="number" min={1} max={10} value={headerRowIndex + 1}
+            {" "}{_ui("Ligne d'en-tête (base 1) :")}{" "}<input type="number" min={1} max={10} value={headerRowIndex + 1}
               onChange={e => setHeaderRowIndex(Math.max(0, Number(e.target.value) - 1))}
               style={{
                 width: 60, marginLeft: 8, padding: '3px 6px',
@@ -481,14 +487,13 @@ function SheetStep({ sheets, selected, onSelect, headerRowIndex, setHeaderRowInd
               }} />
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-main)', marginTop: 12, marginBottom: 4 }}>
-            Aperçu des 5 premières lignes :
-          </div>
+            {" "}{_ui("Aperçu des 5 premières lignes :")}{" "}</div>
           <div style={{ overflow: 'auto', maxHeight: 260, border: '1px solid var(--bd-1)', borderRadius: 6 }}>
             <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
               <thead style={{ background: 'var(--bg-2)', position: 'sticky', top: 0 }}>
                 <tr>
                   {sel.headers.map((h, i) => (
-                    <th key={i} style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid var(--bd-1)', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>{h || <em style={{ color: 'var(--text-muted)' }}>(vide)</em>}</th>
+                    <th key={i} style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid var(--bd-1)', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>{h || <em style={{ color: 'var(--text-muted)' }}>{_ui("(vide)")}</em>}</th>
                   ))}
                 </tr>
               </thead>
@@ -509,8 +514,8 @@ function SheetStep({ sheets, selected, onSelect, headerRowIndex, setHeaderRowInd
       )}
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', marginTop: 16 }}>
-        <button onClick={onBack} className="btn-ghost">← Retour</button>
-        <button onClick={onNext} className="btn-primary" disabled={!selected}>Continuer →</button>
+        <button onClick={onBack} className="btn-ghost">{_ui("← Retour")}</button>
+        <button onClick={onNext} className="btn-primary" disabled={!selected}>{_ui("Continuer →")}</button>
       </div>
     </div>
   )
@@ -527,6 +532,8 @@ function MappingStep({ target, headers, mapping, setMapping, onValidate, onBack,
   validating: boolean
   dataRowCount: number
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const usedFields = useMemo(() => {
     const s = new Set<string>()
     for (const v of Object.values(mapping)) if (v) s.add(v)
@@ -543,16 +550,13 @@ function MappingStep({ target, headers, mapping, setMapping, onValidate, onBack,
   return (
     <div>
       <div style={{ fontSize: 12.5, color: 'var(--text-sub)', marginBottom: 10 }}>
-        <strong style={{ color: 'var(--text-main)' }}>{autoMapped}/{headers.length}</strong> colonnes auto-mappées.
-        Vérifiez chaque ligne et corrigez si besoin. Les champs <strong>obligatoires</strong> sont marqués ✱.
-        <br/>
+        <strong style={{ color: 'var(--text-main)' }}>{autoMapped}/{headers.length}</strong> {" "}{_ui("colonnes auto-mappées. Vérifiez chaque ligne et corrigez si besoin. Les champs")}{" "}<strong>{_ui("obligatoires")}</strong> {" "}{_ui("sont marqués ✱.")}{" "}<br/>
         <span style={{ color: dataRowCount > 0 ? 'var(--neon)' : 'var(--red)', fontWeight: 600 }}>
-          {dataRowCount} ligne(s) de données détectée(s).
-        </span>
+          {dataRowCount} {" "}{_ui("ligne(s) de données détectée(s).")}{" "}</span>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.5fr', gap: 10, padding: '6px 10px', background: 'var(--bg-2)', border: '1px solid var(--bd-1)', borderRadius: 6, fontSize: 11, color: 'var(--text-sub)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: .5 }}>
-        <div>Colonne Excel</div><div>→ Champ cible</div><div>Aperçu / description</div>
+        <div>{_ui("Colonne Excel")}</div><div>{_ui("→ Champ cible")}</div><div>{_ui("Aperçu / description")}</div>
       </div>
       <div style={{ border: '1px solid var(--bd-1)', borderTop: 'none', borderRadius: '0 0 6px 6px', maxHeight: 380, overflowY: 'auto' }}>
         {headers.map((h, i) => {
@@ -562,17 +566,17 @@ function MappingStep({ target, headers, mapping, setMapping, onValidate, onBack,
           return (
             <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.5fr', gap: 10, padding: '8px 10px', borderBottom: '1px solid var(--bd-1)', alignItems: 'center', background: targetKey ? 'transparent' : 'var(--amber-dim)' }}>
               <div style={{ fontSize: 12, color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>
-                {h || <em style={{ color: 'var(--text-muted)' }}>(col.{i + 1})</em>}
+                {h || <em style={{ color: 'var(--text-muted)' }}>{_ui("(col.")}{i + 1})</em>}
               </div>
               <select value={targetKey ?? ''} onChange={e => changeMapping(h, e.target.value || null)}
                 style={{
                   padding: '5px 8px', background: 'var(--bg-2)', color: 'var(--text-main)',
                   border: '1px solid var(--bd-1)', borderRadius: 4, fontSize: 12,
                 }}>
-                <option value="">— ignorer —</option>
+                <option value="">{_ui("— ignorer —")}</option>
                 {target.fields.map(f => (
                   <option key={f.key} value={f.key} disabled={!!targetKey && targetKey !== f.key && usedFields.has(f.key)}>
-                    {f.required ? '✱ ' : ''}{f.label} ({f.type})
+                    {f.required ? '✱ ' : ''}{_uiNode(f.label)} ({f.type})
                   </option>
                 ))}
               </select>
@@ -599,15 +603,15 @@ function MappingStep({ target, headers, mapping, setMapping, onValidate, onBack,
         if (missing.length === 0) return null
         return (
           <div style={{ marginTop: 10, padding: 8, background: 'var(--red-dim)', border: '1px solid var(--red)', borderRadius: 6, fontSize: 12, color: 'var(--text-main)' }}>
-            ⚠ Champs obligatoires non mappés : <strong>{missing.map(f => f.label).join(', ')}</strong>
+            {" "}{_ui("⚠ Champs obligatoires non mappés :")}{" "}<strong>{missing.map(f => f.label).join(', ')}</strong>
           </div>
         )
       })()}
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', marginTop: 16 }}>
-        <button onClick={onBack} className="btn-ghost" disabled={validating}>← Retour</button>
+        <button onClick={onBack} className="btn-ghost" disabled={validating}>{_ui("← Retour")}</button>
         <button onClick={onValidate} className="btn-primary" disabled={validating}>
-          {validating ? '⏳ Validation en cours…' : 'Valider le mapping →'}
+          {validating ? _ui("⏳ Validation en cours…") : _ui("Valider le mapping →")}
         </button>
       </div>
     </div>
@@ -620,6 +624,8 @@ function PreviewStep({ report, onCommit, onBack, target }: {
   onBack: () => void
   target: ImportTarget
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { summary, validated, issues } = report
   const errorsList = issues.filter(i => i.severity === 'error')
   const warningsList = issues.filter(i => i.severity === 'warning')
@@ -634,18 +640,18 @@ function PreviewStep({ report, onCommit, onBack, target }: {
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 14 }}>
-        <StatCard label="Lignes" value={summary.totalRows} />
-        <StatCard label="Valides" value={summary.validRows} color="var(--neon)" />
-        <StatCard label="Erreurs" value={summary.errors} color="var(--red)" />
-        <StatCard label="Warnings" value={summary.warnings} color="var(--amber)" />
+        <StatCard label={_ui("Lignes")} value={summary.totalRows} />
+        <StatCard label={_ui("Valides")} value={summary.validRows} color="var(--neon)" />
+        <StatCard label={_ui("Erreurs")} value={summary.errors} color="var(--red)" />
+        <StatCard label={_ui("Warnings")} value={summary.warnings} color="var(--amber)" />
       </div>
 
       {/* Filtres */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
         {[
-          { k: 'all',    label: `Toutes (${validated.length})` },
-          { k: 'errors', label: `Avec erreurs (${validated.filter(v => v.issues.some(i => i.severity === 'error')).length})` },
-          { k: 'valid',  label: `Valides (${summary.validRows})` },
+          { k: 'all',    label: _ui("Toutes ({v0})",{v0:String(validated.length)}) },
+          { k: 'errors', label: _ui("Avec erreurs ({v0})",{v0:String(validated.filter(v => v.issues.some(i => i.severity === 'error')).length)}) },
+          { k: 'valid',  label: _ui("Valides ({v0})",{v0:String(summary.validRows)}) },
         ].map(f => (
           <button key={f.k} onClick={() => setShowOnly(f.k as any)}
             style={{
@@ -655,7 +661,7 @@ function PreviewStep({ report, onCommit, onBack, target }: {
               color: showOnly === f.k ? 'var(--neon)' : 'var(--text-sub)',
               cursor: 'pointer',
             }}>
-            {f.label}
+            {_uiNode(f.label)}
           </button>
         ))}
       </div>
@@ -664,12 +670,12 @@ function PreviewStep({ report, onCommit, onBack, target }: {
         <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
           <thead style={{ background: 'var(--bg-2)', position: 'sticky', top: 0 }}>
             <tr>
-              <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid var(--bd-1)', color: 'var(--text-main)' }}>Ligne</th>
-              <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid var(--bd-1)', color: 'var(--text-main)' }}>État</th>
+              <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid var(--bd-1)', color: 'var(--text-main)' }}>{_ui("Ligne")}</th>
+              <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid var(--bd-1)', color: 'var(--text-main)' }}>{_ui("État")}</th>
               {target.fields.filter(f => f.required).slice(0, 4).map(f => (
-                <th key={f.key} style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid var(--bd-1)', color: 'var(--text-main)' }}>{f.label}</th>
+                <th key={f.key} style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid var(--bd-1)', color: 'var(--text-main)' }}>{_uiNode(f.label)}</th>
               ))}
-              <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid var(--bd-1)', color: 'var(--text-main)' }}>Issues</th>
+              <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid var(--bd-1)', color: 'var(--text-main)' }}>{_ui("Issues")}</th>
             </tr>
           </thead>
           <tbody>
@@ -680,8 +686,8 @@ function PreviewStep({ report, onCommit, onBack, target }: {
                   <td style={{ padding: '5px 8px', borderBottom: '1px solid var(--bd-1)', fontFamily: 'var(--font-mono)', color: 'var(--text-sub)' }}>{v.rowIndex}</td>
                   <td style={{ padding: '5px 8px', borderBottom: '1px solid var(--bd-1)' }}>
                     {hasErr
-                      ? <span style={{ padding: '1px 6px', background: 'var(--red-dim)', color: 'var(--red)', borderRadius: 3, fontSize: 10 }}>✗ ERREUR</span>
-                      : <span style={{ padding: '1px 6px', background: 'var(--neon-dim)', color: 'var(--neon)', borderRadius: 3, fontSize: 10 }}>✓ OK</span>}
+                      ? <span style={{ padding: '1px 6px', background: 'var(--red-dim)', color: 'var(--red)', borderRadius: 3, fontSize: 10 }}>{_ui("✗ ERREUR")}</span>
+                      : <span style={{ padding: '1px 6px', background: 'var(--neon-dim)', color: 'var(--neon)', borderRadius: 3, fontSize: 10 }}>{_ui("✓ OK")}</span>}
                   </td>
                   {target.fields.filter(f => f.required).slice(0, 4).map(f => (
                     <td key={f.key} style={{ padding: '5px 8px', borderBottom: '1px solid var(--bd-1)', color: 'var(--text-sub)' }}>
@@ -693,7 +699,7 @@ function PreviewStep({ report, onCommit, onBack, target }: {
                       ? <span style={{ color: 'var(--text-muted)' }}>—</span>
                       : v.issues.map((is, i) => (
                           <div key={i} style={{ fontSize: 10.5, color: is.severity === 'error' ? 'var(--red)' : 'var(--amber)' }}>
-                            {is.severity === 'error' ? '✗' : '⚠'} {is.message}
+                            {is.severity === 'error' ? '✗' : '⚠'} {_uiNode(is.message)}
                           </div>
                         ))}
                   </td>
@@ -706,19 +712,16 @@ function PreviewStep({ report, onCommit, onBack, target }: {
 
       {visible.length > 200 && (
         <div style={{ padding: 8, fontSize: 11, color: 'var(--text-muted)' }}>
-          Affichage limité aux 200 premières lignes (sur {visible.length} filtrées).
-        </div>
+          {" "}{_ui("Affichage limité aux 200 premières lignes (sur")}{" "}{visible.length} {" "}{_ui("filtrées).")}{" "}</div>
       )}
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', marginTop: 16, alignItems: 'center' }}>
-        <button onClick={onBack} className="btn-ghost">← Mapping</button>
+        <button onClick={onBack} className="btn-ghost">{_ui("← Mapping")}</button>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <span style={{ fontSize: 12, color: 'var(--text-sub)' }}>
-            {summary.validRows} ligne(s) seront importée(s)
-          </span>
+            {summary.validRows} {" "}{_ui("ligne(s) seront importée(s)")}{" "}</span>
           <button onClick={onCommit} disabled={summary.validRows === 0} className="btn-primary">
-            ⬆ Importer {summary.validRows} ligne(s)
-          </button>
+            {" "}{_ui("⬆ Importer")}{" "}{summary.validRows} {" "}{_ui("ligne(s)")}{" "}</button>
         </div>
       </div>
     </div>
@@ -726,35 +729,38 @@ function PreviewStep({ report, onCommit, onBack, target }: {
 }
 
 function DoneStep({ result, target, onClose }: { result: any; target: ImportTarget; onClose: () => void }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const hasErrors = (result.errors?.length ?? 0) > 0
   return (
     <div style={{ textAlign: 'center', padding: 30 }}>
       <div style={{ fontSize: 50, marginBottom: 12 }}>{hasErrors ? '⚠' : '✓'}</div>
       <div style={{ fontSize: 18, color: 'var(--text-main)', marginBottom: 6, fontWeight: 600 }}>
-        Import terminé
-      </div>
+        {" "}{_ui("Import terminé")}{" "}</div>
       <div style={{ fontSize: 13, color: 'var(--text-sub)', marginBottom: 16 }}>
-        <strong style={{ color: 'var(--neon)' }}>{result.inserted}</strong> ligne(s) créée(s) dans {target.label}.
-        {hasErrors && <span> {result.errors.length} erreur(s) lors de l'insertion.</span>}
+        <strong style={{ color: 'var(--neon)' }}>{result.inserted}</strong> {" "}{_ui("ligne(s) créée(s) dans")}{" "}{_uiNode(target.label)}.
+        {hasErrors && <span> {result.errors.length} {" "}{_ui("erreur(s) lors de l'insertion.")}</span>}
       </div>
       {hasErrors && (
         <div style={{ textAlign: 'left', border: '1px solid var(--red)', borderRadius: 6, padding: 10, marginBottom: 14, maxHeight: 200, overflow: 'auto', background: 'var(--red-dim)' }}>
           {result.errors.slice(0, 20).map((e: any, i: number) => (
             <div key={i} style={{ fontSize: 11, color: 'var(--text-main)', marginBottom: 2 }}>
-              Ligne {e.rowIndex} : {e.message}
+              {" "}{_ui("Ligne")}{" "}{e.rowIndex} : {_uiNode(e.message)}
             </div>
           ))}
         </div>
       )}
-      <button onClick={onClose} className="btn-primary">Fermer</button>
+      <button onClick={onClose} className="btn-primary">{_ui("Fermer")}</button>
     </div>
   )
 }
 
 function StatCard({ label, value, color = 'var(--text-main)' }: { label: string; value: number; color?: string }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <div style={{ padding: 10, background: 'var(--bg-2)', border: '1px solid var(--bd-1)', borderRadius: 6 }}>
-      <div style={{ fontSize: 10, color: 'var(--text-sub)', fontFamily: 'var(--font-mono)', letterSpacing: 1, textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ fontSize: 10, color: 'var(--text-sub)', fontFamily: 'var(--font-mono)', letterSpacing: 1, textTransform: 'uppercase' }}>{_uiNode(label)}</div>
       <div style={{ fontSize: 22, fontWeight: 700, color, marginTop: 2 }}>{value}</div>
     </div>
   )

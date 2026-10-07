@@ -1,5 +1,8 @@
 'use client'
-import { ReactNode, useRef } from 'react'
+import { ReactNode, useRef, useId } from 'react'
+import { useLanguage } from '@/lib/i18n'
+import { FieldHelp } from './FieldHelp'
+import { fieldExplanation } from '@/lib/userDocumentation'
 
 function CalendarIcon() {
   return (
@@ -31,13 +34,15 @@ interface ModalProps {
 }
 
 export function Modal({ title, onClose, children, size='md' }: ModalProps) {
+  const {t}=useLanguage()
+  const titleId = useId()
   const maxW = size==='lg' ? 860 : size==='sm' ? 420 : 580
   return (
     <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="modal-box" style={{ maxWidth: maxW }} onClick={e=>e.stopPropagation()}>
+      <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby={titleId} style={{ maxWidth: maxW }} onClick={e=>e.stopPropagation()}>
         <div className="modal-header">
-          <div className="modal-title">{title}</div>
-          <button className="modal-close" onClick={onClose}>x</button>
+          <div id={titleId} className="modal-title">{t(title)}</div>
+          <button type="button" aria-label={t('Fermer la fenêtre')} className="modal-close" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">{children}</div>
       </div>
@@ -46,10 +51,12 @@ export function Modal({ title, onClose, children, size='md' }: ModalProps) {
 }
 
 /* FORM HELPERS */
-export function FormGroup({ label, children }: { label: string; children: ReactNode }) {
+export function FormGroup({ label, children, help }: { label: string; children: ReactNode; help?: string }) {
+  const {t}=useLanguage()
+  const explanation=help??fieldExplanation(label,t)
   return (
     <div className="form-group">
-      {label && <label className="form-label">{label}</label>}
+      {label && <div className="flex items-center gap-1"><label className="form-label">{t(label)}</label>{explanation&&<FieldHelp text={explanation}/>}</div>}
       {children}
     </div>
   )
@@ -64,6 +71,7 @@ export function Input({ type='text', value, onChange, placeholder, autoFocus, st
   placeholder?:string; autoFocus?:boolean; step?:string | number; min?:string | number; max?:string | number; disabled?:boolean
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const {t}=useLanguage()
 
   if (type === 'date') {
     const openDatePicker = () => {
@@ -97,7 +105,7 @@ export function Input({ type='text', value, onChange, placeholder, autoFocus, st
           type="button"
           onClick={openDatePicker}
           disabled={disabled}
-          aria-label="Ouvrir le calendrier"
+          aria-label={t('Ouvrir le calendrier')}
           style={{
             position:'absolute',
             right:8,
@@ -138,12 +146,13 @@ export function Textarea({ rows=3, value, onChange, placeholder }: { rows?:numbe
 export function ModalFooter({ onCancel, onSave, loading, saveLabel='ENREGISTRER', disabled=false }: {
   onCancel:()=>void; onSave:()=>void; loading?:boolean; saveLabel?:string; disabled?:boolean
 }) {
+  const {t}=useLanguage()
   return (
-    <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:20, paddingTop:16, borderTop:'1px solid var(--border)' }}>
-      <button onClick={onCancel} className="btn-ghost">ANNULER</button>
+    <div className="itrix-modal-footer" style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:20, paddingTop:16, borderTop:'1px solid var(--border)' }}>
+      <button onClick={onCancel} className="btn-ghost">{t('ANNULER')}</button>
       <button onClick={onSave} className="btn-primary" disabled={disabled||loading}
         style={{ minWidth:140, justifyContent:'center', opacity: disabled ? .5 : 1 }}>
-        {loading ? 'TRAITEMENT...' : saveLabel}
+        {t(loading ? 'TRAITEMENT...' : saveLabel)}
       </button>
     </div>
   )
@@ -151,11 +160,13 @@ export function ModalFooter({ onCancel, onSave, loading, saveLabel='ENREGISTRER'
 
 /* SUCCESS MESSAGE */
 export function SuccessMessage({ message='Enregistre !' }: { message?:string }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <div style={{ textAlign:'center', padding:'36px 0' }}>
       <div style={{ fontSize:44, marginBottom:14 }}>OK</div>
       <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:700, color:'var(--neon)', textTransform:'uppercase', letterSpacing:1 }}>
-        {message}
+        {_uiNode(message)}
       </div>
     </div>
   )

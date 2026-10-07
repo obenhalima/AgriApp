@@ -434,8 +434,8 @@ export const harvestsTarget: ImportTarget = {
     ]] : []
 
     return await buildTemplate({
-      title: 'Template Import Récoltes — FarmPilot',
-      author: 'FarmPilot',
+      title: 'Template Import Récoltes — ItriX Farm',
+      author: 'ItriX Farm',
       instructions: {
         title: '🌿 Import des récoltes — Guide',
         lines: [

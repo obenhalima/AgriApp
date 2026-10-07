@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Bot, Calendar, Sprout, Package, Coins, Briefcase, Bell, ArrowRight, MessageCircle, LineChart, TrendingUp, Info } from 'lucide-react'
@@ -15,6 +17,8 @@ const fmt = (n: number) => Math.round(n).toLocaleString('fr-FR')
 const fmtK = (n: number) => `${(n / 1000).toFixed(1)} k`
 
 export default function AnalytiquePage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -48,8 +52,8 @@ export default function AnalytiquePage() {
   return (
     <div>
       <PageHeader
-        title="IA & Prévisions" subtitle="Analytique" icon={Bot} iconColor="#6366f1"
-        description="Vue d'ensemble des données + accès aux analyses IA (Gemini)"
+        title={_ui("IA & Prévisions")} subtitle={_ui("Analytique")} icon={Bot} iconColor="#6366f1"
+        description={_ui("Vue d'ensemble des données + accès aux analyses IA (Gemini)")}
       />
 
       {/* Stats globales */}
@@ -60,24 +64,23 @@ export default function AnalytiquePage() {
       ) : stats && (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-md mb-md">
-            <KPICard label="Campagnes" value={fmt(stats.campaigns)} icon={Calendar} accent="#8b5cf6" delay={0} />
-            <KPICard label="Plantations" value={fmt(stats.plantings)} icon={Sprout} accent="#22c55e" delay={0.05} />
-            <KPICard label="Récoltes" value={fmt(stats.harvests)} icon={Sprout} accent="#10b981" delay={0.1} />
-            <KPICard label="Dispatches" value={fmt(stats.dispatches)} sub={`${stats.dispatchesNoPrice} sans prix`} icon={Package} accent="#0ea5e9" delay={0.15} />
+            <KPICard label={_ui("Campagnes")} value={fmt(stats.campaigns)} icon={Calendar} accent="#8b5cf6" delay={0} />
+            <KPICard label={_ui("Plantations")} value={fmt(stats.plantings)} icon={Sprout} accent="#22c55e" delay={0.05} />
+            <KPICard label={_ui("Récoltes")} value={fmt(stats.harvests)} icon={Sprout} accent="#10b981" delay={0.1} />
+            <KPICard label={_ui("Dispatches")} value={fmt(stats.dispatches)} sub={`${stats.dispatchesNoPrice} sans prix`} icon={Package} accent="#0ea5e9" delay={0.15} />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-md mb-xl">
-            <KPICard label="Coûts (entrées)" value={fmt(stats.costs)} sub={`${fmtK(stats.costsTotal)} MAD total`} icon={Coins} accent="#f59e0b" delay={0.2} />
-            <KPICard label="Versions budget" value={fmt(stats.budgetVersions)} icon={Briefcase} accent="#6366f1" delay={0.25} />
-            <KPICard label="Alertes ouvertes" value={fmt(stats.alertes)} icon={Bell} accent="#ef4444" delay={0.3} />
-            <KPICard label="Statut" value="OK" icon={Bot} accent="#10b981" delay={0.35} />
+            <KPICard label={_ui("Coûts (entrées)")} value={fmt(stats.costs)} sub={`${fmtK(stats.costsTotal)} MAD total`} icon={Coins} accent="#f59e0b" delay={0.2} />
+            <KPICard label={_ui("Versions budget")} value={fmt(stats.budgetVersions)} icon={Briefcase} accent="#6366f1" delay={0.25} />
+            <KPICard label={_ui("Alertes ouvertes")} value={fmt(stats.alertes)} icon={Bell} accent="#ef4444" delay={0.3} />
+            <KPICard label={_ui("Statut")} value="OK" icon={Bot} accent="#10b981" delay={0.35} />
           </div>
         </>
       )}
 
       {/* Cartes IA */}
       <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-md flex items-center gap-2">
-        <Bot size={14} className="text-brand" /> Outils d'analyse IA
-      </div>
+        <Bot size={14} className="text-brand" /> {" "}{_ui("Outils d'analyse IA")}{" "}</div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-md">
         {[
           { icon: MessageCircle, title: 'Assistant chatbot', desc: "Pose des questions en langage naturel sur tes données : marges, coûts, récoltes, prévisions…", cta: "Ouvrir l'assistant", target: '/admin/compte-exploitation', tip: "Bouton 💬 IA dans la toolbar du Compte d'exploitation", color: '#6366f1' },
@@ -106,10 +109,7 @@ export default function AnalytiquePage() {
         <div className="flex items-start gap-sm text-body-sm text-fg-secondary">
           <Info size={14} className="text-info flex-shrink-0 mt-0.5" />
           <div>
-            <strong className="text-fg-primary">À propos des prévisions :</strong> les prévisions strictes (modèles statistiques) ne sont pas activées.
-            Le moteur IA actuel se base sur Gemini Flash pour de l'analyse qualitative + diagnostics ponctuels. Pour des prévisions volumétriques fiables,
-            l'historique nécessaire (≥ 2 saisons) doit être présent en base.
-          </div>
+            <strong className="text-fg-primary">{_ui("À propos des prévisions :")}</strong> {" "}{_ui("les prévisions strictes (modèles statistiques) ne sont pas activées. Le moteur IA actuel se base sur Gemini Flash pour de l'analyse qualitative + diagnostics ponctuels. Pour des prévisions volumétriques fiables, l'historique nécessaire (≥ 2 saisons) doit être présent en base.")}{" "}</div>
         </div>
       </Card>
     </div>

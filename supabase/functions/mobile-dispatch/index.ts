@@ -34,7 +34,7 @@ Deno.serve(async (req: Request) => {
   const record=await testDb.from('mobile_notifications').insert({user_id:uid,domain_id:input.domain,kind:'push_test',entity_id:s.id,phase:'test',channel:'push',subscription_id:s.id,dedupe_key:key,attempts:5}).select('id').single()
   if(record.error)return Response.json({error:record.error.code==='23505'?'Un test a déjà été lancé cette minute. Patientez avant de réessayer.':'Impossible de journaliser le test.'},{status:record.error.code==='23505'?429:503})
   try{
-   const details=webpush.generateRequestDetails({endpoint:s.endpoint,keys:s.keys},JSON.stringify({body:'Test push FarmPilot : votre téléphone reçoit les notifications du serveur.',tag:`test-${record.data.id}`}),{vapidDetails:{subject:base!,publicKey:publicKey!,privateKey:privateKey!},TTL:120,urgency:'high'})
+   const details=webpush.generateRequestDetails({endpoint:s.endpoint,keys:s.keys},JSON.stringify({body:'Test push ItriX Farm : votre téléphone reçoit les notifications du serveur.',tag:`test-${record.data.id}`}),{vapidDetails:{subject:base!,publicKey:publicKey!,privateKey:privateKey!},TTL:120,urgency:'high'})
    const response=await fetch(details.endpoint,{method:details.method,headers:details.headers,body:details.body,signal:AbortSignal.timeout(10000)})
    if(!response.ok){await testDb.from('mobile_notifications').update({last_error:`test_push_http_${response.status}`}).eq('id',record.data.id);return Response.json({error:[404,410].includes(response.status)?'Abonnement expiré : désactivez puis réactivez les notifications sur ce téléphone.':`Le service push a refusé l’envoi (HTTP ${response.status}).`},{status:502})}
    await testDb.from('mobile_notifications').update({sent_at:new Date().toISOString()}).eq('id',record.data.id)
@@ -92,7 +92,7 @@ Deno.serve(async (req: Request) => {
     if (!token) throw Error('telegram_not_configured')
     const link = await db.from('mobile_telegram_links').select('chat_id').eq('user_id', n.user_id).single()
     if (link.error || !link.data?.chat_id) throw Error('telegram_not_linked')
-    const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(10000), body: JSON.stringify({ chat_id: link.data.chat_id, text: body, reply_markup: { inline_keyboard: [[{ text: 'Ouvrir FarmPilot', url: base!.replace(/\/$/, '') + '/validations' }]] } }) })
+    const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(10000), body: JSON.stringify({ chat_id: link.data.chat_id, text: body, reply_markup: { inline_keyboard: [[{ text: 'Ouvrir ItriX Farm', url: base!.replace(/\/$/, '') + '/validations' }]] } }) })
     const result = await response.json()
     if (!response.ok || !result.ok) throw Error('telegram_delivery_failed')
    }

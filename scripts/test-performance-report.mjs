@@ -31,6 +31,7 @@ try{
  })
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message))
  await page.goto('http://localhost:3001/couts/performance',{waitUntil:'domcontentloaded',timeout:120000})
+ await page.getByRole('button',{name:'Comparer et classer',exact:true}).click()
  await page.getByRole('row').filter({hasText:'Variété A'}).waitFor()
  await page.getByLabel('Ferme',{exact:true}).selectOption('f1')
  const row=page.getByRole('row').filter({hasText:'Variété A'})

@@ -8,6 +8,7 @@ supabase/.temp
 backup*.sql
 .next*
 node_modules
+outputs
 *.log
 *.pptx
 *.docx

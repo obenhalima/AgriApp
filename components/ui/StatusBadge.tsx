@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * StatusBadge — Badge typé pour les statuts métier.
  * Mappe automatiquement le statut vers couleur + label.
@@ -56,11 +58,13 @@ export function StatusBadge({
   size?: 'xs' | 'sm' | 'md' | 'lg'
   className?: string
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   if (!status) return <Badge variant="default" size={size} className={className}>—</Badge>
   const norm = status.toLowerCase().trim()
   const found = STATUS_MAP[norm]
   if (!found) {
     return <Badge variant="default" size={size} className={className}>{status.replace(/_/g, ' ')}</Badge>
   }
-  return <Badge variant={found.variant} size={size} className={className}>{found.label}</Badge>
+  return <Badge variant={found.variant} size={size} className={className}>{_uiNode(found.label)}</Badge>
 }

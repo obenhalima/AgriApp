@@ -1,112 +1,18 @@
 'use client'
+import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-
-// Mapping module → ancre dans le guide.
-// Les ancres sont définies dans public/guide-utilisateur.html (id sur <div class="page">).
-const ANCHORS: Record<string, string> = {
-  // Pilotage
-  dashboard: 'dashboard',
-  recoltes: 'recoltes',
-  production: 'production',
-  agronomie: 'agronomie',
-  // Commerce
-  marches: 'commerce',
-  clients: 'commerce',
-  commandes: 'commerce',
-  factures: 'commerce',
-  // Exploitation
-  fermes: 'exploitation',
-  serres: 'exploitation',
-  varietes: 'exploitation',
-  campagnes: 'exploitation',
-  // Ressources
-  fournisseurs: 'ressources',
-  achats: 'ressources',
-  stocks: 'ressources',
-  // Finances
-  couts: 'finances',
-  marges: 'finances',
-  analytique: 'finances',
-  // Admin / Paramétrage
-  plan_comptable: 'admin',
-  budgets: 'admin',
-  compte_exploitation: 'admin',
-  workflows: 'admin',
-  imports: 'admin',
-  users: 'admin',
-  roles: 'admin',
-  // Annexes
-  workflow_demarrage: 'workflow',
-  couleurs: 'couleurs',
-  intro: 'intro',
-}
-
-type Props = {
-  /** clé du module (ex: 'recoltes', 'couts'). Voir ANCHORS pour la liste. */
-  module: string
-  /** style du bouton */
-  variant?: 'icon' | 'text' | 'pill'
-  /** ouvre dans un nouvel onglet (true) ou dans la page guide intégrée (false, défaut) */
-  newTab?: boolean
-  /** texte affiché si variant='text' ou 'pill' */
-  label?: string
-  /** classe CSS additionnelle */
-  className?: string
-}
-
-export function HelpLink({ module, variant = 'icon', newTab = false, label = 'Aide', className }: Props) {
-  const anchor = ANCHORS[module] ?? 'intro'
-  const href = `/guide#${anchor}`
-
-  const baseStyle: React.CSSProperties = {
-    display: 'inline-flex', alignItems: 'center', gap: 6,
-    textDecoration: 'none',
-    cursor: 'pointer',
-    transition: 'all .15s',
-    fontFamily: 'var(--font-mono)',
-    color: 'var(--text-sub)',
-  }
-
-  const styles: Record<string, React.CSSProperties> = {
-    icon: {
-      ...baseStyle,
-      width: 24, height: 24, borderRadius: '50%',
-      background: 'var(--bg-2)',
-      border: '1px solid var(--bd-1)',
-      justifyContent: 'center',
-      fontSize: 12, fontWeight: 700,
-    },
-    text: {
-      ...baseStyle,
-      fontSize: 11.5,
-      padding: '2px 4px',
-    },
-    pill: {
-      ...baseStyle,
-      padding: '4px 10px',
-      borderRadius: 6,
-      background: 'var(--bg-1)',
-      border: '1px solid var(--bd-1)',
-      fontSize: 11.5,
-    },
-  }
-
-  const linkProps = newTab
-    ? { target: '_blank', rel: 'noopener noreferrer' }
-    : {}
-
-  return (
-    <Link href={href} {...linkProps} className={className}
-      style={styles[variant]}
-      title={`Voir la section "${anchor}" du guide utilisateur`}>
-      {variant === 'icon' ? (
-        <span>?</span>
-      ) : (
-        <>
-          <span style={{ fontSize: 13 }}>📖</span>
-          <span>{label}</span>
-        </>
-      )}
-    </Link>
-  )
+import * as Dialog from '@radix-ui/react-dialog'
+import { BookOpen, X } from 'lucide-react'
+import { useLanguage } from '@/lib/i18n'
+import { findScreenDoc } from '@/lib/userDocumentation'
+import { findNavItem } from '@/lib/navigation'
+import { DocumentationArticle } from './DocumentationArticle'
+import './branding.css'
+export function HelpLink({module,variant='icon',newTab=false,label='Aide',className}:{module:string;variant?:'icon'|'text'|'pill';newTab?:boolean;label?:string;className?:string}) {
+ const {t}=useLanguage(), path=usePathname(), doc=findScreenDoc(path), nav=findNavItem(path)
+ const [open,setOpen]=useState(false)
+ const href='/guide?screen='+encodeURIComponent(doc?.path??nav?.item.href??path)
+ if(newTab)return <Link href={href} target="_blank" rel="noopener noreferrer" className={className}>{t(label)}</Link>
+ return <Dialog.Root open={open} onOpenChange={setOpen}><Dialog.Trigger asChild><button type="button" className={className??'inline-flex min-h-9 items-center gap-2 rounded-md border border-border px-3 text-sm text-fg-secondary hover:text-brand'} aria-label={t('Aide sur cet écran')}><BookOpen size={16}/>{variant!=='icon'&&t(label)}</button></Dialog.Trigger><Dialog.Portal><Dialog.Overlay className="fixed inset-0 z-[100] bg-black/40"/><Dialog.Content className="itrix-documentation fixed inset-y-0 end-0 z-[101] w-full max-w-xl overflow-y-auto border-s border-border bg-surface-raised p-5 shadow-xl"><div className="mb-5 flex items-start justify-between gap-4 border-b border-border pb-4"><div><p className="mb-2 text-xs font-semibold tracking-wider text-brand">ITRIX FARM</p><Dialog.Title className="text-xl font-semibold">{t(nav?.item.label??'Aide')}</Dialog.Title><Dialog.Description className="mt-1 text-sm text-fg-secondary">{t('Guide de cet écran')}</Dialog.Description></div><Dialog.Close className="rounded p-2" aria-label={t('Fermer')}><X size={20}/></Dialog.Close></div>{doc?<DocumentationArticle doc={doc}/>:<p className="text-sm">{t('La fiche détaillée de cet écran reste à compléter. Consultez le wiki et le guide général.')}</p>}<div className="mt-6 flex flex-wrap gap-3"><Link onClick={()=>setOpen(false)} href={href} className="btn">{t('Ouvrir le wiki')}</Link><Link onClick={()=>setOpen(false)} href="/guide" className="btn">{t('Toutes les fonctionnalités')}</Link></div></Dialog.Content></Dialog.Portal></Dialog.Root>
 }

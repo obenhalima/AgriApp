@@ -1,9 +1,13 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * Input + Select + Textarea + Label : composants form unifiés.
  */
 import * as React from 'react'
 import { cn } from '@/lib/cn'
+import { FieldHelp } from './FieldHelp'
+import { fieldExplanation } from '@/lib/userDocumentation'
 
 export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
   ({ className, ...props }, ref) => (
@@ -69,6 +73,8 @@ export function Label({
   required?: boolean
   className?: string
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <label
       htmlFor={htmlFor}
@@ -77,30 +83,34 @@ export function Label({
         className
       )}
     >
-      {children}
-      {required && <span className="text-danger ml-1">*</span>}
+      {_uiNode(children)}
+      {required && <span className="text-danger ms-1">*</span>}
     </label>
   )
 }
 
 /** Field — wrapper qui associe label + input avec gestion d'erreur */
 export function Field({
-  label, htmlFor, required, error, hint, children, className,
+  label, htmlFor, required, error, hint, children, className, help,
 }: {
   label: React.ReactNode
   htmlFor?: string
   required?: boolean
   error?: string
   hint?: string
+  help?: string
   children: React.ReactNode
   className?: string
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+ const explanation=help??(typeof label==='string'?fieldExplanation(label,_ui):undefined)
+
   return (
     <div className={cn('space-y-1', className)}>
-      <Label htmlFor={htmlFor} required={required}>{label}</Label>
+      <div className="flex items-center gap-1"><Label htmlFor={htmlFor} required={required}>{_uiNode(label)}</Label>{explanation&&<FieldHelp text={explanation}/>}</div>
       {children}
-      {error && <div className="text-caption text-danger">{error}</div>}
-      {hint && !error && <div className="text-caption text-fg-tertiary">{hint}</div>}
+      {error && <div className="text-caption text-danger">{_uiNode(error)}</div>}
+      {hint && !error && <div className="text-caption text-fg-tertiary">{_uiNode(hint)}</div>}
     </div>
   )
 }

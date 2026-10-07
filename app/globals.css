@@ -21,7 +21,8 @@
   --tx-2:       #7aab90;
   --tx-3:       #3d6b52;
   --tx-4:       #1f4030;
-  --neon:       #00e87a;
+  --neon:       #4ade80;
+  --on-brand:   #052e16;
   --neon-dim:   rgba(0,232,122,.12);
   --neon-glow:  0 0 20px rgba(0,232,122,.25);
   --neon-2:     #00ffc8;
@@ -75,33 +76,34 @@
 
 /* ══════════════════════════════════════════
    PRECISION LIGHT — data-theme="light"
-   Sidebar indigo dégradée + fond slate clair
+   ItriX Farm — forest navigation and soft agricultural surfaces
 ══════════════════════════════════════════ */
 [data-theme="light"] {
   /* Backgrounds */
-  --bg-deep:    #f0f2f5;
-  --bg-base:    #f0f2f5;
+  --bg-deep:    #f5f8f4;
+  --bg-base:    #f5f8f4;
   --bg-card:    #ffffff;
-  --bg-card2:   #f8f9fc;
-  --bg-hover:   #f1f5f9;
+  --bg-card2:   #f8faf7;
+  --bg-hover:   #edf5ee;
   --bg-input:   #ffffff;
 
   /* Borders */
-  --border:     #e2e8f0;
-  --border-md:  #cbd5e1;
+  --border:     #dce6dc;
+  --border-md:  #bdcebf;
   --border-hi:  #94a3b8;
 
   /* Text */
-  --tx-1:       #0f172a;
-  --tx-2:       #334155;
-  --tx-3:       #64748b;
+  --tx-1:       #172b22;
+  --tx-2:       #354d40;
+  --tx-3:       #607568;
   --tx-4:       #94a3b8;
 
   /* Accents — palette rich */
-  --neon:       #6366f1;
-  --neon-dim:   rgba(99,102,241,.1);
-  --neon-glow:  0 4px 20px rgba(99,102,241,.2);
-  --neon-2:     #818cf8;
+  --neon:       #15803d;
+  --on-brand:   #ffffff;
+  --neon-dim:   rgba(21,128,61,.1);
+  --neon-glow:  0 4px 20px rgba(21,128,61,.2);
+  --neon-2:     #166534;
   --amber:      #f59e0b;
   --amber-dim:  rgba(245,158,11,.1);
   --red:        #ef4444;
@@ -115,7 +117,7 @@
   --pink-dim:   rgba(236,72,153,.1);
 
   /* Sidebar */
-  --sidebar-gradient: linear-gradient(160deg, #1e1b4b 0%, #312e81 55%, #4338ca 100%);
+  --sidebar-gradient: linear-gradient(160deg, #123d2a 0%, #164a32 55%, #1b563b 100%);
 
   /* Typography */
   --font-display: 'Geist', sans-serif;
@@ -219,7 +221,7 @@ body::before {
 .btn-primary {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 16px;
-  background: var(--neon); color: #fff;
+  background: var(--neon); color: var(--on-brand);
   border: none; border-radius: 8px;
   font-family: var(--font-display); font-size: 12.5px; font-weight: 700;
   letter-spacing: .2px; cursor: pointer; transition: all .15s;
@@ -409,3 +411,13 @@ body::before {
 @keyframes pulse  { 0%,100%{opacity:1}50%{opacity:.45} }
 @keyframes fadeUp { from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none} }
 .fade-in { animation: fadeUp .28s ease forwards; }
+/* Arabic UI: keep identifiers/numeric fields readable; layouts use logical edges. */
+html[lang="ar"] body { font-family: Tahoma, Arial, sans-serif; }
+html[lang="ar"] { --font-body: Tahoma, Arial, sans-serif; --font-display: Tahoma, Arial, sans-serif; --font-mono: Tahoma, Arial, sans-serif; }
+html[dir="rtl"] th { text-align: start; }
+html[lang="ar"] .font-display,
+html[lang="ar"] .font-mono { font-family: Tahoma, Arial, sans-serif; letter-spacing: normal; }
+html[dir="rtl"] input[type="email"],
+html[dir="rtl"] input[type="number"],
+html[dir="rtl"] input[type="date"],
+html[dir="rtl"] input[type="datetime-local"] { direction: ltr; }

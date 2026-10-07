@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Palmtree, Plus, Check, X, Clock, CheckCircle2, XCircle } from 'lucide-react'
@@ -39,6 +41,8 @@ const computeDays = (start: string, end: string): number => {
 }
 
 export default function CongesPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { values: WLEAVE } = useReferenceList('leave_type')
   const TYPES = useMemo(() => WLEAVE.map(v => ({
     code: v.code, label: v.label, icon: v.icon ?? '', color: v.color ?? '#64748b',
@@ -77,7 +81,7 @@ export default function CongesPage() {
   const f = (k: keyof LeaveRequest) => (e: any) => setForm(s => ({ ...s, [k]: e.target.value }))
 
   const save = async () => {
-    if (!form.worker_id || !form.start_date || !form.end_date || !form.type) { toast.error('Tous les champs requis'); return }
+    if (!form.worker_id || !form.start_date || !form.end_date || !form.type) { toast.error(_ui("Tous les champs requis")); return }
     setSaving(true)
     try {
       const days = computeDays(form.start_date, form.end_date)
@@ -87,7 +91,7 @@ export default function CongesPage() {
       })
       if (error) throw error
       setDone(true)
-      toast.success('Demande créée')
+      toast.success(_ui("Demande créée"))
       setTimeout(() => { setModalOpen(false); setDone(false); setForm({ type: 'annuel', status: 'demande' }); load() }, 800)
     } catch (e: any) { toast.error(e.message) }
     setSaving(false)
@@ -99,17 +103,17 @@ export default function CongesPage() {
     try {
       const { error } = await supabase.from('leave_requests').update(patch).eq('id', id)
       if (error) throw error
-      toast.success(status === 'approuve' ? 'Demande approuvée' : 'Demande refusée')
+      toast.success(status === 'approuve' ? _ui("Demande approuvée") : _ui("Demande refusée"))
       load()
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
   }
 
   return (
     <div>
       <PageHeader
-        title="Congés" subtitle="Ressources humaines" icon={Palmtree} iconColor="#f59e0b"
-        description="Acquisition standard Maroc : 1,5 jour / mois travaillé soit 18 j/an"
-        actions={<Button onClick={() => { setModalOpen(true); setDone(false) }} variant="primary"><Plus size={14} strokeWidth={2.5} /> Nouvelle demande</Button>}
+        title={_ui("Congés")} subtitle={_ui("Ressources humaines")} icon={Palmtree} iconColor="#f59e0b"
+        description={_ui("Acquisition standard Maroc : 1,5 jour / mois travaillé soit 18 j/an")}
+        actions={<Button onClick={() => { setModalOpen(true); setDone(false) }} variant="primary"><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle demande")}</Button>}
         stats={loading ? [] : [
           { label: 'En attente', value: String(counts.demande), icon: Clock, color: '#f59e0b' },
           { label: 'Approuvés', value: String(counts.approuve), icon: CheckCircle2, color: '#10b981' },
@@ -126,7 +130,7 @@ export default function CongesPage() {
                 'h-8 px-md rounded-md font-mono text-[11px] uppercase tracking-wider font-semibold transition-all',
                 filterStatus === s ? 'bg-brand text-white shadow-[0_2px_8px_var(--neon-dim)]' : 'bg-surface-raised text-fg-secondary border border-border hover:border-border-strong'
               )}>
-              {s === 'all' ? 'Tous' : STATUS_LABEL[s]}
+              {s === 'all' ? _ui("Tous") : STATUS_LABEL[s]}
             </button>
           ))}
         </div>
@@ -136,11 +140,11 @@ export default function CongesPage() {
         {loading ? (
           <div className="p-md space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
         ) : filtered.length === 0 ? (
-          <EmptyState icon={Palmtree} title="Aucune demande" action={<Button onClick={() => setModalOpen(true)}><Plus size={14} /> Nouvelle</Button>} />
+          <EmptyState icon={Palmtree} title={_ui("Aucune demande")} action={<Button onClick={() => setModalOpen(true)}><Plus size={14} /> {" "}{_ui("Nouvelle")}</Button>} />
         ) : (
           <DataTable minWidth={1100}>
             <THead>
-              <TR><TH>Employé</TH><TH>Type</TH><TH>Du</TH><TH>Au</TH><TH right>Jours</TH><TH>Motif</TH><TH>Statut</TH><TH right>Actions</TH></TR>
+              <TR><TH>{_ui("Employé")}</TH><TH>{_ui("Type")}</TH><TH>{_ui("Du")}</TH><TH>{_ui("Au")}</TH><TH right>{_ui("Jours")}</TH><TH>{_ui("Motif")}</TH><TH>{_ui("Statut")}</TH><TH right>{_ui("Actions")}</TH></TR>
             </THead>
             <tbody>
               {filtered.map((lr, i) => {
@@ -156,7 +160,7 @@ export default function CongesPage() {
                       {t ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-caption font-semibold"
                           style={{ background: `color-mix(in srgb, ${t.color} 14%, transparent)`, color: t.color }}>
-                          <span>{t.icon}</span> {t.label}
+                          <span>{t.icon}</span> {_uiNode(t.label)}
                         </span>
                       ) : lr.type}
                     </TD>
@@ -168,8 +172,8 @@ export default function CongesPage() {
                     <TD right>
                       {lr.status === 'demande' && (
                         <div className="flex items-center justify-end gap-1">
-                          <Button onClick={() => updateStatus(lr.id, 'approuve')} variant="primary" size="xs" title="Approuver"><Check size={11} /></Button>
-                          <Button onClick={() => updateStatus(lr.id, 'refuse', prompt('Motif du refus ?') ?? undefined)} variant="ghost" size="xs" title="Refuser" className="hover:text-danger"><X size={11} /></Button>
+                          <Button onClick={() => updateStatus(lr.id, 'approuve')} variant="primary" size="xs" title={_ui("Approuver")}><Check size={11} /></Button>
+                          <Button onClick={() => updateStatus(lr.id, 'refuse', prompt(_ui("Motif du refus ?")) ?? undefined)} variant="ghost" size="xs" title={_ui("Refuser")} className="hover:text-danger"><X size={11} /></Button>
                         </div>
                       )}
                     </TD>
@@ -182,31 +186,31 @@ export default function CongesPage() {
       </Card>
 
       {modalOpen && (
-        <Modal title="Nouvelle demande de congé" onClose={() => setModalOpen(false)}>
-          {done ? <SuccessMessage message="Demande créée" /> : (
+        <Modal title={_ui("Nouvelle demande de congé")} onClose={() => setModalOpen(false)}>
+          {done ? <SuccessMessage message={_ui("Demande créée")} /> : (
             <div className="space-y-md">
-              <Field label="Employé" required>
+              <Field label={_ui("Employé")} required>
                 <TSelect value={form.worker_id ?? ''} onChange={f('worker_id')}>
-                  <option value="">— Sélectionner —</option>
+                  <option value="">{_ui("— Sélectionner —")}</option>
                   {workers.map(w => <option key={w.id} value={w.id}>{w.last_name} {w.first_name} {w.matricule ? `(${w.matricule})` : ''}</option>)}
                 </TSelect>
               </Field>
-              <Field label="Type" required>
+              <Field label={_ui("Type")} required>
                 <TSelect value={form.type ?? 'annuel'} onChange={f('type')}>
-                  {TYPES.map(t => <option key={t.code} value={t.code}>{t.icon} {t.label}</option>)}
+                  {TYPES.map(t => <option key={t.code} value={t.code}>{t.icon} {_uiNode(t.label)}</option>)}
                 </TSelect>
               </Field>
               <FormRow>
-                <FormGroup label="Date début *"><TInput type="date" value={form.start_date ?? ''} onChange={f('start_date')} /></FormGroup>
-                <FormGroup label="Date fin *"><TInput type="date" value={form.end_date ?? ''} onChange={f('end_date')} /></FormGroup>
+                <FormGroup label={_ui("Date début *")}><TInput type="date" value={form.start_date ?? ''} onChange={f('start_date')} /></FormGroup>
+                <FormGroup label={_ui("Date fin *")}><TInput type="date" value={form.end_date ?? ''} onChange={f('end_date')} /></FormGroup>
               </FormRow>
               {form.start_date && form.end_date && (
                 <div className="rounded-md border border-border bg-surface-sunk p-md text-body-sm text-fg-secondary">
-                  Durée calculée : <strong className="text-fg-primary">{computeDays(form.start_date, form.end_date)} jour(s)</strong>
+                  {" "}{_ui("Durée calculée :")}{" "}<strong className="text-fg-primary">{computeDays(form.start_date, form.end_date)} {" "}{_ui("jour(s)")}</strong>
                 </div>
               )}
-              <Field label="Motif"><Textarea value={form.reason ?? ''} onChange={f('reason')} placeholder="Optionnel" /></Field>
-              <ModalFooter onCancel={() => setModalOpen(false)} onSave={save} loading={saving} saveLabel="SOUMETTRE" />
+              <Field label={_ui("Motif")}><Textarea value={form.reason ?? ''} onChange={f('reason')} placeholder={_ui("Optionnel")} /></Field>
+              <ModalFooter onCancel={() => setModalOpen(false)} onSave={save} loading={saving} saveLabel={_ui("SOUMETTRE")} />
             </div>
           )}
         </Modal>

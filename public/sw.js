@@ -4,7 +4,7 @@ self.addEventListener('activate', event => event.waitUntil(self.clients.claim())
 self.addEventListener('push', event => {
   let data = {};
   try { data = event.data?.json() || {}; } catch {}
-  event.waitUntil(self.registration.showNotification('FarmPilot', {
+  event.waitUntil(self.registration.showNotification('ItriX Farm', {
     body: data.body || 'Une demande nécessite votre attention.',
     icon: '/pwa/icon-192.png', badge: '/pwa/icon-192.png', tag: data.tag || 'farmpilot',
     data: { url: '/validations' }

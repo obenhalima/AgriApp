@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * /campagnes — Refonte avec design system.
  */
@@ -41,6 +43,8 @@ const EMPTY_FORM = {
 // (en_cours = campagne active) — éditer les libellés/couleurs, pas les codes.
 
 export default function CampagnesPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { activeDomain } = useAuth()
   const { values: CAMP_STATUS } = useReferenceList('campaign_status')
   const statusColor = (code: string) => CAMP_STATUS.find(v => v.code === code)?.color || '#64748b'
@@ -145,81 +149,80 @@ export default function CampagnesPage() {
           .select('*, farms(name)').single()
         if (error) throw error
         setItems(prev => prev.map(i => i.id === editingId ? data : i))
-        toast.success('Campagne modifiée')
+        toast.success(_ui("Campagne modifiée"))
       } else {
         const { data, error } = await supabase.from('campaigns').insert(payload).select('*, farms(name)').single()
         if (error) throw error
         setItems(prev => [data, ...prev])
-        toast.success(`Campagne "${data.name}" créée`)
+        toast.success(_ui("Campagne \"{v0}\" créée",{v0:String(data.name)}))
       }
       setDone(true)
       setTimeout(closeModal, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSaving(false)
   }
 
   return (
     <div>
       {modal && (
-        <Modal title={editingId ? 'MODIFIER CAMPAGNE' : 'NOUVELLE CAMPAGNE'} onClose={closeModal} size="lg">
-          {done ? <SuccessMessage message={editingId ? 'Campagne modifiée !' : 'Campagne créée !'} /> : (
+        <Modal title={editingId ? _ui("MODIFIER CAMPAGNE") : _ui("NOUVELLE CAMPAGNE")} onClose={closeModal} size="lg">
+          {done ? <SuccessMessage message={editingId ? _ui("Campagne modifiée !") : _ui("Campagne créée !")} /> : (
             <div className="space-y-md">
               {/* Identification */}
               <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary flex items-center gap-2">
-                Identification <div className="flex-1 h-px bg-border ml-2" />
+                {" "}{_ui("Identification")}{" "}<div className="flex-1 h-px bg-border ml-2" />
               </div>
               <div className="grid grid-cols-2 gap-md">
-                <Field label="Code (auto-généré)"><TInput value={form.code} onChange={upd('code')} /></Field>
-                <Field label="Nom de la campagne" required><TInput value={form.name} onChange={upd('name')} placeholder="Campagne 2026-2027" autoFocus /></Field>
+                <Field label={_ui("Code (auto-généré)")}><TInput value={form.code} onChange={upd('code')} /></Field>
+                <Field label={_ui("Nom de la campagne")} required><TInput value={form.name} onChange={upd('name')} placeholder={_ui("Campagne 2026-2027")} autoFocus /></Field>
               </div>
               <div className="grid grid-cols-2 gap-md">
-                <Field label="Ferme" required>
+                <Field label={_ui("Ferme")} required>
                   {farms.length === 0 ? (
                     <div className="flex items-center gap-2 px-md py-2 rounded-md border border-danger/30 bg-danger/10 text-danger text-body-sm">
-                      <AlertCircle size={14} /> Aucune ferme — crée d'abord une ferme
-                    </div>
+                      <AlertCircle size={14} /> {" "}{_ui("Aucune ferme — crée d'abord une ferme")}{" "}</div>
                   ) : (
                     <TSelect value={form.farm_id} onChange={upd('farm_id')}>
-                      <option value="">— Sélectionner —</option>
+                      <option value="">{_ui("— Sélectionner —")}</option>
                       {farms.map(f => <option key={f.id} value={f.id}>{f.name} ({f.code})</option>)}
                     </TSelect>
                   )}
                 </Field>
-                <Field label="Statut">
+                <Field label={_ui("Statut")}>
                   <TSelect value={form.status} onChange={upd('status')}>
-                    {CAMP_STATUS.map(s => <option key={s.code} value={s.code}>{s.label}</option>)}
+                    {CAMP_STATUS.map(s => <option key={s.code} value={s.code}>{_uiNode(s.label)}</option>)}
                   </TSelect>
                 </Field>
               </div>
 
               {/* Calendrier */}
               <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary flex items-center gap-2 mt-md">
-                Calendrier <div className="flex-1 h-px bg-border ml-2" />
+                {" "}{_ui("Calendrier")}{" "}<div className="flex-1 h-px bg-border ml-2" />
               </div>
               <div className="grid grid-cols-2 gap-md">
-                <Field label="Début préparation"><TInput type="date" value={form.preparation_start} onChange={upd('preparation_start')} /></Field>
-                <Field label="Début plantation"><TInput type="date" value={form.planting_start} onChange={upd('planting_start')} /></Field>
+                <Field label={_ui("Début préparation")}><TInput type="date" value={form.preparation_start} onChange={upd('preparation_start')} /></Field>
+                <Field label={_ui("Début plantation")}><TInput type="date" value={form.planting_start} onChange={upd('planting_start')} /></Field>
               </div>
               <div className="grid grid-cols-2 gap-md">
-                <Field label="Début récolte"><TInput type="date" value={form.harvest_start} onChange={upd('harvest_start')} /></Field>
-                <Field label="Fin récolte"><TInput type="date" value={form.harvest_end} onChange={upd('harvest_end')} /></Field>
+                <Field label={_ui("Début récolte")}><TInput type="date" value={form.harvest_start} onChange={upd('harvest_start')} /></Field>
+                <Field label={_ui("Fin récolte")}><TInput type="date" value={form.harvest_end} onChange={upd('harvest_end')} /></Field>
               </div>
-              <Field label="Fin de campagne"><TInput type="date" value={form.campaign_end} onChange={upd('campaign_end')} /></Field>
+              <Field label={_ui("Fin de campagne")}><TInput type="date" value={form.campaign_end} onChange={upd('campaign_end')} /></Field>
 
               {/* Objectifs */}
               <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary flex items-center gap-2 mt-md">
-                Objectifs <div className="flex-1 h-px bg-border ml-2" />
+                {" "}{_ui("Objectifs")}{" "}<div className="flex-1 h-px bg-border ml-2" />
               </div>
               <div className="grid grid-cols-2 gap-md">
-                <Field label="Budget prévisionnel (MAD)"><TInput type="number" value={form.budget_total} onChange={upd('budget_total')} placeholder="4200000" /></Field>
-                <Field label="Objectif production (tonnes)"><TInput type="number" value={form.production_target_kg} onChange={upd('production_target_kg')} placeholder="1850" /></Field>
+                <Field label={_ui("Budget prévisionnel (MAD)")}><TInput type="number" value={form.budget_total} onChange={upd('budget_total')} placeholder="4200000" /></Field>
+                <Field label={_ui("Objectif production (tonnes)")}><TInput type="number" value={form.production_target_kg} onChange={upd('production_target_kg')} placeholder="1850" /></Field>
               </div>
-              <Field label="Notes"><Textarea rows={2} value={form.notes} onChange={upd('notes')} /></Field>
+              <Field label={_ui("Notes")}><Textarea rows={2} value={form.notes} onChange={upd('notes')} /></Field>
 
               <ModalFooter
                 onCancel={closeModal} onSave={save} loading={saving}
                 disabled={!form.farm_id || !form.name}
-                saveLabel={editingId ? 'ENREGISTRER' : 'CRÉER LA CAMPAGNE'}
+                saveLabel={editingId ? _ui("ENREGISTRER") : _ui("CRÉER LA CAMPAGNE")}
               />
             </div>
           )}
@@ -227,15 +230,14 @@ export default function CampagnesPage() {
       )}
 
       <PageHeader
-        title="Campagnes"
-        subtitle="Planification"
+        title={_ui("Campagnes")}
+        subtitle={_ui("Planification")}
         icon={Calendar}
         iconColor="#22c55e"
-        description={`${items.length} campagne${items.length > 1 ? 's' : ''} · ${farms.length} ferme${farms.length > 1 ? 's' : ''} disponible${farms.length > 1 ? 's' : ''}`}
+        description={_ui("{v0} campagne{v1} · {v2} ferme{v3} disponible{v4}",{v0:String(items.length),v1:String(items.length > 1 ? 's' : ''),v2:String(farms.length),v3:String(farms.length > 1 ? 's' : ''),v4:String(farms.length > 1 ? 's' : '')})}
         actions={
           <Button onClick={openCreate} variant="primary" disabled={farms.length === 0}>
-            <Plus size={14} strokeWidth={2.5} /> Nouvelle campagne
-          </Button>
+            <Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle campagne")}{" "}</Button>
         }
         stats={loading ? [] : [
           { label: 'Total',         value: String(stats.count),                                                                  icon: Calendar, color: '#22c55e' },
@@ -250,8 +252,7 @@ export default function CampagnesPage() {
         <Card variant="ghost" className="mb-md border-warning/30 bg-warning/5">
           <div className="flex items-center gap-sm text-warning text-body-sm">
             <AlertCircle size={16} />
-            Crée d'abord une ferme dans <strong>Fermes</strong> avant de créer une campagne.
-          </div>
+            {" "}{_ui("Crée d'abord une ferme dans")}{" "}<strong>{_ui("Fermes")}</strong> {" "}{_ui("avant de créer une campagne.")}{" "}</div>
         </Card>
       )}
 
@@ -261,15 +262,15 @@ export default function CampagnesPage() {
             <div className="flex items-center gap-sm flex-1 min-w-[200px] max-w-md">
               <Search size={14} className="text-fg-tertiary flex-shrink-0" />
               <TInput
-                placeholder="Rechercher code, nom, ferme…"
+                placeholder={_ui("Rechercher code, nom, ferme…")}
                 value={search} onChange={(e) => setSearch(e.target.value)}
                 className="border-none bg-transparent focus:ring-0 px-0"
               />
               {search && <button onClick={() => setSearch('')} className="text-fg-tertiary hover:text-fg-primary"><X size={14} /></button>}
             </div>
             <TSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-8 w-auto min-w-[150px] text-body-sm">
-              <option value="all">Tous statuts</option>
-              {CAMP_STATUS.map(s => <option key={s.code} value={s.code}>{s.label}</option>)}
+              <option value="all">{_ui("Tous statuts")}</option>
+              {CAMP_STATUS.map(s => <option key={s.code} value={s.code}>{_uiNode(s.label)}</option>)}
             </TSelect>
             <div className="ml-auto text-caption font-mono text-fg-tertiary">{filtered.length}/{items.length}</div>
           </div>
@@ -283,16 +284,16 @@ export default function CampagnesPage() {
       ) : items.length === 0 ? (
         <EmptyState
           icon={Calendar}
-          title="Aucune campagne"
-          description="Crée ta première campagne de production."
-          action={<Button onClick={openCreate} disabled={farms.length === 0}><Plus size={14} strokeWidth={2.5} /> Nouvelle campagne</Button>}
+          title={_ui("Aucune campagne")}
+          description={_ui("Crée ta première campagne de production.")}
+          action={<Button onClick={openCreate} disabled={farms.length === 0}><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle campagne")}</Button>}
         />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Search}
-          title="Aucun résultat"
-          description="Aucune campagne ne correspond à tes filtres."
-          action={<Button variant="ghost" onClick={() => { setSearch(''); setStatusFilter('all') }}>Réinitialiser</Button>}
+          title={_ui("Aucun résultat")}
+          description={_ui("Aucune campagne ne correspond à tes filtres.")}
+          action={<Button variant="ghost" onClick={() => { setSearch(''); setStatusFilter('all') }}>{_ui("Réinitialiser")}</Button>}
         />
       ) : (
         <div className="flex flex-col gap-md">
@@ -325,7 +326,7 @@ export default function CampagnesPage() {
                     </div>
                     <div className="flex items-center gap-sm flex-shrink-0">
                       <StatusBadge status={c.status} size="md" />
-                      <Button onClick={() => openEdit(c)} variant="ghost" size="icon-sm" title="Modifier">
+                      <Button onClick={() => openEdit(c)} variant="ghost" size="icon-sm" title={_ui("Modifier")}>
                         <Pencil size={12} strokeWidth={2.2} />
                       </Button>
                     </div>
@@ -344,7 +345,7 @@ export default function CampagnesPage() {
                         <div key={idx} className="rounded-md bg-surface-sunk border border-border px-md py-sm">
                           <div className="flex items-center gap-1.5 mb-1">
                             <Icon size={10} className="text-fg-tertiary" strokeWidth={2.2} />
-                            <span className="font-mono text-[9px] uppercase tracking-wider text-fg-tertiary">{item.label}</span>
+                            <span className="font-mono text-[9px] uppercase tracking-wider text-fg-tertiary">{_uiNode(item.label)}</span>
                           </div>
                           <div className="font-display font-semibold text-body-sm text-fg-primary">{item.value}</div>
                         </div>

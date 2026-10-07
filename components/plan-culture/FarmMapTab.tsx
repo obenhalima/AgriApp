@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
@@ -21,6 +23,8 @@ type Props = { domainId: string; farmId: string; farmName: string; campaignId: s
 const control = 'rounded-md border border-border bg-surface-raised px-3 py-2 text-sm text-fg-primary hover:bg-surface-input focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-40 disabled:cursor-not-allowed'
 
 export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses, onDirtyChange, onReferencesChanged }: Props) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { hasPermission } = useAuth()
   const canEdit = hasPermission('fermes', 'edit')
   const [shapes, setShapes] = useState<FarmShape[]>([])
@@ -167,46 +171,46 @@ export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses
 
   return <section className="space-y-3">
     <div className="flex flex-wrap items-center gap-2">
-      <strong>Plan schématique — {editing ? 'Modification' : 'Consultation'}</strong>
+      <strong>{_ui("Plan schématique —")}{" "}{editing ? _ui("Modification") : _ui("Consultation")}</strong>
       <button className={control} disabled={busy || saving || importDirty} onClick={() => {
-        if (!dirty || window.confirm('Abandonner les modifications non enregistrées et recharger ?')) setReload(n => n + 1)
-      }}>Actualiser</button>
-      {canEdit && !editing && <button className={control} disabled={busy || !!error || importDirty} onClick={() => setEditing(true)}>Modifier le plan</button>}
+        if (!dirty || window.confirm(_ui("Abandonner les modifications non enregistrées et recharger ?"))) setReload(n => n + 1)
+      }}>{_ui("Actualiser")}</button>
+      {canEdit && !editing && <button className={control} disabled={busy || !!error || importDirty} onClick={() => setEditing(true)}>{_ui("Modifier le plan")}</button>}
       {editing && <>
-        <button className={control} disabled={saving || !dirty} onClick={save}>{saving ? 'Enregistrement…' : 'Enregistrer'}</button>
+        <button className={control} disabled={saving || !dirty} onClick={save}>{saving ? _ui("Enregistrement…") : _ui("Enregistrer")}</button>
         <button className={control} disabled={saving} onClick={() => {
-          if (!dirty || window.confirm('Abandonner les modifications du plan ?')) { setShapes(saved); setElements(savedElements); setDirty(false); setEditing(false) }
-        }}>Annuler</button>
+          if (!dirty || window.confirm(_ui("Abandonner les modifications du plan ?"))) { setShapes(saved); setElements(savedElements); setDirty(false); setEditing(false) }
+        }}>{_ui("Annuler")}</button>
       </>}
-      {dirty && <span role="status" className="text-amber-700">Modifications non enregistrées : enregistrez avant de changer de ferme, de société ou de page.</span>}
+      {dirty && <span role="status" className="text-amber-700">{_ui("Modifications non enregistrées : enregistrez avant de changer de ferme, de société ou de page.")}</span>}
     </div>
-    <p className="text-sm text-slate-500">Schéma non cadastral, sans échelle réelle. La taille des rectangles ne modifie jamais les surfaces du référentiel. Cliquez sur une serre pour sa fiche. Le filtre variété ne masque pas les serres du plan.</p>
-    {message && <p role="status" className="rounded border p-3">{message}</p>}
-    {dataError && <p role="alert" className="rounded bg-amber-50 p-3 text-amber-900">{dataError} Les couleurs de culture ne sont pas disponibles.</p>}
-    {error ? <p role="alert" className="rounded bg-amber-50 p-3 text-amber-900">{error}</p> : busy ? <p>Chargement du plan…</p> : <>
+    <p className="text-sm text-slate-500">{_ui("Schéma non cadastral, sans échelle réelle. La taille des rectangles ne modifie jamais les surfaces du référentiel. Cliquez sur une serre pour sa fiche. Le filtre variété ne masque pas les serres du plan.")}</p>
+    {message && <p role="status" className="rounded border p-3">{_uiNode(message)}</p>}
+    {dataError && <p role="alert" className="rounded bg-amber-50 p-3 text-amber-900">{dataError} {" "}{_ui("Les couleurs de culture ne sont pas disponibles.")}</p>}
+    {error ? <p role="alert" className="rounded bg-amber-50 p-3 text-amber-900">{_uiNode(error)}</p> : busy ? <p>{_ui("Chargement du plan…")}</p> : <>
       {canEdit && <ImportDrawioPlan key={`drawio:${domainId}:${farmId}:${reload}`} farmId={farmId} farmName={farmName} revision={revision} hasPlan={!!shapes.length || !!elements.length}
         greenhouses={scopeGreenhouses} disabled={saving || editing} canCreate={hasPermission('serres','create')} onDraftChange={setImportDirty}
         onCommitted={async()=>{await onReferencesChanged();setImportDirty(false);setMessage('Plan importé et serres rattachées.');setSelected('');setReload(n=>n+1)}}/>}
       {canEdit && <ImportFarmPlan key={`${domainId}:${farmId}:${reload}`} greenhouses={scopeGreenhouses} disabled={saving || importDirty} onApply={layout=>{
-        if(shapes.length&&!window.confirm('Remplacer la disposition actuelle par celle du fichier ? Les données des serres restent inchangées.'))return false
+        if(shapes.length&&!window.confirm(_ui("Remplacer la disposition actuelle par celle du fichier ? Les données des serres restent inchangées.")))return false
         setShapes(layout);setElements([]);setSelected('');setEditing(true);setDirty(true);setMessage('Disposition importée. Vérifiez le plan puis cliquez sur Enregistrer.')
         return true
       }}/>}
       {editing && <div className="flex flex-wrap gap-2">
-        <select className={control} aria-label="Serre à placer" value={toAdd} disabled={saving} onChange={e => setToAdd(e.target.value)}>
-          <option value="">Choisir une serre existante ({missing.length} à placer)</option>
+        <select className={control} aria-label={_ui("Serre à placer")} value={toAdd} disabled={saving} onChange={e => setToAdd(e.target.value)}>
+          <option value="">{_ui("Choisir une serre existante (")}{missing.length} {" "}{_ui("à placer)")}</option>
           {missing.map(g => <option key={g.id} value={g.id}>{g.code} — {g.name}</option>)}
         </select>
         <button className={control} disabled={saving || !missing.some(g => g.id === toAdd) || shapes.length >= 500} onClick={() => {
           setShapes(items => [...items, newShape(toAdd, items.length)]); setSelectedGraphic(''); setSelected(toAdd); setToAdd(''); setDirty(true)
-        }}>Placer la serre</button>
-        <span className="self-center text-sm text-slate-500">Sélectionnez une forme, puis tirez ses coins pour la redimensionner. Glissez son centre pour la déplacer.</span>
+        }}>{_ui("Placer la serre")}</button>
+        <span className="self-center text-sm text-slate-500">{_ui("Sélectionnez une forme, puis tirez ses coins pour la redimensionner. Glissez son centre pour la déplacer.")}</span>
       </div>}
-      {!scopeGreenhouses.length && <p>Aucune serre dans cette ferme. Créez-les d’abord dans le <Link className="underline" href="/serres">référentiel des serres</Link>.</p>}
+      {!scopeGreenhouses.length && <p>{_ui("Aucune serre dans cette ferme. Créez-les d’abord dans le")}{" "}<Link className="underline" href="/serres">{_ui("référentiel des serres")}</Link>.</p>}
       <div className={editing ? 'grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]' : 'space-y-4'}>
         <div className="self-start overflow-hidden rounded-xl border border-border bg-surface-raised shadow-sm">
-          {!shapes.length && <p className="p-4 text-slate-600">Aucune serre placée. {canEdit ? 'Cliquez sur « Modifier le plan » pour commencer.' : 'Une personne habilitée peut préparer ce plan.'}</p>}
-          <svg ref={svgRef} viewBox="0 0 1200 800" className="w-full" aria-label="Plan interactif de la ferme" style={{ touchAction: editing ? 'none' : 'auto' }}
+          {!shapes.length && <p className="p-4 text-slate-600">{_ui("Aucune serre placée.")}{" "}{canEdit ? _ui("Cliquez sur « Modifier le plan » pour commencer.") : _ui("Une personne habilitée peut préparer ce plan.")}</p>}
+          <svg ref={svgRef} viewBox="0 0 1200 800" className="w-full" aria-label={_ui("Plan interactif de la ferme")} style={{ touchAction: editing ? 'none' : 'auto' }}
             onPointerMove={event => {
               if (!editing || saving) return
               if(resize.current){const d=resize.current,next=resizePlanBox(d.box,d.start,point(event),d.sx,d.sy,d.graphic?1:12);if(d.graphic)changeElements(elements.map(e=>e.id===d.id?normalizeGraphic({...e,...next}):e));else{setShapes(items=>items.map(s=>s.greenhouse_id===d.id?normalizeShape({...s,...next}):s));setDirty(true);setMessage('')}return}
@@ -218,7 +222,7 @@ export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses
             }} onPointerUp={() => { drag.current = null; graphicDrag.current=null;resize.current=null }} onPointerCancel={() => { drag.current = null; graphicDrag.current=null;resize.current=null }} onLostPointerCapture={()=>{drag.current=null;graphicDrag.current=null;resize.current=null}}>
             <defs><pattern id="farm-grid" width="25" height="25" patternUnits="userSpaceOnUse"><path d="M25 0H0V25" fill="none" stroke="#cbd5e1" strokeWidth="0.6" /></pattern></defs>
             <rect width="1200" height="800" fill="url(#farm-grid)" />
-            {elements.map(e=><g key={e.id} role={editing?'button':undefined} tabIndex={editing?0:undefined} aria-label={editing?`Modifier composant ${e.label||e.kind}`:undefined} style={{cursor:editing?'move':undefined}}
+            {elements.map(e=><g key={e.id} role={editing?'button':undefined} tabIndex={editing?0:undefined} aria-label={editing?_ui("Modifier composant {v0}",{v0:String(e.label||e.kind)}):undefined} style={{cursor:editing?'move':undefined}}
               onClick={()=>{if(editing&&!saving)selectGraphic(e.id)}}
               onKeyDown={event=>{if(editing&&!saving&&(event.key==='Enter'||event.key===' ')){event.preventDefault();selectGraphic(e.id)}}}
               onPointerDown={event=>{if(!editing||saving)return;event.preventDefault();selectGraphic(e.id);const p=point(event);graphicDrag.current={element:e,x:p.x,y:p.y};event.currentTarget.setPointerCapture(event.pointerId)}}>
@@ -229,7 +233,7 @@ export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses
               const g = scopeGreenhouses.find(g => g.id === s.greenhouse_id)
               const occupied = plantings.some(p => p.greenhouse_id === s.greenhouse_id)
               return <g key={s.greenhouse_id} transform={`translate(${s.x},${s.y}) rotate(${s.rotation})`} tabIndex={0} role="button"
-                aria-label={`Consulter ${g?.code ?? 'serre retirée du référentiel'}`} style={{ cursor: editing ? 'move' : 'pointer' }}
+                aria-label={_ui("Consulter {v0}",{v0:String(g?.code ?? 'serre retirée du référentiel')})} style={{ cursor: editing ? 'move' : 'pointer' }}
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectGreenhouse(s.greenhouse_id) } }}
                 onClick={() => selectGreenhouse(s.greenhouse_id)}
                 onPointerDown={e => {
@@ -238,41 +242,41 @@ export function FarmMapTab({ domainId, farmId, farmName, campaignId, greenhouses
                   e.preventDefault(); const p = point(e); drag.current = { id: s.greenhouse_id, x: p.x, y: p.y, ox: s.x, oy: s.y }
                   e.currentTarget.setPointerCapture(e.pointerId)
                 }}>
-                <title>{g ? `${g.code} — ${g.name} · ${fmt(Number(g.total_area))} m²` : 'Serre retirée du référentiel'}</title>
+                <title>{g ? `${g.code} — ${g.name} · ${fmt(Number(g.total_area))} m²` : _ui("Serre retirée du référentiel")}</title>
                 <rect x={-s.width / 2} y={-s.height / 2} width={s.width} height={s.height} rx={8} fill={occupied ? '#d1fae5' : '#e2e8f0'} stroke={selected === s.greenhouse_id ? '#4f46e5' : '#64748b'} strokeWidth={selected === s.greenhouse_id ? 4 : 2} />
-                <text textAnchor="middle" dominantBaseline="central" fill="#0f172a" fontSize={15} pointerEvents="none">{(g?.code ?? 'Retirée').slice(0, 18)}</text>
+                <text textAnchor="middle" dominantBaseline="central" fill="#0f172a" fontSize={15} pointerEvents="none">{(g?.code ?? _ui("Retirée")).slice(0, 18)}</text>
               </g>
             })}
-            {editing&&!saving&&shape&&!selectedGraphic&&<g transform={`translate(${shape.x},${shape.y}) rotate(${shape.rotation})`}><ResizeHandles width={shape.width} height={shape.height} label="serre" onStart={(e,sx,sy)=>beginResize(e,shape.greenhouse_id,false,shape,sx,sy)}/></g>}
-            {editing&&!saving&&elements.filter(e=>e.id===selectedGraphic&&e.shape!=='line').map(e=><g key={`resize:${e.id}`} transform={`translate(${e.x},${e.y}) rotate(${e.rotation})`}><ResizeHandles width={e.width} height={e.height} label="composant" onStart={(event,sx,sy)=>beginResize(event,e.id,true,e,sx,sy)}/></g>)}
+            {editing&&!saving&&shape&&!selectedGraphic&&<g transform={`translate(${shape.x},${shape.y}) rotate(${shape.rotation})`}><ResizeHandles width={shape.width} height={shape.height} label={_ui("serre")} onStart={(e,sx,sy)=>beginResize(e,shape.greenhouse_id,false,shape,sx,sy)}/></g>}
+            {editing&&!saving&&elements.filter(e=>e.id===selectedGraphic&&e.shape!=='line').map(e=><g key={`resize:${e.id}`} transform={`translate(${e.x},${e.y}) rotate(${e.rotation})`}><ResizeHandles width={e.width} height={e.height} label={_ui("composant")} onStart={(event,sx,sy)=>beginResize(event,e.id,true,e,sx,sy)}/></g>)}
           </svg>
-          <p className="p-3 text-xs text-slate-600">Vert : plantation sur la campagne sélectionnée · Gris : aucune plantation chargée. {shapes.length} serre(s) placée(s), {missing.length} non placée(s).</p>
+          <p className="p-3 text-xs text-slate-600">{_ui("Vert : plantation sur la campagne sélectionnée · Gris : aucune plantation chargée.")}{" "}{shapes.length} {" "}{_ui("serre(s) placée(s),")}{" "}{missing.length} {" "}{_ui("non placée(s).")}</p>
         </div>
         {editing && <aside className="space-y-3 rounded-xl border border-border bg-surface-raised p-4">
           <GraphicEditor elements={elements} selected={selectedGraphic} disabled={saving} onSelect={selectGraphic}
            onAdd={kind=>{if(elements.length>=1000)return;const e=newPlanGraphic(kind,crypto.randomUUID(),elements.length);changeElements([...elements,e]);selectGraphic(e.id)}}
            onUpdate={updateGraphic}
            onDuplicate={()=>{const e=elements.find(e=>e.id===selectedGraphic);if(!e||elements.length>=1000)return;const copy=normalizeGraphic({...e,id:crypto.randomUUID(),x:e.x+25,y:e.y+25});changeElements([...elements,copy]);selectGraphic(copy.id)}}
-           onRemove={()=>{if(window.confirm('Supprimer ce composant du dessin ? Les données métier sont conservées.')){changeElements(elements.filter(e=>e.id!==selectedGraphic));setSelectedGraphic('')}}}
+           onRemove={()=>{if(window.confirm(_ui("Supprimer ce composant du dessin ? Les données métier sont conservées."))){changeElements(elements.filter(e=>e.id!==selectedGraphic));setSelectedGraphic('')}}}
            onLayer={front=>{const e=elements.find(e=>e.id===selectedGraphic);if(e){const rest=elements.filter(v=>v.id!==e.id);changeElements(front?[...rest,e]:[e,...rest])}}}/>
           <hr/>
-          {!shape ? <p>Sélectionnez une serre sur le plan.</p> : <>
-            <h3 className="font-semibold">{greenhouse?.code} — {greenhouse?.name ?? 'Serre retirée du référentiel'}</h3>
-            <p>Surface officielle : {greenhouse ? `${fmt(Number(greenhouse.total_area))} m²` : 'Indisponible'}</p>
+          {!shape ? <p>{_ui("Sélectionnez une serre sur le plan.")}</p> : <>
+            <h3 className="font-semibold">{greenhouse?.code} — {greenhouse?.name ?? _ui("Serre retirée du référentiel")}</h3>
+            <p>{_ui("Surface officielle :")}{" "}{greenhouse ? `${fmt(Number(greenhouse.total_area))} m²` : _ui("Indisponible")}</p>
             {editing && <fieldset disabled={saving} className="space-y-2">
-              <legend className="font-medium">Disposition (unités de dessin)</legend>
+              <legend className="font-medium">{_ui("Disposition (unités de dessin)")}</legend>
               {(['x', 'y', 'width', 'height'] as const).map((key, i) => <label className="flex items-center justify-between gap-2" key={key}>
-                {['Position X', 'Position Y', 'Largeur', 'Hauteur'][i]}
+                {[_ui("Position X"), _ui("Position Y"), _ui("Largeur"), _ui("Hauteur")][i]}
                 <input className={`${control} w-24`} type="number" value={Math.round(shape[key])} onChange={e => { if (e.target.value !== '') update({ [key]: Number(e.target.value) }) }} />
               </label>)}
-              <button className={control} onClick={() => update({ rotation: shape.rotation + 90 })}>Tourner de 90°</button>
+              <button className={control} onClick={() => update({ rotation: shape.rotation + 90 })}>{_ui("Tourner de 90°")}</button>
               <button className={control} onClick={() => {
-                if (window.confirm('Retirer cette forme du plan ? La serre et ses données seront conservées.')) {
+                if (window.confirm(_ui("Retirer cette forme du plan ? La serre et ses données seront conservées."))) {
                   setShapes(items => items.filter(s => s.greenhouse_id !== selected)); setSelected(''); setDirty(true)
                 }
-              }}>Retirer du plan</button>
+              }}>{_ui("Retirer du plan")}</button>
             </fieldset>}
-            {greenhouse && <button className={control} onClick={() => setDetailsOpen(true)}>Ouvrir la fiche complète</button>}
+            {greenhouse && <button className={control} onClick={() => setDetailsOpen(true)}>{_ui("Ouvrir la fiche complète")}</button>}
           </>}
         </aside>}
       </div>

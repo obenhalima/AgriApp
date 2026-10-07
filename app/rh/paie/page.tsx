@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Banknote, Plus, Settings2, CheckCircle2, FileText, Coins, Calculator } from 'lucide-react'
@@ -21,6 +23,8 @@ type Payslip = { id: string; period_id: string; worker_id: string; gross_salary:
 const MONTHS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
 export default function PaiePage() {
+ const {t:_ui,text:_uiNode,intlLocale:_uiLocale}=useLanguage()
+
   const [periods, setPeriods] = useState<Period[]>([])
   const [workers, setWorkers] = useState<Worker[]>([])
   const [payslips, setPayslips] = useState<Payslip[]>([])
@@ -77,7 +81,7 @@ export default function PaiePage() {
       })
       if (error) throw error
       setDone(true)
-      toast.success(`Période ${code} créée`)
+      toast.success(_ui("Période {v0} créée",{v0:String(code)}))
       setTimeout(() => { setModalOpen(false); setDone(false); load() }, 800)
     } catch (e: any) { toast.error(e.message) }
     setSaving(false)
@@ -85,7 +89,7 @@ export default function PaiePage() {
 
   const generatePayslips = async () => {
     if (!period) return
-    if (!confirm(`Générer les bulletins pour ${eligible.length} employé(s) ?`)) return
+    if (!confirm(_ui("Générer les bulletins pour {v0} employé(s) ?",{v0:String(eligible.length)}))) return
     try {
       const rows = eligible.map(w => {
         const r = computePayroll({
@@ -107,50 +111,49 @@ export default function PaiePage() {
       })
       const { error } = await supabase.from('payslips').upsert(rows, { onConflict: 'period_id,worker_id' })
       if (error) throw error
-      toast.success(`${rows.length} bulletin(s) généré(s)`)
+      toast.success(_ui("{v0} bulletin(s) généré(s)",{v0:String(rows.length)}))
       load()
     } catch (e: any) { toast.error(e.message) }
   }
 
   const validatePeriod = async () => {
     if (!period) return
-    if (!confirm('Valider la période ? Les bulletins seront figés et une écriture comptable générée.')) return
+    if (!confirm(_ui("Valider la période ? Les bulletins seront figés et une écriture comptable générée."))) return
     try {
       const { error } = await supabase.from('payroll_periods').update({ status: 'valide', validated_at: new Date().toISOString() }).eq('id', period.id)
       if (error) throw error
-      toast.success('Période validée')
+      toast.success(_ui("Période validée"))
       load()
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
   }
 
   return (
     <div>
       <PageHeader
-        title="Paie" subtitle="Ressources humaines" icon={Banknote} iconColor="#10b981"
-        description="Périodes mensuelles (staff) ou bimensuelles (fermiers : 1-15 et 16-fin)"
-        actions={<Button onClick={() => { setModalOpen(true); setDone(false) }} variant="primary"><Plus size={14} strokeWidth={2.5} /> Nouvelle période</Button>}
+        title={_ui("Paie")} subtitle={_ui("Ressources humaines")} icon={Banknote} iconColor="#10b981"
+        description={_ui("Périodes mensuelles (staff) ou bimensuelles (fermiers : 1-15 et 16-fin)")}
+        actions={<Button onClick={() => { setModalOpen(true); setDone(false) }} variant="primary"><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle période")}</Button>}
       />
 
       {/* Sélecteur période + actions */}
       <Card animate delay={0.1} className="mb-md">
         <div className="flex flex-wrap gap-md items-center">
-          <span className="text-body-sm text-fg-secondary font-semibold">Période :</span>
+          <span className="text-body-sm text-fg-secondary font-semibold">{_ui("Période :")}</span>
           <TSelect value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)} className="h-9 w-auto min-w-[320px] flex-1 max-w-md">
-            {periods.length === 0 && <option value="">Aucune période</option>}
+            {periods.length === 0 && <option value="">{_ui("Aucune période")}</option>}
             {periods.map(p => (
               <option key={p.id} value={p.id}>
-                {p.code} — {MONTHS[p.period_month - 1]} {p.period_year} {p.period_half === 'first' ? '(1-15)' : p.period_half === 'second' ? '(16-fin)' : '(mois)'} · {p.status}
+                {p.code} — {MONTHS[p.period_month - 1]} {p.period_year} {p.period_half === 'first' ? '(1-15)' : p.period_half === 'second' ? _ui("(16-fin)") : _ui("(mois)")} · {p.status}
               </option>
             ))}
           </TSelect>
           {period && (
             <>
               <Button onClick={generatePayslips} disabled={period.status !== 'brouillon'} variant="secondary" size="sm">
-                <Settings2 size={12} /> Générer ({eligible.length})
+                <Settings2 size={12} /> {" "}{_ui("Générer (")}{eligible.length})
               </Button>
               <Button onClick={validatePeriod} disabled={period.status !== 'brouillon' || periodPayslips.length === 0} variant="primary" size="sm">
-                <CheckCircle2 size={12} /> Valider
-              </Button>
+                <CheckCircle2 size={12} /> {" "}{_ui("Valider")}{" "}</Button>
             </>
           )}
         </div>
@@ -169,7 +172,7 @@ export default function PaiePage() {
             <Card key={i} animate delay={0.15 + i * 0.04} padding="md" className="border-l-[3px]" style={{ borderLeftColor: k.color } as any}>
               <div className="flex items-center gap-sm mb-1">
                 <Icon size={14} strokeWidth={2.2} style={{ color: k.color }} />
-                <span className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-semibold">{k.label}</span>
+                <span className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-semibold">{_uiNode(k.label)}</span>
               </div>
               <div className="font-display text-display-sm font-extrabold" style={{ color: k.color }}>{k.value}</div>
             </Card>
@@ -182,11 +185,11 @@ export default function PaiePage() {
         {loading ? (
           <div className="p-md space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
         ) : periodPayslips.length === 0 ? (
-          <EmptyState icon={Banknote} title={period ? 'Aucun bulletin' : 'Sélectionnez une période'} description={period ? 'Cliquer "Générer" pour créer les bulletins.' : ''} />
+          <EmptyState icon={Banknote} title={period ? _ui("Aucun bulletin") : _ui("Sélectionnez une période")} description={period ? _ui("Cliquer \"Générer\" pour créer les bulletins.") : ''} />
         ) : (
           <DataTable minWidth={1200}>
             <THead>
-              <TR><TH>Matricule</TH><TH>Employé</TH><TH right>Brut</TH><TH right>CNSS sal.</TH><TH right>AMO sal.</TH><TH right>IR</TH><TH right>Net à payer</TH><TH right>CNSS pat.</TH><TH right>Coût total</TH><TH>Statut</TH></TR>
+              <TR><TH>{_ui("Matricule")}</TH><TH>{_ui("Employé")}</TH><TH right>{_ui("Brut")}</TH><TH right>{_ui("CNSS sal.")}</TH><TH right>{_ui("AMO sal.")}</TH><TH right>{_ui("IR")}</TH><TH right>{_ui("Net à payer")}</TH><TH right>{_ui("CNSS pat.")}</TH><TH right>{_ui("Coût total")}</TH><TH>{_ui("Statut")}</TH></TR>
             </THead>
             <tbody>
               {periodPayslips.map((ps, i) => {
@@ -195,13 +198,13 @@ export default function PaiePage() {
                   <TR key={ps.id} animate delay={0.04 + i * 0.02}>
                     <TD mono className="text-caption">{w?.matricule ?? '—'}</TD>
                     <TD className="font-display font-semibold text-fg-primary">{w ? `${w.last_name} ${w.first_name}` : '—'}</TD>
-                    <TD right mono>{Math.round(ps.gross_salary).toLocaleString('fr-FR')}</TD>
-                    <TD right mono>{Math.round(ps.cnss_employee).toLocaleString('fr-FR')}</TD>
-                    <TD right mono>{Math.round(ps.amo_employee).toLocaleString('fr-FR')}</TD>
-                    <TD right mono>{Math.round(ps.ir_amount).toLocaleString('fr-FR')}</TD>
-                    <TD right mono className="text-success font-bold">{Math.round(ps.net_salary).toLocaleString('fr-FR')}</TD>
-                    <TD right mono className="text-fg-tertiary">{Math.round(Number((ps as any).cnss_employer || 0) + Number((ps as any).amo_employer || 0) + Number((ps as any).family_allowance_employer || 0) + Number((ps as any).prof_training_employer || 0)).toLocaleString('fr-FR')}</TD>
-                    <TD right mono className="text-warning font-semibold">{Math.round(ps.total_employer_cost).toLocaleString('fr-FR')}</TD>
+                    <TD right mono>{Math.round(ps.gross_salary).toLocaleString(_uiLocale)}</TD>
+                    <TD right mono>{Math.round(ps.cnss_employee).toLocaleString(_uiLocale)}</TD>
+                    <TD right mono>{Math.round(ps.amo_employee).toLocaleString(_uiLocale)}</TD>
+                    <TD right mono>{Math.round(ps.ir_amount).toLocaleString(_uiLocale)}</TD>
+                    <TD right mono className="text-success font-bold">{Math.round(ps.net_salary).toLocaleString(_uiLocale)}</TD>
+                    <TD right mono className="text-fg-tertiary">{Math.round(Number((ps as any).cnss_employer || 0) + Number((ps as any).amo_employer || 0) + Number((ps as any).family_allowance_employer || 0) + Number((ps as any).prof_training_employer || 0)).toLocaleString(_uiLocale)}</TD>
+                    <TD right mono className="text-warning font-semibold">{Math.round(ps.total_employer_cost).toLocaleString(_uiLocale)}</TD>
                     <TD><Badge variant={ps.status === 'paye' ? 'success' : 'default'} size="sm">{ps.status}</Badge></TD>
                   </TR>
                 )
@@ -212,25 +215,25 @@ export default function PaiePage() {
       </Card>
 
       {modalOpen && (
-        <Modal title="Créer une période de paie" onClose={() => setModalOpen(false)}>
-          {done ? <SuccessMessage message="Période créée" /> : (
+        <Modal title={_ui("Créer une période de paie")} onClose={() => setModalOpen(false)}>
+          {done ? <SuccessMessage message={_ui("Période créée")} /> : (
             <div className="space-y-md">
               <FormRow>
-                <FormGroup label="Année"><TInput type="number" value={String(form.year)} onChange={(e) => setForm(s => ({ ...s, year: Number(e.target.value) }))} /></FormGroup>
-                <FormGroup label="Mois">
+                <FormGroup label={_ui("Année")}><TInput type="number" value={String(form.year)} onChange={(e) => setForm(s => ({ ...s, year: Number(e.target.value) }))} /></FormGroup>
+                <FormGroup label={_ui("Mois")}>
                   <TSelect value={form.month} onChange={(e) => setForm(s => ({ ...s, month: Number(e.target.value) }))}>
                     {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
                   </TSelect>
                 </FormGroup>
               </FormRow>
-              <Field label="Type de période">
+              <Field label={_ui("Type de période")}>
                 <TSelect value={form.half} onChange={(e) => setForm(s => ({ ...s, half: e.target.value as any }))}>
-                  <option value="full">Mensuel (staff admin) — paie en fin de mois</option>
-                  <option value="first">Quinzaine 1 (1-15) — paie le 15 (fermiers)</option>
-                  <option value="second">Quinzaine 2 (16-fin) — paie en fin de mois (fermiers)</option>
+                  <option value="full">{_ui("Mensuel (staff admin) — paie en fin de mois")}</option>
+                  <option value="first">{_ui("Quinzaine 1 (1-15) — paie le 15 (fermiers)")}</option>
+                  <option value="second">{_ui("Quinzaine 2 (16-fin) — paie en fin de mois (fermiers)")}</option>
                 </TSelect>
               </Field>
-              <ModalFooter onCancel={() => setModalOpen(false)} onSave={createPeriod} loading={saving} saveLabel="CRÉER" />
+              <ModalFooter onCancel={() => setModalOpen(false)} onSave={createPeriod} loading={saving} saveLabel={_ui("CRÉER")} />
             </div>
           )}
         </Modal>

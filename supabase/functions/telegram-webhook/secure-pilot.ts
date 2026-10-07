@@ -30,7 +30,7 @@ export function createSecurePilot(db: any, token: string, secret: string, enable
       const mobileStart = msg.text.match(/^\/start(?:@[A-Za-z0-9_]+)?\s+FP_([a-f0-9]{32})$/i)
       if (mobileStart) {
         const { data, error } = await db.rpc('mobile_telegram_enroll', { p_code: mobileStart[1].toLowerCase(), p_chat: msg.chatId })
-        await send(!error && data === true ? 'FarmPilot : notifications personnelles reliées. Les décisions se prennent dans l’application après identification.' : 'Code invalide, expiré ou compte Telegram déjà associé. Générez un nouveau code depuis Mes validations.')
+        await send(!error && data === true ? 'ItriX Farm : notifications personnelles reliées. Les décisions se prennent dans l’application après identification.' : 'Code invalide, expiré ou compte Telegram déjà associé. Générez un nouveau code depuis Mes validations.')
         return new Response('OK')
       }
       if (msg.callbackId) await request(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
@@ -57,7 +57,7 @@ export function createSecurePilot(db: any, token: string, secret: string, enable
       if (!user) {
         await send('Accès non autorisé ou invitation invalide/expirée. Demandez une invitation personnelle à votre administrateur, puis envoyez /start CODE en conversation privée.')
       } else {
-        await send(`FarmPilot — accès identifié\n${user.worker_name}\nSociété : ${user.domain_name}\nFerme : ${user.farm_name}\n\nPilote sécurisé : inscription et vérification d’accès disponibles. Les saisies métier et les récapitulatifs seront ouverts après validation de leurs contrôles client/ferme. Utilisez /statut pour vérifier votre accès.`)
+        await send(`ItriX Farm — accès identifié\n${user.worker_name}\nSociété : ${user.domain_name}\nFerme : ${user.farm_name}\n\nPilote sécurisé : inscription et vérification d’accès disponibles. Les saisies métier et les récapitulatifs seront ouverts après validation de leurs contrôles client/ferme. Utilisez /statut pour vérifier votre accès.`)
       }
       return new Response('OK')
     } catch {

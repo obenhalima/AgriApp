@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * AppShell : root layout côté client.
  *   - Sidebar à gauche
@@ -14,15 +16,24 @@ import { Toaster } from 'sonner'
 import { Sprout } from 'lucide-react'
 import { applyTheme, getTheme } from '@/lib/theme'
 import { useAuth } from '@/lib/auth'
+import { findNavItem } from '@/lib/navigation'
+import { getAccessGate } from '@/lib/accessGate'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { CommandPalette } from './CommandPalette'
 import { AIAssistantFAB } from '@/components/ai/AIAssistantFAB'
+import { GuideLauncher } from '@/components/help/GuideLauncher'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const router = useRouter()
   const pathname = usePathname()
-  const { user, profile, loading } = useAuth()
+  const { user, profile, loading, canAccessModule, isPlatformAdmin, signOut } = useAuth()
+  const navItem = findNavItem(pathname)?.item
+  const deniedModule = Boolean(navItem && (navItem.platformOnly ? !isPlatformAdmin : !!navItem.moduleCode && !canAccessModule(navItem.moduleCode)))
+  const gate = getAccessGate({ loading, hasUser: !!user, activeProfile: !!profile?.is_active,
+    mustChangePassword: !!profile?.must_change_password, pathname, moduleAllowed: !deniedModule })
   const isPublicAuthPage = ['/login','/forgot-password','/reset-password','/change-password'].includes(pathname)
   const [sidebarW, setSidebarW] = useState(240)
   const [isDesktop, setIsDesktop] = useState(true)
@@ -67,11 +78,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (loading) return
     if (!user && !isPublicAuthPage) router.replace(pathname === '/validations' ? '/login?next=validations' : '/login')
     else if (user && profile?.must_change_password && pathname !== '/change-password') router.replace('/change-password')
-    else if (user && !profile?.must_change_password && (pathname === '/login' || pathname === '/change-password')) router.replace(new URLSearchParams(window.location.search).get('next') === 'validations' ? '/validations' : '/')
-  }, [loading, user, profile?.must_change_password, pathname, router, isPublicAuthPage])
+    else if (user && profile?.is_active && !profile?.must_change_password && (pathname === '/login' || pathname === '/change-password')) router.replace(new URLSearchParams(window.location.search).get('next') === 'validations' ? '/validations' : '/')
+  }, [loading, user, profile?.is_active, profile?.must_change_password, pathname, router, isPublicAuthPage])
 
   // Loader d'initialisation
-  if (loading) {
+  if (gate === 'loading') {
     return (
       <div className="min-h-screen bg-surface-sunk flex items-center justify-center flex-col gap-md">
         <motion.div
@@ -92,23 +103,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           transition={{ delay: 0.2 }}
           className="font-mono text-caption text-fg-tertiary tracking-[2px] uppercase"
         >
-          Initialisation…
-        </motion.div>
+          {" "}{_ui("Initialisation…")}{" "}</motion.div>
       </div>
     )
   }
 
-  // Page login → rendu nu
-  if (isPublicAuthPage || !user) return <>{children}</>
+  // Never mount protected children while waiting for the redirect.
+  if (gate === 'login' || gate === 'password') return null
+  if (gate === 'inactive') return (
+    <div role="alert" className="p-8">{_ui("Compte indisponible ou désactivé. Contactez votre administrateur.")}{" "}<button className="btn ml-4" onClick={() => void signOut()}>{_ui("Se déconnecter")}</button>
+    </div>
+  )
+  if (gate === 'public') return <>{children}</>
+  if (gate === 'denied') return (
+    <div role="alert" className="p-8">{_ui("Vous n’avez pas les droits nécessaires pour ce module.")}{" "}<button className="btn ml-4" onClick={() => router.back()}>{_ui("Retour")}</button>
+      <button className="btn ml-4" onClick={() => void signOut()}>{_ui("Se déconnecter")}</button>
+    </div>
+  )
 
   return (
     <div className="flex min-h-screen bg-surface-base transition-colors duration-300">
       <Sidebar />
 
       <div
-        className="flex-1 flex flex-col min-h-screen min-w-0 transition-[margin-left] duration-250"
+        className="flex-1 flex flex-col min-h-screen min-w-0 transition-[margin-inline-start] duration-250"
         style={{
-          marginLeft: isDesktop ? sidebarW : 0,
+          marginInlineStart: isDesktop ? sidebarW : 0,
           transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
@@ -120,6 +140,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Cmd+K Command Palette (globale) */}
       <CommandPalette />
+      <GuideLauncher key={pathname}/>
 
       {/* IA Assistant FAB (globale) */}
       {!pathname.startsWith('/validations') && <AIAssistantFAB />}

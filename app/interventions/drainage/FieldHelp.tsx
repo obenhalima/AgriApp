@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import {useId,useState} from 'react'
 
 const explanations:Record<string,string>={
@@ -23,9 +25,11 @@ const explanations:Record<string,string>={
  'Relevé':'Mesuré : renseignez les mesures disponibles. Non effectué : aucune mesure n’a été réalisée à cet horaire ; la ligne est exclue du bilan. Ce statut est différent d’un drainage mesuré égal à zéro.'
 }
 export function FieldHelp({name}:{name:string}){
+ const {t:_ui,text:_uiNode}=useLanguage()
+
  const [open,setOpen]=useState(false),id=useId()
  return <span className="inline font-normal normal-case tracking-normal">
-  <button type="button" aria-label={`Aide : ${name}`} aria-expanded={open} aria-controls={id} className="ml-1 inline-flex h-6 w-6 items-center justify-center rounded-full border border-brand/30 text-brand text-xs focus-visible:outline focus-visible:outline-2" onClick={e=>{e.preventDefault();e.stopPropagation();setOpen(v=>!v)}}>?</button>
+  <button type="button" aria-label={_ui("Aide : {v0}",{v0:String(name)})} aria-expanded={open} aria-controls={id} className="ml-1 inline-flex h-6 w-6 items-center justify-center rounded-full border border-brand/30 text-brand text-xs focus-visible:outline focus-visible:outline-2" onClick={e=>{e.preventDefault();e.stopPropagation();setOpen(v=>!v)}}>?</button>
   <span id={id} hidden={!open} className={`${open?'block':'hidden'} whitespace-normal rounded-md border border-brand/20 bg-brand/5 p-2 my-2 text-xs text-fg-secondary leading-relaxed`}>{explanations[name]}</span>
  </span>
 }

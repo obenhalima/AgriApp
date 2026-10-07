@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * /admin/amortissements — Registre des actifs immobilisés.
  * Refonte complète avec le design system : KPICard, DataTable, StatusBadge, etc.
@@ -55,6 +57,8 @@ const empty: Partial<Asset> = {
 }
 
 export default function AmortissementsPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const [assets, setAssets] = useState<Asset[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [farms, setFarms] = useState<Farm[]>([])
@@ -89,7 +93,7 @@ export default function AmortissementsPage() {
       setGreenhouses((g.data ?? []) as any)
       setCampaigns((camp.data ?? []) as any)
       setCostEntries((ce.data ?? []) as any)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setLoading(false)
   }
   useEffect(() => { load() }, [])
@@ -162,7 +166,7 @@ export default function AmortissementsPage() {
 
   const save = async () => {
     if (!form.label || !form.account_category_id || !form.acquisition_date || !form.acquisition_cost || !form.useful_life_years) {
-      toast.error('Libellé, catégorie, date, coût et durée sont requis')
+      toast.error(_ui("Libellé, catégorie, date, coût et durée sont requis"))
       return
     }
     setSaving(true)
@@ -191,20 +195,20 @@ export default function AmortissementsPage() {
         : await supabase.from('assets').insert(payload)
       if (error) throw error
       setDone(true)
-      toast.success(editing ? 'Actif modifié' : 'Actif créé')
+      toast.success(editing ? _ui("Actif modifié") : _ui("Actif créé"))
       setTimeout(() => { setModalOpen(false); setDone(false); load() }, 1000)
     } catch (e: any) { toast.error(e.message || String(e)) }
     setSaving(false)
   }
 
   const remove = async (a: Asset) => {
-    if (!confirm(`Supprimer l'actif ${a.code} ? Les amortissements générés seront aussi supprimés.`)) return
+    if (!confirm(_ui("Supprimer l'actif {v0} ? Les amortissements générés seront aussi supprimés.",{v0:String(a.code)}))) return
     try {
       const { error } = await supabase.from('assets').delete().eq('id', a.id)
       if (error) throw error
-      toast.success(`Actif ${a.code} supprimé`)
+      toast.success(_ui("Actif {v0} supprimé",{v0:String(a.code)}))
       load()
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
   }
 
   // Aperçu calcul amortissement
@@ -222,10 +226,10 @@ export default function AmortissementsPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'active':         return <Badge variant="success" size="sm" dot>Actif</Badge>
-      case 'fully_amortized': return <Badge variant="default" size="sm">✓ Amorti</Badge>
-      case 'disposed':       return <Badge variant="warning" size="sm">↗ Cédé</Badge>
-      case 'inactive':       return <Badge variant="default" size="sm">○ Inactif</Badge>
+      case 'active':         return <Badge variant="success" size="sm" dot>{_ui("Actif")}</Badge>
+      case 'fully_amortized': return <Badge variant="default" size="sm">{_ui("✓ Amorti")}</Badge>
+      case 'disposed':       return <Badge variant="warning" size="sm">{_ui("↗ Cédé")}</Badge>
+      case 'inactive':       return <Badge variant="default" size="sm">{_ui("○ Inactif")}</Badge>
       default:               return <Badge variant="default" size="sm">{status}</Badge>
     }
   }
@@ -233,15 +237,14 @@ export default function AmortissementsPage() {
   return (
     <div>
       <PageHeader
-        title="Amortissements"
-        subtitle="Paramétrage"
+        title={_ui("Amortissements")}
+        subtitle={_ui("Paramétrage")}
         icon={Calculator}
         iconColor="#a855f7"
-        description="Registre des actifs immobilisés — dotations mensuelles automatiques imputées au compte d'exploitation"
+        description={_ui("Registre des actifs immobilisés — dotations mensuelles automatiques imputées au compte d'exploitation")}
         actions={
           <Button onClick={openCreate} variant="primary">
-            <Plus size={14} strokeWidth={2.5} /> Nouvel actif
-          </Button>
+            <Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvel actif")}{" "}</Button>
         }
       />
 
@@ -252,11 +255,11 @@ export default function AmortissementsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-md mb-md">
-          <KPICard label="Actifs en service"    value={String(kpis.nb)}                                  sub="amortissables" icon={Boxes}     accent="#a855f7" delay={0} />
-          <KPICard label="Valeur d'origine"     value={<MoneyDisplay value={kpis.cost}    compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="MAD acquisition"     icon={Coins}        accent="#3b82f6" delay={0.05} />
-          <KPICard label="VNC"                  value={<MoneyDisplay value={kpis.vnc}     compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="MAD valeur nette"   icon={Wallet}       accent="#10b981" delay={0.1} />
-          <KPICard label="Dotation mensuelle"   value={<MoneyDisplay value={kpis.monthly} compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="MAD/mois charge"    icon={CalendarDays} accent="#f59e0b" delay={0.15} />
-          <KPICard label="Dotation annuelle"    value={<MoneyDisplay value={kpis.annual}  compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="MAD/an charge"      icon={BarChart3}    accent="#ef4444" delay={0.2} />
+          <KPICard label={_ui("Actifs en service")}    value={String(kpis.nb)}                                  sub="amortissables" icon={Boxes}     accent="#a855f7" delay={0} />
+          <KPICard label={_ui("Valeur d'origine")}     value={<MoneyDisplay value={kpis.cost}    compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="MAD acquisition"     icon={Coins}        accent="#3b82f6" delay={0.05} />
+          <KPICard label={_ui("VNC")}                  value={<MoneyDisplay value={kpis.vnc}     compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="MAD valeur nette"   icon={Wallet}       accent="#10b981" delay={0.1} />
+          <KPICard label={_ui("Dotation mensuelle")}   value={<MoneyDisplay value={kpis.monthly} compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="MAD/mois charge"    icon={CalendarDays} accent="#f59e0b" delay={0.15} />
+          <KPICard label={_ui("Dotation annuelle")}    value={<MoneyDisplay value={kpis.annual}  compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="MAD/an charge"      icon={BarChart3}    accent="#ef4444" delay={0.2} />
         </div>
       )}
 
@@ -266,7 +269,7 @@ export default function AmortissementsPage() {
           <div className="flex items-center gap-sm flex-1 min-w-[200px] max-w-md">
             <Search size={14} className="text-fg-tertiary flex-shrink-0" />
             <TInput
-              placeholder="Rechercher code, libellé, catégorie…"
+              placeholder={_ui("Rechercher code, libellé, catégorie…")}
               value={search} onChange={(e) => setSearch(e.target.value)}
               className="border-none bg-transparent focus:ring-0 px-0"
             />
@@ -293,7 +296,7 @@ export default function AmortissementsPage() {
                     : 'bg-surface-raised text-fg-secondary border border-border hover:border-border-strong hover:bg-surface-hover'
                 )}
               >
-                {opt.label}
+                {_uiNode(opt.label)}
                 <span className={cn('ml-1.5 opacity-70', filterStatus === opt.k && 'opacity-100')}>({opt.count})</span>
               </button>
             ))}
@@ -311,33 +314,33 @@ export default function AmortissementsPage() {
           assets.length === 0 ? (
             <EmptyState
               icon={Calculator}
-              title="Aucun actif"
-              description="Crée ton premier actif pour générer automatiquement les dotations mensuelles."
-              action={<Button onClick={openCreate}><Plus size={14} strokeWidth={2.5} /> Nouvel actif</Button>}
+              title={_ui("Aucun actif")}
+              description={_ui("Crée ton premier actif pour générer automatiquement les dotations mensuelles.")}
+              action={<Button onClick={openCreate}><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvel actif")}</Button>}
             />
           ) : (
             <EmptyState
               icon={Search}
-              title="Aucun résultat"
-              description="Aucun actif ne correspond à tes filtres."
-              action={<Button variant="ghost" onClick={() => { setSearch(''); setFilterStatus('all') }}>Réinitialiser</Button>}
+              title={_ui("Aucun résultat")}
+              description={_ui("Aucun actif ne correspond à tes filtres.")}
+              action={<Button variant="ghost" onClick={() => { setSearch(''); setFilterStatus('all') }}>{_ui("Réinitialiser")}</Button>}
             />
           )
         ) : (
           <DataTable minWidth={1100}>
             <THead>
               <TR>
-                <TH>Code</TH>
-                <TH>Libellé</TH>
-                <TH>Catégorie</TH>
-                <TH>Acquis</TH>
-                <TH right>Coût</TH>
-                <TH right>Durée</TH>
-                <TH right>Mensuel</TH>
-                <TH right>Cumul</TH>
-                <TH right>VNC</TH>
-                <TH>Statut</TH>
-                <TH right>Actions</TH>
+                <TH>{_ui("Code")}</TH>
+                <TH>{_ui("Libellé")}</TH>
+                <TH>{_ui("Catégorie")}</TH>
+                <TH>{_ui("Acquis")}</TH>
+                <TH right>{_ui("Coût")}</TH>
+                <TH right>{_ui("Durée")}</TH>
+                <TH right>{_ui("Mensuel")}</TH>
+                <TH right>{_ui("Cumul")}</TH>
+                <TH right>{_ui("VNC")}</TH>
+                <TH>{_ui("Statut")}</TH>
+                <TH right>{_ui("Actions")}</TH>
               </TR>
             </THead>
             <tbody>
@@ -346,7 +349,7 @@ export default function AmortissementsPage() {
                 return (
                   <TR key={a.id} animate delay={0.05 + i * 0.02} className={cn(!a.is_active && 'opacity-50')}>
                     <TD mono className="text-caption font-semibold">{a.code}</TD>
-                    <TD className="font-semibold text-fg-primary">{a.label}</TD>
+                    <TD className="font-semibold text-fg-primary">{_uiNode(a.label)}</TD>
                     <TD>
                       <Badge variant="brand" size="sm">{cat?.code ?? '?'}</Badge>
                     </TD>
@@ -359,10 +362,10 @@ export default function AmortissementsPage() {
                     <TD>{getStatusBadge(a.status)}</TD>
                     <TD right>
                       <div className="flex items-center justify-end gap-1">
-                        <Button onClick={() => openEdit(a)} variant="ghost" size="icon-sm" title="Modifier">
+                        <Button onClick={() => openEdit(a)} variant="ghost" size="icon-sm" title={_ui("Modifier")}>
                           <Pencil size={12} strokeWidth={2.2} />
                         </Button>
-                        <Button onClick={() => remove(a)} variant="ghost" size="icon-sm" title="Supprimer" className="hover:text-danger">
+                        <Button onClick={() => remove(a)} variant="ghost" size="icon-sm" title={_ui("Supprimer")} className="hover:text-danger">
                           <Trash2 size={12} strokeWidth={2.2} />
                         </Button>
                       </div>
@@ -384,23 +387,20 @@ export default function AmortissementsPage() {
       >
         <Info size={14} className="text-info flex-shrink-0 mt-0.5" strokeWidth={2.2} />
         <div className="text-caption text-fg-secondary leading-relaxed">
-          <strong className="text-fg-primary">Comment ça marche :</strong> à chaque création/modification d'un actif, le trigger SQL régénère
-          automatiquement <strong>1 cost_entry par mois</strong> sur toute la durée d'amortissement (linéaire). Les écritures sont imputées à
-          la <strong>catégorie comptable</strong> AMT_* et apparaissent dans{' '}
+          <strong className="text-fg-primary">{_ui("Comment ça marche :")}</strong> {" "}{_ui("à chaque création/modification d'un actif, le trigger SQL régénère automatiquement")}{" "}<strong>{_ui("1 cost_entry par mois")}</strong> {" "}{_ui("sur toute la durée d'amortissement (linéaire). Les écritures sont imputées à la")}{" "}<strong>{_ui("catégorie comptable")}</strong> {" "}{_ui("AMT_* et apparaissent dans")}{' '}
           <Link href="/admin/compte-exploitation" className="text-brand hover:underline inline-flex items-center gap-0.5">
-            Compte d'exploitation <ArrowUpRight size={10} />
+            {" "}{_ui("Compte d'exploitation")}{" "}<ArrowUpRight size={10} />
           </Link>{' '}
-          sous <em>Amortissements</em>. En cas de cession, les dotations s'arrêtent à la date de cession.
-        </div>
+          {" "}{_ui("sous")}{" "}<em>{_ui("Amortissements")}</em>{_ui(". En cas de cession, les dotations s'arrêtent à la date de cession.")}{" "}</div>
       </motion.div>
 
       {/* Modal */}
       {modalOpen && (
-        <Modal title={editing ? `Éditer — ${editing.code}` : 'Nouvel actif immobilisé'} onClose={() => setModalOpen(false)} size="lg">
-          {done ? <SuccessMessage message={editing ? 'Actif modifié' : 'Actif créé'} /> : (
+        <Modal title={editing ? _ui("Éditer — {v0}",{v0:String(editing.code)}) : _ui("Nouvel actif immobilisé")} onClose={() => setModalOpen(false)} size="lg">
+          {done ? <SuccessMessage message={editing ? _ui("Actif modifié") : _ui("Actif créé")} /> : (
             <div className="space-y-md">
               <FormRow>
-                <FormGroup label={editing ? 'Code' : 'Code (auto-généré)'}>
+                <FormGroup label={editing ? _ui("Code") : _ui("Code (auto-généré)")}>
                   <TInput
                     type="text"
                     value={editing ? (form.code ?? '') : '— auto à la création —'}
@@ -411,67 +411,66 @@ export default function AmortissementsPage() {
                     )}
                   />
                 </FormGroup>
-                <FormGroup label="Catégorie *">
+                <FormGroup label={_ui("Catégorie *")}>
                   <TSelect value={form.account_category_id ?? ''} onChange={onCategoryChange}>
-                    <option value="">— sélectionner —</option>
+                    <option value="">{_ui("— sélectionner —")}</option>
                     {categories.map(c => (
                       <option key={c.id} value={c.id}>
-                        {c.code} — {c.label}{c.default_depreciation_years ? ` (${c.default_depreciation_years} ans)` : ''}
+                        {c.code} — {_uiNode(c.label)}{c.default_depreciation_years ? _ui("({v0} ans)",{v0:String(c.default_depreciation_years)}) : ''}
                       </option>
                     ))}
                   </TSelect>
                 </FormGroup>
               </FormRow>
-              <FormGroup label="Libellé *">
-                <TInput value={form.label ?? ''} onChange={f('label')} placeholder="Serre F01-S03 — structure métallique" autoFocus />
+              <FormGroup label={_ui("Libellé *")}>
+                <TInput value={form.label ?? ''} onChange={f('label')} placeholder={_ui("Serre F01-S03 — structure métallique")} autoFocus />
               </FormGroup>
               <FormRow>
-                <FormGroup label="Date acquisition *"><TInput type="date" value={form.acquisition_date ?? ''} onChange={f('acquisition_date')} /></FormGroup>
-                <FormGroup label="Coût d'acquisition (MAD) *"><TInput type="number" value={String(form.acquisition_cost ?? '')} onChange={f('acquisition_cost')} placeholder="500000" /></FormGroup>
-                <FormGroup label="Valeur résiduelle (MAD)"><TInput type="number" value={String(form.residual_value ?? 0)} onChange={f('residual_value')} placeholder="0" /></FormGroup>
+                <FormGroup label={_ui("Date acquisition *")}><TInput type="date" value={form.acquisition_date ?? ''} onChange={f('acquisition_date')} /></FormGroup>
+                <FormGroup label={_ui("Coût d'acquisition (MAD) *")}><TInput type="number" value={String(form.acquisition_cost ?? '')} onChange={f('acquisition_cost')} placeholder="500000" /></FormGroup>
+                <FormGroup label={_ui("Valeur résiduelle (MAD)")}><TInput type="number" value={String(form.residual_value ?? 0)} onChange={f('residual_value')} placeholder="0" /></FormGroup>
               </FormRow>
               <FormRow>
-                <FormGroup label="Durée d'amortissement (années) *"><TInput type="number" value={String(form.useful_life_years ?? 10)} onChange={f('useful_life_years')} /></FormGroup>
-                <FormGroup label="Méthode">
+                <FormGroup label={_ui("Durée d'amortissement (années) *")}><TInput type="number" value={String(form.useful_life_years ?? 10)} onChange={f('useful_life_years')} /></FormGroup>
+                <FormGroup label={_ui("Méthode")}>
                   <TSelect value={form.depreciation_method ?? 'linear'} onChange={f('depreciation_method')}>
-                    <option value="linear">Linéaire</option>
+                    <option value="linear">{_ui("Linéaire")}</option>
                   </TSelect>
                 </FormGroup>
-                <FormGroup label="Fournisseur"><TInput value={form.supplier ?? ''} onChange={f('supplier')} /></FormGroup>
+                <FormGroup label={_ui("Fournisseur")}><TInput value={form.supplier ?? ''} onChange={f('supplier')} /></FormGroup>
               </FormRow>
               <FormRow>
-                <FormGroup label="N° facture"><TInput value={form.reference_number ?? ''} onChange={f('reference_number')} /></FormGroup>
-                <FormGroup label="Ferme">
+                <FormGroup label={_ui("N° facture")}><TInput value={form.reference_number ?? ''} onChange={f('reference_number')} /></FormGroup>
+                <FormGroup label={_ui("Ferme")}>
                   <TSelect value={form.farm_id ?? ''} onChange={f('farm_id')}>
-                    <option value="">— aucune —</option>
+                    <option value="">{_ui("— aucune —")}</option>
                     {farms.map(fm => <option key={fm.id} value={fm.id}>{fm.code} — {fm.name}</option>)}
                   </TSelect>
                 </FormGroup>
-                <FormGroup label="Serre">
+                <FormGroup label={_ui("Serre")}>
                   <TSelect value={form.greenhouse_id ?? ''} onChange={f('greenhouse_id')}>
-                    <option value="">— aucune —</option>
+                    <option value="">{_ui("— aucune —")}</option>
                     {filteredGreenhouses.map(g => <option key={g.id} value={g.id}>{g.code} — {g.name}</option>)}
                   </TSelect>
                 </FormGroup>
               </FormRow>
               <FormRow>
-                <FormGroup label="Campagne (optionnel)">
+                <FormGroup label={_ui("Campagne (optionnel)")}>
                   <TSelect value={form.campaign_id ?? ''} onChange={f('campaign_id')}>
-                    <option value="">— auto (selon date du mois) —</option>
+                    <option value="">{_ui("— auto (selon date du mois) —")}</option>
                     {filteredCampaigns.map(c => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
                   </TSelect>
                 </FormGroup>
               </FormRow>
-              <FormGroup label="Notes"><Textarea rows={2} value={form.notes ?? ''} onChange={f('notes')} /></FormGroup>
+              <FormGroup label={_ui("Notes")}><Textarea rows={2} value={form.notes ?? ''} onChange={f('notes')} /></FormGroup>
 
               {editing && (
                 <>
                   <div className="rounded-md border border-warning/30 bg-warning/5 p-md text-caption text-warning flex items-center gap-2">
-                    <ArrowUpRight size={14} /> Cession — remplir si l'actif est vendu/cédé
-                  </div>
+                    <ArrowUpRight size={14} /> {" "}{_ui("Cession — remplir si l'actif est vendu/cédé")}{" "}</div>
                   <FormRow>
-                    <FormGroup label="Date de cession"><TInput type="date" value={form.disposal_date ?? ''} onChange={f('disposal_date')} /></FormGroup>
-                    <FormGroup label="Montant de cession (MAD)"><TInput type="number" value={String(form.disposal_amount ?? '')} onChange={f('disposal_amount')} /></FormGroup>
+                    <FormGroup label={_ui("Date de cession")}><TInput type="date" value={form.disposal_date ?? ''} onChange={f('disposal_date')} /></FormGroup>
+                    <FormGroup label={_ui("Montant de cession (MAD)")}><TInput type="number" value={String(form.disposal_amount ?? '')} onChange={f('disposal_amount')} /></FormGroup>
                   </FormRow>
                 </>
               )}
@@ -484,29 +483,27 @@ export default function AmortissementsPage() {
                   className="rounded-lg border border-brand/30 bg-brand/5 p-md"
                 >
                   <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-sm">
-                    Plan d'amortissement (linéaire)
-                  </div>
+                    {" "}{_ui("Plan d'amortissement (linéaire)")}{" "}</div>
                   <div className="grid grid-cols-3 gap-sm">
                     <div>
-                      <div className="font-mono text-[9px] text-fg-tertiary uppercase">Mensuelle</div>
+                      <div className="font-mono text-[9px] text-fg-tertiary uppercase">{_ui("Mensuelle")}</div>
                       <div className="font-display text-heading font-bold text-brand"><MoneyDisplay value={preview.monthly} showCurrency={false} className="!text-current" /></div>
                     </div>
                     <div>
-                      <div className="font-mono text-[9px] text-fg-tertiary uppercase">Annuelle</div>
+                      <div className="font-mono text-[9px] text-fg-tertiary uppercase">{_ui("Annuelle")}</div>
                       <div className="font-display text-heading font-bold text-brand"><MoneyDisplay value={preview.annual} showCurrency={false} className="!text-current" /></div>
                     </div>
                     <div>
-                      <div className="font-mono text-[9px] text-fg-tertiary uppercase">Total amortissable</div>
+                      <div className="font-mono text-[9px] text-fg-tertiary uppercase">{_ui("Total amortissable")}</div>
                       <div className="font-display text-heading font-bold text-fg-primary"><MoneyDisplay value={preview.total} showCurrency={false} compact="auto" className="!text-current" /></div>
                     </div>
                   </div>
                   <div className="mt-sm text-caption text-fg-tertiary">
-                    {Number(form.useful_life_years) * 12} dotations seront générées automatiquement, du {form.acquisition_date} jusqu'à fin de vie utile.
-                  </div>
+                    {Number(form.useful_life_years) * 12} {" "}{_ui("dotations seront générées automatiquement, du")}{" "}{form.acquisition_date} {" "}{_ui("jusqu'à fin de vie utile.")}{" "}</div>
                 </motion.div>
               )}
 
-              <ModalFooter onCancel={() => setModalOpen(false)} onSave={save} loading={saving} saveLabel={editing ? 'ENREGISTRER' : 'CRÉER'} />
+              <ModalFooter onCancel={() => setModalOpen(false)} onSave={save} loading={saving} saveLabel={editing ? _ui("ENREGISTRER") : _ui("CRÉER")} />
             </div>
           )}
         </Modal>

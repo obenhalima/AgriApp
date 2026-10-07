@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * Onglet DASHBOARD du module Plan de culture.
  * Affiche les KPI agrégés calculés en live à partir des plantations filtrées.
@@ -14,6 +16,8 @@ export function DashboardTab(props: {
   campaign: Campaign
   loading: boolean
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { rows, greenhousesInScope, campaign, loading } = props
 
   const k = useMemo(() => computeKPIs(rows, greenhousesInScope), [rows, greenhousesInScope])
@@ -48,17 +52,16 @@ export function DashboardTab(props: {
   }, [rows])
 
   if (loading) {
-    return <div style={{ padding: 40, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>CHARGEMENT DES KPI…</div>
+    return <div style={{ padding: 40, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{_ui("CHARGEMENT DES KPI…")}</div>
   }
 
   if (rows.length === 0) {
     return (
       <div className="empty-state" style={{ padding: 60 }}>
         <div className="empty-icon">🌱</div>
-        <div className="empty-title">Aucune plantation budgétisée</div>
+        <div className="empty-title">{_ui("Aucune plantation budgétisée")}</div>
         <div style={{ color: 'var(--tx-3)', fontSize: 12, marginTop: 8 }}>
-          Crée des plantations dans <strong>Campagnes</strong> pour voir les indicateurs.
-        </div>
+          {" "}{_ui("Crée des plantations dans")}{" "}<strong>{_ui("Campagnes")}</strong> {" "}{_ui("pour voir les indicateurs.")}{" "}</div>
       </div>
     )
   }
@@ -68,25 +71,25 @@ export function DashboardTab(props: {
       {/* ─── BANDE DE KPI PRINCIPAUX ─── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
         <KPICard
-          label="SURFACE PLANTÉE"
+          label={_ui("SURFACE PLANTÉE")}
           value={fmtArea(k.totalPlantedArea)}
           sub={`${k.totalGreenhouses} serre${k.totalGreenhouses > 1 ? 's' : ''} · ${k.totalFarms} ferme${k.totalFarms > 1 ? 's' : ''}`}
           color="#0ea5e9" icon="🏗️"
         />
         <KPICard
-          label="VOLUME CIBLE"
+          label={_ui("VOLUME CIBLE")}
           value={fmtVolume(k.totalVolumeKg)}
           sub={`Rdt moyen : ${k.avgYieldKgM2.toFixed(1)} kg/m²`}
           color="#a855f7" icon="📦"
         />
         <KPICard
-          label="CA CIBLE"
+          label={_ui("CA CIBLE")}
           value={fmtMAD(k.totalRevenue)}
           sub={`Prix moyen : ${k.avgPricePerKg.toFixed(2)} MAD/kg`}
           color="#10b981" icon="💰"
         />
         <KPICard
-          label="MARGE ESTIMÉE"
+          label={_ui("MARGE ESTIMÉE")}
           value={k.totalEstimatedCost > 0 ? fmtMAD(k.estimatedMargin) : 'N/D'}
           sub={k.totalEstimatedCost > 0 ? `${k.estimatedMarginPct.toFixed(1)}% · Coûts ${fmtMAD(k.totalEstimatedCost)}` : 'Pas de coûts planifiés'}
           color={k.estimatedMargin >= 0 ? '#22c55e' : '#ef4444'}
@@ -96,12 +99,12 @@ export function DashboardTab(props: {
 
       {/* ─── BANDE SECONDAIRE ─── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginBottom: 16 }}>
-        <MiniKPI label="Plantations" value={String(k.totalPlantings)} icon="🌱" />
-        <MiniKPI label="Variétés"     value={String(k.totalVarieties)} icon="🧬" />
-        <MiniKPI label="Plants total" value={k.totalPlants > 0 ? k.totalPlants.toLocaleString('fr') : '—'} icon="🌿" />
-        <MiniKPI label="Densité moy." value={k.avgDensity > 0 ? `${k.avgDensity.toFixed(1)} pl/m²` : '—'} icon="📐" />
+        <MiniKPI label={_ui("Plantations")} value={String(k.totalPlantings)} icon="🌱" />
+        <MiniKPI label={_ui("Variétés")}     value={String(k.totalVarieties)} icon="🧬" />
+        <MiniKPI label={_ui("Plants total")} value={k.totalPlants > 0 ? k.totalPlants.toLocaleString('fr') : '—'} icon="🌿" />
+        <MiniKPI label={_ui("Densité moy.")} value={k.avgDensity > 0 ? `${k.avgDensity.toFixed(1)} pl/m²` : '—'} icon="📐" />
         <MiniKPI
-          label="Serres vides"
+          label={_ui("Serres vides")}
           value={String(k.totalGreenhousesUnused)}
           icon={k.totalGreenhousesUnused > 0 ? '⚠️' : '✓'}
           warn={k.totalGreenhousesUnused > 0}
@@ -114,17 +117,16 @@ export function DashboardTab(props: {
         {/* Carte : Répartition Export / Local */}
         <div className="card" style={{ padding: 16 }}>
           <div style={{ fontSize: 11, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 14 }}>
-            RÉPARTITION CA EXPORT / LOCAL
-          </div>
+            {" "}{_ui("RÉPARTITION CA EXPORT / LOCAL")}{" "}</div>
           <BarSplit exportPct={exportPct} localPct={localPct} />
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
             <div>
-              <div style={{ fontSize: 10, color: 'var(--tx-3)' }}>EXPORT</div>
+              <div style={{ fontSize: 10, color: 'var(--tx-3)' }}>{_ui("EXPORT")}</div>
               <div style={{ fontSize: 18, color: '#3b82f6', fontWeight: 700 }}>{fmtMAD(k.exportRevenue)}</div>
               <div style={{ fontSize: 10, color: 'var(--tx-3)' }}>{exportPct.toFixed(1)}%</div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 10, color: 'var(--tx-3)' }}>LOCAL</div>
+              <div style={{ fontSize: 10, color: 'var(--tx-3)' }}>{_ui("LOCAL")}</div>
               <div style={{ fontSize: 18, color: '#f59e0b', fontWeight: 700 }}>{fmtMAD(k.localRevenue)}</div>
               <div style={{ fontSize: 10, color: 'var(--tx-3)' }}>{localPct.toFixed(1)}%</div>
             </div>
@@ -134,10 +136,9 @@ export function DashboardTab(props: {
         {/* Carte : Top 5 variétés par CA */}
         <div className="card" style={{ padding: 16 }}>
           <div style={{ fontSize: 11, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 14 }}>
-            TOP 5 VARIÉTÉS — CA CIBLE
-          </div>
+            {" "}{_ui("TOP 5 VARIÉTÉS — CA CIBLE")}{" "}</div>
           {topByCA.length === 0 ? (
-            <div style={{ fontSize: 11, color: 'var(--tx-3)' }}>Aucune donnée</div>
+            <div style={{ fontSize: 11, color: 'var(--tx-3)' }}>{_ui("Aucune donnée")}</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {topByCA.map((v, i) => {
@@ -165,8 +166,7 @@ export function DashboardTab(props: {
         {surfaceByFarm.length > 1 && (
           <div className="card" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 14 }}>
-              RÉPARTITION PAR FERME
-            </div>
+              {" "}{_ui("RÉPARTITION PAR FERME")}{" "}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {surfaceByFarm.map((f, i) => {
                 const max = surfaceByFarm[0].area || 1
@@ -193,11 +193,10 @@ export function DashboardTab(props: {
         {campaign && (
           <div className="card" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 14 }}>
-              FENÊTRE CAMPAGNE
-            </div>
+              {" "}{_ui("FENÊTRE CAMPAGNE")}{" "}</div>
             <div style={{ fontSize: 13, color: 'var(--tx-1)', lineHeight: 1.8 }}>
-              <div><span style={{ color: 'var(--tx-3)' }}>Préparation : </span><strong>{fmtDate(campaign.preparation_start)}</strong></div>
-              <div><span style={{ color: 'var(--tx-3)' }}>Fin de campagne : </span><strong>{fmtDate(campaign.campaign_end)}</strong></div>
+              <div><span style={{ color: 'var(--tx-3)' }}>{_ui("Préparation :")}{" "}</span><strong>{fmtDate(campaign.preparation_start)}</strong></div>
+              <div><span style={{ color: 'var(--tx-3)' }}>{_ui("Fin de campagne :")}{" "}</span><strong>{fmtDate(campaign.campaign_end)}</strong></div>
               <div style={{ marginTop: 8, fontSize: 11, color: 'var(--tx-3)' }}>
                 {durationLabel(campaign.preparation_start, campaign.campaign_end)}
               </div>
@@ -212,28 +211,32 @@ export function DashboardTab(props: {
 
 // ─── Composants atomiques ────────────────────────────────────────────────────
 function KPICard(props: { label: string; value: string; sub?: string; color: string; icon: string }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <div className="card" style={{ padding: 14, borderLeft: `3px solid ${props.color}` }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1 }}>
-          {props.label}
+          {_uiNode(props.label)}
         </div>
         <div style={{ fontSize: 18 }}>{props.icon}</div>
       </div>
       <div style={{ fontSize: 22, fontWeight: 800, color: props.color, marginTop: 6, fontFamily: 'var(--font-display)' }}>
         {props.value}
       </div>
-      {props.sub && <div style={{ fontSize: 10, color: 'var(--tx-3)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>{props.sub}</div>}
+      {props.sub && <div style={{ fontSize: 10, color: 'var(--tx-3)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>{_uiNode(props.sub)}</div>}
     </div>
   )
 }
 
 function MiniKPI(props: { label: string; value: string; icon: string; warn?: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <div className="card" style={{ padding: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
       <div style={{ fontSize: 16 }}>{props.icon}</div>
       <div>
-        <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: .8 }}>{props.label}</div>
+        <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: .8 }}>{_uiNode(props.label)}</div>
         <div style={{ fontSize: 14, color: props.warn ? 'var(--amber)' : 'var(--tx-1)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{props.value}</div>
       </div>
     </div>

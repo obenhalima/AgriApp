@@ -1,4 +1,7 @@
 "use client";
+import {useLanguage} from '@/lib/i18n'
+
+import '@/components/ui/workspace.css'
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -154,6 +157,8 @@ const plannedQuantity = (
 };
 
 export default function TraitementsPage() {
+ const {t:_ui,text:_uiNode,intlLocale:_uiLocale}=useLanguage()
+
   const { activeDomain, user } = useAuth();
   const { values: doseUnits } = useReferenceList("phyto_dose_unit");
   const [requests, setRequests] = useState<any[]>([]),
@@ -435,23 +440,23 @@ export default function TraitementsPage() {
     setDatesAttempted(true);
     const validatedDates = validateTreatmentDates(form);
     if (Object.keys(validatedDates.errors).length) {
-      toast.error("Corrigez les dates de planification signalées en rouge.");
+      toast.error(_ui("Corrigez les dates de planification signalées en rouge."));
       return;
     }
     const effectiveTarget = treatmentTargetsSummary(form.products);
     if (duplicateTreatmentProduct(form.products)) {
-      toast.error("Un produit ne doit figurer qu’une fois dans la prescription pour éviter un double dosage.");
+      toast.error(_ui("Un produit ne doit figurer qu’une fois dans la prescription pour éviter un double dosage."));
       return;
     }
     if (!form.farm_id || !warehouses.some(w=>w.id===form.warehouse_id&&w.is_active&&w.farm_id===form.farm_id)) {
-      toast.error("Sélectionnez un entrepôt actif rattaché à la ferme de la prescription.");
+      toast.error(_ui("Sélectionnez un entrepôt actif rattaché à la ferme de la prescription."));
       return;
     }
     if(productLoadError||form.products.some(line=>{
       const item=products.find(p=>line.catalog_product_id?p.catalog_product_id===line.catalog_product_id:!!line.stock_item_id&&p.stock_item_id===line.stock_item_id);
       return !line.biological_target_id||!item||!item.is_active||!getAuthorizedUse(item,line.target_name)||!isStationEligible(item,line.target_name);
     })){
-      toast.error("Complétez ou retirez les produits signalés avant de soumettre la prescription.");
+      toast.error(_ui("Complétez ou retirez les produits signalés avant de soumettre la prescription."));
       return;
     }
     if (
@@ -473,7 +478,7 @@ export default function TraitementsPage() {
       )
     ) {
       toast.error(
-        "Complète la planification, les serres, le diagnostic et tous les produits.",
+        _ui("Complète la planification, les serres, le diagnostic et tous les produits."),
       );
       return;
     }
@@ -481,7 +486,7 @@ export default function TraitementsPage() {
     try {
     const schedule = {
       schedule_mode: form.schedule_mode,
-      name: `${effectiveTarget} — ${new Date().toLocaleDateString("fr-FR")}`,
+      name: `${effectiveTarget} — ${new Date().toLocaleDateString(_uiLocale)}`,
       exact_dates: validatedDates.exact_dates,
       frequency: form.frequency,
       interval_value: form.interval_value,
@@ -517,13 +522,13 @@ export default function TraitementsPage() {
       toast.error(error.message);
       return;
     }
-    toast.success("Plan de prescription généré et soumis à validation");
+    toast.success(_ui("Plan de prescription généré et soumis à validation"));
     setRequestOpen(false);
     setForm(blankRequest());
     setDatesAttempted(false);
     load();
     } catch (error: any) {
-      toast.error(error?.message || "Impossible d’enregistrer la prescription.");
+      toast.error(error?.message || _ui("Impossible d’enregistrer la prescription."));
     } finally {
       setSaving(false);
     }
@@ -531,7 +536,7 @@ export default function TraitementsPage() {
   const [stationReview, setStationReview] = useState<{id:string;readOnly:boolean}|null>(null);
   const review = async (id: string, approve: boolean) => {
     if (approve) { setStationReview({id,readOnly:false}); return; }
-    const reason = approve ? null : prompt("Motif obligatoire du rejet :");
+    const reason = approve ? null : prompt(_ui("Motif obligatoire du rejet :"));
     if (!approve && !reason) return;
     const { error } = await supabase.rpc("review_treatment_request", {
       p_request_id: id,
@@ -540,14 +545,14 @@ export default function TraitementsPage() {
     });
     if (error) toast.error(error.message);
     else {
-      toast.success(approve ? "Traitement approuvé" : "Traitement rejeté");
+      toast.success(approve ? _ui("Traitement approuvé") : _ui("Traitement rejeté"));
       load();
     }
   };
   const resolveStock = async (id: string) => {
     const {data,error}=await supabase.rpc("resolve_treatment_stock",{p_request:id});
     if(error) toast.error(error.message);
-    else { toast.success(data?`${data} article(s) rattaché(s)`:"Aucun nouvel article trouvé : préparez les articles de stock puis réessayez."); load(); }
+    else { toast.success(data?_ui("{v0} article(s) rattaché(s)",{v0:String(data)}):_ui("Aucun nouvel article trouvé : préparez les articles de stock puis réessayez.")); load(); }
   };
   const calculatedActualProducts = (request: any, current: any, areaValue: unknown, waterValue: unknown) =>
     Object.fromEntries((request.treatment_request_products || []).map((p: any) => {
@@ -596,29 +601,29 @@ export default function TraitementsPage() {
   const confirmApplication = async () => {
     if (!confirming) return;
     if (confirmation.application_status !== "non_realisee" && (confirming.treatment_request_products || []).some((p:any)=>!p.stock_item_id)) {
-      toast.error("Créez puis rattachez les articles de stock avant de confirmer l’application réelle.");
+      toast.error(_ui("Créez puis rattachez les articles de stock avant de confirmer l’application réelle."));
       return;
     }
     if (
       confirmation.application_status !== "non_realisee" &&
       !confirmation.applicator_worker_id
     ) {
-      toast.error("Sélectionne l’applicateur.");
+      toast.error(_ui("Sélectionne l’applicateur."));
       return;
     }
     if (confirmation.application_status !== "non_realisee" && (!parseLocalizedNumber(confirmation.actual_treated_area_m2) || !parseLocalizedNumber(confirmation.actual_water_volume_liters))) {
-      toast.error("Renseigne la surface réelle et le volume réel de bouillie.");
+      toast.error(_ui("Renseigne la surface réelle et le volume réel de bouillie."));
       return;
     }
     if (confirmation.application_status !== "non_realisee" && (confirming.treatment_request_products || []).some((p:any)=>!parseLocalizedNumber(confirmation.actual_products[p.id])||(confirmation.actual_product_overrides[p.id]&&!confirmation.actual_product_justifications[p.id]?.trim()))) {
-      toast.error("Vérifie les quantités réelles et justifie chaque modification manuelle.");
+      toast.error(_ui("Vérifie les quantités réelles et justifie chaque modification manuelle."));
       return;
     }
     if (
       confirmation.application_status === "non_realisee" &&
       !confirmation.non_execution_reason
     ) {
-      toast.error("Le motif de non-réalisation est obligatoire.");
+      toast.error(_ui("Le motif de non-réalisation est obligatoire."));
       return;
     }
     setSaving(true);
@@ -653,8 +658,8 @@ export default function TraitementsPage() {
     }
     toast.success(
       confirmation.application_status === "non_realisee"
-        ? "Non-réalisation enregistrée"
-        : "Application confirmée et stock mis à jour",
+        ? _ui("Non-réalisation enregistrée")
+        : _ui("Application confirmée et stock mis à jour"),
     );
     setConfirming(null);
     load();
@@ -674,7 +679,7 @@ export default function TraitementsPage() {
       toast.error(error.message);
       return;
     }
-    toast.success("Contrôle d’efficacité enregistré");
+    toast.success(_ui("Contrôle d’efficacité enregistré"));
     setChecking(null);
     setEfficacy({
       checked_at: "",
@@ -703,35 +708,33 @@ export default function TraitementsPage() {
   },[requests]);
 
   return (
-    <div className="space-y-4">
+    <div className="itrix-workspace space-y-4">
       <Link
         href="/agronomie"
         className="inline-flex items-center gap-1 text-caption text-fg-tertiary hover:text-fg-primary mb-2"
       >
-        <ArrowLeft size={12} /> Journal agronomique
-      </Link>
+        <ArrowLeft size={12} /> {" "}{_ui("Journal agronomique")}{" "}</Link>
       <PageHeader
-        title="Traitements phytosanitaires"
-        subtitle="Prescription, validation et exécution"
+        title={_ui("Traitements phytosanitaires")}
+        subtitle={_ui("Prescription, validation et exécution")}
         icon={ShieldCheck}
         iconColor="#ef4444"
-        description={`${pending} demande${pending !== 1 ? "s" : ""} en attente · disponibilité prévisionnelle par occurrence`}
+        description={_ui("{v0} demande{v1} en attente · disponibilité prévisionnelle par occurrence",{v0:String(pending),v1:String(pending !== 1 ? "s" : "")})}
         actions={
           <Button onClick={() => {setForm({...blankRequest(),spray_volume_l_ha:String(defaultSprayVolumeLHa)});setRequestOpen(true)}}>
-            <Plus size={14} /> Nouvelle prescription
-          </Button>
+            <Plus size={14} /> {" "}{_ui("Nouvelle prescription")}{" "}</Button>
         }
       />
 
-      {stationReview && <StationReview key={stationReview.id} requestId={stationReview.id} readOnly={stationReview.readOnly} onClose={()=>setStationReview(null)} onDone={(approved)=>{setStationReview(null);toast.success(approved?"Prescription validée et confirmations enregistrées":"Prescription refusée");load();}} />}
+      {stationReview && <StationReview key={stationReview.id} requestId={stationReview.id} readOnly={stationReview.readOnly} onClose={()=>setStationReview(null)} onDone={(approved)=>{setStationReview(null);toast.success(approved?_ui("Prescription validée et confirmations enregistrées"):_ui("Prescription refusée"));load();}} />}
       {requestOpen && (
         <Modal
-          title="NOUVELLE PRESCRIPTION"
+          title={_ui("NOUVELLE PRESCRIPTION")}
           onClose={() => setRequestOpen(false)}
           size="lg"
         >
           <div className="space-y-md">
-            <Field label="Ferme" required>
+            <Field label={_ui("Ferme")} required>
               <Select
                 value={form.farm_id}
                 onChange={(e) =>
@@ -749,7 +752,7 @@ export default function TraitementsPage() {
                   }))
                 }
               >
-                <option value="">Sélectionner une ferme</option>
+                <option value="">{_ui("Sélectionner une ferme")}</option>
                 {Array.from(
                   new Map(
                     plantings.map((p: any) => [
@@ -766,15 +769,15 @@ export default function TraitementsPage() {
                   ))}
               </Select>
             </Field>
-            <Field label="Entrepôt de prélèvement de la ferme" required>
+            <Field label={_ui("Entrepôt de prélèvement de la ferme")} required>
               <Select disabled={!form.farm_id} value={form.warehouse_id} onChange={e=>setForm(v=>({...v,warehouse_id:e.target.value}))}>
-                <option value="">Sélectionner un entrepôt</option>
+                <option value="">{_ui("Sélectionner un entrepôt")}</option>
                 {warehouses.filter(w=>w.is_active&&w.farm_id===form.farm_id).map(w=><option key={w.id} value={w.id}>{w.name}</option>)}
               </Select>
-              {form.farm_id&&!warehouses.some(w=>w.is_active&&w.farm_id===form.farm_id)&&<p className="text-warning">Aucun entrepôt actif rattaché à cette ferme. <Link href="/entrepots" className="underline">Gérer les entrepôts</Link></p>}
+              {form.farm_id&&!warehouses.some(w=>w.is_active&&w.farm_id===form.farm_id)&&<p className="text-warning">{_ui("Aucun entrepôt actif rattaché à cette ferme.")}{" "}<Link href="/entrepots" className="underline">{_ui("Gérer les entrepôts")}</Link></p>}
             </Field>
-            <p className="text-caption text-fg-tertiary">Le stock est vérifié dans cet entrepôt uniquement. Une insuffisance n’empêche pas la planification ; elle sera signalée par occurrence.</p>
-            <Field label="Serres / plantations concernées" required>
+            <p className="text-caption text-fg-tertiary">{_ui("Le stock est vérifié dans cet entrepôt uniquement. Une insuffisance n’empêche pas la planification ; elle sera signalée par occurrence.")}</p>
+            <Field label={_ui("Serres / plantations concernées")} required>
               <div className="rounded-md border border-border p-sm space-y-sm">
                 <label className="flex gap-sm text-body-sm font-semibold">
                   <input
@@ -803,8 +806,7 @@ export default function TraitementsPage() {
                       )
                     }
                   />{" "}
-                  Sélectionner toutes les serres
-                </label>
+                  {" "}{_ui("Sélectionner toutes les serres")}{" "}</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-xs">
                   {plantings
                     .filter((p: any) => p.greenhouses?.farm_id === form.farm_id)
@@ -828,7 +830,7 @@ export default function TraitementsPage() {
                           p.planted_area ||
                             p.greenhouses?.exploitable_area ||
                             0,
-                        ).toLocaleString("fr-FR")}{" "}
+                        ).toLocaleString(_uiLocale)}{" "}
                         m²
                       </label>
                     ))}
@@ -839,8 +841,7 @@ export default function TraitementsPage() {
               <Field
                 label={
                   <span>
-                    Mode de planification
-                    <FieldHelp text="Date unique pour une intervention, dates précises pour un calendrier libre, ou fréquence pour générer automatiquement plusieurs occurrences." />
+                    {" "}{_ui("Mode de planification")}{" "}<FieldHelp text="Date unique pour une intervention, dates précises pour un calendrier libre, ou fréquence pour générer automatiquement plusieurs occurrences." />
                   </span>
                 }
               >
@@ -850,9 +851,9 @@ export default function TraitementsPage() {
                     setForm((v) => ({ ...v, schedule_mode: e.target.value }))
                   }
                 >
-                  <option value="single">Une seule date</option>
-                  <option value="exact_dates">Plusieurs dates précises</option>
-                  <option value="recurring">Fréquence définie</option>
+                  <option value="single">{_ui("Une seule date")}</option>
+                  <option value="exact_dates">{_ui("Plusieurs dates précises")}</option>
+                  <option value="recurring">{_ui("Fréquence définie")}</option>
                 </Select>
               </Field>
               {form.schedule_mode !== "recurring" ? (
@@ -862,7 +863,7 @@ export default function TraitementsPage() {
                       <Input
                         type="datetime-local"
                         value={date}
-                        {...dateFieldProps(`date_${index}`)}
+                        {...dateFieldProps(_ui("date_{v0}",{v0:String(index)}))}
                         onChange={(e) =>
                           setForm((v) => ({
                             ...v,
@@ -904,13 +905,12 @@ export default function TraitementsPage() {
                         }))
                       }
                     >
-                      <Plus size={11} /> Ajouter une date
-                    </Button>
+                      <Plus size={11} /> {" "}{_ui("Ajouter une date")}{" "}</Button>
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-md">
-                  <Field label="Première date" required>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                  <Field label={_ui("Première date")} required>
                     <Input
                       type="datetime-local"
                       value={form.starts_at}
@@ -920,25 +920,24 @@ export default function TraitementsPage() {
                       }
                     />
                   </Field>
-                  <Field label="Fréquence">
+                  <Field label={_ui("Fréquence")}>
                     <Select
                       value={form.frequency}
                       onChange={(e) =>
                         setForm((v) => ({ ...v, frequency: e.target.value }))
                       }
                     >
-                      <option value="daily">Journalière</option>
-                      <option value="weekly">Hebdomadaire</option>
-                      <option value="monthly">Mensuelle</option>
-                      <option value="quarterly">Trimestrielle</option>
-                      <option value="yearly">Annuelle</option>
+                      <option value="daily">{_ui("Journalière")}</option>
+                      <option value="weekly">{_ui("Hebdomadaire")}</option>
+                      <option value="monthly">{_ui("Mensuelle")}</option>
+                      <option value="quarterly">{_ui("Trimestrielle")}</option>
+                      <option value="yearly">{_ui("Annuelle")}</option>
                     </Select>
                   </Field>
                   <Field
                     label={
                       <span>
-                        Intervalle
-                        <FieldHelp text="Exemple : 2 avec une fréquence hebdomadaire signifie une occurrence toutes les deux semaines." />
+                        {" "}{_ui("Intervalle")}{" "}<FieldHelp text="Exemple : 2 avec une fréquence hebdomadaire signifie une occurrence toutes les deux semaines." />
                       </span>
                     }
                   >
@@ -954,7 +953,7 @@ export default function TraitementsPage() {
                       }
                     />
                   </Field>
-                  <Field label="Date de fin">
+                  <Field label={_ui("Date de fin")}>
                     <Input
                       type="datetime-local"
                       value={form.ends_at}
@@ -964,7 +963,7 @@ export default function TraitementsPage() {
                       }
                     />
                   </Field>
-                  <Field label="Nombre d’occurrences">
+                  <Field label={_ui("Nombre d’occurrences")}>
                     <Input
                       type="number"
                       min="1"
@@ -981,13 +980,12 @@ export default function TraitementsPage() {
                 </div>
               )}
             </div>
-            {datesAttempted && Object.keys(dateValidation.errors).length>0 && <div role="alert" className="text-danger text-caption">{Object.entries(dateValidation.errors).map(([key,message])=><p key={key}>{key.startsWith('date_')?`Date ${Number(key.slice(5))+1}`:key==='starts_at'?'Première date':key==='ends_at'?'Date de fin':'Planification'} : {message}</p>)}</div>}
-            <div className="grid grid-cols-2 gap-md">
+            {datesAttempted && Object.keys(dateValidation.errors).length>0 && <div role="alert" className="text-danger text-caption">{Object.entries(dateValidation.errors).map(([key,message])=><p key={key}>{key.startsWith('date_')?_ui("Date {v0}",{v0:String(Number(key.slice(5))+1)}):key==='starts_at'?_ui("Première date"):key==='ends_at'?_ui("Date de fin"):_ui("Planification")} : {_uiNode(message)}</p>)}</div>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
               <Field
                 label={
                   <span>
-                    Surface totale calculée (m²)
-                    <FieldHelp text="Somme des surfaces plantées des serres sélectionnées." />
+                    {" "}{_ui("Surface totale calculée (m²)")}{" "}<FieldHelp text="Somme des surfaces plantées des serres sélectionnées." />
                   </span>
                 }
                 required
@@ -995,19 +993,18 @@ export default function TraitementsPage() {
                 <Input type="number" value={form.treated_area_m2} disabled />
               </Field>
             </div>
-            <div className="grid grid-cols-2 gap-md">
-              <Field label={<span>Volume de bouillie estimé (L/ha)<FieldHelp text="Volume commun à toutes les lignes, initialisé avec la valeur du client. Vérifiez son adéquation aux produits choisis. Toute modification recalcule le volume global et les quantités prévues." /></span>}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+              <Field label={<span>{_ui("Volume de bouillie estimé (L/ha)")}<FieldHelp text="Volume commun à toutes les lignes, initialisé avec la valeur du client. Vérifiez son adéquation aux produits choisis. Toute modification recalcule le volume global et les quantités prévues." /></span>}>
                 <Input type="text" value={form.spray_volume_l_ha} onChange={(e)=>setForm((v)=>{const perHa=parseLocalizedNumber(e.target.value),area=parseLocalizedNumber(v.treated_area_m2),water=area&&perHa?Math.round(((area*perHa)/10000)*100)/100:0;return{...v,spray_volume_l_ha:e.target.value,water_volume_liters:water?String(water):'',products:recalcLines(v.products,area,water)}})}/>
               </Field>
-              <Field label={<span>Volume global calculé (L)<FieldHelp text="Surface totale sélectionnée × volume de bouillie par hectare." /></span>}>
+              <Field label={<span>{_ui("Volume global calculé (L)")}<FieldHelp text="Surface totale sélectionnée × volume de bouillie par hectare." /></span>}>
                 <Input type="text" value={form.water_volume_liters} disabled />
               </Field>
             </div>
             <Field
               label={
                 <span>
-                  Diagnostic
-                  <FieldHelp text="Décris les symptômes, le niveau d’infestation, les zones touchées et les observations réalisées sur le terrain." />
+                  {" "}{_ui("Diagnostic")}{" "}<FieldHelp text="Décris les symptômes, le niveau d’infestation, les zones touchées et les observations réalisées sur le terrain." />
                 </span>
               }
               required
@@ -1023,8 +1020,7 @@ export default function TraitementsPage() {
             <Field
               label={
                 <span>
-                  Justification agronomique
-                  <FieldHelp text="Explique pourquoi le traitement est nécessaire et le résultat recherché." />
+                  {" "}{_ui("Justification agronomique")}{" "}<FieldHelp text="Explique pourquoi le traitement est nécessaire et le résultat recherché." />
                 </span>
               }
               required
@@ -1039,8 +1035,7 @@ export default function TraitementsPage() {
             </Field>
             <div className="flex justify-between items-center">
               <div className="font-mono text-caption uppercase text-fg-tertiary">
-                Produits prévus
-              </div>
+                {" "}{_ui("Produits prévus")}{" "}</div>
               <Button
                 type="button"
                 size="xs"
@@ -1052,12 +1047,11 @@ export default function TraitementsPage() {
                   }))
                 }
               >
-                <Plus size={11} /> Produit
-              </Button>
+                <Plus size={11} /> {" "}{_ui("Produit")}{" "}</Button>
             </div>
-            {productLoadError&&<p className="text-danger">Chargement des produits impossible : {productLoadError}</p>}
-            <p className="text-caption text-warning">La planification est possible sans stock. Les articles manquants et les ruptures seront signalés par occurrence. Le stock et la conformité réglementaire restent obligatoires avant l’application réelle.</p>
-            <p className="text-caption">Choisissez une cible puis un produit sur chaque ligne. Changer de cible efface uniquement cette ligne. Un produit ne peut être ajouté qu’une fois. L’association aux cibles ne garantit pas la compatibilité du mélange : à vérifier par le prescripteur.</p>
+            {productLoadError&&<p className="text-danger">{_ui("Chargement des produits impossible :")}{" "}{productLoadError}</p>}
+            <p className="text-caption text-warning">{_ui("La planification est possible sans stock. Les articles manquants et les ruptures seront signalés par occurrence. Le stock et la conformité réglementaire restent obligatoires avant l’application réelle.")}</p>
+            <p className="text-caption">{_ui("Choisissez une cible puis un produit sur chaque ligne. Changer de cible efface uniquement cette ligne. Un produit ne peut être ajouté qu’une fois. L’association aux cibles ne garantit pas la compatibilité du mélange : à vérifier par le prescripteur.")}</p>
             {form.products.map((line: any, index: number) => {
               const selected = products.find(
                   (p: any) => line.catalog_product_id?p.catalog_product_id===line.catalog_product_id:!!line.stock_item_id&&p.stock_item_id === line.stock_item_id,
@@ -1069,23 +1063,23 @@ export default function TraitementsPage() {
                   key={index}
                   className="rounded-md border border-border p-sm space-y-sm"
                 >
-                  <Field label={`Cible biologique ${index + 1}`} required>
-                    <Select aria-label={`Cible biologique ${index + 1}`} value={line.target_name} onChange={e=>chooseTarget(index,e.target.value)}>
-                      <option value="">Sélectionner une cible</option>
+                  <Field label={_ui("Cible biologique {v0}",{v0:String(index + 1)})} required>
+                    <Select aria-label={_ui("Cible biologique {v0}",{v0:String(index + 1)})} value={line.target_name} onChange={e=>chooseTarget(index,e.target.value)}>
+                      <option value="">{_ui("Sélectionner une cible")}</option>
                       {targetOptions.map(target=><option key={target} value={target}>{target}</option>)}
                     </Select>
                   </Field>
-                  {line.target_name&&!productLoadError&&productsForTarget(line.target_name).length===0&&<p className="text-warning text-caption">Aucun produit éligible associé à cette cible. Vérifiez la liste positive et les usages autorisés.</p>}
+                  {line.target_name&&!productLoadError&&productsForTarget(line.target_name).length===0&&<p className="text-warning text-caption">{_ui("Aucun produit éligible associé à cette cible. Vérifiez la liste positive et les usages autorisés.")}</p>}
                   <div className="grid grid-cols-[1fr_auto] gap-sm">
-                    <Field label={`Produit ${index + 1}${selected ? " — "+selected.name : ""}`} required>
+                    <Field label={_ui("Produit {v0}{v1}",{v0:String(index + 1),v1:String(selected ? " — "+selected.name : "")})} required>
                       {selected&&productUnavailableReason(selected,line.target_name)&&<p className="text-warning text-caption">{productUnavailableReason(selected,line.target_name)}</p>}
                       <Select
-                        aria-label={`Produit ${index + 1}`}
+                        aria-label={_ui("Produit {v0}",{v0:String(index + 1)})}
                         disabled={!line.biological_target_id || !!productLoadError}
                         value={line.catalog_product_id || selected?.catalog_product_id || ""}
                         onChange={(e) => chooseProduct(index, e.target.value)}
                       >
-                        <option value="">Sélectionner un produit lié à la cible</option>
+                        <option value="">{_ui("Sélectionner un produit lié à la cible")}</option>
                         {(line.target_name ? productsForTarget(line.target_name) : []).map((p: any) => (
                           <option
                             key={p.catalog_product_id}
@@ -1094,16 +1088,16 @@ export default function TraitementsPage() {
                           >
                             {p.name} —{" "}
                             {p.stock_item_id
-                              ? `article lié · unité ${p.unit}`
-                              : "à lier au stock"}
-                            {hasStationCompliance(p,line.target_name) ? " — Validé par la station" : p.authorization_status !== "autorise"
+                              ? _ui("article lié · unité {v0}",{v0:String(p.unit)})
+                              : _ui("à lier au stock")}
+                            {hasStationCompliance(p,line.target_name) ? _ui("— Validé par la station") : p.authorization_status !== "autorise"
                               ? ` — ${p.authorization_status}`
                               : ""}
                             {productUnavailableReason(p,line.target_name)?` — ${productUnavailableReason(p,line.target_name)}`:""}
                           </option>
                         ))}
                       </Select>
-                      {selected&&!selected.stock_item_id&&<><Link href="/stocks/preparation-phyto" target="_blank" rel="noopener noreferrer" className="text-caption underline">Préparer l’article de stock</Link><p className="text-caption">Sans article lié, la quantité est estimée dans l’unité du produit indiquée ci-dessous.</p></>}
+                      {selected&&!selected.stock_item_id&&<><Link href="/stocks/preparation-phyto" target="_blank" rel="noopener noreferrer" className="text-caption underline">{_ui("Préparer l’article de stock")}</Link><p className="text-caption">{_ui("Sans article lié, la quantité est estimée dans l’unité du produit indiquée ci-dessous.")}</p></>}
                     </Field>
                     {form.products.length > 1 && (
                       <Button
@@ -1127,7 +1121,7 @@ export default function TraitementsPage() {
                     <Field
                       label={
                         <span>
-                          Dose{" "}
+                          {" "}{_ui("Dose")}{" "}
                           {use &&
                             `(${use.dose_min ?? use.dose_max}–${use.dose_max})`}
                           <FieldHelp text="Préremplie avec la dose minimale. La soumission est bloquée hors de l’intervalle autorisé." />
@@ -1173,13 +1167,13 @@ export default function TraitementsPage() {
                         }
                       />
                     </Field>
-                    <Field label="Unité de dose">
+                    <Field label={_ui("Unité de dose")}>
                       <Input value={unit?.label || line.dose_unit} disabled />
                     </Field>
                     <Field
                       label={
                         <span>
-                          Quantité prévue {selected?.unit||normalizeDoseUnit(line.dose_unit).split("_")[0]? "("+(selected?.unit||normalizeDoseUnit(line.dose_unit).split("_")[0])+")":""}
+                          {" "}{_ui("Quantité prévue")}{" "}{selected?.unit||normalizeDoseUnit(line.dose_unit).split("_")[0]? "("+(selected?.unit||normalizeDoseUnit(line.dose_unit).split("_")[0])+")":""}
                           <FieldHelp
                             text="Dose par surface : dose × surface en hectares. Dose par 100 L : dose × volume global de bouillie / 100. Conversion vers l’unité de stock si elle est connue."
                           />
@@ -1202,7 +1196,7 @@ export default function TraitementsPage() {
                         }
                       />
                       {!line.planned_quantity&&!line.quantity_is_manual&&<p className="text-warning text-caption">
-                        {!parseLocalizedNumber(line.dose)?"Renseigner une dose positive.":!line.dose_unit?"L’unité de dose manque dans l’usage du produit.":!parseLocalizedNumber(form.treated_area_m2)?"Sélectionner les serres pour calculer la surface.":["ml_100l","g_100l"].includes(normalizeDoseUnit(line.dose_unit))&&!parseLocalizedNumber(form.water_volume_liters)?"Renseigner le volume global de bouillie.":"Unité non reconnue ou incompatible : "+line.dose_unit+" / "+(selected?.unit||"sans article de stock")+". "}
+                        {!parseLocalizedNumber(line.dose)?_ui("Renseigner une dose positive."):!line.dose_unit?_ui("L’unité de dose manque dans l’usage du produit."):!parseLocalizedNumber(form.treated_area_m2)?_ui("Sélectionner les serres pour calculer la surface."):["ml_100l","g_100l"].includes(normalizeDoseUnit(line.dose_unit))&&!parseLocalizedNumber(form.water_volume_liters)?_ui("Renseigner le volume global de bouillie."):_ui("Unité non reconnue ou incompatible :")+line.dose_unit+" / "+(selected?.unit||_ui("sans article de stock"))+". "}
                       </p>}
                     </Field>
                   </div>
@@ -1232,14 +1226,12 @@ export default function TraitementsPage() {
                         }))
                       }
                     />
-                    Modifier manuellement la quantité prévue
-                  </label>
+                    {" "}{_ui("Modifier manuellement la quantité prévue")}{" "}</label>
                   {line.quantity_is_manual && (
                     <Field
                       label={
                         <span>
-                          Justification de la quantité manuelle
-                          <FieldHelp text="Explique l’écart avec la quantité calculée : réglage du matériel, concentration, conditionnement ou prescription particulière." />
+                          {" "}{_ui("Justification de la quantité manuelle")}{" "}<FieldHelp text="Explique l’écart avec la quantité calculée : réglage du matériel, concentration, conditionnement ou prescription particulière." />
                         </span>
                       }
                       required
@@ -1261,8 +1253,7 @@ export default function TraitementsPage() {
                     <Field
                       label={
                         <span>
-                          DAR (jours)
-                          <FieldHelp text="Délai minimal entre l’application et la récolte, hérité de l’usage autorisé." />
+                          {" "}{_ui("DAR (jours)")}{" "}<FieldHelp text="Délai minimal entre l’application et la récolte, hérité de l’usage autorisé." />
                         </span>
                       }
                     >
@@ -1271,8 +1262,7 @@ export default function TraitementsPage() {
                     <Field
                       label={
                         <span>
-                          Délai rentrée (h)
-                          <FieldHelp text="Durée minimale avant le retour des travailleurs dans la serre traitée, héritée de l’usage autorisé." />
+                          {" "}{_ui("Délai rentrée (h)")}{" "}<FieldHelp text="Durée minimale avant le retour des travailleurs dans la serre traitée, héritée de l’usage autorisé." />
                         </span>
                       }
                     >
@@ -1291,9 +1281,7 @@ export default function TraitementsPage() {
                         )
                       }
                     />{" "}
-                    Usage, dose, DAR et délai de rentrée vérifiés sur
-                    l’étiquette.
-                  </label>
+                    {" "}{_ui("Usage, dose, DAR et délai de rentrée vérifiés sur l’étiquette.")}{" "}</label>
                 </div>
               );
             })}
@@ -1301,7 +1289,7 @@ export default function TraitementsPage() {
               onCancel={() => setRequestOpen(false)}
               onSave={submit}
               loading={saving}
-              saveLabel="SOUMETTRE À VALIDATION"
+              saveLabel={_ui("SOUMETTRE À VALIDATION")}
             />
           </div>
         </Modal>
@@ -1309,13 +1297,13 @@ export default function TraitementsPage() {
 
       {confirming && (
         <Modal
-          title="CONFIRMER L’APPLICATION RÉELLE"
+          title={_ui("CONFIRMER L’APPLICATION RÉELLE")}
           onClose={() => setConfirming(null)}
           size="lg"
         >
           <div className="space-y-md">
-            <div className="grid grid-cols-2 gap-md">
-              <Field label="Résultat">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+              <Field label={_ui("Résultat")}>
                 <Select
                   value={confirmation.application_status}
                   onChange={(e) =>
@@ -1325,15 +1313,15 @@ export default function TraitementsPage() {
                     }))
                   }
                 >
-                  <option value="realisee">Réalisée</option>
-                  <option value="partielle">Partiellement réalisée</option>
-                  <option value="non_realisee">Non réalisée</option>
+                  <option value="realisee">{_ui("Réalisée")}</option>
+                  <option value="partielle">{_ui("Partiellement réalisée")}</option>
+                  <option value="non_realisee">{_ui("Non réalisée")}</option>
                 </Select>
               </Field>
               {confirmation.application_status !== "non_realisee" && (
-                <Field label="Applicateur" required>
-                  {!requireReentryDelay&&<p role="alert" className="text-warning">Contrôle du délai de rentrée désactivé pour ce client : un délai absent restera signalé dans l’historique. Cela n’autorise pas la rentrée dans la serre.</p>}
-                  {workerLoadError ? <p role="alert" className="text-danger">Chargement des employés impossible : {workerLoadError}</p> : !workers.length && <p className="text-warning">Aucun employé actif rattaché à ce client. Vérifiez la ferme dans sa fiche RH, puis actualisez la page.</p>}
+                <Field label={_ui("Applicateur")} required>
+                  {!requireReentryDelay&&<p role="alert" className="text-warning">{_ui("Contrôle du délai de rentrée désactivé pour ce client : un délai absent restera signalé dans l’historique. Cela n’autorise pas la rentrée dans la serre.")}</p>}
+                  {workerLoadError ? <p role="alert" className="text-danger">{_ui("Chargement des employés impossible :")}{" "}{workerLoadError}</p> : !workers.length && <p className="text-warning">{_ui("Aucun employé actif rattaché à ce client. Vérifiez la ferme dans sa fiche RH, puis actualisez la page.")}</p>}
                   <Select
                     value={confirmation.applicator_worker_id}
                     onChange={(e) =>
@@ -1343,7 +1331,7 @@ export default function TraitementsPage() {
                       }))
                     }
                   >
-                    <option value="">Sélectionner</option>
+                    <option value="">{_ui("Sélectionner")}</option>
                     {workers.map((w: any) => (
                       <option key={w.id} value={w.id}>
                         {w.last_name} {w.first_name}
@@ -1354,7 +1342,7 @@ export default function TraitementsPage() {
               )}
             </div>
             {confirmation.application_status === "non_realisee" ? (
-              <Field label="Motif obligatoire">
+              <Field label={_ui("Motif obligatoire")}>
                 <Textarea
                   value={confirmation.non_execution_reason}
                   onChange={(e) =>
@@ -1367,8 +1355,8 @@ export default function TraitementsPage() {
               </Field>
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-md">
-                  <Field label="Début réel">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                  <Field label={_ui("Début réel")}>
                     <Input
                       type="datetime-local"
                       value={confirmation.actual_started_at}
@@ -1380,7 +1368,7 @@ export default function TraitementsPage() {
                       }
                     />
                   </Field>
-                  <Field label="Fin réelle">
+                  <Field label={_ui("Fin réelle")}>
                     <Input
                       type="datetime-local"
                       value={confirmation.actual_ended_at}
@@ -1394,33 +1382,33 @@ export default function TraitementsPage() {
                   </Field>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
-                  <Field label={<span>Surface réellement traitée (m²)<FieldHelp text="Surface effectivement couverte le jour de l’application." /></span>} required>
+                  <Field label={<span>{_ui("Surface réellement traitée (m²)")}<FieldHelp text="Surface effectivement couverte le jour de l’application." /></span>} required>
                     <Input type="text" value={confirmation.actual_treated_area_m2} onChange={(e)=>updateActualVolumes("area",e.target.value)} />
                   </Field>
-                  <Field label={<span>Volume réel (L/ha)<FieldHelp text="Valeur terrain. Modifier ce champ recalcule le volume total et les quantités de produits." /></span>} required>
+                  <Field label={<span>{_ui("Volume réel (L/ha)")}<FieldHelp text="Valeur terrain. Modifier ce champ recalcule le volume total et les quantités de produits." /></span>} required>
                     <Input type="text" value={confirmation.actual_spray_volume_l_ha} onChange={(e)=>updateActualVolumes("perHa",e.target.value)} />
                   </Field>
-                  <Field label={<span>Bouillie réellement préparée (L)<FieldHelp text="Peut être saisi directement ; le ratio L/ha et les consommations sont alors recalculés." /></span>} required>
+                  <Field label={<span>{_ui("Bouillie réellement préparée (L)")}<FieldHelp text="Peut être saisi directement ; le ratio L/ha et les consommations sont alors recalculés." /></span>} required>
                     <Input type="text" value={confirmation.actual_water_volume_liters} onChange={(e)=>updateActualVolumes("total",e.target.value)} />
                   </Field>
                 </div>
                 <div className="rounded border p-3 space-y-2">
-                  <label className="flex gap-2"><input type="checkbox" checked={Boolean(confirmation.homogeneous_cost_allocation)} onChange={e => setConfirmation((v:any) => ({...v, homogeneous_cost_allocation:e.target.checked}))} />Application homogène : répartir les quantités et coûts au prorata des surfaces prescrites.</label>
-                  {!confirmation.homogeneous_cost_allocation && (confirming.treatment_request_targets || []).map((t:any) => <Field key={t.id} label={`Surface réellement traitée — ${t.campaign_plantings?.greenhouses?.name || t.campaign_planting_id}`} required><Input type="text" value={confirmation.actual_cost_areas?.[t.campaign_planting_id] ?? ''} onChange={e => setConfirmation((v:any) => ({...v, actual_cost_areas:{...v.actual_cost_areas,[t.campaign_planting_id]:e.target.value}}))} /></Field>)}
-                  <p className="text-xs">Vérifiez les surfaces réelles. Leur somme doit correspondre à la surface totale réellement traitée. Une surface nulle n’impute aucun coût à cette serre.</p>
+                  <label className="flex gap-2"><input type="checkbox" checked={Boolean(confirmation.homogeneous_cost_allocation)} onChange={e => setConfirmation((v:any) => ({...v, homogeneous_cost_allocation:e.target.checked}))} />{_ui("Application homogène : répartir les quantités et coûts au prorata des surfaces prescrites.")}</label>
+                  {!confirmation.homogeneous_cost_allocation && (confirming.treatment_request_targets || []).map((t:any) => <Field key={t.id} label={_ui("Surface réellement traitée — {v0}",{v0:String(t.campaign_plantings?.greenhouses?.name || t.campaign_planting_id)})} required><Input type="text" value={confirmation.actual_cost_areas?.[t.campaign_planting_id] ?? ''} onChange={e => setConfirmation((v:any) => ({...v, actual_cost_areas:{...v.actual_cost_areas,[t.campaign_planting_id]:e.target.value}}))} /></Field>)}
+                  <p className="text-xs">{_ui("Vérifiez les surfaces réelles. Leur somme doit correspondre à la surface totale réellement traitée. Une surface nulle n’impute aucun coût à cette serre.")}</p>
                 </div>
                 {confirming.treatment_request_products.map((p: any) => (
                   <Card key={p.id} padding="sm">
-                    <p className="text-caption">Cible : {p.target_name || confirming.target_name}</p>
-                    <Field label={`Quantité réelle calculée — ${p.stock_items?.name || p.product_name} (${p.stock_items?.unit || p.quantity_unit})`}>
+                    <p className="text-caption">{_ui("Cible :")}{" "}{p.target_name || confirming.target_name}</p>
+                    <Field label={_ui("Quantité réelle calculée — {v0} ({v1})",{v0:String(p.stock_items?.name || p.product_name),v1:String(p.stock_items?.unit || p.quantity_unit)})}>
                       <Input type="text" value={confirmation.actual_products[p.id] || ""} disabled={!confirmation.actual_product_overrides[p.id]} onChange={(e)=>setConfirmation((v:any)=>({...v,actual_products:{...v.actual_products,[p.id]:e.target.value}}))}/>
                     </Field>
-                    <label className="flex items-center gap-xs mt-sm text-body-sm"><input type="checkbox" checked={Boolean(confirmation.actual_product_overrides[p.id])} onChange={(e)=>setConfirmation((v:any)=>{const overrides={...v.actual_product_overrides,[p.id]:e.target.checked};const next={...v,actual_product_overrides:overrides};return {...next,actual_products:calculatedActualProducts(confirming,next,v.actual_treated_area_m2,v.actual_water_volume_liters)}})}/> Modifier manuellement la quantité réelle</label>
-                    {confirmation.actual_product_overrides[p.id]&&<Field label="Justification obligatoire" className="mt-sm"><Textarea value={confirmation.actual_product_justifications[p.id]||""} onChange={(e)=>setConfirmation((v:any)=>({...v,actual_product_justifications:{...v.actual_product_justifications,[p.id]:e.target.value}}))}/></Field>}
-                    <div className="text-caption text-fg-tertiary mt-xs">Prévu : {formatQuantity(p.planned_quantity)} {p.stock_items?.unit || p.quantity_unit} · Dose : {formatQuantity(p.dose)} {p.dose_unit}{!p.stock_item_id&&" — Rattacher un article de stock avant de confirmer l’application."}</div>
+                    <label className="flex items-center gap-xs mt-sm text-body-sm"><input type="checkbox" checked={Boolean(confirmation.actual_product_overrides[p.id])} onChange={(e)=>setConfirmation((v:any)=>{const overrides={...v.actual_product_overrides,[p.id]:e.target.checked};const next={...v,actual_product_overrides:overrides};return {...next,actual_products:calculatedActualProducts(confirming,next,v.actual_treated_area_m2,v.actual_water_volume_liters)}})}/> {" "}{_ui("Modifier manuellement la quantité réelle")}</label>
+                    {confirmation.actual_product_overrides[p.id]&&<Field label={_ui("Justification obligatoire")} className="mt-sm"><Textarea value={confirmation.actual_product_justifications[p.id]||""} onChange={(e)=>setConfirmation((v:any)=>({...v,actual_product_justifications:{...v.actual_product_justifications,[p.id]:e.target.value}}))}/></Field>}
+                    <div className="text-caption text-fg-tertiary mt-xs">{_ui("Prévu :")}{" "}{formatQuantity(p.planned_quantity)} {p.stock_items?.unit || p.quantity_unit} {" "}{_ui("· Dose :")}{" "}{formatQuantity(p.dose)} {p.dose_unit}{!p.stock_item_id&&_ui("— Rattacher un article de stock avant de confirmer l’application.")}</div>
                   </Card>
                 ))}
-                <Field label="Écarts par rapport à la prescription">
+                <Field label={_ui("Écarts par rapport à la prescription")}>
                   <Textarea
                     value={confirmation.deviation_notes}
                     onChange={(e) =>
@@ -1437,7 +1425,7 @@ export default function TraitementsPage() {
               onCancel={() => setConfirming(null)}
               onSave={confirmApplication}
               loading={saving}
-              saveLabel="CONFIRMER"
+              saveLabel={_ui("CONFIRMER")}
             />
           </div>
         </Modal>
@@ -1445,13 +1433,13 @@ export default function TraitementsPage() {
 
       {checking && (
         <Modal
-          title="CONTRÔLE D’EFFICACITÉ"
+          title={_ui("CONTRÔLE D’EFFICACITÉ")}
           onClose={() => setChecking(null)}
           size="md"
         >
           <div className="space-y-md">
-            <div className="grid grid-cols-2 gap-md">
-              <Field label="Date du contrôle">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+              <Field label={_ui("Date du contrôle")}>
                 <Input
                   type="datetime-local"
                   value={efficacy.checked_at}
@@ -1463,7 +1451,7 @@ export default function TraitementsPage() {
                   }
                 />
               </Field>
-              <Field label="Efficacité estimée (%)">
+              <Field label={_ui("Efficacité estimée (%)")}>
                 <Input
                   type="number"
                   min="0"
@@ -1478,8 +1466,8 @@ export default function TraitementsPage() {
                 />
               </Field>
             </div>
-            <div className="grid grid-cols-2 gap-md">
-              <Field label="Infestation avant">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+              <Field label={_ui("Infestation avant")}>
                 <Input
                   value={efficacy.infestation_before}
                   onChange={(e) =>
@@ -1490,7 +1478,7 @@ export default function TraitementsPage() {
                   }
                 />
               </Field>
-              <Field label="Infestation après">
+              <Field label={_ui("Infestation après")}>
                 <Input
                   value={efficacy.infestation_after}
                   onChange={(e) =>
@@ -1513,9 +1501,8 @@ export default function TraitementsPage() {
                   }))
                 }
               />{" "}
-              Réinfection observée
-            </label>
-            <Field label="Action corrective">
+              {" "}{_ui("Réinfection observée")}{" "}</label>
+            <Field label={_ui("Action corrective")}>
               <Textarea
                 value={efficacy.corrective_action}
                 onChange={(e) =>
@@ -1531,36 +1518,36 @@ export default function TraitementsPage() {
               onSave={recordEfficacy}
               loading={saving}
               disabled={!efficacy.checked_at}
-              saveLabel="ENREGISTRER"
+              saveLabel={_ui("ENREGISTRER")}
             />
           </div>
         </Modal>
       )}
 
-      <section aria-label="Synthèse des traitements" className="space-y-3">
+      <section aria-label={_ui("Synthèse des traitements")} className="space-y-3">
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
           {[
             {label:'À valider',value:pending,color:'text-warning',border:'border-l-warning'},
             {label:'À confirmer',value:requests.filter(r=>r.status==='approuvee').length,color:'text-brand',border:'border-l-brand'},
             {label:'Réalisés',value:requests.filter(r=>r.status==='executee').length,color:'text-success',border:'border-l-success'},
             {label:'Stock manquant / partiel',value:requests.filter(r=>['soumise','approuvee'].includes(r.status)&&r.stock_forecast&&r.stock_forecast.stock_status!=='disponible').length,color:'text-warning',border:'border-l-warning'},
-          ].map((k,index)=><button type="button" key={k.label} aria-label={`Voir les traitements : ${k.label}`} className="text-left rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand group" onClick={()=>setKpiSelection(previous=>({domain:activeDomain?.domain_id||'',status:['soumise','approuvee','executee','actifs'][index],stock:index===3?'manquant':'',sequence:(previous?.sequence||0)+1}))}><Card className={`h-full border-l-[3px] ${k.border} transition-shadow group-hover:shadow-floating group-hover:border-brand/40`}><p className="font-mono text-caption uppercase tracking-wide text-fg-tertiary">{k.label}</p><p className={`text-3xl font-bold mt-3 ${k.color}`}>{k.value}</p><p className="text-caption text-fg-tertiary mt-1">occurrence(s) · Voir la liste →</p></Card></button>)}
+          ].map((k,index)=><button type="button" key={k.label} aria-label={_ui("Voir les traitements : {v0}",{v0:String(k.label)})} className="text-left rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand group" onClick={()=>setKpiSelection(previous=>({domain:activeDomain?.domain_id||'',status:['soumise','approuvee','executee','actifs'][index],stock:index===3?'manquant':'',sequence:(previous?.sequence||0)+1}))}><Card className={`h-full border-l-[3px] ${k.border} transition-shadow group-hover:shadow-floating group-hover:border-brand/40`}><p className="font-mono text-caption uppercase tracking-wide text-fg-tertiary">{_uiNode(k.label)}</p><p className={`text-3xl font-bold mt-3 ${k.color}`}>{k.value}</p><p className="text-caption text-fg-tertiary mt-1">{_ui("occurrence(s) · Voir la liste →")}</p></Card></button>)}
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-caption text-fg-tertiary">Synthèse du client · toutes les dates, avant filtres</p><Button variant="secondary" size="sm" onClick={load}>Actualiser la disponibilité</Button></div>
-        {forecastError&&<div role="alert" className="rounded-lg border border-warning/30 bg-warning/5 p-3"><p className="font-semibold text-warning">Disponibilité du stock non calculée</p><p className="text-caption text-fg-secondary mt-1">{forecastError}</p></div>}
-        {!!stockSummary.length&&<details className="rounded-lg border border-warning/30 bg-warning/5"><summary className="cursor-pointer p-3 font-semibold text-warning text-body-sm">Approvisionnement à prévoir · {stockSummary.length} programme(s) concerné(s) <span className="font-normal text-caption">— Voir le détail</span></summary><div className="grid grid-cols-1 md:grid-cols-2 gap-2 px-3 pb-3">{stockSummary.map(([id,s])=><div key={id} className="rounded-lg border border-border bg-surface-raised p-3"><p className="font-semibold text-body-sm">{s.name}</p><p className="text-caption text-fg-secondary mt-1">{s.available} / {s.total} occurrences couvertes</p><p className="text-caption text-warning mt-1">{s.total-s.available} à approvisionner</p></div>)}</div></details>}
+        <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-caption text-fg-tertiary">{_ui("Synthèse du client · toutes les dates, avant filtres")}</p><Button variant="secondary" size="sm" onClick={load}>{_ui("Actualiser la disponibilité")}</Button></div>
+        {forecastError&&<div role="alert" className="rounded-lg border border-warning/30 bg-warning/5 p-3"><p className="font-semibold text-warning">{_ui("Disponibilité du stock non calculée")}</p><p className="text-caption text-fg-secondary mt-1">{forecastError}</p></div>}
+        {!!stockSummary.length&&<details className="rounded-lg border border-warning/30 bg-warning/5"><summary className="cursor-pointer p-3 font-semibold text-warning text-body-sm">{_ui("Approvisionnement à prévoir ·")}{" "}{stockSummary.length} {" "}{_ui("programme(s) concerné(s)")}{" "}<span className="font-normal text-caption">{_ui("— Voir le détail")}</span></summary><div className="grid grid-cols-1 md:grid-cols-2 gap-2 px-3 pb-3">{stockSummary.map(([id,s])=><div key={id} className="rounded-lg border border-border bg-surface-raised p-3"><p className="font-semibold text-body-sm">{s.name}</p><p className="text-caption text-fg-secondary mt-1">{s.available} / {s.total} {" "}{_ui("occurrences couvertes")}</p><p className="text-caption text-warning mt-1">{s.total-s.available} {" "}{_ui("à approvisionner")}</p></div>)}</div></details>}
       </section>
-      <TreatmentCalendar key={activeDomain?.domain_id || 'none'} selection={kpiSelection?.domain===activeDomain?.domain_id?kpiSelection:null} requests={requests} plantings={plantings}>{visibleRequests => <Card padding="none" className="overflow-hidden">
+      <TreatmentCalendar key={activeDomain?.domain_id || 'none'} selection={kpiSelection?.domain===activeDomain?.domain_id?kpiSelection:null} requests={requests} plantings={plantings}>{visibleRequests => <Card padding="none" className="itrix-table">
         <DataTable minWidth={1150}>
           <THead>
             <TR>
-              <TH>Date prévue</TH>
-              <TH className="min-w-[190px]">Serres</TH>
-              <TH>Cible</TH>
-              <TH>Produits prévus</TH>
-              <TH>Demandeur</TH>
-              <TH>Statut</TH>
-              <TH right>Actions</TH>
+              <TH>{_ui("Date prévue")}</TH>
+              <TH className="min-w-[190px]">{_ui("Serres")}</TH>
+              <TH>{_ui("Cible")}</TH>
+              <TH>{_ui("Produits prévus")}</TH>
+              <TH>{_ui("Demandeur")}</TH>
+              <TH>{_ui("Statut")}</TH>
+              <TH right>{_ui("Actions")}</TH>
             </TR>
           </THead>
           <tbody>
@@ -1570,45 +1557,45 @@ export default function TraitementsPage() {
                 <TR key={r.id}>
                   <TD className="min-w-[140px] align-top">
                     <DateDisplay value={r.planned_at} />
-                    {r.occurrence_number&&<div className="text-caption">Occurrence {r.occurrence_number}</div>}
-                    <div className="text-caption">{warehouses.find(w=>w.id===r.warehouse_id)?.name||"Entrepôt non renseigné"}</div>
+                    {r.occurrence_number&&<div className="text-caption">{_ui("Occurrence")}{" "}{r.occurrence_number}</div>}
+                    <div className="text-caption">{warehouses.find(w=>w.id===r.warehouse_id)?.name||_ui("Entrepôt non renseigné")}</div>
                   </TD>
                   <TD className="min-w-[190px] align-top">
                     <div className="flex flex-wrap gap-1.5 max-w-[250px]">
                     {Array.from(new Set<string>((r.treatment_request_targets || []).map((t:any)=>t.campaign_plantings?.greenhouses?.name).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'fr',{numeric:true})).map(name=>(
                       <span key={name} className="inline-flex whitespace-nowrap rounded-md border border-border bg-surface-sunk px-2 py-1 text-caption font-semibold">{name}</span>
                     ))}
-                    {!(r.treatment_request_targets || []).length && <span className="text-fg-tertiary">Non renseignée</span>}
+                    {!(r.treatment_request_targets || []).length && <span className="text-fg-tertiary">{_ui("Non renseignée")}</span>}
                     </div>
                   </TD>
-                  <TD className="min-w-[160px] align-top"><p className="font-semibold">{r.target_name}</p><button className="block text-xs text-brand hover:underline mt-2 text-left" onClick={()=>setStationReview({id:r.id,readOnly:r.status!=="soumise"})}>Couleurs / accords Station →</button></TD>
+                  <TD className="min-w-[160px] align-top"><p className="font-semibold">{r.target_name}</p><button className="block text-xs text-brand hover:underline mt-2 text-left" onClick={()=>setStationReview({id:r.id,readOnly:r.status!=="soumise"})}>{_ui("Couleurs / accords Station →")}</button></TD>
                   <TD className="min-w-[250px] align-top">
                     {(r.treatment_request_products || []).map((p: any) => (
                       <div key={p.id} className="mb-3 last:mb-0">
                         <p className="font-semibold">{p.stock_items?.name || p.product_name}</p>
                         <p className="text-caption text-fg-secondary mt-1">{formatQuantity(p.planned_quantity)} {p.stock_items?.unit || p.quantity_unit} · {p.target_name || r.target_name}</p>
-                        {!p.stock_item_id&&<span className="text-caption text-warning">Article de stock à créer</span>}
+                        {!p.stock_item_id&&<span className="text-caption text-warning">{_ui("Article de stock à créer")}</span>}
                       </div>
                     ))}
                   </TD>
                   <TD mono className="text-caption">
                     {r.requested_by === user?.id
-                      ? "Moi"
+                      ? _ui("Moi")
                       : r.requested_by.slice(0, 8)}
                   </TD>
                   <TD className="min-w-[260px] max-w-[320px] align-top">
-                    <Badge variant={st.variant}>{st.label}</Badge>
+                    <Badge variant={st.variant}>{_uiNode(st.label)}</Badge>
                     {r.stock_forecast&&<div className="mt-1">
                       <Badge variant={r.stock_forecast.stock_status==="disponible"?"success":"warning"}>
-                        {r.stock_forecast.stock_status==="disponible"?"Stock disponible":r.stock_forecast.stock_status==="partiel"?"Stock partiellement disponible":"Stock non disponible"}
+                        {r.stock_forecast.stock_status==="disponible"?_ui("Stock disponible"):r.stock_forecast.stock_status==="partiel"?_ui("Stock partiellement disponible"):_ui("Stock non disponible")}
                       </Badge>
                     </div>}
-                    {!r.stock_forecast&&['soumise','approuvee'].includes(r.status)&&<p className="text-caption text-fg-tertiary mt-2">Stock : disponibilité non calculée</p>}
+                    {!r.stock_forecast&&['soumise','approuvee'].includes(r.status)&&<p className="text-caption text-fg-tertiary mt-2">{_ui("Stock : disponibilité non calculée")}</p>}
                     <TreatmentWarnings request={r}/>
                   </TD>
                   <TD right>
                     <div className="flex justify-end gap-xs">
-                      {["soumise","approuvee"].includes(r.status)&&(r.treatment_request_products||[]).some((p:any)=>!p.stock_item_id)&&<Button size="xs" variant="secondary" onClick={()=>resolveStock(r.id)}>Rattacher les articles créés</Button>}
+                      {["soumise","approuvee"].includes(r.status)&&(r.treatment_request_products||[]).some((p:any)=>!p.stock_item_id)&&<Button size="xs" variant="secondary" onClick={()=>resolveStock(r.id)}>{_ui("Rattacher les articles créés")}</Button>}
                       {r.status === "soumise" &&
                         canValidate &&
                         r.requested_by !== user?.id && (
@@ -1618,21 +1605,18 @@ export default function TraitementsPage() {
                               variant="secondary"
                               onClick={() => review(r.id, true)}
                             >
-                              <Check size={12} /> Valider
-                            </Button>
+                              <Check size={12} /> {" "}{_ui("Valider")}{" "}</Button>
                             <Button
                               size="xs"
                               variant="ghost"
                               onClick={() => review(r.id, false)}
                             >
-                              <X size={12} /> Rejeter
-                            </Button>
+                              <X size={12} /> {" "}{_ui("Rejeter")}{" "}</Button>
                           </>
                         )}
                       {r.status === "approuvee" && canConfirm && (
                         <Button size="xs" onClick={() => openConfirmation(r)}>
-                          <ClipboardCheck size={12} /> Confirmer
-                        </Button>
+                          <ClipboardCheck size={12} /> {" "}{_ui("Confirmer")}{" "}</Button>
                       )}
                       {r.status === "executee" && canConfirm && (
                         <Button
@@ -1640,8 +1624,7 @@ export default function TraitementsPage() {
                           variant="secondary"
                           onClick={() => setChecking(r)}
                         >
-                          <FlaskConical size={12} /> Efficacité
-                        </Button>
+                          <FlaskConical size={12} /> {" "}{_ui("Efficacité")}{" "}</Button>
                       )}
                     </div>
                   </TD>
@@ -1653,8 +1636,8 @@ export default function TraitementsPage() {
         {visibleRequests.length === 0 && (
           <EmptyState
             icon={FlaskConical}
-            title="Aucun traitement"
-            description="Aucun traitement ne correspond à la sélection. Modifiez les filtres ou créez une prescription."
+            title={_ui("Aucun traitement")}
+            description={_ui("Aucun traitement ne correspond à la sélection. Modifiez les filtres ou créez une prescription.")}
           />
         )}
       </Card>}</TreatmentCalendar>

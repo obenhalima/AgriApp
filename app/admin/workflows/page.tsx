@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Workflow, Pencil } from 'lucide-react'
@@ -19,6 +21,8 @@ const ENTITY_LABELS: Record<string, string> = {
 }
 
 export default function WorkflowsAdminPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const [defs, setDefs] = useState<Def[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -39,16 +43,16 @@ export default function WorkflowsAdminPage() {
   return (
     <div>
       <PageHeader
-        title="Workflows" subtitle="Paramétrage" icon={Workflow} iconColor="#64748b"
-        description="Paramétrage des processus métier par module"
+        title={_ui("Workflows")} subtitle={_ui("Paramétrage")} icon={Workflow} iconColor="#64748b"
+        description={_ui("Paramétrage des processus métier par module")}
       />
 
-      {error && <div className="rounded-md border border-danger/30 bg-danger/10 p-md text-danger text-body-sm mb-md">⚠ {error}</div>}
+      {error && <div className="rounded-md border border-danger/30 bg-danger/10 p-md text-danger text-body-sm mb-md">⚠ {_uiNode(error)}</div>}
 
       {loading ? (
         <div className="space-y-md">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-32" />)}</div>
       ) : defs.length === 0 ? (
-        <EmptyState icon={Workflow} title="Aucun workflow configuré" description="Applique la migration 006_workflows.sql." />
+        <EmptyState icon={Workflow} title={_ui("Aucun workflow configuré")} description={_ui("Applique la migration 006_workflows.sql.")} />
       ) : (
         Object.entries(grouped).map(([entityType, list], gi) => (
           <div key={entityType} className="mb-xl">
@@ -58,21 +62,21 @@ export default function WorkflowsAdminPage() {
             </div>
             <Card animate delay={gi * 0.05} padding="none" className="overflow-hidden">
               <DataTable>
-                <THead><TR><TH>Nom</TH><TH>Code</TH><TH>Version</TH><TH>Actif</TH><TH>Défaut</TH><TH right>Actions</TH></TR></THead>
+                <THead><TR><TH>{_ui("Nom")}</TH><TH>{_ui("Code")}</TH><TH>{_ui("Version")}</TH><TH>{_ui("Actif")}</TH><TH>{_ui("Défaut")}</TH><TH right>{_ui("Actions")}</TH></TR></THead>
                 <tbody>
                   {list.map((d, i) => (
                     <TR key={d.id} animate delay={0.05 + i * 0.02}>
                       <TD>
                         <div className="font-display font-semibold text-fg-primary">{d.name}</div>
-                        {d.description && <div className="text-caption text-fg-tertiary mt-0.5">{d.description}</div>}
+                        {d.description && <div className="text-caption text-fg-tertiary mt-0.5">{_uiNode(d.description)}</div>}
                       </TD>
                       <TD mono className="text-caption">{d.code}</TD>
                       <TD mono className="text-caption">v{d.version}</TD>
-                      <TD>{d.is_active ? <Badge variant="success" size="sm">actif</Badge> : <Badge variant="default" size="sm">inactif</Badge>}</TD>
-                      <TD>{d.is_default ? <Badge variant="success" size="sm">défaut</Badge> : <span className="text-fg-tertiary text-caption">—</span>}</TD>
+                      <TD>{d.is_active ? <Badge variant="success" size="sm">{_ui("actif")}</Badge> : <Badge variant="default" size="sm">{_ui("inactif")}</Badge>}</TD>
+                      <TD>{d.is_default ? <Badge variant="success" size="sm">{_ui("défaut")}</Badge> : <span className="text-fg-tertiary text-caption">—</span>}</TD>
                       <TD right>
                         <Link href={`/admin/workflows/${d.id}`}>
-                          <Button variant="ghost" size="xs"><Pencil size={11} /> Éditer</Button>
+                          <Button variant="ghost" size="xs"><Pencil size={11} /> {" "}{_ui("Éditer")}</Button>
                         </Link>
                       </TD>
                     </TR>

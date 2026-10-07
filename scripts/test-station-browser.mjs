@@ -44,7 +44,7 @@ try {
  if(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+2))throw Error('Horizontal overflow')
  fs.mkdirSync('tmp/station',{recursive:true});await page.screenshot({path:'tmp/station/mobile.png',fullPage:true})
  await submit.click()
- await page.getByText('Aucune demande à valider avec vos habilitations actuelles.').waitFor()
+ await page.getByRole('heading',{name:'Aucune demande en attente',exact:true}).waitFor()
  if(decisions!==1||errors.length)throw Error('Decision or runtime failure: '+errors.join(';'))
  console.log('Station mobile: individual unchecked confirmations, blocked until complete, exactly one validated payload: OK; no real writes')
 }finally{await browser.close()}

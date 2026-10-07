@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useMemo, useState } from 'react'
 import { TrendingUp, Coins, Calculator, Percent, Info, AlertCircle, Scale, Banknote } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -16,6 +18,8 @@ import { computeCoutRevient, type CoutRevientResult, type HarvestAgg } from '@/l
 type Campaign = { id: string; code: string; name: string; farm_id: string | null }
 
 export default function MargesPage() {
+ const {t:_ui,text:_uiNode,intlLocale:_uiLocale}=useLanguage()
+
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [campaignId, setCampaignId] = useState<string>('')
   const [result, setResult] = useState<CoutRevientResult | null>(null)
@@ -116,8 +120,8 @@ export default function MargesPage() {
   return (
     <div>
       <PageHeader
-        title="Coût de revient & Marges" subtitle="Finances" icon={TrendingUp} iconColor="#10b981"
-        description="Coût de production par culture (achats + charges + MO répartis) → marge valorisée et marge réelle"
+        title={_ui("Coût de revient & Marges")} subtitle={_ui("Finances")} icon={TrendingUp} iconColor="#10b981"
+        description={_ui("Coût de production par culture (achats + charges + MO répartis) → marge valorisée et marge réelle")}
         actions={
           <TSelect value={campaignId} onChange={(e) => setCampaignId(e.target.value)} className="h-9 w-auto min-w-[260px]">
             {campaigns.map(c => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
@@ -127,7 +131,7 @@ export default function MargesPage() {
 
       {error && (
         <div className="rounded-md border border-danger/30 bg-danger/10 p-md text-danger text-body-sm flex items-center gap-2 mb-md">
-          <AlertCircle size={14} /> {error}
+          <AlertCircle size={14} /> {_uiNode(error)}
         </div>
       )}
 
@@ -137,32 +141,32 @@ export default function MargesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-md mb-md">
-          <KPICard label="Coûts réels" value={<MoneyDisplay value={t.couts} compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="achats + charges + MO + amort." icon={Coins} accent="#f59e0b" variant="hero" delay={0} />
-          <KPICard label="Coût de revient /kg" value={<MoneyDisplay value={t.coutParKg ?? 0} compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub={`sur ${(t.productionKg).toLocaleString('fr-FR')} kg produits`} icon={Scale} accent="#8b5cf6" variant="hero" delay={0.05} />
-          <KPICard label="Marge valorisée" value={<MoneyDisplay value={t.margeValorisee} compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub={`${pct(t.margePctValorisee)} · CA récoltes×prix`} icon={Calculator} accent={t.margeValorisee >= 0 ? '#10b981' : '#ef4444'} variant="hero" delay={0.1} />
-          <KPICard label="Marge réelle" value={<MoneyDisplay value={t.margeReelle} compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub={`${pct(t.margePctReelle)} · CA station tarifé`} icon={Banknote} accent={t.margeReelle >= 0 ? '#10b981' : '#ef4444'} variant="hero" delay={0.15} />
+          <KPICard label={_ui("Coûts réels")} value={<MoneyDisplay value={t.couts} compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="achats + charges + MO + amort." icon={Coins} accent="#f59e0b" variant="hero" delay={0} />
+          <KPICard label={_ui("Coût de revient /kg")} value={<MoneyDisplay value={t.coutParKg ?? 0} compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub={`sur ${(t.productionKg).toLocaleString(_uiLocale)} kg produits`} icon={Scale} accent="#8b5cf6" variant="hero" delay={0.05} />
+          <KPICard label={_ui("Marge valorisée")} value={<MoneyDisplay value={t.margeValorisee} compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub={`${pct(t.margePctValorisee)} · CA récoltes×prix`} icon={Calculator} accent={t.margeValorisee >= 0 ? '#10b981' : '#ef4444'} variant="hero" delay={0.1} />
+          <KPICard label={_ui("Marge réelle")} value={<MoneyDisplay value={t.margeReelle} compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub={`${pct(t.margePctReelle)} · CA station tarifé`} icon={Banknote} accent={t.margeReelle >= 0 ? '#10b981' : '#ef4444'} variant="hero" delay={0.15} />
         </div>
       )}
 
       <Card animate delay={0.2} padding="none" className="overflow-hidden mb-md">
         <div className="px-md py-sm border-b border-border">
-          <div className="font-display text-heading-sm font-bold text-fg-primary">Coût de revient par culture — {result?.parVariete.length ?? 0} variété(s)</div>
+          <div className="font-display text-heading-sm font-bold text-fg-primary">{_ui("Coût de revient par culture —")}{" "}{result?.parVariete.length ?? 0} {" "}{_ui("variété(s)")}</div>
         </div>
         {!result || result.parVariete.length === 0 ? (
-          <EmptyState icon={TrendingUp} title="Aucune plantation sur cette campagne" />
+          <EmptyState icon={TrendingUp} title={_ui("Aucune plantation sur cette campagne")} />
         ) : (
           <div className="overflow-x-auto">
             <DataTable>
               <THead><TR>
-                <TH>Variété</TH>
-                <TH right>Production</TH>
-                <TH right>Coûts</TH>
-                <TH right>Coût/kg</TH>
-                <TH right>Coût/m²</TH>
-                <TH right>CA valorisé</TH>
-                <TH right>Marge val.</TH>
-                <TH right>CA réel</TH>
-                <TH right>Marge réelle</TH>
+                <TH>{_ui("Variété")}</TH>
+                <TH right>{_ui("Production")}</TH>
+                <TH right>{_ui("Coûts")}</TH>
+                <TH right>{_ui("Coût/kg")}</TH>
+                <TH right>{_ui("Coût/m²")}</TH>
+                <TH right>{_ui("CA valorisé")}</TH>
+                <TH right>{_ui("Marge val.")}</TH>
+                <TH right>{_ui("CA réel")}</TH>
+                <TH right>{_ui("Marge réelle")}</TH>
               </TR></THead>
               <tbody>
                 {result.parVariete.map((v, i) => (
@@ -191,17 +195,17 @@ export default function MargesPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-md">
         <Card animate delay={0.3} padding="none" className="overflow-hidden">
           <div className="px-md py-sm border-b border-border">
-            <div className="font-display text-heading-sm font-bold text-fg-primary">Top coûts par catégorie</div>
+            <div className="font-display text-heading-sm font-bold text-fg-primary">{_ui("Top coûts par catégorie")}</div>
           </div>
           {coutsParCategorie.length === 0 ? (
-            <EmptyState icon={Coins} title="Aucun coût enregistré" />
+            <EmptyState icon={Coins} title={_ui("Aucun coût enregistré")} />
           ) : (
             <DataTable>
-              <THead><TR><TH>Catégorie</TH><TH>Type</TH><TH right>Total</TH></TR></THead>
+              <THead><TR><TH>{_ui("Catégorie")}</TH><TH>{_ui("Type")}</TH><TH right>{_ui("Total")}</TH></TR></THead>
               <tbody>
                 {coutsParCategorie.slice(0, 10).map((c, i) => (
                   <TR key={i} animate delay={0.04 + i * 0.02}>
-                    <TD>{c.label}</TD>
+                    <TD>{_uiNode(c.label)}</TD>
                     <TD><Badge variant="default" size="xs">{c.type}</Badge></TD>
                     <TD right mono><MoneyDisplay value={c.total} compact="auto" /></TD>
                   </TR>
@@ -215,9 +219,9 @@ export default function MargesPage() {
           <div className="flex items-start gap-sm text-body-sm text-fg-secondary">
             <Info size={14} className="text-info flex-shrink-0 mt-0.5" />
             <div className="space-y-2">
-              <div><b className="text-fg-primary">Méthode.</b> Les coûts sont imputés en cascade : d'abord au niveau serre+variété, sinon répartis par serre puis par campagne au prorata des surfaces plantées.</div>
-              <div><b className="text-fg-primary">Marge valorisée</b> = CA récoltes × prix (export/local) − coûts. <b className="text-fg-primary">Marge réelle</b> = CA station réellement trié+tarifé − coûts (colonne « — » tant qu'un lot n'est pas tarifé).</div>
-              <div className="text-caption opacity-80">Les achats reçus alimentent les coûts (pont automatique). Prix export/local sommés sans conversion de devise (convention app, cohérent avec le dashboard).</div>
+              <div><b className="text-fg-primary">{_ui("Méthode.")}</b> {" "}{_ui("Les coûts sont imputés en cascade : d'abord au niveau serre+variété, sinon répartis par serre puis par campagne au prorata des surfaces plantées.")}</div>
+              <div><b className="text-fg-primary">{_ui("Marge valorisée")}</b> {" "}{_ui("= CA récoltes × prix (export/local) − coûts.")}{" "}<b className="text-fg-primary">{_ui("Marge réelle")}</b> {" "}{_ui("= CA station réellement trié+tarifé − coûts (colonne « — » tant qu'un lot n'est pas tarifé).")}</div>
+              <div className="text-caption opacity-80">{_ui("Les achats reçus alimentent les coûts (pont automatique). Prix export/local sommés sans conversion de devise (convention app, cohérent avec le dashboard).")}</div>
             </div>
           </div>
         </Card>

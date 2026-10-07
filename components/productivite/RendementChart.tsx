@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 // ============================================================
 // Évolution du rendement jour après jour, par tâche.
 //   • Tâche « récolte » (is_harvest) → rendement = kg récoltés / heures pointées
@@ -23,6 +25,8 @@ const TOOLTIP_STYLE = {
 }
 
 export function RendementChart({ campaignId }: { campaignId: string }) {
+ const {t:_ui,text:_uiNode,intlLocale:_uiLocale}=useLanguage()
+
   const { values: TASKS } = useReferenceList('labor_task')
   const [taskCode, setTaskCode] = useState('')
   const [points, setPoints] = useState<Point[]>([])
@@ -89,34 +93,34 @@ export function RendementChart({ campaignId }: { campaignId: string }) {
   }, [points])
 
   const u = unitLabel(unit)
-  const fmt = (v: number) => v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })
+  const fmt = (v: number) => v.toLocaleString(_uiLocale, { maximumFractionDigits: 1 })
 
   return (
     <Card padding="none" className="overflow-hidden">
       <div className="px-md py-sm border-b border-border flex items-center justify-between gap-md flex-wrap">
-        <div className="font-display text-heading-sm font-bold text-fg-primary">Évolution du rendement — jour après jour</div>
+        <div className="font-display text-heading-sm font-bold text-fg-primary">{_ui("Évolution du rendement — jour après jour")}</div>
         <TSelect value={taskCode} onChange={(e) => setTaskCode(e.target.value)} className="h-8 w-auto min-w-[180px]">
-          {TASKS.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
+          {TASKS.map(t => <option key={t.code} value={t.code}>{_uiNode(t.label)}</option>)}
         </TSelect>
       </div>
 
       {!unit ? (
-        <EmptyState icon={Minus} title="Cette tâche n'a pas d'unité de rendement" description="Définis une unité pour cette tâche dans /admin/référentiels (liste « Tâches de main-d'œuvre »)." />
+        <EmptyState icon={Minus} title={_ui("Cette tâche n'a pas d'unité de rendement")} description={_ui("Définis une unité pour cette tâche dans /admin/référentiels (liste « Tâches de main-d'œuvre »).")} />
       ) : loading ? (
-        <div className="p-lg text-body-sm text-fg-tertiary">Chargement…</div>
+        <div className="p-lg text-body-sm text-fg-tertiary">{_ui("Chargement…")}</div>
       ) : points.length === 0 ? (
-        <EmptyState icon={TrendingUp} title="Pas encore de données"
+        <EmptyState icon={TrendingUp} title={_ui("Pas encore de données")}
           description={isHarvest
-            ? 'Pointe des heures de cueillette (le tonnage vient des récoltes) pour voir la courbe.'
-            : `Pointe des heures sur cette tâche en indiquant le travail réalisé (en ${u}) pour voir la courbe.`} />
+            ? _ui("Pointe des heures de cueillette (le tonnage vient des récoltes) pour voir la courbe.")
+            : _ui("Pointe des heures sur cette tâche en indiquant le travail réalisé (en {v0}) pour voir la courbe.",{v0:String(u)})} />
       ) : (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-md p-md border-b border-border">
-            <div><div className="text-caption text-fg-tertiary">Moyenne</div><div className="font-display font-bold text-fg-primary">{fmt(stats!.avg)} {u}/h</div></div>
-            <div><div className="text-caption text-fg-tertiary">Min</div><div className="font-mono text-fg-secondary">{fmt(stats!.min)}</div></div>
-            <div><div className="text-caption text-fg-tertiary">Max</div><div className="font-mono text-fg-secondary">{fmt(stats!.max)}</div></div>
+            <div><div className="text-caption text-fg-tertiary">{_ui("Moyenne")}</div><div className="font-display font-bold text-fg-primary">{fmt(stats!.avg)} {u}/h</div></div>
+            <div><div className="text-caption text-fg-tertiary">{_ui("Min")}</div><div className="font-mono text-fg-secondary">{fmt(stats!.min)}</div></div>
+            <div><div className="text-caption text-fg-tertiary">{_ui("Max")}</div><div className="font-mono text-fg-secondary">{fmt(stats!.max)}</div></div>
             <div>
-              <div className="text-caption text-fg-tertiary">Tendance</div>
+              <div className="text-caption text-fg-tertiary">{_ui("Tendance")}</div>
               <div className={`font-bold inline-flex items-center gap-1 ${stats!.deltaPct > 5 ? 'text-success' : stats!.deltaPct < -5 ? 'text-danger' : 'text-fg-secondary'}`}>
                 {stats!.deltaPct > 5 ? <TrendingUp size={14} /> : stats!.deltaPct < -5 ? <TrendingDown size={14} /> : <Minus size={14} />}
                 {stats!.deltaPct >= 0 ? '+' : ''}{fmt(stats!.deltaPct)}%
@@ -137,7 +141,7 @@ export function RendementChart({ campaignId }: { campaignId: string }) {
               </LineChart>
             </ResponsiveContainer>
             <div className="mt-1 text-caption text-fg-tertiary text-center">
-              {stats!.n} jour(s) pointé(s) · ligne pointillée = moyenne ({fmt(stats!.avg)} {u}/h)
+              {stats!.n} {" "}{_ui("jour(s) pointé(s) · ligne pointillée = moyenne (")}{fmt(stats!.avg)} {u}/h)
             </div>
           </div>
         </>

@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>دليل المستعملينItriX Farm</title>
+<style>
+:root{--p:#4f46e5;--pl:#eef2ff;--g:#10b981;--w:#f59e0b;--r:#ef4444;--t:#1e293b;--m:#64748b;--b:#e2e8f0;--bg:#f8fafc;--wh:#ffffff;--sb:#1e1b4b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;color:var(--t);background:var(--bg);line-height:1.6}
+.cover{background:linear-gradient(135deg,#1e1b4b,#312e81,#4338ca);color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 40px;page-break-after:always}
+.cover .lw{background:rgba(255,255,255,.12);border-radius:24px;padding:20px 36px;margin-bottom:40px;border:1px solid rgba(255,255,255,.2)}
+.cover .lw h1{font-size:2.2rem;font-weight:800}.cover .lw p{font-size:.85rem;opacity:.6;letter-spacing:2px;text-transform:uppercase;margin-top:4px}
+.cover h2{font-size:3.5rem;font-weight:800;line-height:1.1;margin-bottom:16px}
+.cover .sub{font-size:1.15rem;opacity:.8;max-width:500px}
+.cover .pill{display:inline-block;background:rgba(16,185,129,.2);border:1px solid rgba(16,185,129,.5);color:#6ee7b7;border-radius:20px;padding:6px 20px;font-size:.85rem;margin-top:24px;letter-spacing:1px}
+.cover .meta{margin-top:60px;font-size:.82rem;opacity:.45}
+
+.toc{max-width:860px;margin:0 auto;padding:60px 40px;page-break-after:always}
+.toc h2{font-size:1.8rem;font-weight:700;margin-bottom:32px;color:var(--p);border-bottom:3px solid var(--p);padding-bottom:12px}
+.tg{margin-bottom:28px}.tg-t{font-size:.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--m);margin-bottom:8px}
+.ti{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px dotted var(--b);font-size:.93rem}
+.ti .n{font-size:.78rem;color:var(--m);min-width:36px;font-weight:700}
+
+.page{max-width:1060px;margin:0 auto;padding:60px 40px;page-break-after:always}
+.sh{display:flex;align-items:flex-start;gap:20px;margin-bottom:36px;padding-bottom:24px;border-bottom:2px solid var(--b)}
+.si{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0}
+.sn{font-size:.72rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--p);margin-bottom:4px}
+.st{font-size:1.9rem;font-weight:800;line-height:1.1}.sd{font-size:.93rem;color:var(--m);margin-top:6px}
+
+.sb{margin:28px 0}.sl{display:flex;align-items:center;gap:8px;font-size:.76rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--m);margin-bottom:10px}
+.sl::before{content:'';display:block;width:12px;height:12px;border-radius:3px;background:var(--p);flex-shrink:0}
+.sw{border-radius:14px;overflow:hidden;border:1px solid var(--b);box-shadow:0 4px 24px rgba(0,0,0,.08)}
+.sw img{width:100%;display:block}
+.sc{font-size:.82rem;color:var(--m);margin-top:10px;padding:10px 14px;background:var(--wh);border-radius:8px;border-left:3px solid var(--p);line-height:1.6}
+
+.cb{font-size:.95rem;line-height:1.8;color:#334155;margin-bottom:20px}
+.kg{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:20px 0}
+.kc{background:var(--wh);border:1px solid var(--b);border-radius:12px;padding:16px;border-top:3px solid var(--p)}
+.kc.g{border-top-color:var(--g)}.kc.o{border-top-color:var(--w)}.kc.r{border-top-color:var(--r)}.kc.pu{border-top-color:#8b5cf6}.kc.pk{border-top-color:#ec4899}
+.kl{font-size:.68rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--m)}
+.kv{font-size:1.5rem;font-weight:800;margin:4px 0 2px}
+.ks{font-size:.76rem;color:var(--m)}
+
+.steps{counter-reset:s;list-style:none;margin:16px 0}
+.steps li{counter-increment:s;display:flex;gap:16px;margin-bottom:16px;align-items:flex-start}
+.steps li::before{content:counter(s);min-width:28px;height:28px;background:var(--p);color:#fff;border-radius:50%;font-size:.8rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.steps li p{font-size:.92rem;line-height:1.6}
+.steps li strong{display:block;font-size:.88rem;margin-bottom:2px}
+
+.ib{background:var(--pl);border:1px solid #c7d2fe;border-radius:10px;padding:14px 18px;margin:16px 0;font-size:.88rem;line-height:1.6;display:flex;gap:12px;align-items:flex-start}
+.wb{background:#fffbeb;border-color:#fcd34d}
+.ic{font-size:1.1rem;flex-shrink:0;margin-top:1px}
+
+table{width:100%;border-collapse:collapse;font-size:.87rem;margin:16px 0}
+th{background:#f1f5f9;font-weight:700;padding:10px 14px;text-align:left;font-size:.76rem;letter-spacing:.5px;border-bottom:2px solid var(--b);color:var(--m);text-transform:uppercase}
+td{padding:10px 14px;border-bottom:1px solid var(--b);vertical-align:top}
+tr:hover td{background:#fafafa}
+
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:.7rem;font-weight:700;letter-spacing:.5px}
+.bg{background:#dcfce7;color:#166534}.bo{background:#fef3c7;color:#92400e}.bb{background:#dbeafe;color:#1e40af}
+.bpu{background:#ede9fe;color:#5b21b6}.br{background:#fee2e2;color:#991b1b}.bt{background:#ccfbf1;color:#134e4a}
+
+.tc{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:20px 0}
+.fc{background:var(--wh);border:1px solid var(--b);border-radius:12px;padding:20px}
+.fc h4{font-size:.95rem;font-weight:700;margin-bottom:8px}
+.fc p{font-size:.85rem;color:var(--m);line-height:1.6}
+.fc ul{margin-top:8px;padding-left:18px;font-size:.84rem;color:var(--m)}
+.fc ul li{margin-bottom:4px}
+
+.nm{background:#1e1b4b;color:#fff;border-radius:14px;padding:28px;margin:20px 0;display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.ng h4{font-size:.62rem;letter-spacing:2px;text-transform:uppercase;opacity:.5;margin-bottom:8px}
+.ng ul{list-style:none}.ng li{font-size:.82rem;opacity:.85;padding:3px 0}
+.ng li::before{content:'›';margin-right:6px;opacity:.5}
+
+h2.sub{font-size:1.3rem;font-weight:700;margin:28px 0 12px;color:var(--t)}
+h3.sub{font-size:1.05rem;font-weight:700;margin:20px 0 8px;color:var(--p)}
+hr.dv{border:none;border-top:1px solid var(--b);margin:32px 0}
+</style>
+<link rel="stylesheet" href="guide-brand.css">
+<style>body{font-family:Tahoma,Arial,sans-serif}.ti,.sh{direction:rtl}th{text-align:start}</style></head><body>
+
+<div class="cover">
+  <div class="lw"><h1>ItriX Farm</h1><p>ItriX Technologies</p></div>
+  <h2>الدليل<br>مستعمل</h2>
+  <p class="sub">دليل كامل لتطبيق إدارة الإنتاج الزراعي في إطار الاحتباس الحراري</p>
+  <div class="pill">:: الحملة الحيّة 2025-2026</div>
+  <p class="meta">الفصل ١ - ٠ نيسان/أبريل ٢٠٢٦ مدير البرنامج: عمر بنكيران</p>
+</div>
+
+<div class="toc">
+  <h2>📋 المحتويات</h2>
+  <div class="tg"><div class="tg-t">مقدمة</div>
+    <div class="ti"><span class="n">—</span>عرض عام &amp; الملاحة</div>
+    <div class="ti"><span class="n">—</span>مركز المحامين &amp; العناصر العالمية</div>
+  </div>
+  <div class="tg"><div class="tg-t">الطيار</div>
+    <div class="ti"><span class="n">01</span>لوحة إدارة تنفيذية - لمحة عامة موحدة</div>
+    <div class="ti"><span class="n">02</span>الحفائز - الكثير &amp; النوعية</div>
+    <div class="ti"><span class="n">03</span>الإنتاج - رصد النباتات</div>
+    <div class="ti"><span class="n">04</span>Agronomy - Crop Journal</div>
+  </div>
+  <div class="tg"><div class="tg-t">التجارة</div>
+    <div class="ti"><span class="n">05</span>الأسواق: أوامر الزبائن</div>
+    <div class="ti"><span class="n">06</span>الفواتير - عملاء الائتمان &amp; موردو الديون</div>
+  </div>
+  <div class="tg"><div class="tg-t">العملية</div>
+    <div class="ti"><span class="n">07</span>المزارع؛ الخواتم؛</div>
+  </div>
+  <div class="tg"><div class="tg-t">الموارد</div>
+    <div class="ti"><span class="n">08</span>الموردين - الكتاب السنوي للمشتريات</div>
+    <div class="ti"><span class="n">09</span>المشتريات - استمارات الطلب</div>
+    <div class="ti"><span class="n">10</span>المخزون &amp; تنبيهات</div>
+  </div>
+  <div class="tg"><div class="tg-t">التمويل &amp; الاتحاد</div>
+    <div class="ti"><span class="n">11</span>التكاليف &amp; الميزانية</div>
+    <div class="ti"><span class="n">12</span>المارجين &amp; IA Forecast</div>
+    <div class="ti"><span class="n">13</span>البارامترات &amp; الإدارة</div>
+  </div>
+  <div class="tg"><div class="tg-t">المرفقات</div>
+    <div class="ti"><span class="n">A</span>أولا - تدفق العمل - ١٣ خطوة</div>
+    <div class="ti"><span class="n">B</span>رموز الأعمدة &amp; شارات الحالة</div>
+  </div>
+</div>
+<div class="page" id="intro">
+  <div class="sh"><div class="si" style="background:#eef2ff">🗺️</div><div>
+    <div class="sn">مقدمة</div>
+    <div class="st">مقدمة &amp; الملاحة</div>
+    <div class="sd">الهيكل العام للمقاييس التطبيقية والتفاعلية</div>
+  </div></div>
+  <p class="cb"><strong>ItriX Farm</strong> وهو نظام لإدارة تنفيذ المزارع على شبكة الإنترنت، وهو يُركز في الوقت الحقيقي على رصد إنتاج غازات الدفيئة وقابلية تعقب المحاصيل والإدارة التجارية ومراقبة الموارد والإدارة المالية على منصة واحدة.</p>
+  <h2 class="sub">هيكل الملاحة</h2>
+  <p class="cb">الواجهة تُنظّم حول a <strong>ملاح ملاحية جانبية</strong> وتحدد الصفحة النشطة بنقطة (ت) إلى حق اسمها.</p>
+  <div class="nm">
+    <div class="ng"><h4>الطيار</h4><ul><li>لوحة</li><li>الحفارات</li><li>الإنتاج</li><li>Agronomy</li></ul></div>
+    <div class="ng"><h4>التجارة</h4><ul><li>الأسواق</li><li>العملاء</li><li>الأوامر</li><li>الفواتير</li></ul></div>
+    <div class="ng"><h4>العملية</h4><ul><li>المزارع</li><li>أقفال</li><li>الخصوم</li><li>الحملات</li></ul></div>
+    <div class="ng"><h4>الموارد المالية</h4><ul><li>الموردين</li><li>المشتريات: المخزونات</li><li>التكاليف: المارجين</li><li>IA &amp; Forecast</li></ul></div>
+  </div>
+  <h2 class="sub">الحانه العلوي</h2>
+  <table>
+    <thead><tr><th>العنصر</th><th>الوصف</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge bg">:: الحياة: 2025-2026</span></td><td>تطبيقات متصلة بقاعدة البيانات في طريقة الإنتاج، حملة نشطة</td></tr>
+      <tr><td>☀️ ليرة/</td><td>التحول بين الضوء والموضوع المظلم</td></tr>
+      <tr><td><strong>عمر بنكيران مدير</strong></td><td>المستعمل الموصل ودوره في التطبيق</td></tr>
+      <tr><td>Logout</td><td>ازرار فصل الدورة</td></tr>
+      <tr><td><strong>زر السياق (الطابق الأيمن)</strong></td><td>تغيير وفقاً للنموذج: + التعيين، + RECOLT، + INTERVENTION، + FACTURE...</td></tr>
+    </tbody>
+  </table>
+  <h2 class="sub">أزرار جانبية</h2>
+  <div class="tc">
+    <div class="fc"><h4>📌 مُنحت / رشاشة.</h4><p>(بين) أو خفض عرض الجانب، مفيد لتوسيع نطاق العمل، متاح في الجزء السفلي من قائمة الملاحة.</p></div>
+    <div class="fc"><h4># كلّ / # ردود</h4><p>يطوّر أو يطوي جميع المجموعات في قائمة الملاحة، المتاحة على قمة الجانب.</p></div>
+  </div>
+  <div class="ib"><span class="ic">💡</span><span>ويبين العدد الذي يُعرض على حق كل مجموعة من ألقابها (مثلاً PILOTAGE 4) عدد الصفحات في هذه المجموعة.</span></div>
+</div>
+
+<div class="page" id="dashboard">
+  <div class="sh"><div class="si" style="background:#eef2ff">📊</div><div>
+    <div class="sn">النموذج 01: Piloting</div>
+    <div class="st">لوحة إدارة تنفيذية</div>
+    <div class="sd">استعراض عام موحد - الإنتاج - التمويل؛ حملة نشطة لنوعية العمل</div>
+  </div></div>
+  <p class="cb">لوحة الداشة هي <strong>لوحة المدافئة المركزية</strong> وهو يقدم نظرة على النشاط تبلغ 360 درجة، مع تصفية زمنية فريدة لتحليل الإنتاج والإيرادات والتكاليف والجودة في نفس الوقت.</p>
+  <div class="sb">
+    <div class="sl">الرأي الرئيسي لهيئة المتابعة التنفيذية</div>
+    <div class="sw"><img src="/guide-screenshots/dashboard.png" alt="Dashboard" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/dashboard.png</div>')"/></div>
+    <div class="sc">ويظهر لوحة &amp;quot; داشلو &amp;quot; تزامنا في الوقت الحقيقي (28/04/2026؛ 15:09)، وقصر العمل السريع (الحصاد الجديد، والاحتباس الحراري، والأسعار المستكملة، والهامش المتحققة)، والمرشح الزمني، و 6 مؤشرات من مؤشرات عملية كيمبرلي.</div>
+  </div>
+  <h2 class="sub">المؤشرات الرئيسية الستة</h2>
+  <div class="kg">
+    <div class="kc"><div class="kl">الإنتاج المطلي</div><div class="kv" style="color:#2563eb">0 – ∞ t</div><div class="ks">المجلد الذي تم جمعه خلال الفترة</div></div>
+    <div class="kc"><div class="kl">CA filtered</div><div class="kv" style="color:#2563eb">kMAD</div><div class="ks">أك َّدت وكالة الأنباء الكويتية - الفواتير على مدى الفترة</div></div>
+    <div class="kc o"><div class="kl">التكاليف الفعلية</div><div class="kv" style="color:#d97706">kMAD</div><div class="ks">النفقات المتكبدة خلال الفترة</div></div>
+    <div class="kc r"><div class="kl">الهامش الإجمالي</div><div class="kv" style="color:#dc2626">?MAD</div><div class="ks">CA - Costs = margin pressure</div></div>
+    <div class="kc g"><div class="kl">Premium</div><div class="kv" style="color:#059669">%</div><div class="ks">فئة حصة الإنتاج 1</div></div>
+    <div class="kc pk"><div class="kl">المجموعة:</div><div class="kv" style="color:#db2777">%</div><div class="ks">معدل التدفقات النقدية</div></div>
+  </div>
+  <div class="sb">
+    <div class="sl">KPIs &amp; الإنتاج/الصندوق + موجز تنفيذي</div>
+    <div class="sw"><img src="/guide-screenshots/dashboard-kpis.png" alt="Dashboard — KPIs" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/dashboard-kpis.png</div>')"/></div>
+    <div class="sc">الرسم البياني <strong>الإنتاج والتمويل</strong> Overlays 4 curves (Production, Waste, CA, Costs) on double axis. <strong>موجز تنفيذي</strong> Summary: Gross Margin, Recovery, Premium Rate, Loss Rate, and number of active campaigns (5 greenhouses followed).</div>
+  </div>
+  <h2 class="sub">محفوظات الوقت</h2>
+  <table><thead><tr><th>Mode</th><th>الاستخدام</th></tr></thead><tbody>
+    <tr><td><span class="badge bb">الشهر</span></td><td>اختيار شهر محدد عن طريق قائمة الانقطاع عن العمل (الجنس: حزيران/يونيه 2026)</td></tr>
+    <tr><td><span class="badge bb">الأسبوع</span></td><td>تحليل أسبوعي للحملة الحالية</td></tr>
+    <tr><td><span class="badge bb">فترة محددة</span></td><td>دخول العرف بحرية يبدأ وينتهي</td></tr>
+  </tbody></table>
+  <h2 class="sub">الطريق السريع</h2>
+  <div class="tc">
+    <div class="fc"><h4>🌿 الحصاد الجديد</h4><p>يفتح استمارة الدخول مباشرة إلى دفعة جديدة دون أن يمر بقائمة الحصاد</p></div>
+    <div class="fc"><h4>🏠 اتبعوا الدفيئات</h4><p>:: الوصول السريع إلى نظرة الرصد الخاصة بالدفئات النشطة وتدخلاتها الأخيرة.</p></div>
+    <div class="fc"><h4>💰 آخر الأسعار</h4><p>طريق قصير إلى المحاصيل بدون سعر مُخصص للتسعير السريع</p></div>
+    <div class="fc"><h4>📈 هامش الشيك</h4><p>الوصول المباشر إلى وحدة مارجس لمراقبة الربحية من خلال التنوع.</p></div>
+  </div>
+</div>
+<div class="page" id="recoltes">
+  <div class="sh"><div class="si" style="background:#f0fdf4">🌾</div><div>
+    <div class="sn">النموذج 02:</div>
+    <div class="st">الحفارات</div>
+    <div class="sd">ضبط ورصد كميات المحصَّن - الجودة؛ إرسال الأسواق؛</div>
+  </div></div>
+  <p class="cb">الصفحة <strong>الحفارات</strong> وهو يبيّن مؤشرات الجودة (الرقابة، والانحراف، والخسارة)، وتفاصيل السوق، وقائمة كاملة بالكميات التي لها مركزها.</p>
+  <div class="sb">
+    <div class="sl">الصفحة الحصاد - الحملة 2025-2026 (بيانات فعلية)</div>
+    <div class="sw"><img src="/guide-screenshots/recoltes.png" alt="Récoltes" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/recoltes.png</div>')"/></div>
+    <div class="sc">9 مرات لغاية 13.7 طن محصول؛ أكد قانون الإجراءات المدنية أن 146MAD- حالات التسرب في سوقين: <em>EXPORT - Salad Time</em> (9 إرسالات) <em>السوق المحلية</em> متوسط ضغط المكابح 1.1 في المائة؛ متوسط الفرق 2.5%؛ الخسارة المقدرة 375.6 كغم.</div>
+  </div>
+  <h2 class="sub">مؤشرات موجز</h2>
+  <div class="kg">
+    <div class="kc"><div class="kl">الكثير</div><div class="kv" style="color:#2563eb">9</div><div class="ks">مجموع عدد الكثرة</div></div>
+    <div class="kc"><div class="kl">حُفر</div><div class="kv" style="color:#2563eb">13.7 t</div><div class="ks">مجموع الوزن</div></div>
+    <div class="kc"><div class="kl">Dispatches</div><div class="kv" style="color:#2563eb">14</div><div class="ks">المواهب التي تم خلقها</div></div>
+    <div class="kc o"><div class="kl">لا يوجد سعر</div><div class="kv" style="color:#d97706">0</div><div class="ks">تاريف</div></div>
+    <div class="kc pu"><div class="kl">تم تأكيدها</div><div class="kv" style="color:#7c3aed">146 k</div><div class="ks">رقمان قيم</div></div>
+    <div class="kc r"><div class="kl">إنذارات</div><div class="kv" style="color:#dc2626">0</div><div class="ks">الشذوذ الذي يجب علاجه</div></div>
+  </div>
+  <h2 class="sub">كولومنز في طاولة الباتش</h2>
+  <table><thead><tr><th>Column</th><th>الوصف</th></tr></thead><tbody>
+    <tr><td><strong>لا</strong></td><td>جهاز تحديد الهوية الفريد الذي يُنشأ ذاتيا (مثل LOT-20260425-5140)</td></tr>
+    <tr><td><strong>تاريخ الميلاد</strong></td><td>تاريخ الحصاد</td></tr>
+    <tr><td><strong>SERRE · VARIETÉ</strong></td><td>منشأ الكثرة (الخارج: سير/فيتاليا)</td></tr>
+    <tr><td><strong>الكمية</strong></td><td>الوزن الإجمالي المحصول (مثل 900 كيلوغرام، 1000 كغم)</td></tr>
+    <tr><td><strong>MARKETS</strong></td><td>عقود تحديد الموقع المُخصصة للكثير</td></tr>
+    <tr><td><strong>FREINT/SCART</strong></td><td>النفايات (F%) والفجوة في التصعيد (E%)</td></tr>
+    <tr><td><strong>جيم - معلومات أساسية</strong></td><td>القيمة المالية المقيدة للكثير فيMAD</td></tr>
+    <tr><td><strong>STATUS</strong></td><td><span class="badge bg">مقفلة</span> <span class="badge bt">في التقدم</span> <span class="badge bo">بدون أسعار</span></td></tr>
+  </tbody></table>
+  <h2 class="sub">الحصول على حصاد جديد</h2>
+  <ol class="steps">
+    <li><p><strong>&quot;اضغط على &quot;+ اعرف التكرار</strong> أو &quot;+ ريكوليت&quot; في أعلى حانة</p></li>
+    <li><p><strong>الدفيئة المختارة</strong> المنشأ <strong>التنوع</strong> محصول</p></li>
+    <li><p><strong>أدخل الكمية الإجمالية</strong>قياسات المكابح والمكابح</p></li>
+    <li><p><strong>سوق (سوق) الأسهم</strong> مقصد لخلق إرسالات</p></li>
+    <li><p><strong>يضاف ثمن البيع</strong> - تم إدخال الكثير في المركز <span class="badge bg">مقفلة</span>.</p></li>
+  </ol>
+  <div class="ib wb"><span class="ic">⚠️</span><span>الكثير لا يقدر بثمن يظهر في التابوت <strong>لا يوجد سعر</strong> ولا تسهم في تأكيدات التقييم الشامل، بل يجب تحميلها بسرعة على المحاسبة المستكملة.</span></div>
+  <h2 class="sub">المقالات المصورة</h2>
+  <table><thead><tr><th>Tab</th><th>المضمون</th></tr></thead><tbody>
+    <tr><td><strong>RECOLENT</strong></td><td>جميع الكثرة في الحملة، فرزت بحلول التاريخ</td></tr>
+    <tr><td><strong>بدون أسعار</strong></td><td>الكثيرون ينتظرون التسعير - الأولوية في تجهيز</td></tr>
+    <tr><td><strong>CONFIRMED</strong></td><td>تم إرسالها بالقيمة مع وكالة الجمارك الكندية وأسواق مؤكدة</td></tr>
+    <tr><td><strong>ALERTS</strong></td><td>حالات الشذوذ التي تم اكتشافها: انحرافات كبيرة، بيانات مفقودة</td></tr>
+  </tbody></table>
+</div>
+
+<div class="page" id="production">
+  <div class="sh"><div class="si" style="background:#fffbeb">🏭</div><div>
+    <div class="sn">النموذج 03: Piloting</div>
+    <div class="st">الإنتاج</div>
+    <div class="sd">رصد المزارع النشطة - الغلة &amp; الأهداف النظرية لدائنات الدفيئة</div>
+  </div></div>
+  <p class="cb">الصفحة <strong>الرصد</strong> :: إدراج جميع مزارع الحملة الحالية، مع احتساب معاييرها التقنية وأهداف الإنتاج النظرية تلقائيا.</p>
+  <div class="sb">
+    <div class="sl">رصد الإنتاج - الحملة 2025-2026</div>
+    <div class="sw"><img src="/guide-screenshots/production.png" alt="Production" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/production.png</div>')"/></div>
+    <div class="sc">5 مزارع في 2-12 هكتاراً من هذا العام الهدف 1 003 t 5 دفيئة، وفاييسيس: فيتاليا (مربع رئيسي) وميدرافا (S1, S2, S3). <span class="badge bg">PLANNED</span>.</div>
+  </div>
+  <h2 class="sub">كولومين في طاولة الزراعة</h2>
+  <table><thead><tr><th>Column</th><th>الوصف</th></tr></thead><tbody>
+    <tr><td><strong>SERRE</strong></td><td>جهاز تحديد هوية غرينهاوس (Serre, S1, S2, S3...)</td></tr>
+    <tr><td><strong>VARIETY</strong></td><td>مجموعة متنوعة مُخططة (من المرجع الفاري)</td></tr>
+    <tr><td><strong>SURFACE</strong></td><td>المساحة المخصَّصة للزراعة</td></tr>
+    <tr><td><strong>أعدها</strong></td><td>العائد المتوقع بالكيلو غرام/م2 (النوع إذا كان حاسما)</td></tr>
+    <tr><td><strong>-العرض</strong></td><td>المساحة (x Yield) = الإنتاج المتوقع بالأطنان</td></tr>
+    <tr><td><strong>موعد &quot;بلانت&quot;</strong></td><td>تاريخ الزراعة</td></tr>
+    <tr><td><strong>SURF. DISPO</strong></td><td>إبقاء المساحة المتاحة في الدفيئة</td></tr>
+    <tr><td><strong>STATUS</strong></td><td><span class="badge bg">PLANNED</span> <span class="badge bt">في التقدم</span> <span class="badge bb">الميزانيـة</span></td></tr>
+  </tbody></table>
+  <h2 class="sub">إنشاء مزرعة</h2>
+  <ol class="steps">
+    <li><p><strong>&quot;اضغط على &quot;+الانتقام</strong> (الزر الأرجواني العالي)</p></li>
+    <li><p><strong>إختار الحملة</strong> نشط <strong>الدفيئة</strong> المتاحة <strong>التنوع</strong>.</p></li>
+    <li><p><strong>الاستيلاء على السطح</strong> (م2) <strong>الأداء المتوقع</strong> )كغ/م٢( - يحسب الإنتاج النظري تلقائيا.</p></li>
+    <li><p><strong>تاريخ الزراعة</strong> وتحقق من ذلك</p></li>
+  </ol>
+  <div class="ib"><span class="ic">💡</span><span>The <strong>مجموع الإنتاج النظري</strong> في أعلى الصفحة (البرتقال) هي مجموع جميع المزارع، وهي تمثل هدفا مرجعيا للحملة.</span></div>
+</div>
+<div class="page" id="agronomie">
+  <div class="sh"><div class="si" style="background:#f0fdf4">🧪</div><div>
+    <div class="sn">النموذج 04:</div>
+    <div class="st">Agronomy - Cultural Journal</div>
+    <div class="sd">إمكانية تعقب التدخلات التقنية في مجال المحاصيل</div>
+  </div></div>
+  <p class="cb">The <strong>Journal Agronomique</strong> هو السجل التقني للمحاصيل، وكل تدخل (الاختراع، والعلاج من حماية النباتات، والري، والحجم) موقّت ومرتبط باحتباس الحراري وتنوع محددين.</p>
+  <div class="sb">
+    <div class="sl">Journal Agronomique</div>
+    <div class="sw"><img src="/guide-screenshots/agronomie.png" alt="Agronomie" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/agronomie.png</div>')"/></div>
+    <div class="sc">تدخّل في استخدام مادة S1 (MIRRAVIA) في 24/03/2026، المنتج <em>test01</em>الجرعة 50، الكمية 3 L، 5 عمال.ECوpHالسماح بتخطيط معايير الحل المغذي</div>
+  </div>
+  <h2 class="sub">ملونات المجلة</h2>
+  <table><thead><tr><th>Column</th><th>الوصف</th></tr></thead><tbody>
+    <tr><td><strong>تاريخ الميلاد</strong></td><td>تاريخ التدخل</td></tr>
+    <tr><td><strong>SERRE · VARIETÉ</strong></td><td>الثقافة</td></tr>
+    <tr><td><strong>TYPE</strong></td><td>التثبيت، العزف، الإرداد، الوسادة، الخ...</td></tr>
+    <tr><td><strong>PRODUCT</strong></td><td>اسم المنتجات المستخدمة</td></tr>
+    <tr><td><strong>DOSE/M2</strong></td><td>الجرعة المطبقة لكل متر مربع (الطبيعية إن لم تكن معيارية)</td></tr>
+    <tr><td><strong>QTÉ</strong></td><td>مجموع الكمية المستخدمة في الوحدة</td></tr>
+    <tr><td><strong>EC/ف م</strong></td><td>السلوكيات الكهربائيةpH)الخيار(</td></tr>
+    <tr><td><strong>حلقة عمل</strong></td><td>عدد العمال الذين يتدخلون</td></tr>
+    <tr><td><strong>الحواشي</strong></td><td>التعليقات والملاحظات الحرة</td></tr>
+  </tbody></table>
+  <h2 class="sub">انقذوا التدخل</h2>
+  <ol class="steps">
+    <li><p><strong>&quot;اضغط على &quot;+الإنتقال</strong> (الطابق الأيمن أو الأعلى).</p></li>
+    <li><p><strong>الدفيئة المختارة</strong> و <strong>التنوع</strong> قلق</p></li>
+    <li><p><strong>اختيار نوع التدخل</strong> في قائمة الهبوط</p></li>
+    <li><p><strong>إبلاغ المنتج</strong>الجرعة لكل متر مربع وكمية إجمالية</p></li>
+    <li><p>(اختياري) <strong>EC</strong>, <strong>pH</strong>على <strong>عدد العمال</strong> و <strong>الحواشي</strong>.</p></li>
+    <li><p><strong>القيمة</strong> - يسجل التدخل بصوره التلقائية.</p></li>
+  </ol>
+</div>
+
+<div class="page" id="commerce">
+  <div class="sh"><div class="si" style="background:#fff7ed">🛒</div><div>
+    <div class="sn">Modules 05-06 · Trade</div>
+    <div class="st">الأسواق: أوامر؛ فواتير</div>
+    <div class="sd">الإدارة التجارية - منافذ وزبائن ومبيعات وفواتير</div>
+  </div></div>
+  <div class="tc">
+    <div class="fc"><h4>🌍 الأسواق</h4><p>سجل أسواق المبيعات (الصادرات، المحلية، التاجر بالجملة) - كل سوق مناسبة لإرسال المحاصيل.</p><ul><li>بوتون: <strong>+ NEW MARKET</strong></li><li>تعريف النوع وشروط التعريفة</li></ul></div>
+    <div class="fc"><h4>👥 العملاء</h4><p>مشترون دليل العملاء يتصلون بالأوامر والفواتير اللازمة للتتبّع التجاري الكامل.</p><ul><li>بوتون: <strong>+ CUSTOMER</strong></li><li>الاسم، تفاصيل الاتصال، شروط الدفع</li></ul></div>
+    <div class="fc"><h4>📝 الأوامر</h4><p>أوامر شراء العملاء تربط بين الزبائن وكمية وتنوع أسعار البيع.</p><ul><li>بوتون: <strong>+ NEW ORDER</strong></li><li>صله مع عميل و حصد الكثير</li></ul></div>
+    <div class="fc"><h4>💡 التدفق الموصى به</h4><p>1 - إنشاء <strong>السوق</strong><br>2- إنشاء <strong>الجهة المختصة</strong><br>3 - إنقاذ <strong>القيادة</strong><br>4 - توليد الطاقة الكهربائية <strong>الفواتير</strong></p></div>
+  </div>
+  <hr class="dv"/>
+  <div class="sh" style="margin-top:24px;margin-bottom:24px"><div class="si" style="background:#f0fdf4;font-size:1.4rem">🧾</div><div>
+    <div class="sn">النموذج 06: التجارة</div>
+    <div class="st">الفواتير</div>
+    <div class="sd">الفواتير (الاعتماد) والموردون (الديون) - النقدية والاستحقاقات</div>
+  </div></div>
+  <div class="sb">
+    <div class="sl">مشاريع القوانين - برنامج الائتمانات الزائفة</div>
+    <div class="sw"><img src="/guide-screenshots/factures.png" alt="Factures" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/factures.png</div>')"/></div>
+    <div class="sc">٠٠٠ ٩٥MADمرصود؛ 865 61MADالرصيد الصافيMADالجدول الشهري (نيسان/أبريل 2026) وقائمة المواعيد النهائية القادمة التي تقارب بعضها البعض، في الأزرق (المستحقات) والآمبر (الحساب المستحق).</div>
+  </div>
+  <h2 class="sub">المؤشرات المالية</h2>
+  <table><thead><tr><th>المؤشر</th><th>معنى</th></tr></thead><tbody>
+    <tr><td><strong>النقدية</strong></td><td>مجموع التسوية الواردة من العملاء في الحملة</td></tr>
+    <tr><td><strong>المدفوعات</strong></td><td>مجموع المدفوعات للموردين</td></tr>
+    <tr><td><strong>صافي الرصيد</strong></td><td>الإيرادات النقدية - المدفوعات = صافي الوضع النقدي</td></tr>
+    <tr><td><strong>المطالبات</strong></td><td>المبلغ المستحق (الفواتير غير المدفوعة)</td></tr>
+    <tr><td><strong>الديون</strong></td><td>المبلغ المستحق (الفواتير غير المدفوعة)</td></tr>
+  </tbody></table>
+  <h2 class="sub">إنشاء فواتير عملاء</h2>
+  <ol class="steps">
+    <li><p><strong>&quot;اضغط على &quot;+العملية المصورة</strong></p></li>
+    <li><p><strong>العميلة المختارة</strong> وربط الأمر أو الإرسالات المعنية.</p></li>
+    <li><p><strong>المبالغ المستحقة</strong>موعد استحقاقه وشروط الدفع</p></li>
+    <li><p><strong>القيمة</strong> - يرد الفاتورة في بيان النضج.</p></li>
+  </ol>
+</div>
+<div class="page" id="exploitation">
+  <div class="sh"><div class="si" style="background:#f0f9ff">🏗️</div><div>
+    <div class="sn">الوحدة 07: عملية</div>
+    <div class="st">المزارع؛ الخواتم؛</div>
+    <div class="sd">المعايير الأساسية - الهياكل الأساسية وتشكيل المواسم</div>
+  </div></div>
+  <p class="cb">الباب <strong>العملية</strong> ويتضمن المستودعات التي يستند إليها الطلب بأكمله، ويجب أن يتم تشكيله أولاً عند إنشاءه في البداية.</p>
+  <div class="tc">
+    <div class="fc"><h4>🏘️ المزارع &amp; المقاعد</h4><p>المستوى الجغرافي الأعلى، مجموعة عدة دبابيس <strong>+ NEW FERM</strong>.</p><ul><li>الاسم، الرمز، الموقع</li><li>ثم أرفقي الدفيئات</li></ul></div>
+    <div class="fc"><h4>🏠 أقفال</h4><p>ووحدة الإنتاج هي عنصر مرتكز على الزراعة. <strong>+ NEW SERRE</strong>.</p><ul><li>Identifier (S1, S2) , surface m2</li><li>استخدمت في كل مكان في التطبيق</li></ul></div>
+    <div class="fc"><h4>🌱 الخصوم</h4><p>كتالوج الأصناف المزروعة <strong>+ NEW VARIETÉ</strong>.</p><ul><li>ميرافيا، فيتاليا، وما إلى ذلك</li><li>العائد المرجعي، الفئة</li></ul></div>
+    <div class="fc"><h4>📅 الحملات</h4><p>يحدد موسم مع تواريخه وأهدافه. <strong>+ NEW CAMPAIGN</strong>.</p><ul><li>تواريخ الزرع/الصيد</li><li>هدف الميزانية والعمولة</li></ul></div>
+  </div>
+  <div class="sb">
+    <div class="sl">الحملات - الحملة 2025-2026</div>
+    <div class="sw"><img src="/guide-screenshots/campagnes.png" alt="Campagnes" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/campagnes.png</div>')"/></div>
+    <div class="sc">CAMPAIGN 2025-2026 (CAMP-2026-01, Domaine Souss Agri) - status PLANNING. Planting : 2026-08-31 · Beginning harvest : 2025-07-01 ; End harvest : 2026-08-31. 3 farms available, Budget and tonnage target to be defined.</div>
+  </div>
+  <div class="ib wb"><span class="ic">⚠️</span><span><strong>الأمر الإجباري:</strong> - حملة &amp;quot; فارييس &amp;quot; ، بدون هذه البيانات الأساسية، لا تعمل وحدات الإنتاج والحصاد والزراعة.</span></div>
+</div>
+
+<div class="page" id="ressources">
+  <div class="sh"><div class="si" style="background:#fef9f0">📦</div><div>
+    <div class="sn">Modules 08-09-10 · Resources</div>
+    <div class="st">اللوازم؛ المشتريات؛ الأرصدة</div>
+    <div class="sd">إدارة الإمدادات ومراقبة المخزون</div>
+  </div></div>
+  <div class="sb">
+    <div class="sl">موردون - دليل الموردين</div>
+    <div class="sw"><img src="/guide-screenshots/fournisseurs.png" alt="Fournisseurs" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/fournisseurs.png</div>')"/></div>
+    <div class="sc">3مورِّدين: <em>fONUN3</em> (العمليات) <em>المورد 1(أ)</em> (التعبئة)، <em>الاختبار 1</em> (Phytosanitary, Casablanca, test@test.com) - All with payment deadline 30 days.</div>
+  </div>
+  <table><thead><tr><th>Column</th><th>الوصف</th></tr></thead><tbody>
+    <tr><td><strong>CODE NAME</strong></td><td>مُحدِّد وحيد واسم المورد</td></tr>
+    <tr><td><strong>الفئة</strong></td><td><span class="badge bg">FERTILISER</span> <span class="badge bo">PACKAGING</span> <span class="badge bb">الصحة النبيلة</span></td></tr>
+    <tr><td><strong>LMP TIME</strong></td><td>فترة السداد التعاقدية في الأيام (مثل 30 يوما)</td></tr>
+  </tbody></table>
+  <h2 class="sub">المشتريات - استمارات الطلب</h2>
+  <div class="tc">
+    <div class="fc"><h4>📋 + جيد</h4><p>يُنشئ استمارة نظامية من مورد ما، تسمح بمتابعة عملية الاستلام والدفع.</p></div>
+    <div class="fc"><h4>⚡ الجدول الزمني المباشر</h4><p>ينقذ شراءاً فورياً بدون طلب، و هو مثالي لشراءات صغيرة عاجلة أو غير متوقعة.</p></div>
+  </div>
+  <hr class="dv"/>
+  <div class="sb">
+    <div class="sl">المخزونات - جرد الإنذارات الحرجة</div>
+    <div class="sw"><img src="/guide-screenshots/stocks.png" alt="Stocks" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/stocks.png</div>')"/></div>
+    <div class="sc">4 مقالات <em>الناتج 1</em> (العلم): المخزون - 395 كغم/عتبة 10 كيلوغرامات <span class="badge br">⚠ ALERT</span>. <em>الصافي</em> (أجزاء التبديل): 109 لفائف حسنا. <em>Pipe</em> 100 لفافة حسناً، راين البرتقالي يُنبه المقالة</div>
+  </div>
+  <h2 class="sub">حركات المخزونات</h2>
+  <table><thead><tr><th>الإجراء</th><th>الوصف</th></tr></thead><tbody>
+    <tr><td><strong>+ في</strong></td><td>دخول السلع أو إعادة الإمداد - زيادة الكمية</td></tr>
+    <tr><td><strong>- خارج</strong></td><td>الاستهلاك أو الناتج من المخزون - انخفاض الكمية</td></tr>
+    <tr><td><strong>التنقلات</strong></td><td>التاريخ الكامل لجميع تحركات المدخلات والنواتج حسب البنود</td></tr>
+  </tbody></table>
+  <div class="ib"><span class="ic">💡</span><span>(أ) عندما تتجاوز المادة عتبة الـمادة <span class="badge br">⚠ ALERT</span> ويظهر في عمود الحالة، كما يظهر راية تحذير على أعلى الصفحة.</span></div>
+</div>
+<div class="page" id="finances">
+  <div class="sh"><div class="si" style="background:#fff7ed">💰</div><div>
+    <div class="sn">Modules 11-12 · Finance</div>
+    <div class="st">التكاليف &amp; الميزانية: الماجين &amp; Forecast</div>
+    <div class="sd">الطراز المالي - النفقات الفعلية مقابل الميزانية وفعالية التكاليف والتحليل</div>
+  </div></div>
+  <div class="sb">
+    <div class="sl">التكاليف &amp; الميزانية - تكاليف الرؤية الحقيقية</div>
+    <div class="sw"><img src="/guide-screenshots/couts.png" alt="Coûts & Budget" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/couts.png</div>')"/></div>
+    <div class="sc">(99) مجموع التدفقات الداخلة: 38 تكاليف حقيقية (1 135 كيلو مترا مربعا) + 61 تدفقا من الميزانية. <strong>-61,4%</strong>التكاليف مصنفة حسب الفئة <em>VARIABLE CHARGES</em> مع مرشحين من الريف/المزرعة/القفل/نوع/فترة</div>
+  </div>
+  <h2 class="sub">اثنتان من المشابك الرئيسية</h2>
+  <div class="tc">
+    <div class="fc"><h4>التكاليف الفعلية <span class="badge bb" style="margin-left:6px">38</span></h4><p>التكاليف الفعلية المتكبدة - عمليات الاستيلاء يدويا أو التي تولدها مخارج المخزون وعمليات الشراء.</p><ul><li>المجموع الفعلي في كواميد</li><li>أجهزة مجهزة</li><li>الفرق في الميزانية</li></ul></div>
+    <div class="fc"><h4>الميزانية التقديرية <span class="badge bpu" style="margin-left:6px">61</span></h4><p>مظاريف الميزانية المخططة حسب الفئة.</p><ul><li>محددة في ميزانيات</li><li>توزيع حسب الحملة/الاحتباس الحراري/نوع</li><li>مقارنة بالوقت الحقيقي</li></ul></div>
+  </div>
+  <h2 class="sub">الملفات المتاحة</h2>
+  <table><thead><tr><th>المصور</th><th>الخيارات</th></tr></thead><tbody>
+    <tr><td><strong>الريف/المزرعة/السير</strong></td><td>الهدف هو الجمع أو العرض المحددين</td></tr>
+    <tr><td><strong>النوع</strong></td><td>حمولات متغيرة، حمولات ثابتة، عمال، إلخ.</td></tr>
+    <tr><td><strong>تاريخ الميلاد</strong></td><td>فترة ضبط التكاليف أو حدوثها</td></tr>
+    <tr><td><strong>البحوث</strong></td><td>النص الحر على الوصف أو الفئة</td></tr>
+  </tbody></table>
+  <h2 class="sub">بدء التشغيل(أ)</h2>
+  <ol class="steps">
+    <li><p><strong>&quot;اضغط على &quot;+إهتمام</strong></p></li>
+    <li><p><strong>اختيار الحملة ودفيئة</strong> ولم تتخذ اللجنة بعد أي إجراء لضمان تنفيذ التدابير التي اتخذتها الدول الأعضاء.</p></li>
+    <li><p><strong>النوع المختار والفئة</strong> -لست كذلك</p></li>
+    <li><p><strong>المبلغ المستوفى</strong> )أ(MAD-التاريخ والوصف</p></li>
+    <li><p><strong>القيمة</strong> - إعادة حساب الاختلاف بين الميزانية والحقيقة تلقائيا.</p></li>
+  </ol>
+  <hr class="dv"/>
+  <div class="tc">
+    <div class="fc"><h4>📊 الماجين (قابلية)</h4><p>الحساب الآلي للهوامش الإجمالية حسب التنوع والاحتباس الحراري مقارنة التكاليف المرسمة</p><div class="ib" style="margin-top:10px"><span class="ic">🔧</span><span style="font-size:.82rem">الوحدة تنتظر التواصل مع البيانات الحقيقية</span></div></div>
+    <div class="fc"><h4>🤖 IA &amp; Forecast</h4><p>عمليات المحاكاة والتنبؤات القائمة على نماذج تحليلية للإنتاج والإيرادات.</p><div class="ib" style="margin-top:10px"><span class="ic">🔧</span><span style="font-size:.82rem">الوحدة تنتظر التواصل مع البيانات الحقيقية</span></div></div>
+  </div>
+</div>
+
+<div class="page" id="admin">
+  <div class="sh"><div class="si" style="background:#f8f4ff">⚙️</div><div>
+    <div class="sn">الوحدة 13 - المواصفات &amp; الإدارة</div>
+    <div class="st">الاتحاد &amp; إدارة الوصول</div>
+    <div class="sd">رسوم الحسابات، الميزانيات، تدفقات العمل، المستخدمين والأدوار</div>
+  </div></div>
+  <h2 class="sub">البارامترات</h2>
+  <table><thead><tr><th>Submodule</th><th>الدور</th></tr></thead><tbody>
+    <tr><td><strong>📒 رسوم الحسابات</strong></td><td>ويحدد شجر فئات المحاسبة حسب ترتيب التكاليف والإيرادات.</td></tr>
+    <tr><td><strong>💼 الميزانيات</strong></td><td>مظاريف الميزانية حسب الحملات، ودفء الدفء ونوع الشحن، وسلطة حساب الميزانية.</td></tr>
+    <tr><td><strong>📋 حساب التشغيل</strong></td><td>(ب) يحدد هيكل حساب الأرباح والخسائر، ويستخدم في التقارير المالية الإدارية.</td></tr>
+    <tr><td><strong>🔁 تدفقات العمل</strong></td><td>قواعد التلقائية و دوائر التصديق (الموافقة، الإنذارات بشأن التجاوزات).</td></tr>
+  </tbody></table>
+  <hr class="dv"/>
+  <h2 class="sub">الإدارة</h2>
+  <div class="tc">
+    <div class="fc"><h4>👤 المستعملون</h4><p>إدارة حساب المستعملين - قائمة الأصول والأدوار المسندة وحقوق الوصول.</p><ul><li>عدد المستعملين النشطين</li><li>انظر الأدوار المسندة</li></ul></div>
+    <div class="fc"><h4>🔐 الأدوار &amp; الأذون</h4><p>مواصفات الوصول القابلة للعادة (إدارة، مدير الإنتاج، التجارة) مع تصاريح الوحدات.</p><ul><li>ألف - خلق الأدوار</li><li>إذنان معاونان</li><li>القراءة/ الكتابة</li></ul></div>
+  </div>
+  <div class="ib wb"><span class="ic">⚠️</span><span>فقط الملامح <strong>مدير</strong> (أ) الوصول إلى وحدات الإدارة والتجهيزات - تقتصر ملامح أخرى على الوحدات المسموح بها في الأدوار &amp; إذن</span></div>
+</div>
+<div class="page" id="workflow">
+  <div class="sh"><div class="si" style="background:#f0fdf4">🚀</div><div>
+    <div class="sn">التذييل ألف</div>
+    <div class="st">بداية بداية العمل</div>
+    <div class="sd">المؤتمر الأولي الموصى به - 13 خطوة إلى العمل</div>
+  </div></div>
+  <p class="cb">ولتقسيم الطلب من الصفر، اتبع هذا الترتيب للدخول، وكل خطوة تعتمد على الخطوة السابقة لضمان اتساق البيانات.</p>
+  <ol class="steps">
+    <li><p><strong>المزارع:</strong> إنشاء مزرعة للمجال (الكيان الجغرافي الضيق).</p></li>
+    <li><p><strong>عملية ⁇ لوك:</strong> يضاف كل دفيئة مع مُحددها، ومزرعة سطحها وضغوطها.</p></li>
+    <li><p><strong>استغلال ⁇ Varieties:</strong> (أ) إنشاء الفهرس (فيتاليا، ميررافيا) مع الغلة المرجعية.</p></li>
+    <li><p><strong>الحملات:</strong> اصنع الحملة مع تواريخ الزراعة وبداية ونهاية الحصاد</p></li>
+    <li><p><strong>الموارد ⁇ موردو الخدمات:</strong> موردو السجلات حسب الفئة التي تحدد فيها مواعيد السداد.</p></li>
+    <li><p><strong>الموارد ⁇ المخزونات:</strong> إنشاء أصناف تحمل عتبات إنذار وتكاليف وحدة، أدخل المخزون الأولي عبر <strong>+ في</strong>.</p></li>
+    <li><p><strong>Trade ⁇ Customers :</strong> مشترون السجل (المصدرون، الأسواق المحلية) وظروفهم.</p></li>
+    <li><p><strong>Trade ⁇ Markets :</strong> تعريف أسواق المقصد (المصدر، السائل الآلي لبيع السلع) للإرسالات.</p></li>
+    <li><p><strong>مواصفات الحسابات &amp; الميزانيات:</strong> فئات تكاليف الثقة ومظاريف الميزانية.</p></li>
+    <li><p><strong>إنتاج: مزارع الكريات</strong> Record each plantation (severe variety × surface × yield × date).</p></li>
+    <li><p><strong>الحصاد الأول:</strong> خلق الكثير من الوزن، ودفيئة، وتنوع، وسوق مقصد.</p></li>
+    <li><p><strong>نشرة Agronomy:</strong> سجلوا التخصيبات والمعالجات بالماء</p></li>
+    <li><p><strong>أوامر التجارة &amp; الفواتير:</strong> :: وضع أوامر الزبائن وتوليد فواتير لتتبع وكالة الجمارك المركزية.</p></li>
+  </ol>
+  <div class="ib"><span class="ic">✅</span><span>بمجرد أن تكتمل هذه الخطوات الـ13 <strong>لوحة إدارة تنفيذية</strong> وتُظهر جميع المؤشرات في الوقت الحقيقي، وتستكمل مؤشرات كيمبرلي تلقائياً كل بند جديد من بنود التطبيق.</span></div>
+</div>
+
+<div class="page" id="couleurs">
+  <div class="sh"><div class="si" style="background:#fff7f0">🎨</div><div>
+    <div class="sn">التذييل باء</div>
+    <div class="st">رموز الأعمدة &amp; شارات المركز</div>
+    <div class="sd">مرجع سريع لقراءة المؤشرات البصرية للوصلات البينية</div>
+  </div></div>
+  <h2 class="sub">ملؤ القيم العددية</h2>
+  <table><thead><tr><th>اللون</th><th>معنى</th><th>مثال</th></tr></thead><tbody>
+    <tr><td style="color:#2563eb;font-weight:700">● الأزرق</td><td>قيم الإنتاج أو القيمة النقدية</td><td>13.7 t; 146 k MAD · 2.12 ha</td></tr>
+    <tr><td style="color:#d97706;font-weight:700">● البرتقال</td><td>الـ &quot;يولدز&quot; , العتبات و الإنذارات الخفيفة</td><td>50 كيلوغراماً/م2؛ 10 كيلو غرامات</td></tr>
+    <tr><td style="color:#7c3aed;font-weight:700">● فيوليت</td><td>الأهداف النظرية</td><td>1 003 t الإنتاج النظري</td></tr>
+    <tr><td style="color:#059669;font-weight:700">غرين</td><td>القيم المؤكدة/الحالة الجيدة</td><td>LOSED ; Élator /</td></tr>
+    <tr><td style="color:#dc2626;font-weight:700">● الأحمر</td><td>الإنذارات الحرجة/القيم السلبية</td><td>- 395 كيلوغراما من الأسهم</td></tr>
+    <tr><td style="color:#db2777;font-weight:700">● الوردية</td><td>مؤشرات التجميع</td><td>0% نقدا</td></tr>
+  </tbody></table>
+  <h2 class="sub">شارات المركز</h2>
+  <table><thead><tr><th>Badge</th><th>الوحدة</th><th>معنى</th></tr></thead><tbody>
+    <tr><td><span class="badge bg">PLANNED</span></td><td>الإنتاج</td><td>المزارع المسجلة، التي لم تُحصّل بعد في الحصاد النشط</td></tr>
+    <tr><td><span class="badge bt">في التقدم</span></td><td>الإنتاج/الحياكة</td><td>المزارع أو الصابورة في العلاج</td></tr>
+    <tr><td><span class="badge bb">مقفلة</span></td><td>الحفارات</td><td>القطعة النهائية بالأسعار وتأكدت</td></tr>
+    <tr><td><span class="badge bo">بدون أسعار</span></td><td>الحفارات</td><td>جمع الكثير بدون تسعير - سيتم تجهيزه</td></tr>
+    <tr><td><span class="badge br">⚠ ALERT</span></td><td>المخزون</td><td>المخزون دون الحد الأدنى - المطلوب</td></tr>
+    <tr><td><span class="badge bg">√ OK</span></td><td>المخزون</td><td>مستوى المخزون المرضي</td></tr>
+    <tr><td><span class="badge bpu">تخطيط</span></td><td>الحملات</td><td>الحملة في مرحلة التخطيط</td></tr>
+  </tbody></table>
+  <h2 class="sub">Icons of action</h2>
+  <table><thead><tr><th>Icon</th><th>الإجراء</th><th>Modules concerned</th></tr></thead><tbody>
+    <tr><td>🖊 قلم برتقالي</td><td>تسجيل الإدليت</td><td>الإنتاج، والموردون، والمخزونات، والحملات</td></tr>
+    <tr><td>⏸ أحمر</td><td>محفوظات</td><td>الموردين</td></tr>
+    <tr><td>+ في / - خارج</td><td>داخل/خارج المخزون</td><td>المخزون</td></tr>
+    <tr><td>📊 التنقلات</td><td>تاريخ الحركة</td><td>المخزون</td></tr>
+  </tbody></table>
+  <div style="margin-top:48px;padding:32px;background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:16px;text-align:center;color:white">
+    <h3 style="font-size:1.4rem;margin-bottom:8px">ItriX Farm</h3>
+    <p style="opacity:.7;font-size:.9rem">:: دليل المستعمل ضد 1.0؛ الحملة 2025-2026</p>
+    <p style="opacity:.5;font-size:.8rem;margin-top:16px">ولمساعدة، يرجى الاتصال بالمدير: عمر بنكيران</p>
+  </div>
+</div>
+
+<script src="/guide-screenshots-update.js"></script></body></html>

@@ -1,5 +1,5 @@
 /**
- * FarmPilot — Configuration de navigation centralisée.
+ * ItriX Farm — Configuration de navigation centralisée.
  *
  * Source unique pour la Sidebar, le Command Palette (Cmd+K) et les Breadcrumbs.
  *
@@ -647,7 +647,7 @@ export const NAV: NavSection[] = [
         icon: Bell,
         color: "#0ea5e9",
         keywords: ["installation", "pwa", "mobile", "push", "notifications"],
-        description: "Installer FarmPilot et configurer cet appareil",
+        description: "Installer ItriX Farm et configurer cet appareil",
       },
       {
         href: "/admin/account-categories",
@@ -704,7 +704,7 @@ export const NAV: NavSection[] = [
         icon: Globe,
         color: "#8b5cf6",
         keywords: ["clients", "sociétés", "domaines", "plateforme"],
-        description: "Clients et sociétés FarmPilot",
+        description: "Clients et sociétés ItriX Farm",
         platformOnly: true,
       },
       {

@@ -17,7 +17,7 @@ export async function initializationWorkbook(domain: string, draft?: InitDraft, 
   const guide = wb.addWorksheet('Guide')
   guide.getColumn(1).width = 105
   const instructions = [
-    'FarmPilot — préparation de l’initialisation',
+    'ItriX Farm — préparation de l’initialisation',
     'Client : ' + domain,
     'Orange clair : obligatoire. Bleu clair : facultatif. Dates : AAAA-MM-JJ. Montants : DH.',
     sectionKey ? `Étape à compléter : ${sections[0].title}. Les lignes déjà saisies sont reprises.` : 'Sauvegarde complète du dossier. Pour saisir une étape, utilisez son modèle dédié.',

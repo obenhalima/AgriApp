@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { ShieldCheck, Plus, Trash2, Lock, CheckCircle2 } from 'lucide-react'
@@ -27,6 +29,8 @@ const ACTIONS: { code: PermissionAction; label: string; color: string }[] = [
 ]
 
 export default function RolesAdminPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { isAdmin,activeDomain } = useAuth()
   const [roles, setRoles] = useState<Role[]>([])
   const [modules, setModules] = useState<Module[]>([])
@@ -98,7 +102,7 @@ export default function RolesAdminPage() {
     try {
       await saveRolePermissions(selectedRoleId, grantedCodes)
       setMatrixDirty(false)
-      toast.success('Permissions enregistrées')
+      toast.success(_ui("Permissions enregistrées"))
     } catch (e: any) { toast.error(e.message) }
     finally { setSavingMatrix(false) }
   }
@@ -111,18 +115,18 @@ export default function RolesAdminPage() {
       setSelectedRoleId(r.id)
       setCreateOpen(false)
       setRoleForm({ code: '', name: '', description: '' })
-      toast.success(`Rôle "${r.name}" créé`)
+      toast.success(_ui("Rôle \"{v0}\" créé",{v0:String(r.name)}))
     } catch (e: any) { toast.error(e.message) }
   }
 
   const onDeleteRole = async () => {
     if (!selectedRole) return
-    if (!confirm(`Supprimer le rôle "${selectedRole.name}" ?`)) return
+    if (!confirm(_ui("Supprimer le rôle \"{v0}\" ?",{v0:String(selectedRole.name)}))) return
     try {
       await deleteRole(selectedRole.id)
       const remaining = roles.filter(r => r.id !== selectedRole.id)
       setRoles(remaining); setSelectedRoleId(remaining[0]?.id ?? '')
-      toast.success('Rôle supprimé')
+      toast.success(_ui("Rôle supprimé"))
     } catch (e: any) { toast.error(e.message) }
   }
 
@@ -132,14 +136,14 @@ export default function RolesAdminPage() {
     return out
   }, [modules])
 
-  if (!isAdmin) return <EmptyState icon={Lock} title="Accès réservé aux administrateurs" />
+  if (!isAdmin) return <EmptyState icon={Lock} title={_ui("Accès réservé aux administrateurs")} />
 
   return (
     <div>
       <PageHeader
-        title="Rôles & Permissions" subtitle="Administration" icon={ShieldCheck} iconColor="#ef4444"
-        description={`${roles.length} rôle${roles.length > 1 ? 's' : ''} · Matrice module × action`}
-        actions={<Button onClick={() => setCreateOpen(true)} variant="primary"><Plus size={14} strokeWidth={2.5} /> Nouveau rôle</Button>}
+        title={_ui("Rôles & Permissions")} subtitle={_ui("Administration")} icon={ShieldCheck} iconColor="#ef4444"
+        description={_ui("{v0} rôle{v1} · Matrice module × action",{v0:String(roles.length),v1:String(roles.length > 1 ? 's' : '')})}
+        actions={<Button onClick={() => setCreateOpen(true)} variant="primary"><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouveau rôle")}</Button>}
       />
 
       {loading ? (
@@ -148,7 +152,7 @@ export default function RolesAdminPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-md">
           {/* Liste rôles */}
           <Card animate padding="md" className="self-start">
-            <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-sm">Rôles</div>
+            <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-sm">{_ui("Rôles")}</div>
             <div className="flex flex-col gap-1">
               {roles.map(r => (
                 <button key={r.id} onClick={() => setSelectedRoleId(r.id)}
@@ -158,10 +162,10 @@ export default function RolesAdminPage() {
                   )}>
                   <div className="font-display text-body-sm font-semibold text-fg-primary flex items-center gap-2">
                     {r.name}
-                    {r.is_admin && <Badge variant="danger" size="xs">ADMIN</Badge>}
-                    {r.is_system && <Badge variant="default" size="xs">système</Badge>}
+                    {r.is_admin && <Badge variant="danger" size="xs">{_ui("ADMIN")}</Badge>}
+                    {r.is_system && <Badge variant="default" size="xs">{_ui("système")}</Badge>}
                   </div>
-                  {r.description && <div className="text-caption text-fg-tertiary mt-1 leading-snug">{r.description}</div>}
+                  {r.description && <div className="text-caption text-fg-tertiary mt-1 leading-snug">{_uiNode(r.description)}</div>}
                 </button>
               ))}
             </div>
@@ -174,38 +178,36 @@ export default function RolesAdminPage() {
                 <div className="flex items-center gap-md flex-wrap mb-md">
                   <div>
                     <div className="font-display text-heading font-bold text-fg-primary">{selectedRole.name}</div>
-                    <div className="font-mono text-caption text-fg-tertiary">code: {selectedRole.code}</div>
+                    <div className="font-mono text-caption text-fg-tertiary">{_ui("code:")}{" "}{selectedRole.code}</div>
                   </div>
                   <div className="flex-1" />
-                  {selectedRole.is_admin && <Badge variant="danger" size="sm">Bypass toutes les permissions</Badge>}
-                  {!selectedRole.is_system && <Button onClick={onDeleteRole} variant="ghost" size="sm" className="hover:text-danger"><Trash2 size={11} /> Supprimer</Button>}
+                  {selectedRole.is_admin && <Badge variant="danger" size="sm">{_ui("Bypass toutes les permissions")}</Badge>}
+                  {!selectedRole.is_system && <Button onClick={onDeleteRole} variant="ghost" size="sm" className="hover:text-danger"><Trash2 size={11} /> {" "}{_ui("Supprimer")}</Button>}
                   {matrixDirty && !selectedRole.is_admin && (
                     <Button onClick={saveMatrix} loading={savingMatrix} variant="primary" size="sm">
-                      <CheckCircle2 size={12} /> Enregistrer
-                    </Button>
+                      <CheckCircle2 size={12} /> {" "}{_ui("Enregistrer")}{" "}</Button>
                   )}
                 </div>
 
                 {activeDomain&&<ProfileMenuEditor key={`${activeDomain.domain_id}:${selectedRole.id}`} roleId={selectedRole.id} admin={selectedRole.is_admin} permissions={grantedCodes}/>}
                 {selectedRole.is_admin ? (
                   <div className="text-center py-xl text-body-sm text-fg-tertiary">
-                    Le rôle <strong className="text-fg-primary">{selectedRole.name}</strong> a accès complet à toute l'application.
-                  </div>
+                    {" "}{_ui("Le rôle")}{" "}<strong className="text-fg-primary">{selectedRole.name}</strong> {" "}{_ui("a accès complet à toute l'application.")}{" "}</div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-body-sm" style={{ minWidth: 800 }}>
                       <thead>
                         <tr className="border-b border-border bg-surface-sunk">
-                          <th className="text-left py-2 px-3 font-mono text-[10px] uppercase tracking-wider text-fg-tertiary min-w-[180px]">Module</th>
+                          <th className="text-left py-2 px-3 font-mono text-[10px] uppercase tracking-wider text-fg-tertiary min-w-[180px]">{_ui("Module")}</th>
                           {ACTIONS.map(a => (
                             <th key={a.code} className="text-center py-2 px-3 font-mono text-[10px] uppercase tracking-wider min-w-[80px]" style={{ color: a.color }}>
                               <button onClick={() => {
                                 const allSet = modules.every(m => grantedCodes.has(`${m.code}.${a.code}`))
                                 toggleActionColumn(a.code, !allSet)
-                              }} className="hover:underline">{a.label}</button>
+                              }} className="hover:underline">{_uiNode(a.label)}</button>
                             </th>
                           ))}
-                          <th className="text-center py-2 px-3 font-mono text-[10px] uppercase tracking-wider text-fg-tertiary min-w-[60px]">Tout</th>
+                          <th className="text-center py-2 px-3 font-mono text-[10px] uppercase tracking-wider text-fg-tertiary min-w-[60px]">{_ui("Tout")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -221,7 +223,7 @@ export default function RolesAdminPage() {
                                 <tr key={m.id} className="border-b border-border last:border-b-0 hover:bg-surface-hover transition-colors">
                                   <td className="py-2 px-3">
                                     <span className="mr-2">{m.icon}</span>
-                                    <strong className="text-fg-primary">{m.label}</strong>
+                                    <strong className="text-fg-primary">{_uiNode(m.label)}</strong>
                                   </td>
                                   {ACTIONS.map(a => {
                                     const code = `${m.code}.${a.code}`
@@ -249,21 +251,21 @@ export default function RolesAdminPage() {
                 )}
               </>
             ) : (
-              <EmptyState icon={ShieldCheck} title="Sélectionne un rôle" description="Pour voir et modifier ses permissions." />
+              <EmptyState icon={ShieldCheck} title={_ui("Sélectionne un rôle")} description={_ui("Pour voir et modifier ses permissions.")} />
             )}
           </Card>
         </div>
       )}
 
       {createOpen && (
-        <Modal title="NOUVEAU RÔLE" onClose={() => setCreateOpen(false)} size="md">
+        <Modal title={_ui("NOUVEAU RÔLE")} onClose={() => setCreateOpen(false)} size="md">
           <div className="space-y-md">
             <FormRow>
-              <FormGroup label="Code *"><TInput value={roleForm.code} onChange={(e) => setRoleForm({ ...roleForm, code: e.target.value })} placeholder="responsable_production" autoFocus /></FormGroup>
-              <FormGroup label="Nom *"><TInput value={roleForm.name} onChange={(e) => setRoleForm({ ...roleForm, name: e.target.value })} placeholder="Responsable Production" /></FormGroup>
+              <FormGroup label={_ui("Code *")}><TInput value={roleForm.code} onChange={(e) => setRoleForm({ ...roleForm, code: e.target.value })} placeholder={_ui("responsable_production")} autoFocus /></FormGroup>
+              <FormGroup label={_ui("Nom *")}><TInput value={roleForm.name} onChange={(e) => setRoleForm({ ...roleForm, name: e.target.value })} placeholder={_ui("Responsable Production")} /></FormGroup>
             </FormRow>
-            <Field label="Description"><Textarea rows={2} value={roleForm.description} onChange={(e) => setRoleForm({ ...roleForm, description: e.target.value })} /></Field>
-            <ModalFooter onCancel={() => setCreateOpen(false)} onSave={submitCreateRole} disabled={!roleForm.code || !roleForm.name} saveLabel="CRÉER LE RÔLE" />
+            <Field label={_ui("Description")}><Textarea rows={2} value={roleForm.description} onChange={(e) => setRoleForm({ ...roleForm, description: e.target.value })} /></Field>
+            <ModalFooter onCancel={() => setCreateOpen(false)} onSave={submitCreateRole} disabled={!roleForm.code || !roleForm.name} saveLabel={_ui("CRÉER LE RÔLE")} />
           </div>
         </Modal>
       )}

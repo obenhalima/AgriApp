@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useMemo, useState } from 'react'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter } from '@/components/ui/Modal'
 import { AccountCategory, TYPE_LABELS } from '@/lib/accountCategories'
@@ -39,6 +41,8 @@ export function BulkEditCostsModal(props: {
   onClose: () => void
   onSaved: () => void | Promise<void>
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { selectedIds, campaigns, categories, farms = [], greenhouses = [], onClose, onSaved } = props
 
   // Options activables
@@ -121,7 +125,7 @@ export function BulkEditCostsModal(props: {
     setSaving(true)
     try {
       const n = await bulkUpdateCostEntries(selectedIds, patch)
-      alert(`${n} entrée(s) modifiée(s).`)
+      alert(_ui("{v0} entrée(s) modifiée(s).",{v0:String(n)}))
       await onSaved()
       onClose()
     } catch (e: any) {
@@ -130,47 +134,45 @@ export function BulkEditCostsModal(props: {
   }
 
   return (
-    <Modal title={`MODIFIER ${selectedIds.length} ENTRÉE(S) EN MASSE`} onClose={onClose} size="lg">
+    <Modal title={_ui("MODIFIER {v0} ENTRÉE(S) EN MASSE",{v0:String(selectedIds.length)})} onClose={onClose} size="lg">
       {err && <div style={{ padding: 8, marginBottom: 10, background: 'var(--red-dim)', border: '1px solid color-mix(in srgb, var(--red) 30%, transparent)', borderRadius: 6, color: 'var(--red)', fontSize: 11 }}>⚠ {err}</div>}
 
       <div style={{ padding: 8, marginBottom: 12, background: 'var(--bg-deep)', border: '1px solid var(--bd-1)', borderRadius: 6, fontSize: 11, color: 'var(--tx-3)' }}>
-        Coche les champs que tu veux modifier. Seuls ceux cochés sont appliqués aux {selectedIds.length} entrée(s).
-      </div>
+        {" "}{_ui("Coche les champs que tu veux modifier. Seuls ceux cochés sont appliqués aux")}{" "}{selectedIds.length} {" "}{_ui("entrée(s).")}{" "}</div>
 
       {/* Campagne */}
-      <SectionBox active={changeCampaign} onToggle={setChangeCampaign} title="Campagne">
+      <SectionBox active={changeCampaign} onToggle={setChangeCampaign} title={_ui("Campagne")}>
         <Select value={campaignId} onChange={e => setCampaignId(e.target.value)}>
-          <option value="">-- Sélectionner --</option>
+          <option value="">{_ui("-- Sélectionner --")}</option>
           {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
       </SectionBox>
 
       {/* Catégorie */}
-      <SectionBox active={changeCategory} onToggle={setChangeCategory} title="Catégorie comptable">
+      <SectionBox active={changeCategory} onToggle={setChangeCategory} title={_ui("Catégorie comptable")}>
         <FormRow>
-          <FormGroup label="Type">
+          <FormGroup label={_ui("Type")}>
             <Select value={chargeType} onChange={e => { setChargeType(e.target.value as any); setParentCatId(''); setLeafCatId('') }}>
-              <option value="">-- Sélectionner --</option>
-              <option value="charge_variable">Charge variable</option>
-              <option value="charge_fixe">Charge fixe</option>
-              <option value="amortissement">Amortissement</option>
+              <option value="">{_ui("-- Sélectionner --")}</option>
+              <option value="charge_variable">{_ui("Charge variable")}</option>
+              <option value="charge_fixe">{_ui("Charge fixe")}</option>
+              <option value="amortissement">{_ui("Amortissement")}</option>
             </Select>
           </FormGroup>
-          <FormGroup label="Catégorie">
+          <FormGroup label={_ui("Catégorie")}>
             <Select value={parentCatId} onChange={e => { setParentCatId(e.target.value); setLeafCatId('') }} disabled={!chargeType}>
-              <option value="">{chargeType ? '-- Choisir --' : 'Type d\'abord'}</option>
-              {parentCategories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+              <option value="">{chargeType ? _ui("-- Choisir --") : _ui("Type d'abord")}</option>
+              {parentCategories.map(c => <option key={c.id} value={c.id}>{_uiNode(c.label)}</option>)}
             </Select>
           </FormGroup>
-          <FormGroup label="Sous-catégorie">
+          <FormGroup label={_ui("Sous-catégorie")}>
             {parentIsLeaf ? (
               <div style={{ padding: '8px 10px', background: 'var(--bg-deep)', border: '1px solid var(--bd-1)', borderRadius: 6, fontSize: 11, color: 'var(--tx-3)' }}>
-                (pas de sous-niveau)
-              </div>
+                {" "}{_ui("(pas de sous-niveau)")}{" "}</div>
             ) : (
               <Select value={leafCatId} onChange={e => setLeafCatId(e.target.value)} disabled={!parentCatId}>
-                <option value="">{parentCatId ? '-- Choisir --' : 'Catégorie d\'abord'}</option>
-                {subCategories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                <option value="">{parentCatId ? _ui("-- Choisir --") : _ui("Catégorie d'abord")}</option>
+                {subCategories.map(c => <option key={c.id} value={c.id}>{_uiNode(c.label)}</option>)}
               </Select>
             )}
           </FormGroup>
@@ -178,25 +180,25 @@ export function BulkEditCostsModal(props: {
       </SectionBox>
 
       {/* Serre */}
-      <SectionBox active={changeGreenhouse} onToggle={setChangeGreenhouse} title="Serre (affectation)">
+      <SectionBox active={changeGreenhouse} onToggle={setChangeGreenhouse} title={_ui("Serre (affectation)")}>
         <FormRow>
-          <FormGroup label="Mode">
+          <FormGroup label={_ui("Mode")}>
             <Select value={greenhouseMode} onChange={e => setGreenhouseMode(e.target.value as any)}>
-              <option value="set">Affecter à une serre</option>
-              <option value="farm_level">Passer au niveau ferme (aucune serre)</option>
+              <option value="set">{_ui("Affecter à une serre")}</option>
+              <option value="farm_level">{_ui("Passer au niveau ferme (aucune serre)")}</option>
             </Select>
           </FormGroup>
           {greenhouseMode === 'set' && (
             <>
-              <FormGroup label="Ferme">
+              <FormGroup label={_ui("Ferme")}>
                 <Select value={farmFilter} onChange={e => { setFarmFilter(e.target.value); setGreenhouseId('') }}>
-                  <option value="">-- Toutes --</option>
+                  <option value="">{_ui("-- Toutes --")}</option>
                   {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </Select>
               </FormGroup>
-              <FormGroup label="Serre">
+              <FormGroup label={_ui("Serre")}>
                 <Select value={greenhouseId} onChange={e => setGreenhouseId(e.target.value)}>
-                  <option value="">-- Sélectionner --</option>
+                  <option value="">{_ui("-- Sélectionner --")}</option>
                   {ghsForFarm.map(g => <option key={g.id} value={g.id}>{g.code} · {g.name}</option>)}
                 </Select>
               </FormGroup>
@@ -206,54 +208,54 @@ export function BulkEditCostsModal(props: {
       </SectionBox>
 
       {/* Date */}
-      <SectionBox active={changeDate} onToggle={setChangeDate} title="Date">
-        <FormGroup label="Nouvelle date pour toutes les entrées">
+      <SectionBox active={changeDate} onToggle={setChangeDate} title={_ui("Date")}>
+        <FormGroup label={_ui("Nouvelle date pour toutes les entrées")}>
           <Input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)} />
         </FormGroup>
       </SectionBox>
 
       {/* Montant */}
-      <SectionBox active={changeAmount} onToggle={setChangeAmount} title="Montant">
+      <SectionBox active={changeAmount} onToggle={setChangeAmount} title={_ui("Montant")}>
         <FormRow>
-          <FormGroup label="Mode">
+          <FormGroup label={_ui("Mode")}>
             <Select value={amountMode} onChange={e => setAmountMode(e.target.value as any)}>
-              <option value="set">Remplacer par (MAD)</option>
-              <option value="multiply">Multiplier par (ex: 1.1 = +10%)</option>
-              <option value="percent">Ajuster de ± (%)</option>
+              <option value="set">{_ui("Remplacer par (MAD)")}</option>
+              <option value="multiply">{_ui("Multiplier par (ex: 1.1 = +10%)")}</option>
+              <option value="percent">{_ui("Ajuster de ± (%)")}</option>
             </Select>
           </FormGroup>
-          <FormGroup label={amountMode === 'set' ? 'Valeur (MAD)' : amountMode === 'multiply' ? 'Facteur' : 'Pourcentage (ex: 10 = +10%, -5 = -5%)'}>
+          <FormGroup label={amountMode === 'set' ? _ui("Valeur (MAD)") : amountMode === 'multiply' ? _ui("Facteur") : _ui("Pourcentage (ex: 10 = +10%, -5 = -5%)")}>
             <Input type="number" value={amountValue} onChange={e => setAmountValue(e.target.value)} step={0.01}
               placeholder={amountMode === 'set' ? '12500.00' : amountMode === 'multiply' ? '1.10' : '10'} />
           </FormGroup>
         </FormRow>
         <div style={{ fontSize: 10, color: 'var(--tx-3)', marginTop: 4, fontStyle: 'italic' }}>
-          {amountMode === 'set' && 'Remplace le montant de chaque entrée par cette valeur (identique pour toutes).'}
-          {amountMode === 'multiply' && 'Multiplie chaque montant par ce facteur. Ex: 1.10 = +10%, 0.90 = -10%.'}
-          {amountMode === 'percent' && 'Ajoute ce pourcentage à chaque montant. Ex: 10 = augmente de 10%, -5 = diminue de 5%.'}
+          {amountMode === 'set' && _ui("Remplace le montant de chaque entrée par cette valeur (identique pour toutes).")}
+          {amountMode === 'multiply' && _ui("Multiplie chaque montant par ce facteur. Ex: 1.10 = +10%, 0.90 = -10%.")}
+          {amountMode === 'percent' && _ui("Ajoute ce pourcentage à chaque montant. Ex: 10 = augmente de 10%, -5 = diminue de 5%.")}
         </div>
       </SectionBox>
 
       {/* Type réel / prévu */}
-      <SectionBox active={changePlanned} onToggle={setChangePlanned} title="Type (réel / prévisionnel)">
+      <SectionBox active={changePlanned} onToggle={setChangePlanned} title={_ui("Type (réel / prévisionnel)")}>
         <Select value={isPlanned} onChange={e => setIsPlanned(e.target.value)}>
-          <option value="false">Réel (décaissement)</option>
-          <option value="true">Prévisionnel (budget)</option>
+          <option value="false">{_ui("Réel (décaissement)")}</option>
+          <option value="true">{_ui("Prévisionnel (budget)")}</option>
         </Select>
       </SectionBox>
 
       {/* Description */}
-      <SectionBox active={changeDesc} onToggle={setChangeDesc} title="Description">
+      <SectionBox active={changeDesc} onToggle={setChangeDesc} title={_ui("Description")}>
         <FormRow>
-          <FormGroup label="Mode">
+          <FormGroup label={_ui("Mode")}>
             <Select value={descMode} onChange={e => setDescMode(e.target.value as any)}>
-              <option value="replace">Remplacer</option>
-              <option value="prepend">Ajouter au début</option>
-              <option value="append">Ajouter à la fin</option>
+              <option value="replace">{_ui("Remplacer")}</option>
+              <option value="prepend">{_ui("Ajouter au début")}</option>
+              <option value="append">{_ui("Ajouter à la fin")}</option>
             </Select>
           </FormGroup>
-          <FormGroup label="Texte">
-            <Input value={descText} onChange={e => setDescText(e.target.value)} placeholder="ex: révisé T2" />
+          <FormGroup label={_ui("Texte")}>
+            <Input value={descText} onChange={e => setDescText(e.target.value)} placeholder={_ui("ex: révisé T2")} />
           </FormGroup>
         </FormRow>
       </SectionBox>
@@ -262,7 +264,7 @@ export function BulkEditCostsModal(props: {
         onCancel={onClose}
         onSave={submit}
         loading={saving}
-        saveLabel="APPLIQUER"
+        saveLabel={_ui("APPLIQUER")}
         disabled={saving || (!changeCampaign && !changeCategory && !changePlanned && !changeGreenhouse && !changeDate && !changeAmount && !changeDesc)}
       />
     </Modal>

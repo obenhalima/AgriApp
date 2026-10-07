@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * MODULE PLAN DE CULTURE — Vue unifiée à 4 onglets, 100% dynamique.
  *
@@ -45,6 +47,8 @@ export default function PlanCulturePage() {
 }
 
 function PlanCultureContent() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { activeDomain } = useAuth()
   // ─── Référentiels ───
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
@@ -65,7 +69,7 @@ function PlanCultureContent() {
   // ─── Onglet actif ───
   const [tab, setTab] = useState<Tab>('dashboard')
   const [mapDirty, setMapDirty] = useState(false)
-  const leaveMap = () => !mapDirty || window.confirm('Abandonner les modifications non enregistrées du plan ?')
+  const leaveMap = () => !mapDirty || window.confirm(_ui("Abandonner les modifications non enregistrées du plan ?"))
 
   // ─── Chargement référentiels ───
   useEffect(() => {
@@ -105,10 +109,10 @@ function PlanCultureContent() {
         })
         setRows(data)
       } catch (e: any) {
-        alert('Erreur : ' + e.message)
+        alert(_ui("Erreur :") + e.message)
       } finally { setLoading(false) }
     })()
-  }, [campaignId, farmFilter])
+  }, [campaignId, farmFilter,_ui])
 
   // ─── Filtrage variété (côté client, immédiat) ───
   const filteredRows = useMemo(() => {
@@ -140,7 +144,7 @@ function PlanCultureContent() {
   }, [campaignId, farmFilter])
 
   if (loadingRefs) {
-    return <div style={{ padding: 40, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)' }}>CHARGEMENT...</div>
+    return <div style={{ padding: 40, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)' }}>{_ui("CHARGEMENT...")}</div>
   }
 
   return (
@@ -153,10 +157,9 @@ function PlanCultureContent() {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
           <div>
-            <div className="page-title">PLAN DE CULTURE</div>
+            <div className="page-title">{_ui("PLAN DE CULTURE")}</div>
             <div className="page-sub">
-              Plantations budgétisées · Volumes & CA cibles · Vue domaine
-              {loading && <span style={{ color: 'var(--amber)', marginLeft: 8 }}>· Chargement…</span>}
+              {" "}{_ui("Plantations budgétisées · Volumes & CA cibles · Vue domaine")}{" "}{loading && <span style={{ color: 'var(--amber)', marginLeft: 8 }}>{_ui("· Chargement…")}</span>}
             </div>
           </div>
         </div>
@@ -164,25 +167,25 @@ function PlanCultureContent() {
         {/* ─── FILTRES GLOBAUX ─── */}
         <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
           <div>
-            <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>CAMPAGNE</div>
+            <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{_ui("CAMPAGNE")}</div>
             <select value={campaignId} onChange={e => setCampaignId(e.target.value)}
               style={{ width: '100%', padding: 8, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 6 }}>
               {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div>
-            <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>FERME</div>
+            <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{_ui("FERME")}</div>
             <select value={farmFilter} onChange={e => { if (leaveMap()) { setMapDirty(false); setFarmFilter(e.target.value) } }}
               style={{ width: '100%', padding: 8, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 6 }}>
-              <option value="all">Toutes les fermes</option>
+              <option value="all">{_ui("Toutes les fermes")}</option>
               {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
           </div>
           <div>
-            <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>VARIÉTÉ</div>
+            <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{_ui("VARIÉTÉ")}</div>
             <select value={varietyFilter} onChange={e => setVarietyFilter(e.target.value)}
               style={{ width: '100%', padding: 8, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 6 }}>
-              <option value="all">Toutes les variétés</option>
+              <option value="all">{_ui("Toutes les variétés")}</option>
               {varieties.map(v => <option key={v.id} value={v.id}>{v.commercial_name}</option>)}
             </select>
           </div>
@@ -224,7 +227,7 @@ function PlanCultureContent() {
         <FarmMapTab key={`${activeDomain.domain_id}:${farmFilter}`} domainId={activeDomain.domain_id}
           farmId={farmFilter} farmName={farms.find(f=>f.id===farmFilter)?.name || 'Ferme sélectionnée'} campaignId={campaignId} greenhouses={allGreenhouses} onDirtyChange={setMapDirty}
           onReferencesChanged={async()=>{setAllGreenhouses(await loadAllGreenhouses(activeDomain.domain_id))}} />
-      ) : <div className="rounded border p-6">Sélectionnez une ferme dans le filtre ci-dessus pour consulter ou dessiner son plan.</div>)}
+      ) : <div className="rounded border p-6">{_ui("Sélectionnez une ferme dans le filtre ci-dessus pour consulter ou dessiner son plan.")}</div>)}
       {tab === 'dashboard' && (
         <DashboardTab
           rows={filteredRows}

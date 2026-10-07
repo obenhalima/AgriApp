@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * DemoSetupWizard — Wizard "From Zero to Demo" en 4 étapes.
  *
@@ -136,6 +138,8 @@ export function DemoSetupWizard({ onClose, onComplete }: {
   onClose: () => void
   onComplete?: (campaignId: string) => void
 }) {
+ const {t:_ui,text:_uiNode,intlLocale:_uiLocale}=useLanguage()
+
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [farms, setFarms] = useState<FarmDraft[]>([
     { name: 'Ferme Sud', code: 'FS', city: 'Agadir', greenhouseCount: 4, ghSurfaceM2: 8000, ghType: 'multispan' },
@@ -483,12 +487,12 @@ export function DemoSetupWizard({ onClose, onComplete }: {
         `${insertedPlantings!.length} plantation(s)`,
         insertedCosts > 0 ? `${insertedCosts} coût(s) prévisionnel(s)` : null,
       ].filter(Boolean).join(' · ')
-      toast.success(`✅ Démo créée : ${summaryMsg}`, { duration: 6000 })
+      toast.success(_ui("✅ Démo créée : {v0}",{v0:String(summaryMsg)}), { duration: 6000 })
       onComplete?.(insertedCampaign!.id)
       onClose()
     } catch (e: any) {
       console.error('[demo-setup]', e)
-      toast.error('Erreur : ' + (e?.message ?? 'inconnue'))
+      toast.error(_ui("Erreur :") + (e?.message ?? 'inconnue'))
     }
     setGenerating(false)
   }
@@ -499,7 +503,7 @@ export function DemoSetupWizard({ onClose, onComplete }: {
 
   return (
     <Modal
-      title={`🧙 Setup démo complète — Étape ${step}/4`}
+      title={_ui("🧙 Setup démo complète — Étape {v0}/4",{v0:String(step)})}
       onClose={generating ? () => {} : onClose}
       size="lg"
     >
@@ -524,7 +528,7 @@ export function DemoSetupWizard({ onClose, onComplete }: {
                 }`}
               >
                 {done ? <Check size={12} /> : <Icon size={12} />}
-                <span className="truncate">{s.label}</span>
+                <span className="truncate">{_uiNode(s.label)}</span>
               </div>
               {i < 3 && <div className={`h-0.5 w-3 ${done ? 'bg-success' : 'bg-border'}`} />}
             </div>
@@ -538,7 +542,7 @@ export function DemoSetupWizard({ onClose, onComplete }: {
           <div className="flex items-center gap-sm mb-sm">
             <Loader2 size={22} className="animate-spin text-brand flex-shrink-0" />
             <div className="min-w-0 flex-1">
-              <div className="text-body font-bold text-fg-primary">Génération en cours…</div>
+              <div className="text-body font-bold text-fg-primary">{_ui("Génération en cours…")}</div>
               <div className="text-body-sm text-fg-secondary truncate">{progress.step}</div>
             </div>
             <div className="font-display text-heading font-extrabold text-brand tabular-nums">
@@ -549,7 +553,7 @@ export function DemoSetupWizard({ onClose, onComplete }: {
             <div className="h-full bg-brand transition-all duration-300 rounded-full"
               style={{ width: `${progress.total > 0 ? Math.min(100, (progress.done / progress.total) * 100) : 4}%` }} />
           </div>
-          <div className="mt-sm text-caption text-fg-tertiary">Quelques secondes — ne ferme pas la fenêtre.</div>
+          <div className="mt-sm text-caption text-fg-tertiary">{_ui("Quelques secondes — ne ferme pas la fenêtre.")}</div>
         </div>
       )}
 
@@ -557,36 +561,35 @@ export function DemoSetupWizard({ onClose, onComplete }: {
       {step === 1 && (
         <div className="space-y-md">
           <div className="text-body-sm text-fg-secondary leading-relaxed">
-            Combien de fermes veux-tu créer ? Pour chaque ferme, on définit ici son nom et son code.
-          </div>
+            {" "}{_ui("Combien de fermes veux-tu créer ? Pour chaque ferme, on définit ici son nom et son code.")}{" "}</div>
 
           <div className="space-y-2">
             {farms.map((f, i) => (
               <div key={i} className="rounded-md border border-border bg-surface-sunk p-md">
                 <div className="grid grid-cols-12 gap-2 items-start">
                   <div className="col-span-4">
-                    <Field label="Nom de la ferme" required>
+                    <Field label={_ui("Nom de la ferme")} required>
                       <TInput value={f.name}
                         onChange={(e) => updateFarm(i, { name: e.target.value, code: slugCode(e.target.value, `F${i+1}`) })}
-                        placeholder="Ferme Sud" />
+                        placeholder={_ui("Ferme Sud")} />
                     </Field>
                   </div>
                   <div className="col-span-2">
-                    <Field label="Code">
+                    <Field label={_ui("Code")}>
                       <TInput value={f.code}
                         onChange={(e) => updateFarm(i, { code: e.target.value.toUpperCase().slice(0, 8) })}
-                        placeholder="FS" />
+                        placeholder={_ui("FS")} />
                     </Field>
                   </div>
                   <div className="col-span-3">
-                    <Field label="Ville">
+                    <Field label={_ui("Ville")}>
                       <TInput value={f.city}
                         onChange={(e) => updateFarm(i, { city: e.target.value })}
-                        placeholder="Agadir" />
+                        placeholder={_ui("Agadir")} />
                     </Field>
                   </div>
                   <div className="col-span-2">
-                    <Field label="Serres prévues">
+                    <Field label={_ui("Serres prévues")}>
                       <TInput type="number" min="1" max="50" value={String(f.greenhouseCount)}
                         onChange={(e) => updateFarm(i, { greenhouseCount: Math.max(1, Number(e.target.value)) })} />
                     </Field>
@@ -595,7 +598,7 @@ export function DemoSetupWizard({ onClose, onComplete }: {
                     {farms.length > 1 && (
                       <button onClick={() => removeFarm(i)}
                         className="w-8 h-8 rounded-md flex items-center justify-center text-danger hover:bg-danger/10 transition-colors"
-                        title="Supprimer cette ferme">
+                        title={_ui("Supprimer cette ferme")}>
                         <Minus size={14} />
                       </button>
                     )}
@@ -606,8 +609,7 @@ export function DemoSetupWizard({ onClose, onComplete }: {
           </div>
 
           <Button onClick={addFarm} variant="secondary" size="sm">
-            <Plus size={13} /> Ajouter une ferme
-          </Button>
+            <Plus size={13} /> {" "}{_ui("Ajouter une ferme")}{" "}</Button>
         </div>
       )}
 
@@ -615,8 +617,7 @@ export function DemoSetupWizard({ onClose, onComplete }: {
       {step === 2 && (
         <div className="space-y-md">
           <div className="text-body-sm text-fg-secondary leading-relaxed">
-            Pour chaque ferme, configure le type et la surface moyenne de ses serres. Toutes les serres d'une même ferme auront ces caractéristiques (variant ±5%).
-          </div>
+            {" "}{_ui("Pour chaque ferme, configure le type et la surface moyenne de ses serres. Toutes les serres d'une même ferme auront ces caractéristiques (variant ±5%).")}{" "}</div>
 
           <div className="space-y-2">
             {farms.map((f, i) => (
@@ -624,30 +625,30 @@ export function DemoSetupWizard({ onClose, onComplete }: {
                 <div className="flex items-center gap-2 mb-sm">
                   <Building2 size={14} className="text-brand" />
                   <span className="font-display font-bold text-fg-primary">{f.name}</span>
-                  <Badge variant="brand" size="xs">{f.greenhouseCount} serres</Badge>
+                  <Badge variant="brand" size="xs">{f.greenhouseCount} {" "}{_ui("serres")}</Badge>
                 </div>
                 <div className="grid grid-cols-12 gap-2">
                   <div className="col-span-5">
-                    <Field label="Type de serre">
+                    <Field label={_ui("Type de serre")}>
                       <TSelect value={f.ghType} onChange={(e) => updateFarm(i, { ghType: e.target.value as any })}>
-                        <option value="multispan">Multispan</option>
-                        <option value="chapelle">Chapelle</option>
-                        <option value="tunnel">Tunnel</option>
-                        <option value="venlo">Venlo (verre)</option>
-                        <option value="solaire">Solaire</option>
-                        <option value="autre">Autre</option>
+                        <option value="multispan">{_ui("Multispan")}</option>
+                        <option value="chapelle">{_ui("Chapelle")}</option>
+                        <option value="tunnel">{_ui("Tunnel")}</option>
+                        <option value="venlo">{_ui("Venlo (verre)")}</option>
+                        <option value="solaire">{_ui("Solaire")}</option>
+                        <option value="autre">{_ui("Autre")}</option>
                       </TSelect>
                     </Field>
                   </div>
                   <div className="col-span-4">
-                    <Field label="Surface moyenne (m²)">
+                    <Field label={_ui("Surface moyenne (m²)")}>
                       <TInput type="number" min="500" step="100" value={String(f.ghSurfaceM2)}
                         onChange={(e) => updateFarm(i, { ghSurfaceM2: Math.max(500, Number(e.target.value)) })} />
                     </Field>
                   </div>
                   <div className="col-span-3">
                     <div className="text-caption text-fg-tertiary pt-5">
-                      Total : <strong className="text-fg-primary">{(f.greenhouseCount * f.ghSurfaceM2).toLocaleString('fr-FR')} m²</strong>
+                      {" "}{_ui("Total :")}{" "}<strong className="text-fg-primary">{(f.greenhouseCount * f.ghSurfaceM2).toLocaleString(_uiLocale)} m²</strong>
                     </div>
                   </div>
                 </div>
@@ -656,7 +657,7 @@ export function DemoSetupWizard({ onClose, onComplete }: {
           </div>
 
           <div className="rounded-md bg-info/5 border border-info/30 p-sm text-caption text-fg-secondary">
-            <strong>Total domaine :</strong> {summary.totalGh} serres · {summary.totalSurface.toLocaleString('fr-FR')} m² · {(summary.totalSurface / 10000).toFixed(2)} ha
+            <strong>{_ui("Total domaine :")}</strong> {summary.totalGh} {" "}{_ui("serres ·")}{" "}{summary.totalSurface.toLocaleString(_uiLocale)} m² · {(summary.totalSurface / 10000).toFixed(2)} ha
           </div>
         </div>
       )}
@@ -666,8 +667,7 @@ export function DemoSetupWizard({ onClose, onComplete }: {
         <div className="space-y-md">
           <div>
             <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-bold mb-sm">
-              🧬 Variétés à utiliser ({varieties.length} sélectionnées)
-            </div>
+              {" "}{_ui("🧬 Variétés à utiliser (")}{varieties.length} {" "}{_ui("sélectionnées)")}{" "}</div>
             <div className="grid grid-cols-2 gap-2">
               {DEFAULT_VARIETIES.map(v => {
                 const selected = varieties.some(x => x.code === v.code)
@@ -683,7 +683,7 @@ export function DemoSetupWizard({ onClose, onComplete }: {
                       {selected && <Check size={14} className="text-brand" />}
                     </div>
                     <div className="text-[10px] text-fg-tertiary font-mono">
-                      {v.type} · {v.yieldPerM2} kg/m² · {v.pricePerKg} MAD/kg
+                      {v.type} · {v.yieldPerM2} {" "}{_ui("kg/m² ·")}{" "}{v.pricePerKg} MAD/kg
                     </div>
                   </button>
                 )
@@ -693,34 +693,33 @@ export function DemoSetupWizard({ onClose, onComplete }: {
 
           <div className="border-t border-border pt-md">
             <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-bold mb-sm">
-              📅 Configuration de la campagne
-            </div>
+              {" "}{_ui("📅 Configuration de la campagne")}{" "}</div>
             <div className="grid grid-cols-2 gap-md">
-              <Field label="Code">
+              <Field label={_ui("Code")}>
                 <TInput value={campaign.code} onChange={(e) => setCampaign(c => ({ ...c, code: e.target.value }))} />
               </Field>
-              <Field label="Nom">
+              <Field label={_ui("Nom")}>
                 <TInput value={campaign.name} onChange={(e) => setCampaign(c => ({ ...c, name: e.target.value }))} />
               </Field>
-              <Field label="Préparation">
+              <Field label={_ui("Préparation")}>
                 <TInput type="date" value={campaign.preparation_start} onChange={(e) => setCampaign(c => ({ ...c, preparation_start: e.target.value }))} />
               </Field>
-              <Field label="Plantation">
+              <Field label={_ui("Plantation")}>
                 <TInput type="date" value={campaign.planting_start} onChange={(e) => setCampaign(c => ({ ...c, planting_start: e.target.value }))} />
               </Field>
-              <Field label="Début récolte">
+              <Field label={_ui("Début récolte")}>
                 <TInput type="date" value={campaign.harvest_start} onChange={(e) => setCampaign(c => ({ ...c, harvest_start: e.target.value }))} />
               </Field>
-              <Field label="Fin récolte">
+              <Field label={_ui("Fin récolte")}>
                 <TInput type="date" value={campaign.harvest_end} onChange={(e) => setCampaign(c => ({ ...c, harvest_end: e.target.value }))} />
               </Field>
-              <Field label="Fin campagne">
+              <Field label={_ui("Fin campagne")}>
                 <TInput type="date" value={campaign.campaign_end} onChange={(e) => setCampaign(c => ({ ...c, campaign_end: e.target.value }))} />
               </Field>
-              <Field label="Budget total (MAD, optionnel)">
+              <Field label={_ui("Budget total (MAD, optionnel)")}>
                 <TInput type="number" value={String(campaign.budget_total || '')}
                   onChange={(e) => setCampaign(c => ({ ...c, budget_total: Number(e.target.value) || 0 }))}
-                  placeholder={`Auto : ${Math.round(summary.totalSurface * 50).toLocaleString('fr-FR')}`} />
+                  placeholder={_ui("Auto : {v0}",{v0:String(Math.round(summary.totalSurface * 50).toLocaleString(_uiLocale))})} />
               </Field>
             </div>
 
@@ -735,11 +734,9 @@ export function DemoSetupWizard({ onClose, onComplete }: {
                 />
                 <div className="flex-1">
                   <div className="font-display font-bold text-body-sm text-fg-primary">
-                    💰 Générer aussi les coûts prévisionnels (recommandé)
-                  </div>
+                    {" "}{_ui("💰 Générer aussi les coûts prévisionnels (recommandé)")}{" "}</div>
                   <div className="text-caption text-fg-tertiary leading-relaxed mt-1">
-                    Crée automatiquement des <code>cost_entries</code> mensuels en distribuant le budget total sur les catégories réalistes (intrants, énergie, main d'œuvre, entretien…). Indispensable pour que <strong>"Générer budget"</strong> produise des charges en plus du CA.
-                  </div>
+                    {" "}{_ui("Crée automatiquement des")}{" "}<code>{"cost_entries"}</code> {" "}{_ui("mensuels en distribuant le budget total sur les catégories réalistes (intrants, énergie, main d'œuvre, entretien…). Indispensable pour que")}{" "}<strong>{_ui("\"Générer budget\"")}</strong> {" "}{_ui("produise des charges en plus du CA.")}{" "}</div>
                 </div>
               </label>
 
@@ -753,10 +750,9 @@ export function DemoSetupWizard({ onClose, onComplete }: {
                   />
                   <div className="flex-1">
                     <div className="font-display font-bold text-body-sm text-fg-primary">
-                      🏠 Ventiler les charges par serre (recommandé)
-                    </div>
+                      {" "}{_ui("🏠 Ventiler les charges par serre (recommandé)")}{" "}</div>
                     <div className="text-caption text-fg-tertiary leading-relaxed mt-1">
-                      Répartit les coûts sur <strong>chaque serre</strong> (prorata surface + variance par serre) au lieu de les laisser au niveau campagne. Nécessaire pour tester le <strong>coût de revient</strong> et la <strong>productivité par serre</strong>.
+                      {" "}{_ui("Répartit les coûts sur")}{" "}<strong>{_ui("chaque serre")}</strong> {" "}{_ui("(prorata surface + variance par serre) au lieu de les laisser au niveau campagne. Nécessaire pour tester le")}{" "}<strong>{_ui("coût de revient")}</strong> {" "}{_ui("et la")}{" "}<strong>{_ui("productivité par serre")}</strong>.
                     </div>
                   </div>
                 </label>
@@ -770,58 +766,55 @@ export function DemoSetupWizard({ onClose, onComplete }: {
       {step === 4 && (
         <div className="space-y-md">
           <div className="text-body-sm text-fg-secondary">
-            Vérifie l'aperçu, puis clique <strong className="text-brand">GÉNÉRER</strong> pour créer tout en cascade :
-          </div>
+            {" "}{_ui("Vérifie l'aperçu, puis clique")}{" "}<strong className="text-brand">{_ui("GÉNÉRER")}</strong> {" "}{_ui("pour créer tout en cascade :")}{" "}</div>
 
           {/* Récap chiffres */}
           <div className="grid grid-cols-3 gap-md">
             <div className="rounded-md bg-success/5 border border-success/30 p-sm">
-              <div className="text-caption text-fg-tertiary">Fermes</div>
+              <div className="text-caption text-fg-tertiary">{_ui("Fermes")}</div>
               <div className="font-display text-heading font-bold text-success">{farms.length}</div>
             </div>
             <div className="rounded-md bg-brand/5 border border-brand/30 p-sm">
-              <div className="text-caption text-fg-tertiary">Serres totales</div>
+              <div className="text-caption text-fg-tertiary">{_ui("Serres totales")}</div>
               <div className="font-display text-heading font-bold text-brand">{summary.totalGh}</div>
             </div>
             <div className="rounded-md bg-info/5 border border-info/30 p-sm">
-              <div className="text-caption text-fg-tertiary">Surface (ha)</div>
+              <div className="text-caption text-fg-tertiary">{_ui("Surface (ha)")}</div>
               <div className="font-display text-heading font-bold text-info">{(summary.totalSurface / 10000).toFixed(2)}</div>
             </div>
             <div className="rounded-md bg-warning/5 border border-warning/30 p-sm">
-              <div className="text-caption text-fg-tertiary">Variétés</div>
+              <div className="text-caption text-fg-tertiary">{_ui("Variétés")}</div>
               <div className="font-display text-heading font-bold text-warning">{varieties.length}</div>
             </div>
             <div className="rounded-md bg-success/5 border border-success/30 p-sm">
-              <div className="text-caption text-fg-tertiary">Prod. cible</div>
+              <div className="text-caption text-fg-tertiary">{_ui("Prod. cible")}</div>
               <div className="font-display text-heading font-bold text-success">
                 {(summary.expectedProd / 1000).toFixed(0)} t
               </div>
             </div>
             <div className="rounded-md bg-brand/5 border border-brand/30 p-sm">
-              <div className="text-caption text-fg-tertiary">CA estimé</div>
+              <div className="text-caption text-fg-tertiary">{_ui("CA estimé")}</div>
               <div className="font-display text-heading font-bold text-brand">
-                {(summary.expectedCA / 1000000).toFixed(2)} M MAD
-              </div>
+                {(summary.expectedCA / 1000000).toFixed(2)} {" "}{_ui("M MAD")}{" "}</div>
             </div>
           </div>
 
           {/* Détail par ferme */}
           <div>
-            <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-bold mb-sm">Détail</div>
+            <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-bold mb-sm">{_ui("Détail")}</div>
             <div className="space-y-1">
               {farms.map((f, i) => (
                 <div key={i} className="flex items-center justify-between text-caption px-sm py-1 rounded bg-surface-sunk">
                   <span className="font-mono text-fg-primary">{f.code}</span>
                   <span className="text-fg-secondary">{f.name} · {f.city}</span>
-                  <span className="text-fg-tertiary">{f.greenhouseCount} × {f.ghSurfaceM2.toLocaleString('fr-FR')} m² = {(f.greenhouseCount * f.ghSurfaceM2).toLocaleString('fr-FR')} m²</span>
+                  <span className="text-fg-tertiary">{f.greenhouseCount} × {f.ghSurfaceM2.toLocaleString(_uiLocale)} m² = {(f.greenhouseCount * f.ghSurfaceM2).toLocaleString(_uiLocale)} m²</span>
                 </div>
               ))}
             </div>
             <div className="flex flex-wrap gap-1 mt-sm">
               {varieties.map(v => (
                 <span key={v.code} className="px-2 py-0.5 rounded-full bg-brand/10 border border-brand/30 text-caption text-brand">
-                  {v.name} ({v.yieldPerM2}kg/m²)
-                </span>
+                  {v.name} ({v.yieldPerM2}{_ui("kg/m²)")}{" "}</span>
               ))}
             </div>
           </div>
@@ -831,8 +824,7 @@ export function DemoSetupWizard({ onClose, onComplete }: {
             <div className="flex items-start gap-sm text-caption text-fg-secondary">
               <AlertTriangle size={14} className="text-warning flex-shrink-0 mt-0.5" />
               <div>
-                <strong>Note :</strong> ne génère <strong>pas</strong> les récoltes. Une fois ce wizard terminé, utilise <strong>"Générer jeu de récoltes"</strong> sur la même page pour remplir avec des récoltes réalistes.
-              </div>
+                <strong>{_ui("Note :")}</strong> {" "}{_ui("ne génère")}{" "}<strong>{_ui("pas")}</strong> {" "}{_ui("les récoltes. Une fois ce wizard terminé, utilise")}{" "}<strong>{_ui("\"Générer jeu de récoltes\"")}</strong> {" "}{_ui("sur la même page pour remplir avec des récoltes réalistes.")}{" "}</div>
             </div>
           </div>
 
@@ -846,22 +838,21 @@ export function DemoSetupWizard({ onClose, onComplete }: {
           variant="secondary"
           disabled={step === 1 || generating}
         >
-          <ChevronLeft size={13} /> Retour
-        </Button>
+          <ChevronLeft size={13} /> {" "}{_ui("Retour")}{" "}</Button>
 
         <div className="flex gap-sm">
-          <Button onClick={onClose} variant="ghost" disabled={generating}>Annuler</Button>
+          <Button onClick={onClose} variant="ghost" disabled={generating}>{_ui("Annuler")}</Button>
           {step < 4 ? (
             <Button
               onClick={() => setStep(s => Math.min(4, s + 1) as any)}
               variant="primary"
               disabled={!canNext()}
             >
-              Suivant <ChevronRight size={13} />
+              {" "}{_ui("Suivant")}{" "}<ChevronRight size={13} />
             </Button>
           ) : (
             <Button onClick={generateAll} variant="primary" loading={generating} disabled={generating}>
-              <Sparkles size={13} /> {generating ? 'Génération…' : 'GÉNÉRER LA DÉMO'}
+              <Sparkles size={13} /> {generating ? _ui("Génération…") : _ui("GÉNÉRER LA DÉMO")}
             </Button>
           )}
         </div>

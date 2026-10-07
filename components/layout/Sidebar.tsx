@@ -8,7 +8,9 @@
  * - Hover plus élégant (slide + élévation)
  * - Mode collapsed icon-only avec tooltip natif au hover
  */
+import { useLanguage } from '@/lib/i18n'
 import Link from 'next/link'
+import { BRAND } from '@/lib/brand'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -24,6 +26,9 @@ import { getOrganization, type OrganizationSettings } from '@/lib/appSettings'
 import { useRealtimeReload } from '@/lib/useRealtimeReload'
 
 export function Sidebar() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+  const { t, locale } = useLanguage()
   const pathname = usePathname()
   const { canAccessModule, isPlatformAdmin, loading: authLoading } = useAuth()
   const {nav:profileNav,config:menuConfig}=useProfileNavigation()
@@ -140,7 +145,7 @@ export function Sidebar() {
   // ─── Palette adaptative ───
   const sidebarBg = isDark
     ? 'linear-gradient(180deg, #050d09 0%, #081410 100%)'
-    : 'linear-gradient(170deg, #1e1b4b 0%, #312e81 50%, #3730a3 100%)'
+    : 'linear-gradient(170deg, #123d2a 0%, #164a32 50%, #1b563b 100%)'
   const sidebarBorder = isDark ? '1px solid #1a3526' : 'none'
   const dividerColor = isDark ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.08)'
   const logoBg = isDark ? 'rgba(0,232,122,.12)' : 'rgba(255,255,255,.12)'
@@ -158,18 +163,7 @@ export function Sidebar() {
 
   return (
     <>
-      <style>{`
-        @keyframes sidebarScan { 0%{top:-1px} 100%{top:100%} }
-        .sb-scan {
-          position:absolute; left:0; right:0; height:1px;
-          background: linear-gradient(90deg, transparent, var(--neon), transparent);
-          opacity:.16; animation: sidebarScan 16s linear infinite; pointer-events:none; z-index:0;
-        }
-        [data-theme="light"] .sb-scan {
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,.4), transparent);
-          opacity: .22;
-        }
-      `}</style>
+      <style>{"@keyframes sidebarScan { 0%{top:-1px} 100%{top:100%} } .sb-scan { position:absolute; left:0; right:0; height:1px; background: linear-gradient(90deg, transparent, var(--neon), transparent); opacity:.16; animation: sidebarScan 16s linear infinite; pointer-events:none; z-index:0; } [data-theme=\"light\"] .sb-scan { background: linear-gradient(90deg, transparent, rgba(255,255,255,.4), transparent); opacity: .22; }"}</style>
 
       {/* Backdrop mobile (drawer) */}
       {mobileOpen && (
@@ -184,7 +178,7 @@ export function Sidebar() {
         initial={false}
         animate={{ width: W }}
         transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
-        className={`fixed left-0 top-0 bottom-0 z-50 flex flex-col overflow-hidden transition-transform duration-300 lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`fixed start-0 top-0 bottom-0 z-50 flex flex-col overflow-hidden transition-transform duration-300 lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : locale === 'ar' ? 'translate-x-full' : '-translate-x-full'}`}
         style={{
           background: sidebarBg,
           border: sidebarBorder,
@@ -192,6 +186,7 @@ export function Sidebar() {
         }}
       >
         <div className="sb-scan" />
+        {mobileOpen && <button type="button" aria-label={t('Fermer le menu')} onClick={()=>setMobileOpen(false)} className="absolute end-2 top-2 z-10 rounded-lg bg-white/15 px-3 py-2 text-white lg:hidden">×</button>}
 
         {/* ═══════════ LOGO ═══════════ */}
         <div
@@ -204,7 +199,7 @@ export function Sidebar() {
           {collapsed ? (
             <div
               onClick={toggleCollapse}
-              title="Étendre le menu"
+              title={t('Étendre le menu')}
               className="cursor-pointer w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-105"
               style={{
                 background: logoBg,
@@ -212,7 +207,7 @@ export function Sidebar() {
                 boxShadow: isDark ? '0 0 16px rgba(0,232,122,.2)' : 'none',
               }}
             >
-              <Sprout size={18} className="text-brand" strokeWidth={2.5} />
+              <Sprout size={18} className="text-emerald-200" strokeWidth={2.5} />
             </div>
           ) : (
             <div className="flex items-center gap-sm">
@@ -227,22 +222,22 @@ export function Sidebar() {
                   boxShadow: isDark ? '0 0 14px rgba(0,232,122,.18)' : '0 2px 8px rgba(0,0,0,.12)',
                 }}
               >
-                <Sprout size={17} className="text-brand" strokeWidth={2.5} />
+                <Sprout size={17} className="text-emerald-200" strokeWidth={2.5} />
               </motion.div>
               <div className="min-w-0 flex-1">
                 <div
                   className="font-display text-[14px] font-extrabold leading-tight truncate"
                   style={{ color: logoText, letterSpacing: '-0.2px' }}
-                  title={org.name}
+                  title={`${BRAND.name} · ${org.name}`}
                 >
-                  {org.name}
+                  {BRAND.name}
                 </div>
                 <div
                   className="font-mono text-[8px] tracking-[1.6px] uppercase mt-0.5 truncate"
                   style={{ color: logoSub }}
-                  title={org.tagline ?? ''}
+                  title={BRAND.signature}
                 >
-                  {org.tagline ?? 'MES Production'}
+                  {BRAND.signature}
                 </div>
               </div>
             </div>
@@ -272,7 +267,7 @@ export function Sidebar() {
                   e.currentTarget.style.color = sectionLabel
                 }}
               >
-                <ChevronsUpDown size={10} /> Tout
+                <ChevronsUpDown size={10} /> {t('Tout')}
               </button>
               <button
                 onClick={collapseAll}
@@ -291,7 +286,7 @@ export function Sidebar() {
                   e.currentTarget.style.color = sectionLabel
                 }}
               >
-                <ChevronsDownUp size={10} /> Replier
+                <ChevronsDownUp size={10} /> {t('Replier')}
               </button>
             </div>
           )}
@@ -302,8 +297,8 @@ export function Sidebar() {
             const SectionIcon = group.icon
             const sectionColor = group.color ?? '#64748b'
             // Sidebar sombre dans les deux thèmes : teinte claire pour le texte.
-            const accent = `color-mix(in srgb, ${sectionColor} 48%, white)`
-            const headerBackground = `color-mix(in srgb, ${sectionColor} ${hasActive ? 22 : 12}%, transparent)`
+            const accent = _ui("color-mix(in srgb, {v0} 48%, white)",{v0:String(sectionColor)})
+            const headerBackground = _ui("color-mix(in srgb, {v0} {v1}%, transparent)",{v0:String(sectionColor),v1:String(hasActive ? 22 : 12)})
 
             return (
               <div key={gi} className="mb-1">
@@ -315,7 +310,7 @@ export function Sidebar() {
                     className="group/section w-full flex items-center gap-sm px-md py-2 mt-2 transition-all"
                     style={{
                       background: headerBackground,
-                      borderLeft: `3px solid ${sectionColor}`,
+                      borderInlineStart: `3px solid ${sectionColor}`,
                     }}
                     onMouseEnter={(e) => {
                       if (!(hasActive && !isExpanded)) {
@@ -349,12 +344,12 @@ export function Sidebar() {
                         <SectionIcon size={11} strokeWidth={2.4} />
                       </span>
                     )}
-                    <div className="flex-1 text-left min-w-0">
+                    <div className="flex-1 text-start min-w-0">
                       <div
                         className="font-mono text-[9.5px] font-bold uppercase tracking-[1.4px] leading-tight transition-colors truncate"
                         style={{ color: accent }}
                       >
-                        {group.section}
+                        {t(group.section)}
                       </div>
                       {group.tagline && (
                         <div
@@ -364,7 +359,7 @@ export function Sidebar() {
                             fontFamily: 'var(--font-body)',
                           }}
                         >
-                          {group.tagline}
+                          {t(group.tagline!)}
                         </div>
                       )}
                     </div>
@@ -389,8 +384,8 @@ export function Sidebar() {
                 {collapsed && (
                   <button
                     type="button"
-                    title={group.section}
-                    aria-label={`Ouvrir le menu ${group.section}`}
+                    title={t(group.section)}
+                    aria-label={_ui("Ouvrir le menu {v0}",{v0:String(t(group.section))})}
                     aria-expanded={false}
                     onClick={() => {
                       const next = new Set([group.section])
@@ -417,8 +412,8 @@ export function Sidebar() {
                       style={!collapsed ? {
                         // Ligne verticale guide à gauche des enfants pour montrer la hierarchie
                         borderLeft: `1px solid color-mix(in srgb, ${sectionColor} 45%, transparent)`,
-                        marginLeft: 18,        // niveau d'indentation des enfants
-                        paddingLeft: 4,
+                        marginInlineStart: 18,
+                        paddingInlineStart: 4,
                         marginTop: 2,
                         marginBottom: 4,
                       } : undefined}
@@ -430,7 +425,7 @@ export function Sidebar() {
                           <Link
                             key={item.href}
                             href={item.href}
-                            className="group/item relative flex items-center gap-sm ml-1 mr-2 my-0.5 px-2 py-1.5 rounded-md transition-all duration-150"
+                            className="group/item relative flex items-center gap-sm ms-1 me-2 my-0.5 px-2 py-1.5 rounded-md transition-all duration-150"
                             style={{
                               background: active
                                 ? `linear-gradient(90deg, color-mix(in srgb, ${sectionColor} 24%, transparent), color-mix(in srgb, ${sectionColor} 8%, transparent))`
@@ -469,7 +464,7 @@ export function Sidebar() {
                                 active ? 'font-semibold tracking-tight' : 'font-medium'
                               )}
                             >
-                              {item.label}
+                              {t(item.label)}
                             </span>
                             {active && (
                               <motion.span
@@ -500,7 +495,7 @@ export function Sidebar() {
           {collapsed ? (
             <button
               onClick={toggleCollapse}
-              title="Étendre"
+              title={_ui("Étendre")}
               className="flex-1 h-9 rounded-md flex items-center justify-center transition-all"
               style={{
                 background: 'rgba(255,255,255,.04)',
@@ -522,7 +517,7 @@ export function Sidebar() {
             <>
               <button
                 onClick={togglePin}
-                title={pinned ? 'Désépingler' : 'Épingler'}
+                title={pinned ? _ui("Désépingler") : _ui("Épingler")}
                 className="flex-1 h-7 rounded-md flex items-center justify-center gap-1.5 text-[9px] font-mono uppercase tracking-wider transition-all"
                 style={{
                   background: pinned
@@ -533,11 +528,11 @@ export function Sidebar() {
                 }}
               >
                 {pinned ? <Pin size={10} strokeWidth={2.4} /> : <PinOff size={10} strokeWidth={2.4} />}
-                Fixé
+                {t('Fixé')}
               </button>
               <button
                 onClick={toggleCollapse}
-                title="Réduire"
+                title={t('Réduire')}
                 className="flex-1 h-7 rounded-md flex items-center justify-center gap-1.5 text-[9px] font-mono uppercase tracking-wider transition-all"
                 style={{
                   background: 'rgba(255,255,255,.04)',
@@ -554,7 +549,7 @@ export function Sidebar() {
                 }}
               >
                 <PanelLeftClose size={10} strokeWidth={2.4} />
-                Réduire
+                {t('Réduire')}
               </button>
             </>
           )}

@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useState } from 'react'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter } from '@/components/ui/Modal'
 import {
@@ -18,6 +20,8 @@ export function AccountCategoryModal(props: {
   onClose: () => void
   onSaved: (c: AccountCategory) => void
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { open, mode, parent, category, onClose, onSaved } = props
 
   const [code, setCode] = useState('')
@@ -93,60 +97,59 @@ export function AccountCategoryModal(props: {
 
   return (
     <Modal
-      title={isEdit ? 'MODIFIER CATÉGORIE COMPTABLE' : (parent ? `+ SOUS-CATÉGORIE DE ${parent.code}` : '+ CATÉGORIE RACINE')}
+      title={isEdit ? _ui("MODIFIER CATÉGORIE COMPTABLE") : (parent ? _ui("+ SOUS-CATÉGORIE DE {v0}",{v0:String(parent.code)}) : _ui("+ CATÉGORIE RACINE"))}
       onClose={onClose}
       size="md"
     >
       {error && (
         <div style={{ padding: 8, marginBottom: 10, background: 'var(--red-dim)', border: '1px solid color-mix(in srgb, var(--red) 30%, transparent)', borderRadius: 6, color: 'var(--red)', fontSize: 11 }}>
-          ⚠ {error}
+          ⚠ {_uiNode(error)}
         </div>
       )}
 
       {!isEdit && (
         <div style={{ padding: 8, marginBottom: 10, background: 'var(--bg-deep)', border: '1px solid var(--bd-1)', borderRadius: 6, fontSize: 11, color: 'var(--tx-3)' }}>
-          Parent : <strong style={{ color: 'var(--tx-2)' }}>{parentInfo}</strong>
+          {" "}{_ui("Parent :")}{" "}<strong style={{ color: 'var(--tx-2)' }}>{parentInfo}</strong>
         </div>
       )}
 
       <FormRow>
-        <FormGroup label="Code *">
+        <FormGroup label={_ui("Code *")}>
           <Input value={code} onChange={e => setCode(e.target.value.toUpperCase())}
-            placeholder="ex: MAT_CONSO" />
+            placeholder={_ui("ex: MAT_CONSO")} />
         </FormGroup>
-        <FormGroup label="Libellé *">
-          <Input value={label} onChange={e => setLabel(e.target.value)} placeholder="ex: Matériel de consommation" />
+        <FormGroup label={_ui("Libellé *")}>
+          <Input value={label} onChange={e => setLabel(e.target.value)} placeholder={_ui("ex: Matériel de consommation")} />
         </FormGroup>
       </FormRow>
 
       <FormRow>
-        <FormGroup label="Type comptable *">
+        <FormGroup label={_ui("Type comptable *")}>
           <Select
             value={type}
             onChange={e => !typeLocked && setType(e.target.value as AccountCategoryType)}
           >
             {(['produit','charge_variable','charge_fixe','amortissement'] as AccountCategoryType[]).map(t =>
-              <option key={t} value={t}>{TYPE_LABELS[t]}</option>
+              <option key={t} value={t}>{_uiNode(TYPE_LABELS[t])}</option>
             )}
           </Select>
           {typeLocked && (
             <div style={{ fontSize: 10, color: 'var(--tx-3)', marginTop: 3 }}>
-              Hérité {isEdit ? 'de la catégorie' : 'du parent'}, non modifiable ici.
-            </div>
+              {" "}{_ui("Hérité")}{" "}{isEdit ? _ui("de la catégorie") : _ui("du parent")}{_ui(", non modifiable ici.")}{" "}</div>
           )}
         </FormGroup>
-        <FormGroup label="Ordre d'affichage">
+        <FormGroup label={_ui("Ordre d'affichage")}>
           <Input type="number" value={displayOrder} onChange={e => setDisplayOrder(e.target.value)} />
         </FormGroup>
       </FormRow>
 
       {type === 'amortissement' && (
-        <FormGroup label="Durée d'amortissement par défaut (années)">
-          <Input type="number" value={depYears} onChange={e => setDepYears(e.target.value)} placeholder="ex: 10" />
+        <FormGroup label={_ui("Durée d'amortissement par défaut (années)")}>
+          <Input type="number" value={depYears} onChange={e => setDepYears(e.target.value)} placeholder={_ui("ex: 10")} />
         </FormGroup>
       )}
 
-      <FormGroup label="Description">
+      <FormGroup label={_ui("Description")}>
         <Textarea rows={2} value={description} onChange={e => setDescription(e.target.value)} />
       </FormGroup>
 
@@ -155,7 +158,7 @@ export function AccountCategoryModal(props: {
         onSave={submit}
         loading={saving}
         disabled={!label.trim() || (!isEdit && !code.trim())}
-        saveLabel={isEdit ? 'ENREGISTRER' : 'CRÉER LA CATÉGORIE'}
+        saveLabel={isEdit ? _ui("ENREGISTRER") : _ui("CRÉER LA CATÉGORIE")}
       />
     </Modal>
   )

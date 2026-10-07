@@ -1,4 +1,7 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
+import '@/components/ui/workspace.css'
 import { useEffect, useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import { Settings2, Plus, Pencil, Sprout, Maximize, Wheat, Box, AlertCircle, Search, X } from 'lucide-react'
@@ -26,6 +29,8 @@ const emptyForm = {
 }
 
 export default function ProductionPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { activeDomain } = useAuth()
   const [items, setItems] = useState<any[]>([])
   const [campagnes, setCampagnes] = useState<any[]>([])
@@ -152,12 +157,12 @@ export default function ProductionPage() {
         const { data, error } = await supabase.from('campaign_plantings').update(payload).eq('id', editingId).select(selectCols).single()
         if (error) throw error
         setItems(prev => prev.map(x => x.id === editingId ? data : x))
-        toast.success('Plantation modifiée')
+        toast.success(_ui("Plantation modifiée"))
       } else {
         const { data, error } = await supabase.from('campaign_plantings').insert({ ...payload, status: 'planifie' }).select(selectCols).single()
         if (error) throw error
         setItems(p => [data, ...p])
-        toast.success('Plantation créée')
+        toast.success(_ui("Plantation créée"))
       }
       setDone(true)
       setTimeout(closeModal, 1200)
@@ -167,9 +172,9 @@ export default function ProductionPage() {
         const existing = items.find(p => p.campaign_id === form.campaign_id && p.greenhouse_id === form.greenhouse_id && p.variety_id === form.variety_id)
         const varNom = varietes.find(v => v.id === form.variety_id)?.commercial_name || 'cette variété'
         const serreNom = serres.find(x => x.id === form.greenhouse_id)?.code || 'cette serre'
-        if (existing && confirm(`Une plantation de ${varNom} existe déjà dans ${serreNom}. Modifier ?`)) loadExisting(existing)
-        else toast.error('Plantation déjà existante')
-      } else toast.error('Erreur : ' + e.message)
+        if (existing && confirm(_ui("Une plantation de {v0} existe déjà dans {v1}. Modifier ?",{v0:String(varNom),v1:String(serreNom)}))) loadExisting(existing)
+        else toast.error(_ui("Plantation déjà existante"))
+      } else toast.error(_ui("Erreur :") + e.message)
     }
     setSaving(false)
   }
@@ -178,86 +183,86 @@ export default function ProductionPage() {
   const totalProd = items.reduce((s, p) => s + (p.target_total_production || 0), 0)
 
   return (
-    <div>
+    <div className="itrix-workspace">
       {modal && (
-        <Modal title={editingId ? 'MODIFIER PLANTATION' : 'NOUVELLE PLANTATION'} onClose={closeModal} size="lg">
-          {done ? <SuccessMessage message={editingId ? 'Plantation modifiée !' : 'Plantation enregistrée !'} /> : (
+        <Modal title={editingId ? _ui("MODIFIER PLANTATION") : _ui("NOUVELLE PLANTATION")} onClose={closeModal} size="lg">
+          {done ? <SuccessMessage message={editingId ? _ui("Plantation modifiée !") : _ui("Plantation enregistrée !")} /> : (
             <div className="space-y-md">
-              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary">Affectation</div>
+              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary">{_ui("Affectation")}</div>
               <FormRow>
-                <FormGroup label="Campagne *">
-                  {campagnes.length === 0 ? <div className="rounded-md border border-danger/30 bg-danger/10 p-md text-danger text-body-sm">⚠ Aucune campagne</div> :
+                <FormGroup label={_ui("Campagne *")}>
+                  {campagnes.length === 0 ? <div className="rounded-md border border-danger/30 bg-danger/10 p-md text-danger text-body-sm">{_ui("⚠ Aucune campagne")}</div> :
                     <TSelect value={form.campaign_id} onChange={(e) => onChangeCampaign(e.target.value)}>
-                      <option value="">— Sélectionner —</option>
+                      <option value="">{_ui("— Sélectionner —")}</option>
                       {campagnes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
                     </TSelect>}
                 </FormGroup>
-                <FormGroup label="Ferme *">
-                  {fermes.length === 0 ? <div className="rounded-md border border-danger/30 bg-danger/10 p-md text-danger text-body-sm">⚠ Aucune ferme</div> :
+                <FormGroup label={_ui("Ferme *")}>
+                  {fermes.length === 0 ? <div className="rounded-md border border-danger/30 bg-danger/10 p-md text-danger text-body-sm">{_ui("⚠ Aucune ferme")}</div> :
                     <TSelect value={form.farm_id} onChange={(e) => onChangeFarm(e.target.value)}>
-                      <option value="">— Sélectionner —</option>
+                      <option value="">{_ui("— Sélectionner —")}</option>
                       {fermes.map(f => <option key={f.id} value={f.id}>{f.name} ({f.code})</option>)}
                     </TSelect>}
                 </FormGroup>
               </FormRow>
               <FormRow>
-                <FormGroup label="Serre *">
+                <FormGroup label={_ui("Serre *")}>
                   <TSelect value={form.greenhouse_id} onChange={(e) => { upd('greenhouse_id')(e); setAreaError('') }}>
-                    <option value="">{form.farm_id ? '— Sélectionner —' : '— Choisir d\'abord une ferme —'}</option>
+                    <option value="">{form.farm_id ? _ui("— Sélectionner —") : _ui("— Choisir d'abord une ferme —")}</option>
                     {filteredSerres.map(sr => <option key={sr.id} value={sr.id}>{sr.code} — {sr.name} ({sr.exploitable_area?.toLocaleString('fr')} m²)</option>)}
                   </TSelect>
                   {selectedSerre && (
                     <div className="mt-1 font-mono text-caption text-fg-tertiary">
-                      Surface exploitable : <strong className={surfaceDisponible > 0 ? 'text-success' : 'text-danger'}>{surfaceDisponible.toLocaleString('fr')} m²</strong>
-                      {surfaceDejaPlantee > 0 && <span className="text-warning ml-2">({surfaceDejaPlantee.toLocaleString('fr')} m² déjà plantés)</span>}
+                      {" "}{_ui("Surface exploitable :")}{" "}<strong className={surfaceDisponible > 0 ? 'text-success' : 'text-danger'}>{surfaceDisponible.toLocaleString('fr')} m²</strong>
+                      {surfaceDejaPlantee > 0 && <span className="text-warning ml-2">({surfaceDejaPlantee.toLocaleString('fr')} {" "}{_ui("m² déjà plantés)")}</span>}
                     </div>
                   )}
                 </FormGroup>
-                <FormGroup label="Variété *">
+                <FormGroup label={_ui("Variété *")}>
                   <TSelect value={form.variety_id} onChange={(e) => selectVariete(e.target.value)}>
-                    <option value="">— Sélectionner —</option>
+                    <option value="">{_ui("— Sélectionner —")}</option>
                     {varietes.map(v => <option key={v.id} value={v.id}>{v.commercial_name} ({v.type})</option>)}
                   </TSelect>
                 </FormGroup>
               </FormRow>
 
-              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mt-md">Surfaces & densité</div>
+              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mt-md">{_ui("Surfaces & densité")}</div>
               <FormRow>
-                <FormGroup label="Surface plantée (m²) *">
-                  <TInput type="number" value={form.planted_area} onChange={upd('planted_area')} placeholder={selectedSerre ? `max ${surfaceDisponible.toLocaleString('fr')} m²` : '2500'} />
+                <FormGroup label={_ui("Surface plantée (m²) *")}>
+                  <TInput type="number" value={form.planted_area} onChange={upd('planted_area')} placeholder={selectedSerre ? _ui("max {v0} m²",{v0:String(surfaceDisponible.toLocaleString('fr'))}) : '2500'} />
                   {areaError && <div className="mt-1 rounded-md border border-danger/30 bg-danger/10 px-md py-1.5 text-caption text-danger flex items-center gap-1"><AlertCircle size={12} />{areaError}</div>}
                   {!areaError && form.planted_area && form.greenhouse_id && surfaceOk && surfaceProposee > 0 && (
-                    <div className="mt-1 font-mono text-caption text-success">✓ Surface valide · reste {(surfaceDisponible - surfaceProposee).toLocaleString('fr')} m²</div>
+                    <div className="mt-1 font-mono text-caption text-success">{_ui("✓ Surface valide · reste")}{" "}{(surfaceDisponible - surfaceProposee).toLocaleString('fr')} m²</div>
                   )}
                 </FormGroup>
-                <FormGroup label="Nombre de plants"><TInput type="number" value={form.plant_count} onChange={upd('plant_count')} placeholder="6250" /></FormGroup>
-                <FormGroup label="Mètres linéaires">
-                  <TInput type="number" value={form.linear_meters} onChange={upd('linear_meters')} placeholder="nb rangs × longueur" />
-                  <div className="mt-1 font-mono text-caption text-fg-tertiary">nb de rangs × longueur, ou surface ÷ écartement. Sert au suivi kg/ml & coût/ml.</div>
+                <FormGroup label={_ui("Nombre de plants")}><TInput type="number" value={form.plant_count} onChange={upd('plant_count')} placeholder="6250" /></FormGroup>
+                <FormGroup label={_ui("Mètres linéaires")}>
+                  <TInput type="number" value={form.linear_meters} onChange={upd('linear_meters')} placeholder={_ui("nb rangs × longueur")} />
+                  <div className="mt-1 font-mono text-caption text-fg-tertiary">{_ui("nb de rangs × longueur, ou surface ÷ écartement. Sert au suivi kg/ml & coût/ml.")}</div>
                 </FormGroup>
               </FormRow>
 
-              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mt-md">Objectifs</div>
+              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mt-md">{_ui("Objectifs")}</div>
               <FormRow>
-                <FormGroup label="Rendement cible (kg/m²)"><TInput type="number" value={form.target_yield_per_m2} onChange={upd('target_yield_per_m2')} placeholder="auto depuis variété" /></FormGroup>
-                <FormGroup label="Date de plantation"><TInput type="date" value={form.planting_date} onChange={upd('planting_date')} /></FormGroup>
+                <FormGroup label={_ui("Rendement cible (kg/m²)")}><TInput type="number" value={form.target_yield_per_m2} onChange={upd('target_yield_per_m2')} placeholder={_ui("auto depuis variété")} /></FormGroup>
+                <FormGroup label={_ui("Date de plantation")}><TInput type="date" value={form.planting_date} onChange={upd('planting_date')} /></FormGroup>
               </FormRow>
-              <FormGroup label="Coût estimé (MAD)"><TInput type="number" value={form.estimated_cost} onChange={upd('estimated_cost')} placeholder="Optionnel" /></FormGroup>
+              <FormGroup label={_ui("Coût estimé (MAD)")}><TInput type="number" value={form.estimated_cost} onChange={upd('estimated_cost')} placeholder={_ui("Optionnel")} /></FormGroup>
               {form.planted_area && form.target_yield_per_m2 && (
                 <div className="rounded-md border border-brand/30 bg-brand/5 p-md text-body-sm text-brand">
-                  → Production théorique : <strong>{(Number(form.planted_area) * Number(form.target_yield_per_m2) / 1000).toFixed(2)} tonnes</strong>
+                  {" "}{_ui("→ Production théorique :")}{" "}<strong>{(Number(form.planted_area) * Number(form.target_yield_per_m2) / 1000).toFixed(2)} {" "}{_ui("tonnes")}</strong>
                 </div>
               )}
 
-              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mt-md">Récolte & ventes</div>
+              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mt-md">{_ui("Récolte & ventes")}</div>
               <FormRow>
-                <FormGroup label="Début récolte"><TInput type="date" value={form.harvest_start_date} onChange={upd('harvest_start_date')} /></FormGroup>
-                <FormGroup label="Fin récolte"><TInput type="date" value={form.harvest_end_date} onChange={upd('harvest_end_date')} /></FormGroup>
-                <FormGroup label="% Export"><TInput type="number" value={form.export_share_pct} onChange={upd('export_share_pct')} placeholder="100" min={0 as any} max={100 as any} /></FormGroup>
+                <FormGroup label={_ui("Début récolte")}><TInput type="date" value={form.harvest_start_date} onChange={upd('harvest_start_date')} /></FormGroup>
+                <FormGroup label={_ui("Fin récolte")}><TInput type="date" value={form.harvest_end_date} onChange={upd('harvest_end_date')} /></FormGroup>
+                <FormGroup label={_ui("% Export")}><TInput type="number" value={form.export_share_pct} onChange={upd('export_share_pct')} placeholder="100" min={0 as any} max={100 as any} /></FormGroup>
               </FormRow>
               <FormRow>
-                <FormGroup label="Prix kg Export (MAD)"><TInput type="number" value={form.price_per_kg_export} onChange={upd('price_per_kg_export')} /></FormGroup>
-                <FormGroup label="Prix kg Local (MAD)"><TInput type="number" value={form.price_per_kg_local} onChange={upd('price_per_kg_local')} /></FormGroup>
+                <FormGroup label={_ui("Prix kg Export (MAD)")}><TInput type="number" value={form.price_per_kg_export} onChange={upd('price_per_kg_export')} /></FormGroup>
+                <FormGroup label={_ui("Prix kg Local (MAD)")}><TInput type="number" value={form.price_per_kg_local} onChange={upd('price_per_kg_local')} /></FormGroup>
               </FormRow>
               {form.planted_area && form.target_yield_per_m2 && (form.price_per_kg_export || form.price_per_kg_local) && (() => {
                 const vol = Number(form.planted_area) * Number(form.target_yield_per_m2)
@@ -268,25 +273,25 @@ export default function ProductionPage() {
                 const caLocal = volLocal * (Number(form.price_per_kg_local) || 0)
                 return (
                   <div className="rounded-md border border-warning/30 bg-warning/5 p-md text-body-sm grid grid-cols-3 gap-md">
-                    <div>→ CA Export : <strong className="text-warning"><MoneyDisplay value={caExport} compact="auto" showCurrency={false} /></strong></div>
-                    <div>→ CA Local : <strong className="text-warning"><MoneyDisplay value={caLocal} compact="auto" showCurrency={false} /></strong></div>
-                    <div>→ CA Total : <strong className="text-warning"><MoneyDisplay value={caExport + caLocal} compact="auto" showCurrency={false} /></strong></div>
+                    <div>{_ui("→ CA Export :")}{" "}<strong className="text-warning"><MoneyDisplay value={caExport} compact="auto" showCurrency={false} /></strong></div>
+                    <div>{_ui("→ CA Local :")}{" "}<strong className="text-warning"><MoneyDisplay value={caLocal} compact="auto" showCurrency={false} /></strong></div>
+                    <div>{_ui("→ CA Total :")}{" "}<strong className="text-warning"><MoneyDisplay value={caExport + caLocal} compact="auto" showCurrency={false} /></strong></div>
                   </div>
                 )
               })()}
 
               <ModalFooter onCancel={closeModal} onSave={save} loading={saving}
                 disabled={!form.campaign_id || !form.farm_id || !form.greenhouse_id || !form.variety_id || !form.planted_area || !surfaceOk}
-                saveLabel={editingId ? 'ENREGISTRER' : 'CRÉER LA PLANTATION'} />
+                saveLabel={editingId ? _ui("ENREGISTRER") : _ui("CRÉER LA PLANTATION")} />
             </div>
           )}
         </Modal>
       )}
 
       <PageHeader
-        title="Suivi production" subtitle="Pilotage" icon={Settings2} iconColor="#f59e0b"
-        description={`${items.length} plantation${items.length > 1 ? 's' : ''} · ${(totalArea / 10000).toFixed(2)} ha · Objectif ${(totalProd / 1000).toFixed(1)} t`}
-        actions={<Button onClick={() => setModal(true)} variant="primary"><Plus size={14} strokeWidth={2.5} /> Nouvelle plantation</Button>}
+        title={_ui("Suivi production")} subtitle={_ui("Pilotage")} icon={Settings2} iconColor="#f59e0b"
+        description={_ui("{v0} plantation{v1} · {v2} ha · Objectif {v3} t",{v0:String(items.length),v1:String(items.length > 1 ? 's' : ''),v2:String((totalArea / 10000).toFixed(2)),v3:String((totalProd / 1000).toFixed(1))})}
+        actions={<Button onClick={() => setModal(true)} variant="primary"><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle plantation")}</Button>}
         stats={loading ? [] : [
           { label: 'Plantations', value: String(items.length), icon: Sprout, color: '#10b981' },
           { label: 'Surface', value: <AreaDisplay value={totalArea} className="!text-current" />, icon: Maximize, color: '#3b82f6' },
@@ -299,21 +304,21 @@ export default function ProductionPage() {
         <Card animate delay={0.15} className="mb-md">
           <div className="flex items-center gap-sm">
             <Search size={14} className="text-fg-tertiary" />
-            <TInput placeholder="Rechercher campagne, serre, variété…" value={search} onChange={(e) => setSearch(e.target.value)} className="border-none bg-transparent focus:ring-0 px-0" />
+            <TInput placeholder={_ui("Rechercher campagne, serre, variété…")} value={search} onChange={(e) => setSearch(e.target.value)} className="border-none bg-transparent focus:ring-0 px-0" />
             {search && <button onClick={() => setSearch('')} className="text-fg-tertiary hover:text-fg-primary"><X size={14} /></button>}
           </div>
         </Card>
       )}
 
-      <Card animate delay={0.25} padding="none" className="overflow-hidden">
+      <Card animate delay={0.25} padding="none" className="itrix-table">
         {loading ? (
           <div className="p-md space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
         ) : items.length === 0 ? (
-          <EmptyState icon={Settings2} title="Aucune plantation" description="Crée une plantation pour commencer." action={<Button onClick={() => setModal(true)}><Plus size={14} /> Plantation</Button>} />
+          <EmptyState icon={Settings2} title={_ui("Aucune plantation")} description={_ui("Crée une plantation pour commencer.")} action={<Button onClick={() => setModal(true)}><Plus size={14} /> {" "}{_ui("Plantation")}</Button>} />
         ) : (
           <DataTable minWidth={1200}>
             <THead>
-              <TR><TH>Campagne</TH><TH>Serre</TH><TH>Variété</TH><TH right>Surface</TH><TH right>Plants</TH><TH right>Rdt</TH><TH right>Prod. théo.</TH><TH>Plant.</TH><TH right>Surf. dispo</TH><TH>Statut</TH><TH right>Actions</TH></TR>
+              <TR><TH>{_ui("Campagne")}</TH><TH>{_ui("Serre")}</TH><TH>{_ui("Variété")}</TH><TH right>{_ui("Surface")}</TH><TH right>{_ui("Plants")}</TH><TH right>{_ui("Rdt")}</TH><TH right>{_ui("Prod. théo.")}</TH><TH>{_ui("Plant.")}</TH><TH right>{_ui("Surf. dispo")}</TH><TH>{_ui("Statut")}</TH><TH right>{_ui("Actions")}</TH></TR>
             </THead>
             <tbody>
               {filteredItems.map((p, i) => {
@@ -328,13 +333,13 @@ export default function ProductionPage() {
                     <TD className="text-fg-secondary">{p.varieties?.commercial_name || '—'}</TD>
                     <TD right mono className="text-success"><AreaDisplay value={p.planted_area} forceUnit="m2" /></TD>
                     <TD right mono>{p.plant_count?.toLocaleString('fr') || '—'}</TD>
-                    <TD right mono className="text-warning">{p.target_yield_per_m2 ? `${p.target_yield_per_m2} kg/m²` : '—'}</TD>
+                    <TD right mono className="text-warning">{p.target_yield_per_m2 ? _ui("{v0} kg/m²",{v0:String(p.target_yield_per_m2)}) : '—'}</TD>
                     <TD right mono className="text-success font-bold"><VolumeDisplay value={p.target_total_production} forceUnit="t" /></TD>
                     <TD mono className="text-caption"><DateDisplay value={p.planting_date} variant="compact" /></TD>
                     <TD right mono className={dispo >= 0 ? 'text-success' : 'text-danger'}>{exploitable > 0 ? `${dispo.toLocaleString('fr')} m²` : '—'}</TD>
                     <TD><StatusBadge status={p.status || 'planifie'} size="sm" /></TD>
                     <TD right>
-                      <Button onClick={() => { loadExisting(p); setModal(true) }} variant="ghost" size="icon-sm" title="Modifier">
+                      <Button onClick={() => { loadExisting(p); setModal(true) }} variant="ghost" size="icon-sm" title={_ui("Modifier")}>
                         <Pencil size={12} strokeWidth={2.2} />
                       </Button>
                     </TD>

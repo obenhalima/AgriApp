@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, ModalFooter } from '@/components/ui/Modal'
@@ -42,6 +44,8 @@ export function StockItemCreateModal(props: {
   initialUnit?: string
   initialCategory?: StockCategory
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { activeDomain } = useAuth()
   const { open, onClose, onCreated, initialName = '', initialUnit = '', initialCategory = 'consommables' } = props
 
@@ -102,42 +106,42 @@ export function StockItemCreateModal(props: {
   }
 
   return (
-    <Modal title="NOUVEL ARTICLE DE STOCK" onClose={close} size="md">
+    <Modal title={_ui("NOUVEL ARTICLE DE STOCK")} onClose={close} size="md">
       {error && (
         <div style={{ padding: 8, marginBottom: 10, background: 'var(--red-dim)', border: '1px solid color-mix(in srgb, var(--red) 30%, transparent)', borderRadius: 6, color: 'var(--red)', fontSize: 11 }}>
-          ⚠ {error}
+          ⚠ {_uiNode(error)}
         </div>
       )}
 
       <FormRow>
-        <FormGroup label="Nom *">
-          <Input value={name} onChange={e => handleNameChange(e.target.value)} placeholder="ex: Engrais NPK 15-15-15" />
+        <FormGroup label={_ui("Nom *")}>
+          <Input value={name} onChange={e => handleNameChange(e.target.value)} placeholder={_ui("ex: Engrais NPK 15-15-15")} />
         </FormGroup>
-        <FormGroup label="Code *">
-          <Input value={code} onChange={e => { setCode(e.target.value); setCodeTouched(true) }} placeholder="NPKFER-1234" />
+        <FormGroup label={_ui("Code *")}>
+          <Input value={code} onChange={e => { setCode(e.target.value); setCodeTouched(true) }} placeholder={_ui("NPKFER-1234")} />
         </FormGroup>
       </FormRow>
 
       <FormRow>
-        <FormGroup label="Catégorie *">
+        <FormGroup label={_ui("Catégorie *")}>
           <Select value={category} onChange={e => setCategory(e.target.value as StockCategory)}>
-            {CATEGORIES.map(c => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
+            {CATEGORIES.map(c => <option key={c} value={c}>{_uiNode(CATEGORY_LABELS[c])}</option>)}
           </Select>
         </FormGroup>
-        <FormGroup label="Unité *">
-          <Input value={unit} onChange={e => setUnit(e.target.value)} placeholder="kg, L, unité..." />
+        <FormGroup label={_ui("Unité *")}>
+          <Input value={unit} onChange={e => setUnit(e.target.value)} placeholder={_ui("kg, L, unité...")} />
         </FormGroup>
       </FormRow>
 
       <FormRow>
-        <FormGroup label="Seuil alerte">
+        <FormGroup label={_ui("Seuil alerte")}>
           <Input type="number" value={minQty} onChange={e => setMinQty(e.target.value)} placeholder="0" />
         </FormGroup>
-        <FormGroup label="Coût unitaire">
+        <FormGroup label={_ui("Coût unitaire")}>
           <Input type="number" value={unitCost} onChange={e => setUnitCost(e.target.value)} placeholder="0" />
         </FormGroup>
-        <FormGroup label="Emplacement">
-          <Input value={location} onChange={e => setLocation(e.target.value)} placeholder="Entrepôt A" />
+        <FormGroup label={_ui("Emplacement")}>
+          <Input value={location} onChange={e => setLocation(e.target.value)} placeholder={_ui("Entrepôt A")} />
         </FormGroup>
       </FormRow>
 
@@ -146,7 +150,7 @@ export function StockItemCreateModal(props: {
         onSave={submit}
         loading={saving}
         disabled={!name.trim() || !code.trim() || !unit.trim()}
-        saveLabel="CRÉER L'ARTICLE"
+        saveLabel={_ui("CRÉER L'ARTICLE")}
       />
     </Modal>
   )

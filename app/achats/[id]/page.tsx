@@ -1,4 +1,7 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
+import '@/components/ui/workspace.css'
 import { useEffect, useMemo, useState, useRef } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
@@ -30,6 +33,8 @@ type NewLine = { itemDescription: string; unit: string; quantity: string; unitPr
 const EMPTY_NEW_LINE: NewLine = { itemDescription: '', unit: '', quantity: '', unitPrice: '', stockItemId: '' }
 
 export default function PurchaseOrderDetailPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { activeDomain } = useAuth()
   const params = useParams<{ id: string }>()
   const poId = params?.id as string
@@ -100,8 +105,8 @@ export default function PurchaseOrderDetailPage() {
   }
 
   const submitNewLine = async () => {
-    if (!newLine.stockItemId) { toast.error('Sélectionne ou crée un article de stock'); return }
-    if (!newLine.quantity || Number(newLine.quantity) <= 0) { toast.error('Quantité > 0 requise'); return }
+    if (!newLine.stockItemId) { toast.error(_ui("Sélectionne ou crée un article de stock")); return }
+    if (!newLine.quantity || Number(newLine.quantity) <= 0) { toast.error(_ui("Quantité > 0 requise")); return }
     setSavingLine(true)
     try {
       const created = await addPurchaseOrderLine(poId, {
@@ -113,8 +118,8 @@ export default function PurchaseOrderDetailPage() {
       setNewLine({ ...EMPTY_NEW_LINE })
       const { data: p } = await supabase.from('purchase_orders').select('*, suppliers(name,category), campaigns(name), greenhouses(code,name)').eq('domain_id', activeDomain!.domain_id).eq('id', poId).maybeSingle()
       if (p) setPo(p as any)
-      toast.success('Ligne ajoutée')
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+      toast.success(_ui("Ligne ajoutée"))
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     finally { setSavingLine(false) }
   }
 
@@ -134,16 +139,16 @@ export default function PurchaseOrderDetailPage() {
     try {
       const updated = await updatePurchaseOrderLine(line.id, patch)
       setLines(prev => prev.map(l => l.id === line.id ? updated : l))
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
   }
 
   const removeLine = async (line: PurchaseOrderLine) => {
-    if (!confirm(`Supprimer la ligne "${line.item_description}" ?`)) return
+    if (!confirm(_ui("Supprimer la ligne \"{v0}\" ?",{v0:String(line.item_description)}))) return
     try {
       await deletePurchaseOrderLine(line.id)
       setLines(prev => prev.filter(l => l.id !== line.id))
-      toast.success('Ligne supprimée')
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+      toast.success(_ui("Ligne supprimée"))
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
   }
 
   const openReception = () => {
@@ -160,20 +165,20 @@ export default function PurchaseOrderDetailPage() {
 
   const submitReception = async () => {
     if (savingReceipt) return
-    if (!warehouseId) { toast.error('Sélectionnez l’entrepôt destinataire'); return }
+    if (!warehouseId) { toast.error(_ui("Sélectionnez l’entrepôt destinataire")); return }
     const linesInput = Object.entries(receptionQtys)
       .map(([lineId, qty]) => ({ lineId, qtyReceived: Number(qty),substitutionId:receiptSubstitutions[lineId]||undefined }))
       .filter(l => Number.isFinite(l.qtyReceived) && l.qtyReceived > 0)
-    if (linesInput.length === 0) { toast.error('Aucune quantité à réceptionner'); return }
+    if (linesInput.length === 0) { toast.error(_ui("Aucune quantité à réceptionner")); return }
     setSavingReceipt(true)
     if (!receiptId.current) receiptId.current = crypto.randomUUID()
     try {
       const res = await receivePurchaseOrder({ poId, receiptId: receiptId.current, warehouseId, exchangeRate: Number(exchangeRate), receptionDate, reference: receptionRef || undefined, notes: receptionNotes || undefined, lines: linesInput })
-      toast.success(`Réception OK · état ${res.new_status} · ${res.movements_created} mvts stock${res.warnings?.length ? ` ⚠ ${res.warnings.length} alerte(s)` : ''}`)
+      toast.success(_ui("Réception OK · état {v0} · {v1} mvts stock{v2}",{v0:String(res.new_status),v1:String(res.movements_created),v2:String(res.warnings?.length ? ` ⚠ ${res.warnings.length} alerte(s)` : '')}))
       closeReception()
       receiptId.current = ''
       await load()
-    } catch (e: any) { toast.error('Réception non confirmée : ' + e.message + '. Réessayez sans recréer la réception en cas de délai dépassé.') }
+    } catch (e: any) { toast.error(_ui("Réception non confirmée :") + e.message + _ui(". Réessayez sans recréer la réception en cas de délai dépassé.")) }
     finally { setSavingReceipt(false) }
   }
 
@@ -187,18 +192,17 @@ export default function PurchaseOrderDetailPage() {
     )
   }
   if (error) {
-    return <div className="rounded-md border border-danger/30 bg-danger/10 p-md text-danger flex items-center gap-2"><AlertCircle size={14} /> {error}</div>
+    return <div className="rounded-md border border-danger/30 bg-danger/10 p-md text-danger flex items-center gap-2"><AlertCircle size={14} /> {_uiNode(error)}</div>
   }
-  if (!po) return <div className="p-xl text-center text-fg-tertiary">Bon d'achat introuvable.</div>
+  if (!po) return <div className="p-xl text-center text-fg-tertiary">{_ui("Bon d'achat introuvable.")}</div>
 
   return (
-    <div>
+    <div className="itrix-workspace">
       <Link href="/achats" className="inline-flex items-center gap-1 text-caption text-fg-tertiary hover:text-fg-primary mb-2 transition-colors">
-        <ArrowLeft size={12} /> Retour aux bons d'achat
-      </Link>
+        <ArrowLeft size={12} /> {" "}{_ui("Retour aux bons d'achat")}{" "}</Link>
 
       <PageHeader
-        title={po.po_number} subtitle="Détail bon d'achat" icon={Package} iconColor="#eab308"
+        title={po.po_number} subtitle={_ui("Approvisionnement · Bon d'achat")} icon={Package} iconColor="var(--neon)"
         description={
           <span className="flex items-center gap-2 flex-wrap">
             <strong>{(po as any).suppliers?.name ?? '—'}</strong>
@@ -210,7 +214,7 @@ export default function PurchaseOrderDetailPage() {
           </span>
         }
         actions={canReceive ? (
-          <Button onClick={openReception} variant="primary"><Package size={14} strokeWidth={2.5} /> Réceptionner</Button>
+          <Button onClick={openReception} variant="primary"><Package size={14} strokeWidth={2.5} /> {" "}{_ui("Réceptionner")}</Button>
         ) : undefined}
         stats={[
           { label: 'Lignes', value: String(lines.length), icon: Package, color: '#10b981' },
@@ -223,26 +227,24 @@ export default function PurchaseOrderDetailPage() {
       {/* Ajout ligne */}
       {editable && (
         <Card animate delay={0.15} className="mb-md">
-          <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-md">
-            Ajouter une ligne
-          </div>
-          <div className="grid grid-cols-[2fr_0.6fr_0.7fr_0.8fr_auto] gap-sm items-end">
+          <div className="itrix-section-title">
+            {" "}{_ui("Ajouter une ligne")}{" "}</div>
+          <div className="itrix-line-entry">
             <div>
               <div className="flex justify-between mb-1">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary">Article stock *</span>
-                <button onClick={() => setStockModalTarget({ kind: 'new' })} className="text-caption text-brand hover:underline">+ nouveau</button>
+                <label htmlFor="purchase-stock-item" className="text-body-sm text-fg-secondary">{_ui("Article stock *")}</label>
+                <button onClick={() => setStockModalTarget({ kind: 'new' })} className="text-caption text-brand hover:underline">{_ui("+ nouveau")}</button>
               </div>
-              <TSelect value={newLine.stockItemId} onChange={(e) => selectNewStockItem(e.target.value)}>
-                <option value="">— sélectionner —</option>
+              <TSelect id="purchase-stock-item" value={newLine.stockItemId} onChange={(e) => selectNewStockItem(e.target.value)}>
+                <option value="">{_ui("— sélectionner —")}</option>
                 {stockItems.map(si => <option key={si.id} value={si.id}>{si.name} ({si.unit})</option>)}
               </TSelect>
             </div>
-            <Field label="Unité"><TInput value={newLine.unit} readOnly className="bg-surface-sunk text-fg-tertiary" /></Field>
-            <Field label="Qté *"><TInput type="number" value={newLine.quantity} onChange={(e) => setNewLine({ ...newLine, quantity: e.target.value })} /></Field>
-            <Field label="Prix unit."><TInput type="number" value={newLine.unitPrice} onChange={(e) => setNewLine({ ...newLine, unitPrice: e.target.value })} /></Field>
+            <Field label={_ui("Unité")}><TInput value={newLine.unit} readOnly className="bg-surface-sunk text-fg-tertiary" /></Field>
+            <Field label={_ui("Qté *")}><TInput type="number" value={newLine.quantity} onChange={(e) => setNewLine({ ...newLine, quantity: e.target.value })} /></Field>
+            <Field label={_ui("Prix unit.")}><TInput type="number" value={newLine.unitPrice} onChange={(e) => setNewLine({ ...newLine, unitPrice: e.target.value })} /></Field>
             <Button onClick={submitNewLine} loading={savingLine} disabled={!newLine.stockItemId || !newLine.quantity} variant="primary">
-              <Plus size={14} strokeWidth={2.5} /> Ajouter
-            </Button>
+              <Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Ajouter")}{" "}</Button>
           </div>
         </Card>
       )}
@@ -254,14 +256,14 @@ export default function PurchaseOrderDetailPage() {
       />
 
       {/* Lignes table */}
-      <Card animate delay={0.25} padding="none" className="overflow-hidden">
+      <Card animate delay={0.25} padding="none" className="itrix-table">
         <DataTable minWidth={1100}>
           <THead>
-            <TR><TH>Libellé</TH><TH>Article stock</TH><TH>Unité</TH><TH right>Commandé</TH><TH right>Reçu</TH><TH right>Prix unit.</TH><TH right>Total</TH>{editable && <TH right>Actions</TH>}</TR>
+            <TR><TH>{_ui("Libellé")}</TH><TH>{_ui("Article stock")}</TH><TH>{_ui("Unité")}</TH><TH right>{_ui("Commandé")}</TH><TH right>{_ui("Reçu")}</TH><TH right>{_ui("Prix unit.")}</TH><TH right>{_ui("Total")}</TH>{editable && <TH right>{_ui("Actions")}</TH>}</TR>
           </THead>
           <tbody>
             {lines.length === 0 ? (
-              <TR><TD className="text-center text-fg-tertiary py-xl" colSpan={editable ? 8 : 7}>Aucune ligne — ajoute-en ci-dessus.</TD></TR>
+              <TR><TD className="text-center text-fg-tertiary py-xl" colSpan={editable ? 8 : 7}>{_ui("Aucune ligne dans ce bon d’achat.")}{editable ? _ui("Ajoutez un article ci-dessus.") : ''}</TD></TR>
             ) : lines.map((l, i) => (
               <TR key={l.id} animate delay={0.05 + i * 0.02}>
                 <TD>
@@ -273,7 +275,7 @@ export default function PurchaseOrderDetailPage() {
                     />
                   ) : <strong className="text-fg-primary">{l.item_description}</strong>}
                 </TD>
-                <TD className="text-caption">{l.stock_item_id ? (stockById[l.stock_item_id]?.name ?? '—') : <span className="text-fg-tertiary italic">libre</span>}</TD>
+                <TD className="text-caption">{l.stock_item_id ? (stockById[l.stock_item_id]?.name ?? '—') : <span className="text-fg-tertiary italic">{_ui("libre")}</span>}</TD>
                 <TD mono className="text-caption text-fg-tertiary">{l.unit ?? '—'}</TD>
                 <TD right mono className="text-info">{Number(l.quantity).toLocaleString('fr')}</TD>
                 <TD right mono className={Number(l.received_qty) >= Number(l.quantity) ? 'text-success font-bold' : 'text-warning'}>
@@ -283,7 +285,7 @@ export default function PurchaseOrderDetailPage() {
                 <TD right mono className="text-brand font-bold"><MoneyDisplay value={Number(l.line_total || 0)} compact="auto" showCurrency={false} /></TD>
                 {editable && (
                   <TD right>
-                    <Button onClick={() => removeLine(l)} variant="ghost" size="icon-sm" className="hover:text-danger"><Trash2 size={12} strokeWidth={2.2} /></Button>
+                    <Button aria-label={_ui("Supprimer {v0}",{v0:String(l.item_description)})} onClick={() => removeLine(l)} variant="ghost" size="icon-sm" className="hover:text-danger"><Trash2 size={12} strokeWidth={2.2} /></Button>
                   </TD>
                 )}
               </TR>
@@ -294,25 +296,24 @@ export default function PurchaseOrderDetailPage() {
 
       {!editable && (
         <Card variant="ghost" className="mt-md text-caption text-fg-tertiary">
-          Les lignes sont en lecture seule : le bon n'est plus en brouillon.
-        </Card>
+          {" "}{_ui("Les lignes sont en lecture seule : le bon n'est plus en brouillon.")}{" "}</Card>
       )}
 
       <PurchaseSubstitutions key={`${activeDomain?.domain_id}:${poId}:${po.status}`} poId={poId} lines={lines} warehouses={warehouses} canRequest={!!canReceive} onChange={setSubstitutions}/>
 
       {/* Modal réception */}
       {receiving && (
-        <Modal title={`RÉCEPTIONNER — ${po.po_number}`} onClose={closeReception} size="lg">
+        <Modal title={_ui("RÉCEPTIONNER — {v0}",{v0:String(po.po_number)})} onClose={closeReception} size="lg">
           <div className="space-y-md">
-            <Field label="Entrepôt destinataire" required><TSelect value={warehouseId} onChange={e => setWarehouseId(e.target.value)} disabled={savingReceipt}><option value="">Choisir l’entrepôt de la ferme</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name} — {w.farms?.name}</option>)}</TSelect></Field>
-            {po.currency !== 'MAD' && <Field label={`Taux : 1 ${po.currency} = … MAD`} required><TInput type="number" min="0" step="0.000001" value={exchangeRate} onChange={e => setExchangeRate(e.target.value)} /></Field>}
-            <div className="grid grid-cols-2 gap-md">
-              <Field label="Date *"><TInput type="date" value={receptionDate} onChange={(e) => setReceptionDate(e.target.value)} /></Field>
-              <Field label="Référence (BL...)"><TInput value={receptionRef} onChange={(e) => setReceptionRef(e.target.value)} /></Field>
+            <Field label={_ui("Entrepôt destinataire")} required><TSelect value={warehouseId} onChange={e => setWarehouseId(e.target.value)} disabled={savingReceipt}><option value="">{_ui("Choisir l’entrepôt de la ferme")}</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name} — {w.farms?.name}</option>)}</TSelect></Field>
+            {po.currency !== 'MAD' && <Field label={_ui("Taux : 1 {v0} = … MAD",{v0:String(po.currency)})} required><TInput type="number" min="0" step="0.000001" value={exchangeRate} onChange={e => setExchangeRate(e.target.value)} /></Field>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+              <Field label={_ui("Date *")}><TInput type="date" value={receptionDate} onChange={(e) => setReceptionDate(e.target.value)} /></Field>
+              <Field label={_ui("Référence (BL...)")}><TInput value={receptionRef} onChange={(e) => setReceptionRef(e.target.value)} /></Field>
             </div>
             <DataTable>
               <THead>
-                <TR><TH>Libellé</TH><TH right>Commandé</TH><TH right>Déjà reçu</TH><TH right>Restant</TH><TH right>Qté reçue maintenant</TH></TR>
+                <TR><TH>{_ui("Libellé")}</TH><TH right>{_ui("Commandé")}</TH><TH right>{_ui("Déjà reçu")}</TH><TH right>{_ui("Restant")}</TH><TH right>{_ui("Qté reçue maintenant")}</TH></TR>
               </THead>
               <tbody>
                 {lines.map(l => {
@@ -321,8 +322,8 @@ export default function PurchaseOrderDetailPage() {
                     <TR key={l.id}>
                       <TD>
                         <strong className="text-fg-primary">{l.item_description}</strong>
-                        {l.stock_item_id && <Badge variant="info" size="xs" className="ml-2">↔ stock</Badge>}
-                        {substitutions.some(s=>s.line_id===l.id&&['en_attente','approuve'].includes(s.status))&&<div className="mt-2 space-y-2"><p className="text-xs text-warning">Un remplacement est en cours. Choisir l’accord correspondant ; sinon laisser cette ligne à zéro.</p><TSelect disabled={savingReceipt} value={receiptSubstitutions[l.id]||''} onChange={e=>{const sub=substitutions.find(s=>s.id===e.target.value);setReceiptSubstitutions(v=>({...v,[l.id]:e.target.value}));setReceptionQtys(v=>({...v,[l.id]:sub?String(sub.ordered_qty):''}));if(sub)setWarehouseId(sub.warehouse_id)}}><option value="">Ne pas réceptionner cette ligne</option>{substitutions.filter(s=>s.line_id===l.id&&s.status==='approuve').map(s=><option key={s.id} value={s.id}>{s.snapshot.replacement.name} · {s.delivered_qty} {s.snapshot.replacement.unit} réellement livrés</option>)}</TSelect></div>}
+                        {l.stock_item_id && <Badge variant="info" size="xs" className="ml-2">{_ui("↔ stock")}</Badge>}
+                        {substitutions.some(s=>s.line_id===l.id&&['en_attente','approuve'].includes(s.status))&&<div className="mt-2 space-y-2"><p className="text-xs text-warning">{_ui("Un remplacement est en cours. Choisir l’accord correspondant ; sinon laisser cette ligne à zéro.")}</p><TSelect disabled={savingReceipt} value={receiptSubstitutions[l.id]||''} onChange={e=>{const sub=substitutions.find(s=>s.id===e.target.value);setReceiptSubstitutions(v=>({...v,[l.id]:e.target.value}));setReceptionQtys(v=>({...v,[l.id]:sub?String(sub.ordered_qty):''}));if(sub)setWarehouseId(sub.warehouse_id)}}><option value="">{_ui("Ne pas réceptionner cette ligne")}</option>{substitutions.filter(s=>s.line_id===l.id&&s.status==='approuve').map(s=><option key={s.id} value={s.id}>{s.snapshot.replacement.name} · {s.delivered_qty} {s.snapshot.replacement.unit} {" "}{_ui("réellement livrés")}</option>)}</TSelect></div>}
                       </TD>
                       <TD right mono className="text-info">{Number(l.quantity).toLocaleString('fr')} {l.unit ?? ''}</TD>
                       <TD right mono className="text-warning">{Number(l.received_qty || 0).toLocaleString('fr')}</TD>
@@ -335,8 +336,8 @@ export default function PurchaseOrderDetailPage() {
                 })}
               </tbody>
             </DataTable>
-            <Field label="Notes"><Textarea rows={2} value={receptionNotes} onChange={(e) => setReceptionNotes(e.target.value)} /></Field>
-            <ModalFooter onCancel={closeReception} onSave={submitReception} loading={savingReceipt} disabled={!warehouseId} saveLabel="VALIDER LA RÉCEPTION" />
+            <Field label={_ui("Notes")}><Textarea rows={2} value={receptionNotes} onChange={(e) => setReceptionNotes(e.target.value)} /></Field>
+            <ModalFooter onCancel={closeReception} onSave={submitReception} loading={savingReceipt} disabled={!warehouseId} saveLabel={_ui("VALIDER LA RÉCEPTION")} />
           </div>
         </Modal>
       )}

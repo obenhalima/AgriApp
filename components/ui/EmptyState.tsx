@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * EmptyState — état vide unifié, animé, avec icône + titre + description + CTA optionnel.
  */
@@ -16,6 +18,8 @@ export function EmptyState({
   iconColor?: string
   className?: string
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -43,7 +47,7 @@ export function EmptyState({
       <div className="space-y-2">
         <h3 className="font-display text-heading-lg text-fg-primary">{title}</h3>
         {description && (
-          <p className="text-body-sm text-fg-tertiary max-w-md mx-auto">{description}</p>
+          <p className="text-body-sm text-fg-tertiary max-w-md mx-auto">{_uiNode(description)}</p>
         )}
       </div>
       {action && <div>{action}</div>}

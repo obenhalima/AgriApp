@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 
 import { FormEvent, useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -10,6 +12,8 @@ import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 
 export default function ResetPasswordPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const router = useRouter()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -60,26 +64,25 @@ export default function ResetPasswordPage() {
         <div className="w-14 h-14 rounded-2xl bg-brand/15 border border-brand/30 flex items-center justify-center mx-auto">
           <KeyRound className="text-brand" />
         </div>
-        <h1 className="font-display text-heading font-bold text-center mt-md">Nouveau mot de passe</h1>
+        <h1 className="font-display text-heading font-bold text-center mt-md">{_ui("Nouveau mot de passe")}</h1>
         {checking ? (
-          <div className="mt-lg text-center text-body-sm text-fg-tertiary">Vérification du lien…</div>
+          <div className="mt-lg text-center text-body-sm text-fg-tertiary">{_ui("Vérification du lien…")}</div>
         ) : !ready ? (
           <div className="mt-lg space-y-md">
             <div className="rounded-md border border-warning/30 bg-warning/10 p-md text-body-sm text-warning">
-              Ce lien est invalide ou a expiré. Demande un nouveau lien de réinitialisation.
-            </div>
-            <Button asChild className="w-full" variant="secondary"><Link href="/forgot-password">DEMANDER UN NOUVEAU LIEN</Link></Button>
+              {" "}{_ui("Ce lien est invalide ou a expiré. Demande un nouveau lien de réinitialisation.")}{" "}</div>
+            <Button asChild className="w-full" variant="secondary"><Link href="/forgot-password">{_ui("DEMANDER UN NOUVEAU LIEN")}</Link></Button>
           </div>
         ) : (
           <form onSubmit={submit} className="space-y-md mt-lg">
-            <Field label="Nouveau mot de passe">
+            <Field label={_ui("Nouveau mot de passe")}>
               <Input type="password" minLength={8} value={password} onChange={event => setPassword(event.target.value)} required />
             </Field>
-            <Field label="Confirmer le mot de passe">
+            <Field label={_ui("Confirmer le mot de passe")}>
               <Input type="password" minLength={8} value={confirm} onChange={event => setConfirm(event.target.value)} required />
             </Field>
-            {error && <div className="rounded-md border border-danger/30 bg-danger/10 p-md text-body-sm text-danger">{error}</div>}
-            <Button type="submit" loading={loading} disabled={!password || !confirm} className="w-full">ENREGISTRER</Button>
+            {error && <div className="rounded-md border border-danger/30 bg-danger/10 p-md text-body-sm text-danger">{_uiNode(error)}</div>}
+            <Button type="submit" loading={loading} disabled={!password || !confirm} className="w-full">{_ui("ENREGISTRER")}</Button>
           </form>
         )}
       </Card>

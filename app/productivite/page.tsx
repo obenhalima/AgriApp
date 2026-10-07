@@ -1,4 +1,7 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
+import '@/components/ui/workspace.css'
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Ruler, Sprout, Coins, Users, Info, AlertCircle, Gauge, Timer } from 'lucide-react'
@@ -22,6 +25,8 @@ const MO_CODES = new Set(['MOD', 'MO_ADMIN', 'CHARGES_SOC'])
 const num = (v: number | null, digits = 1) => v == null ? '—' : v.toLocaleString('fr-FR', { maximumFractionDigits: digits })
 
 export default function ProductivitePage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [campaignId, setCampaignId] = useState<string>('')
   const [result, setResult] = useState<ProductiviteResult | null>(null)
@@ -107,63 +112,63 @@ export default function ProductivitePage() {
   const t = result?.totals
 
   return (
-    <div>
-      <Link href="/pointage/recolte" className="inline-block mb-4 rounded-lg border border-brand/30 bg-brand/10 px-4 py-3 text-brand font-semibold">Productivité par personne à la récolte et objectifs →</Link>
+    <div className="itrix-workspace">
+      <Link href="/pointage/recolte" className="inline-block mb-4 rounded-lg border border-brand/30 bg-brand/10 px-4 py-3 text-brand font-semibold">{_ui("Productivité par personne à la récolte et objectifs →")}</Link>
       <PageHeader
-        title="Productivité" subtitle="Production" icon={Gauge} iconColor="#8b5cf6"
-        description="Rendement et coûts au mètre linéaire de culture — par variété"
+        title={_ui("Productivité")} subtitle={_ui("Production")} icon={Gauge} iconColor="#8b5cf6"
+        description={_ui("Rendement et coûts au mètre linéaire de culture — par variété")}
         actions={
-          <TSelect value={campaignId} onChange={(e) => setCampaignId(e.target.value)} className="h-9 w-auto min-w-[260px]">
+          <TSelect aria-label={_ui("Campagne de productivité")} value={campaignId} onChange={(e) => setCampaignId(e.target.value)} className="h-9 w-auto min-w-0 max-w-full">
             {campaigns.map(c => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
           </TSelect>
         }
       />
 
       {error && (
-        <div className="rounded-md border border-danger/30 bg-danger/10 p-md text-danger text-body-sm flex items-center gap-2 mb-md">
-          <AlertCircle size={14} /> {error}
+        <div role="alert" className="itrix-notice border border-danger/30 bg-danger/10 text-danger flex items-center gap-2 mb-md">
+          <AlertCircle size={14} /> {_uiNode(error)}
         </div>
       )}
 
       {!loading && result && !result.hasLinearMeters && result.parVariete.length > 0 && (
         <div className="rounded-md border border-warning/30 bg-warning/10 p-md text-body-sm text-fg-secondary flex items-start gap-2 mb-md">
           <AlertCircle size={16} className="text-warning flex-shrink-0 mt-0.5" />
-          <div>Aucune plantation n'a de <b>mètres linéaires</b> renseignés — les indicateurs par mètre restent « — ». Renseigne le métrage dans <b>Plantations</b> (bloc « Surfaces &amp; densité ») pour activer kg/ml et coût/ml.</div>
+          <div>{_ui("Aucune plantation n'a de")}{" "}<b>{_ui("mètres linéaires")}</b> {" "}{_ui("renseignés — les indicateurs par mètre restent « — ». Renseigne le métrage dans")}{" "}<b>{_ui("Plantations")}</b> {" "}{_ui("(bloc « Surfaces &amp; densité ») pour activer kg/ml et coût/ml.")}</div>
         </div>
       )}
 
       {loading || !t ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-md mb-md">
+        <div className="itrix-kpis">
           {Array.from({ length: 5 }).map((_, i) => <SkeletonKPI key={i} />)}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-md mb-md">
-          <KPICard label="Production" value={<VolumeDisplay value={t.productionKg} className="!text-current font-display !text-display-sm" />} sub={`${num(t.linearMeters, 0)} ml de culture`} icon={Sprout} accent="#10b981" variant="hero" delay={0} />
-          <KPICard label="kg / mètre linéaire" value={<span className="font-display text-display-sm">{num(t.kgParMl, 1)}</span>} sub="rendement au ml" icon={Ruler} accent="#3b82f6" variant="hero" delay={0.05} />
-          <KPICard label="Cueillette kg/h" value={<span className="font-display text-display-sm">{cueilletteHours > 0 ? num(t.productionKg / cueilletteHours, 1) : '—'}</span>} sub={cueilletteHours > 0 ? `sur ${num(cueilletteHours, 0)} h pointées` : 'pointe des heures'} icon={Timer} accent="#0ea5e9" variant="hero" delay={0.1} />
-          <KPICard label="Coût / mètre linéaire" value={<span className="font-display text-display-sm">{num(t.coutParMl, 0)}</span>} sub="MAD/ml (tous coûts)" icon={Coins} accent="#f59e0b" variant="hero" delay={0.15} />
-          <KPICard label="Coût MO / mètre" value={<span className="font-display text-display-sm">{num(t.coutMOParMl, 0)}</span>} sub="MAD/ml (main-d'œuvre)" icon={Users} accent="#8b5cf6" variant="hero" delay={0.2} />
+        <div className="itrix-kpis">
+          <KPICard label={_ui("Production")} value={<VolumeDisplay value={t.productionKg} className="!text-current font-display !text-display-sm" />} sub={`${num(t.linearMeters, 0)} ml de culture`} icon={Sprout} accent="#10b981" variant="hero" delay={0} />
+          <KPICard label={_ui("kg / mètre linéaire")} value={<span className="font-display text-display-sm">{num(t.kgParMl, 1)}</span>} sub="rendement au ml" icon={Ruler} accent="#3b82f6" variant="hero" delay={0.05} />
+          <KPICard label={_ui("Cueillette kg/h")} value={<span className="font-display text-display-sm">{cueilletteHours > 0 ? num(t.productionKg / cueilletteHours, 1) : '—'}</span>} sub={cueilletteHours > 0 ? `sur ${num(cueilletteHours, 0)} h pointées` : 'pointe des heures'} icon={Timer} accent="#0ea5e9" variant="hero" delay={0.1} />
+          <KPICard label={_ui("Coût / mètre linéaire")} value={<span className="font-display text-display-sm">{num(t.coutParMl, 0)}</span>} sub="MAD/ml (tous coûts)" icon={Coins} accent="#f59e0b" variant="hero" delay={0.15} />
+          <KPICard label={_ui("Coût MO / mètre")} value={<span className="font-display text-display-sm">{num(t.coutMOParMl, 0)}</span>} sub="MAD/ml (main-d'œuvre)" icon={Users} accent="#8b5cf6" variant="hero" delay={0.2} />
         </div>
       )}
 
-      <Card animate delay={0.2} padding="none" className="overflow-hidden mb-md">
+      <Card animate delay={0.2} padding="none" className="itrix-table mb-md">
         <div className="px-md py-sm border-b border-border">
-          <div className="font-display text-heading-sm font-bold text-fg-primary">Productivité par culture — {result?.parVariete.length ?? 0} variété(s)</div>
+          <div className="font-display text-heading-sm font-bold text-fg-primary">{_ui("Productivité par culture —")}{" "}{result?.parVariete.length ?? 0} {" "}{_ui("variété(s)")}</div>
         </div>
         {!result || result.parVariete.length === 0 ? (
-          <EmptyState icon={Gauge} title="Aucune plantation sur cette campagne" />
+          <EmptyState icon={Gauge} title={_ui("Aucune plantation sur cette campagne")} />
         ) : (
           <div className="overflow-x-auto">
             <DataTable>
               <THead><TR>
-                <TH>Variété</TH>
-                <TH right>Mètres lin.</TH>
-                <TH right>Production</TH>
-                <TH right>kg/ml</TH>
-                <TH right>Coût/ml</TH>
-                <TH right>Coût MO/ml</TH>
-                <TH right>kg/plant</TH>
-                <TH right>Rdt kg/m²</TH>
+                <TH>{_ui("Variété")}</TH>
+                <TH right>{_ui("Mètres lin.")}</TH>
+                <TH right>{_ui("Production")}</TH>
+                <TH right>{_ui("kg/ml")}</TH>
+                <TH right>{_ui("Coût/ml")}</TH>
+                <TH right>{_ui("Coût MO/ml")}</TH>
+                <TH right>{_ui("kg/plant")}</TH>
+                <TH right>{_ui("Rdt kg/m²")}</TH>
               </TR></THead>
               <tbody>
                 {result.parVariete.map((v, i) => (
@@ -190,8 +195,8 @@ export default function ProductivitePage() {
         <div className="flex items-start gap-sm text-body-sm text-fg-secondary">
           <Info size={14} className="text-info flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <div><b className="text-fg-primary">kg/ml</b> = production récoltée ÷ mètres linéaires. <b className="text-fg-primary">Coût/ml</b> et <b className="text-fg-primary">Coût MO/ml</b> = coûts imputés (cascade serre→variété) ÷ mètres linéaires.</div>
-            <div className="text-caption opacity-80">Le coût MO provient de la paie répartie par surface (allocation, pas temps réel). La productivité horaire (kg/heure) nécessitera la saisie du temps de travail — à venir.</div>
+            <div><b className="text-fg-primary">{_ui("kg/ml")}</b> {" "}{_ui("= production récoltée ÷ mètres linéaires.")}{" "}<b className="text-fg-primary">{_ui("Coût/ml")}</b> {" "}{_ui("et")}{" "}<b className="text-fg-primary">{_ui("Coût MO/ml")}</b> {" "}{_ui("= coûts imputés (cascade serre→variété) ÷ mètres linéaires.")}</div>
+            <div className="text-caption opacity-80">{_ui("Le coût MO provient de la paie répartie par surface (allocation, pas temps réel). La productivité horaire (kg/heure) nécessitera la saisie du temps de travail — à venir.")}</div>
           </div>
         </div>
       </Card>

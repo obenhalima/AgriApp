@@ -1,4 +1,7 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
+import '@/components/ui/workspace.css'
 import { useEffect, useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import { Globe, Plus, Trash2, Search, X, MapPin, DollarSign, ShieldCheck, Pencil, Calendar } from 'lucide-react'
@@ -19,6 +22,8 @@ const TYPE_VARIANT: Record<string, 'success' | 'warning' | 'info' | 'brand' | 'd
 }
 
 export default function MarchesPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { values: TYPES } = useReferenceList('market_type')
   const { values: CURRENCIES } = useReferenceList('currency')
   const [items, setItems] = useState<any[]>([])
@@ -59,7 +64,7 @@ export default function MarchesPage() {
       if (res.error) {
         console.error('[marches] load failed:', res.error)
         lastError = res.error.message
-        toast.error('Chargement marches : ' + res.error.message)
+        toast.error(_ui("Chargement marches :") + res.error.message)
       } else {
         // Enrichit chaque marche avec son client (jointure cote client)
         marketsAll = (res.data ?? []).map((m: any) => ({
@@ -170,27 +175,27 @@ export default function MarchesPage() {
 
       // Retry sans client_id si la colonne n'existe pas (migration 047 pas appliquee)
       if (resp.error && /client_id.*schema cache|client_id.*does not exist/i.test(resp.error.message)) {
-        toast.warning('Colonne client_id absente (migration 047 a appliquer). Sauvegarde sans client.', { duration: 6000 })
+        toast.warning(_ui("Colonne client_id absente (migration 047 a appliquer). Sauvegarde sans client."), { duration: 6000 })
         resp = await retryWithout('client_id')
       }
       // Retry sans payment_terms_days si pas applique (migration 044)
       if (resp.error && /payment_terms_days.*schema cache|payment_terms_days.*does not exist/i.test(resp.error.message)) {
-        toast.warning('Colonne payment_terms_days absente (migration 044 a appliquer). Sauvegarde sans delai.', { duration: 6000 })
+        toast.warning(_ui("Colonne payment_terms_days absente (migration 044 a appliquer). Sauvegarde sans delai."), { duration: 6000 })
         resp = await retryWithout('payment_terms_days')
       }
       // Retry sans is_ecart_market si pas applique (migration 048)
       if (resp.error && /is_ecart_market.*schema cache|is_ecart_market.*does not exist/i.test(resp.error.message)) {
-        toast.warning('Colonne is_ecart_market absente (migration 048 a appliquer).', { duration: 6000 })
+        toast.warning(_ui("Colonne is_ecart_market absente (migration 048 a appliquer)."), { duration: 6000 })
         resp = await retryWithout('is_ecart_market')
       }
       // Retry sans bordereau_frequency si pas applique (migration 049)
       if (resp.error && /bordereau_frequency.*schema cache|bordereau_frequency.*does not exist/i.test(resp.error.message)) {
-        toast.warning('Colonne bordereau_frequency absente (migration 049 a appliquer).', { duration: 6000 })
+        toast.warning(_ui("Colonne bordereau_frequency absente (migration 049 a appliquer)."), { duration: 6000 })
         resp = await retryWithout('bordereau_frequency')
       }
       // Retry sans week1_start_date si pas applique (migration 071)
       if (resp.error && /week1_start_date.*schema cache|week1_start_date.*does not exist/i.test(resp.error.message)) {
-        toast.warning('Colonne week1_start_date absente (migration 071 a appliquer). Sauvegarde sans S1.', { duration: 6000 })
+        toast.warning(_ui("Colonne week1_start_date absente (migration 071 a appliquer). Sauvegarde sans S1."), { duration: 6000 })
         resp = await retryWithout('week1_start_date')
       }
       if (resp.error) throw resp.error
@@ -199,65 +204,65 @@ export default function MarchesPage() {
       if (editId) {
         setItems(p => p.map(m => m.id === editId ? data : m))
         setDone(true)
-        toast.success(`Marché "${data.name}" mis à jour`)
+        toast.success(_ui("Marché \"{v0}\" mis à jour",{v0:String(data.name)}))
       } else {
         setItems(p => [data, ...p])
         setDone(true)
-        toast.success(`Marché "${data.name}" créé`)
+        toast.success(_ui("Marché \"{v0}\" créé",{v0:String(data.name)}))
       }
       setTimeout(() => { setModal(false); setDone(false); setEditId(null) }, 1200)
     } catch (e: any) {
       const msg = e?.message ?? String(e)
       // Détection : colonne payment_terms_days inconnue → migration 044 pas déployée
       if (/payment_terms_days/i.test(msg) && /column/i.test(msg)) {
-        toast.error("La colonne payment_terms_days n'existe pas. Appliquez la migration 044_bordereau_payment_invoice.sql sur Supabase.", { duration: 10000 })
+        toast.error(_ui("La colonne payment_terms_days n'existe pas. Appliquez la migration 044_bordereau_payment_invoice.sql sur Supabase."), { duration: 10000 })
       } else {
-        toast.error('Erreur : ' + msg)
+        toast.error(_ui("Erreur :") + msg)
       }
     }
     setSaving(false)
   }
 
   const del = async (id: string, name: string) => {
-    if (!confirm(`Désactiver "${name}" ?`)) return
+    if (!confirm(_ui("Désactiver \"{v0}\" ?",{v0:String(name)}))) return
     try {
       await supabase.from('markets').update({ is_active: false }).eq('id', id)
       setItems(p => p.filter(i => i.id !== id))
-      toast.success('Marché désactivé')
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+      toast.success(_ui("Marché désactivé"))
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
   }
 
   return (
-    <div>
+    <div className="itrix-workspace">
       {modal && (
-        <Modal title={editId ? 'MODIFIER LE MARCHÉ' : 'NOUVEAU MARCHÉ'} onClose={() => { setModal(false); setDone(false); setEditId(null) }}>
-          {done ? <SuccessMessage message={editId ? 'Marché mis à jour !' : 'Marché créé !'} /> : (
+        <Modal title={editId ? _ui("MODIFIER LE MARCHÉ") : _ui("NOUVEAU MARCHÉ")} onClose={() => { setModal(false); setDone(false); setEditId(null) }}>
+          {done ? <SuccessMessage message={editId ? _ui("Marché mis à jour !") : _ui("Marché créé !")} /> : (
             <div className="space-y-md">
-              <div className="grid grid-cols-2 gap-md">
-                <Field label="Code (auto)"><TInput value={form.code} onChange={upd('code')} disabled={!!editId} /></Field>
-                <Field label="Nom du marché" required><TInput value={form.name} onChange={upd('name')} placeholder="Export France" autoFocus /></Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                <Field label={_ui("Code (auto)")}><TInput value={form.code} onChange={upd('code')} disabled={!!editId} /></Field>
+                <Field label={_ui("Nom du marché")} required><TInput value={form.name} onChange={upd('name')} placeholder={_ui("Export France")} autoFocus /></Field>
               </div>
-              <div className="grid grid-cols-2 gap-md">
-                <Field label="Type">
-                  <TSelect value={form.type} onChange={upd('type')}>{TYPES.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}</TSelect>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                <Field label={_ui("Type")}>
+                  <TSelect value={form.type} onChange={upd('type')}>{TYPES.map(t => <option key={t.code} value={t.code}>{_uiNode(t.label)}</option>)}</TSelect>
                 </Field>
-                <Field label="Devise">
+                <Field label={_ui("Devise")}>
                   <TSelect value={form.currency} onChange={upd('currency')}>{CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</TSelect>
                 </Field>
               </div>
-              <div className="grid grid-cols-2 gap-md">
-                <Field label="Pays"><TInput value={form.country} onChange={upd('country')} placeholder="France" /></Field>
-                <Field label="Prix moyen (par kg)"><TInput type="number" value={form.avg_price_per_kg} onChange={upd('avg_price_per_kg')} placeholder="0.65" /></Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                <Field label={_ui("Pays")}><TInput value={form.country} onChange={upd('country')} placeholder={_ui("France")} /></Field>
+                <Field label={_ui("Prix moyen (par kg)")}><TInput type="number" value={form.avg_price_per_kg} onChange={upd('avg_price_per_kg')} placeholder="0.65" /></Field>
               </div>
-              <div className="grid grid-cols-2 gap-md">
-                <Field label="Coût logistique (/kg)"><TInput type="number" value={form.avg_logistics_cost_per_kg} onChange={upd('avg_logistics_cost_per_kg')} placeholder="0.18" /></Field>
-                <Field label="Frais export (/kg)"><TInput type="number" value={form.export_fees_per_kg} onChange={upd('export_fees_per_kg')} placeholder="0.05" /></Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                <Field label={_ui("Coût logistique (/kg)")}><TInput type="number" value={form.avg_logistics_cost_per_kg} onChange={upd('avg_logistics_cost_per_kg')} placeholder="0.18" /></Field>
+                <Field label={_ui("Frais export (/kg)")}><TInput type="number" value={form.export_fees_per_kg} onChange={upd('export_fees_per_kg')} placeholder="0.05" /></Field>
               </div>
-              <div className="grid grid-cols-2 gap-md">
-                <Field label="Conditions de paiement (texte)">
-                  <TInput value={form.payment_terms} onChange={upd('payment_terms')} placeholder="30 jours net" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                <Field label={_ui("Conditions de paiement (texte)")}>
+                  <TInput value={form.payment_terms} onChange={upd('payment_terms')} placeholder={_ui("30 jours net")} />
                 </Field>
-                <Field label="Délai paiement (jours) — auto-facturation">
+                <Field label={_ui("Délai paiement (jours) — auto-facturation")}>
                   <TInput
                     type="number"
                     min={0}
@@ -268,26 +273,25 @@ export default function MarchesPage() {
                   />
                 </Field>
               </div>
-              <Field label="Client par défaut (utilisé pour les factures)" required>
+              <Field label={_ui("Client par défaut (utilisé pour les factures)")} required>
                 <TSelect value={form.client_id} onChange={upd('client_id')}>
-                  <option value="">— Choisir un client —</option>
+                  <option value="">{_ui("— Choisir un client —")}</option>
                   {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </TSelect>
                 {!form.client_id && (
                   <div className="text-caption text-warning mt-1">
-                    ⚠ Sans client, les ventes vers ce marché ne pourront pas être facturées
-                  </div>
+                    {" "}{_ui("⚠ Sans client, les ventes vers ce marché ne pourront pas être facturées")}{" "}</div>
                 )}
               </Field>
-              <div className="grid grid-cols-2 gap-md">
-                <Field label="Cadence du bordereau" hint="Période de regroupement des dispatches pour facturation">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                <Field label={_ui("Cadence du bordereau")} hint="Période de regroupement des dispatches pour facturation">
                   <TSelect value={(form as any).bordereau_frequency ?? 'monthly'} onChange={upd('bordereau_frequency')}>
-                    <option value="weekly">Hebdomadaire (lundi → dimanche) — recommandé pour Export</option>
-                    <option value="monthly">Mensuel (1er → fin du mois) — recommandé pour Local</option>
-                    <option value="none">Aucun (facture par dispatch direct, sans regroupement)</option>
+                    <option value="weekly">{_ui("Hebdomadaire (lundi → dimanche) — recommandé pour Export")}</option>
+                    <option value="monthly">{_ui("Mensuel (1er → fin du mois) — recommandé pour Local")}</option>
+                    <option value="none">{_ui("Aucun (facture par dispatch direct, sans regroupement)")}</option>
                   </TSelect>
                 </Field>
-                <Field label="Début S1 (station)" hint="Lundi de la 1ʳᵉ semaine station. Numérote les bordereaux S1, S2… au lieu de la semaine ISO.">
+                <Field label={_ui("Début S1 (station)")} hint="Lundi de la 1ʳᵉ semaine station. Numérote les bordereaux S1, S2… au lieu de la semaine ISO.">
                   <TInput type="date" value={form.week1_start_date} onChange={upd('week1_start_date')} />
                 </Field>
               </div>
@@ -300,27 +304,25 @@ export default function MarchesPage() {
                     className="mt-0.5 w-4 h-4 accent-warning"
                   />
                   <div className="flex-1 text-body-sm">
-                    <strong className="text-fg-primary">Marché écart</strong>
+                    <strong className="text-fg-primary">{_ui("Marché écart")}</strong>
                     <div className="text-fg-secondary mt-0.5">
-                      Ce marché reçoit les écarts du tri (revendus à un client spécifique).
-                      Un seul marché écart actif à la fois. Lie-le au client marqué
-                      <code className="mx-1 px-1 bg-surface-sunk rounded">is_ecart_buyer</code>.
+                      {" "}{_ui("Ce marché reçoit les écarts du tri (revendus à un client spécifique). Un seul marché écart actif à la fois. Lie-le au client marqué")}{" "}<code className="mx-1 px-1 bg-surface-sunk rounded">{_ui("is_ecart_buyer")}</code>.
                     </div>
                   </div>
                 </label>
               </div>
-              <Field label="Certifications requises"><TInput value={form.requirements} onChange={upd('requirements')} placeholder="GlobalGAP, BRC..." /></Field>
-              <Field label="Notes"><Textarea rows={2} value={form.notes} onChange={upd('notes')} /></Field>
-              <ModalFooter onCancel={() => { setModal(false); setEditId(null) }} onSave={save} loading={saving} disabled={!form.name} saveLabel={editId ? 'METTRE À JOUR' : 'CRÉER'} />
+              <Field label={_ui("Certifications requises")}><TInput value={form.requirements} onChange={upd('requirements')} placeholder={_ui("GlobalGAP, BRC...")} /></Field>
+              <Field label={_ui("Notes")}><Textarea rows={2} value={form.notes} onChange={upd('notes')} /></Field>
+              <ModalFooter onCancel={() => { setModal(false); setEditId(null) }} onSave={save} loading={saving} disabled={!form.name} saveLabel={editId ? _ui("METTRE À JOUR") : _ui("CRÉER")} />
             </div>
           )}
         </Modal>
       )}
 
       <PageHeader
-        title="Marchés" subtitle="Commercial" icon={Globe} iconColor="#3b82f6"
-        description={`${items.length} marché${items.length > 1 ? 's' : ''} actif${items.length > 1 ? 's' : ''}`}
-        actions={<Button onClick={openModal} variant="primary"><Plus size={14} strokeWidth={2.5} /> Nouveau marché</Button>}
+        title={_ui("Marchés")} subtitle={_ui("Commercial")} icon={Globe} iconColor="#3b82f6"
+        description={_ui("{v0} marché{v1} actif{v2}",{v0:String(items.length),v1:String(items.length > 1 ? 's' : ''),v2:String(items.length > 1 ? 's' : '')})}
+        actions={<Button onClick={openModal} variant="primary"><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouveau marché")}</Button>}
         stats={loading ? [] : [
           { label: 'Total', value: String(stats.count), icon: Globe, color: '#3b82f6' },
           { label: 'Types', value: String(stats.types), icon: ShieldCheck, color: '#10b981' },
@@ -334,12 +336,12 @@ export default function MarchesPage() {
           <div className="flex items-center gap-md flex-wrap">
             <div className="flex items-center gap-sm flex-1 min-w-[200px] max-w-md">
               <Search size={14} className="text-fg-tertiary" />
-              <TInput placeholder="Rechercher code, nom, pays…" value={search} onChange={(e) => setSearch(e.target.value)} className="border-none bg-transparent focus:ring-0 px-0" />
+              <TInput placeholder={_ui("Rechercher code, nom, pays…")} value={search} onChange={(e) => setSearch(e.target.value)} className="border-none bg-transparent focus:ring-0 px-0" />
               {search && <button onClick={() => setSearch('')} className="text-fg-tertiary hover:text-fg-primary"><X size={14} /></button>}
             </div>
             <TSelect value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="h-8 w-auto min-w-[160px] text-body-sm">
-              <option value="all">Tous types</option>
-              {TYPES.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
+              <option value="all">{_ui("Tous types")}</option>
+              {TYPES.map(t => <option key={t.code} value={t.code}>{_uiNode(t.label)}</option>)}
             </TSelect>
           </div>
         </Card>
@@ -349,18 +351,17 @@ export default function MarchesPage() {
       {!loading && loadDebug && (loadDebug.lastError || loadDebug.totalCount !== loadDebug.activeCount) && (
         <Card animate delay={0.1} className="mb-md" style={{ borderColor: loadDebug.lastError ? '#ef4444' : '#f59e0b' }}>
           <div className="text-body-sm">
-            <strong className="text-fg-primary">Diagnostic chargement</strong>
+            <strong className="text-fg-primary">{_ui("Diagnostic chargement")}</strong>
             <div className="text-fg-secondary mt-1">
-              Total en base : <strong>{loadDebug.totalCount}</strong> marche(s) ·{' '}
-              Actifs : <strong>{loadDebug.activeCount}</strong> · Inactifs : <strong>{loadDebug.totalCount - loadDebug.activeCount}</strong>
+              {" "}{_ui("Total en base :")}{" "}<strong>{loadDebug.totalCount}</strong> {" "}{_ui("marche(s) ·")}{' '}
+              {" "}{_ui("Actifs :")}{" "}<strong>{loadDebug.activeCount}</strong> {" "}{_ui("· Inactifs :")}{" "}<strong>{loadDebug.totalCount - loadDebug.activeCount}</strong>
             </div>
             {loadDebug.lastError && (
-              <div className="text-danger mt-1 font-mono text-caption">Erreur : {loadDebug.lastError}</div>
+              <div className="text-danger mt-1 font-mono text-caption">{_ui("Erreur :")}{" "}{loadDebug.lastError}</div>
             )}
             {loadDebug.totalCount > 0 && loadDebug.activeCount === 0 && (
               <div className="text-warning mt-1">
-                Tous les marches sont desactives (is_active=false). Pour les reactiver, lance dans Supabase SQL :
-                <code className="block mt-1 p-2 bg-surface-sunk rounded font-mono text-caption">UPDATE markets SET is_active = true;</code>
+                {" "}{_ui("Tous les marches sont desactives (is_active=false). Pour les reactiver, lance dans Supabase SQL :")}{" "}<code className="block mt-1 p-2 bg-surface-sunk rounded font-mono text-caption">{_ui("UPDATE markets SET is_active = true;")}</code>
               </div>
             )}
           </div>
@@ -372,18 +373,18 @@ export default function MarchesPage() {
       ) : items.length === 0 ? (
         <EmptyState
           icon={Globe}
-          title={loadDebug?.totalCount === 0 ? 'Aucun marché en base' : `${loadDebug?.totalCount ?? 0} marché(s) en base mais tous désactivés (is_active=false)`}
+          title={loadDebug?.totalCount === 0 ? _ui("Aucun marché en base") : _ui("{v0} marché(s) en base mais tous désactivés (is_active=false)",{v0:String(loadDebug?.totalCount ?? 0)})}
           description={
             loadDebug?.lastError
-              ? `Erreur de chargement : ${loadDebug.lastError}`
+              ? _ui("Erreur de chargement : {v0}",{v0:String(loadDebug.lastError)})
               : (loadDebug?.totalCount === 0
-                ? 'Crée ton premier marché pour piloter la commercialisation.'
-                : `Active ces marchés via SQL : UPDATE markets SET is_active=true ; ou crée-en un nouveau.`)
+                ? _ui("Crée ton premier marché pour piloter la commercialisation.")
+                : _ui("Active ces marchés via SQL : UPDATE markets SET is_active=true ; ou crée-en un nouveau."))
           }
-          action={<Button onClick={openModal}><Plus size={14} strokeWidth={2.5} /> Nouveau marché</Button>}
+          action={<Button onClick={openModal}><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouveau marché")}</Button>}
         />
       ) : filtered.length === 0 ? (
-        <EmptyState icon={Search} title="Aucun résultat" action={<Button variant="ghost" onClick={() => { setSearch(''); setTypeFilter('all') }}>Réinitialiser</Button>} />
+        <EmptyState icon={Search} title={_ui("Aucun résultat")} action={<Button variant="ghost" onClick={() => { setSearch(''); setTypeFilter('all') }}>{_ui("Réinitialiser")}</Button>} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
           {filtered.map((m, i) => (
@@ -415,17 +416,16 @@ export default function MarchesPage() {
                 {/* Client par défaut + délai paiement (utilisés pour les factures) */}
                 {m.clients?.name ? (
                   <div className="mt-sm flex items-center gap-1 text-caption text-fg-secondary">
-                    👤 Client : <strong>{m.clients.name}</strong>
+                    {" "}{_ui("👤 Client :")}{" "}<strong>{m.clients.name}</strong>
                   </div>
                 ) : (
                   <div className="mt-sm flex items-center gap-1 text-caption text-warning">
-                    ⚠ Aucun client (factures impossibles)
-                  </div>
+                    {" "}{_ui("⚠ Aucun client (factures impossibles)")}{" "}</div>
                 )}
                 {m.payment_terms_days != null && (
                   <div className="mt-sm flex items-center gap-1 text-caption text-fg-tertiary">
                     <Calendar size={10} />
-                    Délai paiement : <strong className="text-fg-secondary">{m.payment_terms_days} j</strong>
+                    {" "}{_ui("Délai paiement :")}{" "}<strong className="text-fg-secondary">{m.payment_terms_days} j</strong>
                     {m.payment_terms && <span className="text-fg-muted">— {m.payment_terms}</span>}
                   </div>
                 )}
@@ -434,11 +434,9 @@ export default function MarchesPage() {
                 )}
                 <div className="mt-md grid grid-cols-2 gap-sm">
                   <Button onClick={() => openEdit(m)} variant="secondary" size="sm">
-                    <Pencil size={12} strokeWidth={2.2} /> Modifier
-                  </Button>
+                    <Pencil size={12} strokeWidth={2.2} /> {" "}{_ui("Modifier")}{" "}</Button>
                   <Button onClick={() => del(m.id, m.name)} variant="destructive" size="sm">
-                    <Trash2 size={12} strokeWidth={2.2} /> Désactiver
-                  </Button>
+                    <Trash2 size={12} strokeWidth={2.2} /> {" "}{_ui("Désactiver")}{" "}</Button>
                 </div>
               </div>
             </Card>

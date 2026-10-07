@@ -1,0 +1,11 @@
+import {describe,it,expect} from 'vitest'
+import {planCostRows,type CostCatalog,type CostRow} from './costWorkbookPlan'
+const c:CostCatalog={domainId:'d',domainName:'Test',farms:[{id:'f',label:'Ferme'}],campaigns:[{id:'c',label:'Campagne',farm_id:'f'}],greenhouses:[{id:'g1',label:'S1',farm_id:'f',area:100},{id:'g2',label:'S2',farm_id:'f',area:300}],categories:[{id:'cat',label:'Semences',code:'SEM',type:'charge_variable',parent:'Intrants'}]}
+const row=(patch:CostRow={}):CostRow=>({ref:'COUT-1',campaign:'Campagne',farm:'Ferme',category:'Semences',mode:'Ponctuel',amount:1200,date:'2026-01-15',...patch})
+describe('Cost workbook plan',()=>{
+ it('keeps budget and actual separate',()=>{expect(planCostRows([row()],c,'budget').entries[0].is_planned).toBe(true);expect(planCostRows([row()],c,'actual').entries[0].is_planned).toBe(false)})
+ it('allocates TOTAL over full calendar months and preserves cents',()=>{const p=planCostRows([row({amount:100,mode:'Mensuel',months:3,distribution:'Parts égales'})],c,'budget');expect(p.issues).toEqual([]);expect(p.entries.map(e=>e.amount)).toEqual([33.33,33.33,33.34]);expect(p.entries[0].entry_date).toBe('2026-01-01');expect(p.total).toBe(100)})
+ it('handles surface subsets and combined month x surface',()=>{const p=planCostRows([row({mode:'Mensuel × surface',months:2,distribution:'Prorata des jours',selection:'Toutes'})],c,'actual');expect(p.issues).toEqual([]);expect(p.entries).toHaveLength(4);expect(p.total).toBe(1200);expect(p.entries[0].amount).toBe(157.63);const q=planCostRows([row({mode:'Par surface',selection:'S2'})],c,'actual');expect(q.entries).toHaveLength(1);expect(q.entries[0].amount).toBe(1200)})
+ it('rejects unknown references and conflicting options instead of ignoring them',()=>{const patches:CostRow[]=[{farm:'Other'},{mode:'Other'},{date:'2026-02-30'},{months:2},{selection:'Toutes'},{mode:'Par surface',selection:'S3'},{mode:'Mensuel',months:37}];for(const patch of patches)expect(planCostRows([row(patch)],c,'actual').issues.length).toBeGreaterThan(0)})
+ it('rejects duplicate references and zero surface',()=>{expect(planCostRows([row(),row()],c,'actual').issues).toHaveLength(1);expect(planCostRows([row({mode:'Par surface',selection:'Toutes'})],{...c,greenhouses:c.greenhouses.map(g=>({...g,area:0}))},'actual').issues).toHaveLength(1)})
+})

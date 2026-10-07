@@ -10,6 +10,7 @@
  *
  * Raccourci global : Cmd+K ou Ctrl+K, n'importe où dans l'app.
  */
+import { useLanguage } from '@/lib/i18n'
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Command } from 'cmdk'
@@ -25,6 +26,9 @@ import {useProfileNavigation} from '@/lib/useProfileNavigation'
 import { getTheme, setTheme } from '@/lib/theme'
 
 export function CommandPalette() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+  const {t}=useLanguage()
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const router = useRouter()
@@ -102,7 +106,7 @@ export function CommandPalette() {
                   'shadow-modal overflow-hidden',
                 )}
               >
-                <Dialog.Title className="sr-only">Recherche rapide</Dialog.Title>
+                <Dialog.Title className="sr-only">{t('Recherche rapide')}</Dialog.Title>
 
                 <Command
                   shouldFilter
@@ -118,18 +122,17 @@ export function CommandPalette() {
                       autoFocus
                       value={search}
                       onValueChange={setSearch}
-                      placeholder="Rechercher une page, une action…"
+                      placeholder={t('Rechercher une page, une action…')}
                       className="flex-1 bg-transparent outline-none text-fg-primary placeholder:text-fg-tertiary text-body"
                     />
                     <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded border border-border text-[10px] font-mono text-fg-tertiary">
-                      ESC
-                    </kbd>
+                      {" "}{_ui("ESC")}{" "}</kbd>
                   </div>
 
                   <Command.List className="max-h-[60vh] overflow-y-auto p-sm">
                     <Command.Empty className="py-xl text-center text-fg-tertiary text-body-sm font-mono">
                       <Sparkles size={20} className="mx-auto mb-sm opacity-50" />
-                      Aucun résultat pour <span className="text-fg-secondary">"{search}"</span>
+                      {" "}{_ui("Aucun résultat pour")}{" "}<span className="text-fg-secondary">"{search}"</span>
                     </Command.Empty>
 
                     {/* ─── Quick Actions ─── */}
@@ -165,7 +168,7 @@ export function CommandPalette() {
                       return (
                         <Command.Group
                           key={section.section}
-                          heading={section.section}
+                          heading={t(section.section)}
                           className={cn(
                             '[&_[cmdk-group-heading]]:px-md [&_[cmdk-group-heading]]:py-xs [&_[cmdk-group-heading]]:mt-sm',
                             '[&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-[9px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-fg-tertiary [&_[cmdk-group-heading]]:font-semibold'
@@ -176,11 +179,11 @@ export function CommandPalette() {
                             return (
                               <PaletteItem
                                 key={item.href}
-                                value={`${item.label} ${section.section} ${(item.keywords ?? []).join(' ')}`}
+                                value={`${t(item.label)} ${item.label} ${t(section.section)} ${section.section} ${(item.keywords ?? []).join(' ')}`}
                                 onSelect={() => navigate(item.href)}
                                 icon={<Icon size={16} strokeWidth={2.2} style={{ color: item.color }} />}
                                 accent={item.color}
-                                label={item.label}
+                                label={t(item.label)}
                                 hint={item.href}
                                 shortcut={item.shortcut}
                               />
@@ -203,7 +206,7 @@ export function CommandPalette() {
                         onSelect={toggleTheme}
                         icon={<Sun size={16} strokeWidth={2.2} className="text-warning" />}
                         accent="#f59e0b"
-                        label="Basculer le thème (clair/sombre)"
+                        label={_ui("Basculer le thème (clair/sombre)")}
                         hint="Système"
                       />
                       <PaletteItem
@@ -211,7 +214,7 @@ export function CommandPalette() {
                         onSelect={logout}
                         icon={<LogOut size={16} strokeWidth={2.2} className="text-danger" />}
                         accent="#ef4444"
-                        label="Se déconnecter"
+                        label={_ui("Se déconnecter")}
                         hint="Système"
                       />
                     </Command.Group>
@@ -223,16 +226,16 @@ export function CommandPalette() {
                       <span className="flex items-center gap-1">
                         <kbd className="px-1.5 py-0.5 rounded bg-surface-raised border border-border">↑</kbd>
                         <kbd className="px-1.5 py-0.5 rounded bg-surface-raised border border-border">↓</kbd>
-                        <span className="ml-1">naviguer</span>
+                        <span className="ml-1">{_ui("naviguer")}</span>
                       </span>
                       <span className="flex items-center gap-1">
                         <kbd className="px-1.5 py-0.5 rounded bg-surface-raised border border-border">↵</kbd>
-                        <span className="ml-1">sélectionner</span>
+                        <span className="ml-1">{_ui("sélectionner")}</span>
                       </span>
                     </div>
                     <span className="hidden sm:flex items-center gap-1">
                       <Zap size={9} />
-                      FarmPilot
+                      ItriX Farm
                     </span>
                   </div>
                 </Command>
@@ -257,6 +260,8 @@ function PaletteItem({
   hint?: string
   shortcut?: string[]
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <Command.Item
       value={value}
@@ -276,11 +281,11 @@ function PaletteItem({
       >
         {icon}
       </span>
-      <span className="flex-1 truncate">{label}</span>
+      <span className="flex-1 truncate">{_uiNode(label)}</span>
       {hint && (
         <span className="text-caption font-mono text-fg-tertiary hidden sm:inline-flex items-center gap-1">
           <Hash size={10} className="opacity-50" />
-          {hint}
+          {_uiNode(hint)}
         </span>
       )}
       {shortcut && (

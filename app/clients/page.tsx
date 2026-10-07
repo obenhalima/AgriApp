@@ -1,4 +1,7 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
+import '@/components/ui/workspace.css'
 /**
  * /clients — Refonte avec design system.
  */
@@ -30,30 +33,32 @@ import { getDefaults } from '@/lib/appSettings'
 // ─── Formulaire partagé New/Edit (HORS du composant parent pour éviter
 //     le remount à chaque keystroke qui faisait perdre le focus) ───
 function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e: any) => void }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { values: typeOptions } = useReferenceList('client_type')
   return (
     <div className="space-y-md">
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Code"><TInput value={vals.code} onChange={onChange('code')} /></Field>
-        <Field label="Nom" required><TInput value={vals.name} onChange={onChange('name')} placeholder="Société" autoFocus /></Field>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+        <Field label={_ui("Code")}><TInput value={vals.code} onChange={onChange('code')} /></Field>
+        <Field label={_ui("Nom")} required><TInput value={vals.name} onChange={onChange('name')} placeholder={_ui("Société")} autoFocus /></Field>
       </div>
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Type">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+        <Field label={_ui("Type")}>
           <TSelect value={vals.type} onChange={onChange('type')}>
-            {typeOptions.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
+            {typeOptions.map(t => <option key={t.code} value={t.code}>{_uiNode(t.label)}</option>)}
           </TSelect>
         </Field>
-        <Field label="Pays"><TInput value={vals.country} onChange={onChange('country')} /></Field>
+        <Field label={_ui("Pays")}><TInput value={vals.country} onChange={onChange('country')} /></Field>
       </div>
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Ville"><TInput value={vals.city} onChange={onChange('city')} placeholder="Agadir" /></Field>
-        <Field label="Téléphone"><TInput value={vals.phone} onChange={onChange('phone')} placeholder="+212..." /></Field>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+        <Field label={_ui("Ville")}><TInput value={vals.city} onChange={onChange('city')} placeholder={_ui("Agadir")} /></Field>
+        <Field label={_ui("Téléphone")}><TInput value={vals.phone} onChange={onChange('phone')} placeholder="+212..." /></Field>
       </div>
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Email"><TInput type="email" value={vals.email} onChange={onChange('email')} /></Field>
-        <Field label="Délai paiement (jours)"><TInput type="number" value={vals.payment_terms_days} onChange={onChange('payment_terms_days')} /></Field>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+        <Field label={_ui("Email")}><TInput type="email" value={vals.email} onChange={onChange('email')} /></Field>
+        <Field label={_ui("Délai paiement (jours)")}><TInput type="number" value={vals.payment_terms_days} onChange={onChange('payment_terms_days')} /></Field>
       </div>
-      <Field label="Plafond crédit (MAD)" hint="Optionnel"><TInput type="number" value={vals.credit_limit} onChange={onChange('credit_limit')} /></Field>
+      <Field label={_ui("Plafond crédit (MAD)")} hint="Optionnel"><TInput type="number" value={vals.credit_limit} onChange={onChange('credit_limit')} /></Field>
       <div className="rounded-md border border-warning/30 bg-warning/5 p-md">
         <label className="flex items-start gap-sm cursor-pointer">
           <input
@@ -63,12 +68,9 @@ function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e:
             className="mt-0.5 w-4 h-4 accent-warning"
           />
           <div className="flex-1 text-body-sm">
-            <strong className="text-fg-primary">Acheteur d'écart</strong>
+            <strong className="text-fg-primary">{_ui("Acheteur d'écart")}</strong>
             <div className="text-fg-secondary mt-0.5">
-              Ce client passe à la station récupérer les écarts du tri pour les revendre.
-              Un seul client peut être désigné à la fois.
-              Pense à créer un marché dédié (case "Marché écart" dans /marches).
-            </div>
+              {" "}{_ui("Ce client passe à la station récupérer les écarts du tri pour les revendre. Un seul client peut être désigné à la fois. Pense à créer un marché dédié (case \"Marché écart\" dans /marches).")}{" "}</div>
           </div>
         </label>
       </div>
@@ -86,6 +88,8 @@ const TYPE_VARIANT: Record<string, 'success' | 'warning' | 'info' | 'brand' | 'd
 }
 
 export default function ClientsPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { values: TYPES } = useReferenceList('client_type')
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -173,16 +177,16 @@ export default function ClientsPage() {
         const r = await supabase.from('clients').update({ is_ecart_buyer: true }).eq('id', n.id)
         if (r.error) {
           if (/is_ecart_buyer.*schema cache|is_ecart_buyer.*does not exist/i.test(r.error.message)) {
-            toast.warning('Colonne is_ecart_buyer absente (migration 048 a appliquer)', { duration: 6000 })
+            toast.warning(_ui("Colonne is_ecart_buyer absente (migration 048 a appliquer)"), { duration: 6000 })
           } else {
             console.warn('[clients] is_ecart_buyer update:', r.error)
           }
         }
       }
       setItems(p => [n, ...p]); setDone(true)
-      toast.success(`Client "${n.name}" créé`)
+      toast.success(_ui("Client \"{v0}\" créé",{v0:String(n.name)}))
       setTimeout(() => { setModalNew(false); setDone(false) }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSaving(false)
   }
 
@@ -201,61 +205,60 @@ export default function ClientsPage() {
       let { error } = await supabase.from('clients').update(payload).eq('id', modalEdit.id)
       // Retry sans is_ecart_buyer si migration 048 pas appliquee
       if (error && /is_ecart_buyer.*schema cache|is_ecart_buyer.*does not exist/i.test(error.message)) {
-        toast.warning('Colonne is_ecart_buyer absente (migration 048). Sauvegarde sans ce champ.', { duration: 6000 })
+        toast.warning(_ui("Colonne is_ecart_buyer absente (migration 048). Sauvegarde sans ce champ."), { duration: 6000 })
         delete payload.is_ecart_buyer
         const retry = await supabase.from('clients').update(payload).eq('id', modalEdit.id)
         error = retry.error ?? undefined as any
       }
       if (error) throw error
       setDone(true)
-      toast.success('Client modifié')
+      toast.success(_ui("Client modifié"))
       setTimeout(() => { setModalEdit(null); setDone(false); load() }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSaving(false)
   }
 
   const del = async (c: any) => {
-    if (!confirm(`Désactiver "${c.name}" ?`)) return
+    if (!confirm(_ui("Désactiver \"{v0}\" ?",{v0:String(c.name)}))) return
     try {
       await deleteClient(c.id)
       setItems(p => p.filter(i => i.id !== c.id))
-      toast.success(`Client désactivé`)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+      toast.success(_ui("Client désactivé"))
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
   }
 
   return (
-    <div>
+    <div className="itrix-workspace">
       {modalNew && (
-        <Modal title="NOUVEAU CLIENT" onClose={() => { setModalNew(false); setDone(false) }}>
-          {done ? <SuccessMessage message="Client créé !" /> : (
+        <Modal title={_ui("NOUVEAU CLIENT")} onClose={() => { setModalNew(false); setDone(false) }}>
+          {done ? <SuccessMessage message={_ui("Client créé !")} /> : (
             <>
               <FormBlock vals={form} onChange={upd} />
-              <ModalFooter onCancel={() => setModalNew(false)} onSave={save} loading={saving} disabled={!form.name} saveLabel="CRÉER LE CLIENT" />
+              <ModalFooter onCancel={() => setModalNew(false)} onSave={save} loading={saving} disabled={!form.name} saveLabel={_ui("CRÉER LE CLIENT")} />
             </>
           )}
         </Modal>
       )}
       {modalEdit && (
-        <Modal title={`MODIFIER — ${modalEdit.name}`} onClose={() => { setModalEdit(null); setDone(false) }}>
-          {done ? <SuccessMessage message="Client modifié !" /> : (
+        <Modal title={_ui("MODIFIER — {v0}",{v0:String(modalEdit.name)})} onClose={() => { setModalEdit(null); setDone(false) }}>
+          {done ? <SuccessMessage message={_ui("Client modifié !")} /> : (
             <>
               <FormBlock vals={formE} onChange={updE} />
-              <ModalFooter onCancel={() => setModalEdit(null)} onSave={saveEdit} loading={saving} disabled={!formE.name} saveLabel="ENREGISTRER" />
+              <ModalFooter onCancel={() => setModalEdit(null)} onSave={saveEdit} loading={saving} disabled={!formE.name} saveLabel={_ui("ENREGISTRER")} />
             </>
           )}
         </Modal>
       )}
 
       <PageHeader
-        title="Clients"
-        subtitle="Commercial"
+        title={_ui("Clients")}
+        subtitle={_ui("Commercial")}
         icon={Handshake}
         iconColor="#8b5cf6"
-        description={`${items.length} client${items.length > 1 ? 's' : ''} actif${items.length > 1 ? 's' : ''}`}
+        description={_ui("{v0} client{v1} actif{v2}",{v0:String(items.length),v1:String(items.length > 1 ? 's' : ''),v2:String(items.length > 1 ? 's' : '')})}
         actions={
           <Button onClick={openNew} variant="primary">
-            <Plus size={14} strokeWidth={2.5} /> Nouveau client
-          </Button>
+            <Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouveau client")}{" "}</Button>
         }
         stats={loading ? [] : [
           { label: 'Total',         value: String(stats.count),                                                                  icon: Handshake,  color: '#8b5cf6' },
@@ -272,22 +275,23 @@ export default function ClientsPage() {
             <div className="flex items-center gap-sm flex-1 min-w-[200px] max-w-md">
               <Search size={14} className="text-fg-tertiary flex-shrink-0" />
               <TInput
-                placeholder="Rechercher code, nom, ville, email…"
+                placeholder={_ui("Rechercher code, nom, ville, email…")}
+                aria-label={_ui("Rechercher un client")}
                 value={search} onChange={(e) => setSearch(e.target.value)}
                 className="border-none bg-transparent focus:ring-0 px-0"
               />
               {search && <button onClick={() => setSearch('')} className="text-fg-tertiary hover:text-fg-primary"><X size={14} /></button>}
             </div>
-            <TSelect value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="h-8 w-auto min-w-[160px] text-body-sm">
-              <option value="all">Tous types</option>
-              {TYPES.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
+            <TSelect aria-label={_ui("Type de client")} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="h-8 w-auto min-w-[160px] text-body-sm">
+              <option value="all">{_ui("Tous types")}</option>
+              {TYPES.map(t => <option key={t.code} value={t.code}>{_uiNode(t.label)}</option>)}
             </TSelect>
             <div className="ml-auto text-caption font-mono text-fg-tertiary">{filtered.length}/{items.length}</div>
           </div>
         </Card>
       )}
 
-      <Card animate delay={0.25} padding="none" className="overflow-hidden">
+      <Card animate delay={0.25} padding="none" className="itrix-table">
         {loading ? (
           <div className="p-md space-y-2">
             {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}
@@ -295,30 +299,30 @@ export default function ClientsPage() {
         ) : items.length === 0 ? (
           <EmptyState
             icon={Handshake}
-            title="Aucun client"
-            description="Crée tes clients pour commencer la facturation."
-            action={<Button onClick={openNew}><Plus size={14} strokeWidth={2.5} /> Nouveau client</Button>}
+            title={_ui("Aucun client")}
+            description={_ui("Crée tes clients pour commencer la facturation.")}
+            action={<Button onClick={openNew}><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouveau client")}</Button>}
           />
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={Search}
-            title="Aucun résultat"
-            description="Aucun client ne correspond à tes filtres."
-            action={<Button variant="ghost" onClick={() => { setSearch(''); setTypeFilter('all') }}>Réinitialiser</Button>}
+            title={_ui("Aucun résultat")}
+            description={_ui("Aucun client ne correspond à tes filtres.")}
+            action={<Button variant="ghost" onClick={() => { setSearch(''); setTypeFilter('all') }}>{_ui("Réinitialiser")}</Button>}
           />
         ) : (
           <DataTable minWidth={1100}>
             <THead>
               <TR>
-                <TH>Code</TH>
-                <TH>Nom</TH>
-                <TH>Type</TH>
-                <TH>Ville</TH>
-                <TH>Pays</TH>
-                <TH>Email</TH>
-                <TH>Téléphone</TH>
-                <TH right>Délai pmt</TH>
-                <TH right>Actions</TH>
+                <TH>{_ui("Code")}</TH>
+                <TH>{_ui("Nom")}</TH>
+                <TH>{_ui("Type")}</TH>
+                <TH>{_ui("Ville")}</TH>
+                <TH>{_ui("Pays")}</TH>
+                <TH>{_ui("Email")}</TH>
+                <TH>{_ui("Téléphone")}</TH>
+                <TH right>{_ui("Délai pmt")}</TH>
+                <TH right>{_ui("Actions")}</TH>
               </TR>
             </THead>
             <tbody>
@@ -348,10 +352,10 @@ export default function ClientsPage() {
                   <TD right mono className="text-brand font-semibold">{c.payment_terms_days} j</TD>
                   <TD right>
                     <div className="flex items-center justify-end gap-1">
-                      <Button onClick={() => openEdit(c)} variant="ghost" size="icon-sm" title="Modifier">
+                      <Button onClick={() => openEdit(c)} variant="ghost" size="icon-sm" title={_ui("Modifier")}>
                         <Pencil size={12} strokeWidth={2.2} />
                       </Button>
-                      <Button onClick={() => del(c)} variant="ghost" size="icon-sm" title="Désactiver" className="hover:text-danger">
+                      <Button onClick={() => del(c)} variant="ghost" size="icon-sm" title={_ui("Désactiver")} className="hover:text-danger">
                         <Trash2 size={12} strokeWidth={2.2} />
                       </Button>
                     </div>

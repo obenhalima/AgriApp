@@ -1,4 +1,7 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
+import '@/components/ui/workspace.css'
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, BarChart3, ArrowUpCircle, ArrowDownCircle, Settings2, ArrowLeftRight, AlertCircle } from 'lucide-react'
@@ -38,6 +41,8 @@ const TYPE_LABELS: Record<string, string> = { entree: 'Entrée', sortie: 'Sortie
 const TYPE_ICONS: Record<string, any> = { entree: ArrowUpCircle, sortie: ArrowDownCircle, ajustement: Settings2, transfert: ArrowLeftRight }
 
 export default function MouvementsStockPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { activeDomain } = useAuth()
   const { values: STOCK_CATS } = useReferenceList('stock_category')
   const [movements, setMovements] = useState<Movement[]>([])
@@ -96,14 +101,13 @@ export default function MouvementsStockPage() {
   }, [movements])
 
   return (
-    <div>
+    <div className="itrix-workspace">
       <Link href="/stocks" className="inline-flex items-center gap-1 text-caption text-fg-tertiary hover:text-fg-primary mb-2 transition-colors">
-        <ArrowLeft size={12} /> Retour aux stocks
-      </Link>
+        <ArrowLeft size={12} /> {" "}{_ui("Retour aux stocks")}{" "}</Link>
 
       <PageHeader
-        title="Mouvements de stock" subtitle="Inventaire" icon={BarChart3} iconColor="#14b8a6"
-        description={`${movements.length} mouvement${movements.length > 1 ? 's' : ''} · limite 500`}
+        title={_ui("Mouvements de stock")} subtitle={_ui("Inventaire")} icon={BarChart3} iconColor="#14b8a6"
+        description={_ui("{v0} mouvement{v1} · limite 500",{v0:String(movements.length),v1:String(movements.length > 1 ? 's' : '')})}
       />
 
       {/* KPI types */}
@@ -116,10 +120,10 @@ export default function MouvementsStockPage() {
             <Card key={t} animate padding="md" className="border-l-[3px]" style={{ borderLeftColor: colors[t] } as any}>
               <div className="flex items-center gap-sm mb-1">
                 <Icon size={14} strokeWidth={2.2} style={{ color: colors[t] }} />
-                <span className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-semibold">{TYPE_LABELS[t]}</span>
+                <span className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-semibold">{_uiNode(TYPE_LABELS[t])}</span>
               </div>
               <div className="font-display text-display-sm font-extrabold" style={{ color: colors[t] }}>{tot.count}</div>
-              <div className="font-mono text-caption text-fg-tertiary mt-1">{tot.qty.toLocaleString('fr')} unités</div>
+              <div className="font-mono text-caption text-fg-tertiary mt-1">{tot.qty.toLocaleString('fr')} {" "}{_ui("unités")}</div>
             </Card>
           )
         })}
@@ -127,53 +131,53 @@ export default function MouvementsStockPage() {
 
       {/* Filtres */}
       <Card animate delay={0.15} className="mb-md">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-md">
-          <Field label="Article">
+        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-md">
+          <Field label={_ui("Article")}>
             <TSelect value={stockItemId} onChange={(e) => setStockItemId(e.target.value)}>
-              <option value="">Tous les articles</option>
+              <option value="">{_ui("Tous les articles")}</option>
               {items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
             </TSelect>
           </Field>
-          <Field label="Catégorie">
+          <Field label={_ui("Catégorie")}>
             <TSelect value={category} onChange={(e) => setCategory(e.target.value)}>
-              <option value="">Toutes</option>
-              {STOCK_CATS.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
+              <option value="">{_ui("Toutes")}</option>
+              {STOCK_CATS.map(c => <option key={c.code} value={c.code}>{_uiNode(c.label)}</option>)}
             </TSelect>
           </Field>
-          <Field label="Type">
+          <Field label={_ui("Type")}>
             <TSelect value={movementType} onChange={(e) => setMovementType(e.target.value)}>
-              <option value="">Tous</option>
-              <option value="entree">Entrée</option>
-              <option value="sortie">Sortie</option>
-              <option value="ajustement">Ajustement</option>
-              <option value="transfert">Transfert</option>
+              <option value="">{_ui("Tous")}</option>
+              <option value="entree">{_ui("Entrée")}</option>
+              <option value="sortie">{_ui("Sortie")}</option>
+              <option value="ajustement">{_ui("Ajustement")}</option>
+              <option value="transfert">{_ui("Transfert")}</option>
             </TSelect>
           </Field>
-          <Field label="Date de"><TInput type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></Field>
-          <Field label="Date à"><TInput type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></Field>
-          <Field label="Référence"><TInput value={reference} onChange={(e) => setReference(e.target.value)} placeholder="BL, ticket..." /></Field>
+          <Field label={_ui("Date de")}><TInput type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></Field>
+          <Field label={_ui("Date à")}><TInput type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></Field>
+          <Field label={_ui("Référence")}><TInput value={reference} onChange={(e) => setReference(e.target.value)} placeholder={_ui("BL, ticket...")} /></Field>
         </div>
         <div className="flex gap-xs justify-end mt-md">
-          <Button onClick={resetFilters} variant="ghost" size="sm">Réinitialiser</Button>
-          <Button onClick={fetchMovements} variant="primary" size="sm">Appliquer</Button>
+          <Button onClick={resetFilters} variant="ghost" size="sm">{_ui("Réinitialiser")}</Button>
+          <Button onClick={fetchMovements} variant="primary" size="sm">{_ui("Appliquer")}</Button>
         </div>
       </Card>
 
       {error && (
         <div className="rounded-md border border-danger/30 bg-danger/10 p-md text-danger text-body-sm flex items-center gap-2 mb-md">
-          <AlertCircle size={14} /> {error}
+          <AlertCircle size={14} /> {_uiNode(error)}
         </div>
       )}
 
-      <Card animate delay={0.25} padding="none" className="overflow-hidden">
+      <Card animate delay={0.25} padding="none" className="itrix-table">
         {loading ? (
           <div className="p-md space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
         ) : movements.length === 0 ? (
-          <EmptyState icon={BarChart3} title="Aucun mouvement trouvé" description="Ajuste les filtres ou réinitialise-les." />
+          <EmptyState icon={BarChart3} title={_ui("Aucun mouvement trouvé")} description={_ui("Ajuste les filtres ou réinitialise-les.")} />
         ) : (
           <DataTable minWidth={1200}>
             <THead>
-              <TR><TH>Date</TH><TH>Type</TH><TH>Article</TH><TH>Catégorie</TH><TH right>Quantité</TH><TH>Unité</TH><TH>Référence</TH><TH>BO lié</TH><TH>Notes</TH></TR>
+              <TR><TH>{_ui("Date")}</TH><TH>{_ui("Type")}</TH><TH>{_ui("Article")}</TH><TH>{_ui("Catégorie")}</TH><TH right>{_ui("Quantité")}</TH><TH>{_ui("Unité")}</TH><TH>{_ui("Référence")}</TH><TH>{_ui("BO lié")}</TH><TH>{_ui("Notes")}</TH></TR>
             </THead>
             <tbody>
               {movements.map((m, i) => {
@@ -181,11 +185,11 @@ export default function MouvementsStockPage() {
                 return (
                   <TR key={m.id} animate delay={0.04 + i * 0.01}>
                     <TD mono className="text-caption"><DateDisplay value={m.movement_date} variant="compact" /></TD>
-                    <TD><Badge variant={TYPE_VARIANT[m.movement_type] || 'default'} size="sm">{TYPE_LABELS[m.movement_type]}</Badge></TD>
+                    <TD><Badge variant={TYPE_VARIANT[m.movement_type] || 'default'} size="sm">{_uiNode(TYPE_LABELS[m.movement_type])}</Badge></TD>
                     <TD>
                       <div className="font-display font-semibold text-fg-primary">{m.stock_items?.name ?? '—'}</div>
                       {m.stock_items?.code && <div className="font-mono text-caption text-fg-tertiary">{m.stock_items.code}</div>}
-                      <div className="text-caption text-fg-tertiary">{m.warehouses?.name||'Entrepôt historique'}</div>
+                      <div className="text-caption text-fg-tertiary">{m.warehouses?.name||_ui("Entrepôt historique")}</div>
                     </TD>
                     <TD><Badge variant="default" size="sm">{m.stock_items?.category ?? '—'}</Badge></TD>
                     <TD right mono className={`font-bold ${TYPE_VARIANT[m.movement_type] === 'success' ? 'text-success' : TYPE_VARIANT[m.movement_type] === 'danger' ? 'text-danger' : 'text-fg-primary'}`}>

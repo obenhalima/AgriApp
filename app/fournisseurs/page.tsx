@@ -1,4 +1,7 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
+import '@/components/ui/workspace.css'
 import { useEffect, useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import { Truck, Plus, Pencil, Trash2, Search, X, Mail, Phone, MapPin, Building, CreditCard } from 'lucide-react'
@@ -18,30 +21,34 @@ import { useAuth } from '@/lib/auth'
 
 // ─── Formulaire partagé (HORS du composant parent pour éviter remount/focus loss) ───
 function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e: any) => void }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { values: cats } = useReferenceList('supplier_category')
   return (
     <div className="space-y-md">
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Code"><TInput value={vals.code} onChange={onChange('code')} /></Field>
-        <Field label="Nom" required><TInput value={vals.name} onChange={onChange('name')} placeholder="Société" autoFocus /></Field>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+        <Field label={_ui("Code")}><TInput value={vals.code} onChange={onChange('code')} /></Field>
+        <Field label={_ui("Nom")} required><TInput value={vals.name} onChange={onChange('name')} placeholder={_ui("Société")} autoFocus /></Field>
       </div>
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Catégorie">
-          <TSelect value={vals.category} onChange={onChange('category')}>{cats.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}</TSelect>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+        <Field label={_ui("Catégorie")}>
+          <TSelect value={vals.category} onChange={onChange('category')}>{cats.map(c => <option key={c.code} value={c.code}>{_uiNode(c.label)}</option>)}</TSelect>
         </Field>
-        <Field label="Ville"><TInput value={vals.city} onChange={onChange('city')} placeholder="Casablanca" /></Field>
+        <Field label={_ui("Ville")}><TInput value={vals.city} onChange={onChange('city')} placeholder={_ui("Casablanca")} /></Field>
       </div>
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Email"><TInput type="email" value={vals.email} onChange={onChange('email')} /></Field>
-        <Field label="Téléphone"><TInput value={vals.phone} onChange={onChange('phone')} /></Field>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+        <Field label={_ui("Email")}><TInput type="email" value={vals.email} onChange={onChange('email')} /></Field>
+        <Field label={_ui("Téléphone")}><TInput value={vals.phone} onChange={onChange('phone')} /></Field>
       </div>
-      <Field label="Délai paiement (jours)"><TInput type="number" value={vals.payment_terms_days} onChange={onChange('payment_terms_days')} /></Field>
-      <Field label="Notes"><Textarea rows={2} value={vals.notes} onChange={onChange('notes')} /></Field>
+      <Field label={_ui("Délai paiement (jours)")}><TInput type="number" value={vals.payment_terms_days} onChange={onChange('payment_terms_days')} /></Field>
+      <Field label={_ui("Notes")}><Textarea rows={2} value={vals.notes} onChange={onChange('notes')} /></Field>
     </div>
   )
 }
 
 export default function FournisseursPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { activeDomain } = useAuth()
   const { values: CATS } = useReferenceList('supplier_category')
   const [items, setItems] = useState<any[]>([])
@@ -82,11 +89,11 @@ export default function FournisseursPage() {
   const save = async () => {
     console.log('[fournisseurs.save] click', form)
     if (!form.name?.trim()) {
-      toast.error('Le nom est requis')
+      toast.error(_ui("Le nom est requis"))
       return
     }
     if (!form.code?.trim()) {
-      toast.error('Le code est requis')
+      toast.error(_ui("Le code est requis"))
       return
     }
     setSaving(true)
@@ -107,30 +114,30 @@ export default function FournisseursPage() {
       console.log('[fournisseurs.save] created', n)
       setItems(p => [n, ...p])
       setDone(true)
-      toast.success(`✅ Fournisseur "${n.name}" créé`)
+      toast.success(_ui("✅ Fournisseur \"{v0}\" créé",{v0:String(n.name)}))
       setTimeout(() => { setModalNew(false); setDone(false) }, 1200)
     } catch (e: any) {
       console.error('[fournisseurs.save] error', e)
       // Codes Postgres typiques
       const msg = e?.message ?? 'inconnue'
       if (e?.code === '23505') {
-        toast.error(`❌ Code "${form.code}" déjà utilisé. Choisis un autre code.`)
+        toast.error(_ui("❌ Code \"{v0}\" déjà utilisé. Choisis un autre code.",{v0:String(form.code)}))
       } else if (e?.code === '23502') {
-        toast.error('❌ Un champ obligatoire est manquant : ' + msg)
+        toast.error(_ui("❌ Un champ obligatoire est manquant :") + msg)
       } else if (e?.code === '42501' || msg.includes('row-level security')) {
-        toast.error('❌ RLS bloque l\'insertion. Vérifie que tu es bien admin.', { duration: 8000 })
+        toast.error(_ui("❌ RLS bloque l'insertion. Vérifie que tu es bien admin."), { duration: 8000 })
       } else if (e?.code === '22P02') {
-        toast.error(`❌ Catégorie invalide : "${form.category}". Doit être dans la liste.`)
+        toast.error(_ui("❌ Catégorie invalide : \"{v0}\". Doit être dans la liste.",{v0:String(form.category)}))
       } else {
-        toast.error('❌ Erreur : ' + msg, { duration: 8000 })
+        toast.error(_ui("❌ Erreur :") + msg, { duration: 8000 })
       }
     }
     setSaving(false)
   }
 
   const saveEdit = async () => {
-    if (!modalEdit) { toast.error('Aucun fournisseur sélectionné'); return }
-    if (!formE.name?.trim()) { toast.error('Le nom est requis'); return }
+    if (!modalEdit) { toast.error(_ui("Aucun fournisseur sélectionné")); return }
+    if (!formE.name?.trim()) { toast.error(_ui("Le nom est requis")); return }
     setSaving(true)
     try {
       const payload = {
@@ -147,48 +154,48 @@ export default function FournisseursPage() {
       const { error } = await supabase.from('suppliers').update(payload).eq('id', modalEdit.id)
       if (error) throw error
       setDone(true)
-      toast.success('✅ Fournisseur modifié')
+      toast.success(_ui("✅ Fournisseur modifié"))
       setTimeout(() => { setModalEdit(null); setDone(false); load() }, 1200)
     } catch (e: any) {
       console.error('[fournisseurs.saveEdit] error', e)
       const msg = e?.message ?? 'inconnue'
-      if (e?.code === '23505') toast.error(`❌ Code "${formE.code}" déjà utilisé`)
-      else if (e?.code === '42501' || msg.includes('row-level security')) toast.error('❌ RLS bloque la modification', { duration: 8000 })
-      else toast.error('❌ Erreur : ' + msg, { duration: 8000 })
+      if (e?.code === '23505') toast.error(_ui("❌ Code \"{v0}\" déjà utilisé",{v0:String(formE.code)}))
+      else if (e?.code === '42501' || msg.includes('row-level security')) toast.error(_ui("❌ RLS bloque la modification"), { duration: 8000 })
+      else toast.error(_ui("❌ Erreur :") + msg, { duration: 8000 })
     }
     setSaving(false)
   }
 
   const del = async (f: any) => {
-    if (!confirm(`Désactiver "${f.name}" ?`)) return
+    if (!confirm(_ui("Désactiver \"{v0}\" ?",{v0:String(f.name)}))) return
     try {
       await supabase.from('suppliers').update({ is_active: false }).eq('id', f.id)
       setItems(p => p.filter(i => i.id !== f.id))
-      toast.success('Fournisseur désactivé')
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+      toast.success(_ui("Fournisseur désactivé"))
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
   }
 
   return (
-    <div>
+    <div className="itrix-workspace">
       {modalNew && (
-        <Modal title="NOUVEAU FOURNISSEUR" onClose={() => { setModalNew(false); setDone(false) }}>
-          {done ? <SuccessMessage message="Fournisseur créé !" /> : (
-            <><FormBlock vals={form} onChange={upd} /><ModalFooter onCancel={() => setModalNew(false)} onSave={save} loading={saving} disabled={!form.name} saveLabel="CRÉER" /></>
+        <Modal title={_ui("NOUVEAU FOURNISSEUR")} onClose={() => { setModalNew(false); setDone(false) }}>
+          {done ? <SuccessMessage message={_ui("Fournisseur créé !")} /> : (
+            <><FormBlock vals={form} onChange={upd} /><ModalFooter onCancel={() => setModalNew(false)} onSave={save} loading={saving} disabled={!form.name} saveLabel={_ui("CRÉER")} /></>
           )}
         </Modal>
       )}
       {modalEdit && (
-        <Modal title={`MODIFIER — ${modalEdit.name}`} onClose={() => { setModalEdit(null); setDone(false) }}>
-          {done ? <SuccessMessage message="Fournisseur modifié !" /> : (
-            <><FormBlock vals={formE} onChange={updE} /><ModalFooter onCancel={() => setModalEdit(null)} onSave={saveEdit} loading={saving} disabled={!formE.name} saveLabel="ENREGISTRER" /></>
+        <Modal title={_ui("MODIFIER — {v0}",{v0:String(modalEdit.name)})} onClose={() => { setModalEdit(null); setDone(false) }}>
+          {done ? <SuccessMessage message={_ui("Fournisseur modifié !")} /> : (
+            <><FormBlock vals={formE} onChange={updE} /><ModalFooter onCancel={() => setModalEdit(null)} onSave={saveEdit} loading={saving} disabled={!formE.name} saveLabel={_ui("ENREGISTRER")} /></>
           )}
         </Modal>
       )}
 
       <PageHeader
-        title="Fournisseurs" subtitle="Achats" icon={Truck} iconColor="#f97316"
-        description={`${items.length} fournisseur${items.length > 1 ? 's' : ''}`}
-        actions={<Button onClick={openNew} variant="primary"><Plus size={14} strokeWidth={2.5} /> Nouveau fournisseur</Button>}
+        title={_ui("Fournisseurs")} subtitle={_ui("Achats")} icon={Truck} iconColor="#f97316"
+        description={_ui("{v0} fournisseur{v1}",{v0:String(items.length),v1:String(items.length > 1 ? 's' : '')})}
+        actions={<Button onClick={openNew} variant="primary"><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouveau fournisseur")}</Button>}
         stats={loading ? [] : [
           { label: 'Total', value: String(stats.count), icon: Truck, color: '#f97316' },
           { label: 'Catégories', value: String(stats.cats), icon: Building, color: '#3b82f6' },
@@ -201,29 +208,29 @@ export default function FournisseursPage() {
           <div className="flex items-center gap-md flex-wrap">
             <div className="flex items-center gap-sm flex-1 min-w-[200px] max-w-md">
               <Search size={14} className="text-fg-tertiary" />
-              <TInput placeholder="Rechercher code, nom, ville…" value={search} onChange={(e) => setSearch(e.target.value)} className="border-none bg-transparent focus:ring-0 px-0" />
+              <TInput placeholder={_ui("Rechercher code, nom, ville…")} value={search} onChange={(e) => setSearch(e.target.value)} className="border-none bg-transparent focus:ring-0 px-0" />
               {search && <button onClick={() => setSearch('')} className="text-fg-tertiary hover:text-fg-primary"><X size={14} /></button>}
             </div>
             <TSelect value={catFilter} onChange={(e) => setCatFilter(e.target.value)} className="h-8 w-auto min-w-[160px] text-body-sm">
-              <option value="all">Toutes catégories</option>
-              {CATS.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
+              <option value="all">{_ui("Toutes catégories")}</option>
+              {CATS.map(c => <option key={c.code} value={c.code}>{_uiNode(c.label)}</option>)}
             </TSelect>
             <div className="ml-auto text-caption font-mono text-fg-tertiary">{filtered.length}/{items.length}</div>
           </div>
         </Card>
       )}
 
-      <Card animate delay={0.25} padding="none" className="overflow-hidden">
+      <Card animate delay={0.25} padding="none" className="itrix-table">
         {loading ? (
           <div className="p-md space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
         ) : items.length === 0 ? (
-          <EmptyState icon={Truck} title="Aucun fournisseur" description="Crée tes fournisseurs pour gérer les achats." action={<Button onClick={openNew}><Plus size={14} strokeWidth={2.5} /> Nouveau</Button>} />
+          <EmptyState icon={Truck} title={_ui("Aucun fournisseur")} description={_ui("Crée tes fournisseurs pour gérer les achats.")} action={<Button onClick={openNew}><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouveau")}</Button>} />
         ) : filtered.length === 0 ? (
-          <EmptyState icon={Search} title="Aucun résultat" action={<Button variant="ghost" onClick={() => { setSearch(''); setCatFilter('all') }}>Réinitialiser</Button>} />
+          <EmptyState icon={Search} title={_ui("Aucun résultat")} action={<Button variant="ghost" onClick={() => { setSearch(''); setCatFilter('all') }}>{_ui("Réinitialiser")}</Button>} />
         ) : (
           <DataTable minWidth={1100}>
             <THead>
-              <TR><TH>Code</TH><TH>Nom</TH><TH>Catégorie</TH><TH>Ville</TH><TH>Email</TH><TH>Téléphone</TH><TH right>Délai pmt</TH><TH right>Actions</TH></TR>
+              <TR><TH>{_ui("Code")}</TH><TH>{_ui("Nom")}</TH><TH>{_ui("Catégorie")}</TH><TH>{_ui("Ville")}</TH><TH>{_ui("Email")}</TH><TH>{_ui("Téléphone")}</TH><TH right>{_ui("Délai pmt")}</TH><TH right>{_ui("Actions")}</TH></TR>
             </THead>
             <tbody>
               {filtered.map((f, i) => (

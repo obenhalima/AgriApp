@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { BookText, Plus, Pencil, Power, RotateCcw, Trash2, ChevronDown, ChevronRight, ChevronsUpDown, ChevronsDownUp } from 'lucide-react'
@@ -18,6 +20,8 @@ import { Select as TSelect } from '@/components/ui/Input'
 import { cn } from '@/lib/cn'
 
 export default function AccountCategoriesAdminPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const [flat, setFlat] = useState<AccountCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -58,21 +62,21 @@ export default function AccountCategoriesAdminPage() {
 
   const handleToggleActive = async (c: AccountCategory) => {
     const verb = c.is_active ? 'désactiver' : 'réactiver'
-    if (!confirm(`Vous voulez ${verb} "${c.label}" ?`)) return
+    if (!confirm(_ui("Vous voulez {v0} \"{v1}\" ?",{v0:String(verb),v1:String(c.label)}))) return
     try {
       const u = await toggleAccountCategoryActive(c.id, !c.is_active)
       setFlat(prev => prev.map(x => x.id === c.id ? u : x))
-      toast.success(c.is_active ? 'Catégorie désactivée' : 'Catégorie réactivée')
+      toast.success(c.is_active ? _ui("Catégorie désactivée") : _ui("Catégorie réactivée"))
     } catch (e: any) { toast.error(e.message) }
   }
 
   const handleDelete = async (c: AccountCategory) => {
-    if (!confirm(`Supprimer définitivement "${c.label}" ?`)) return
+    if (!confirm(_ui("Supprimer définitivement \"{v0}\" ?",{v0:String(c.label)}))) return
     try {
       await deleteAccountCategory(c.id)
       setFlat(prev => prev.filter(x => x.id !== c.id))
-      toast.success('Catégorie supprimée')
-    } catch (e: any) { toast.error('Suppression impossible : ' + e.message) }
+      toast.success(_ui("Catégorie supprimée"))
+    } catch (e: any) { toast.error(_ui("Suppression impossible :") + e.message) }
   }
 
   const handleSaved = (saved: AccountCategory) => {
@@ -81,7 +85,7 @@ export default function AccountCategoriesAdminPage() {
       return exists ? prev.map(x => x.id === saved.id ? saved : x) : [...prev, saved]
     })
     setModalState(null)
-    toast.success('Catégorie enregistrée')
+    toast.success(_ui("Catégorie enregistrée"))
   }
 
   const countByType = useMemo(() => {
@@ -109,24 +113,23 @@ export default function AccountCategoriesAdminPage() {
           ) : <div className="w-5" />}
           <span className="w-2 h-2 rounded flex-shrink-0" style={{ background: color }} />
           <code className="font-mono text-[10px] text-fg-tertiary min-w-[110px]">{node.code}</code>
-          <strong className={cn('font-display', depth === 0 ? 'text-body font-bold' : 'text-body-sm font-medium')}>{node.label}</strong>
+          <strong className={cn('font-display', depth === 0 ? 'text-body font-bold' : 'text-body-sm font-medium')}>{_uiNode(node.label)}</strong>
           {node.default_depreciation_years != null && (
-            <span className="font-mono text-[10px] text-fg-tertiary">({node.default_depreciation_years} ans)</span>
+            <span className="font-mono text-[10px] text-fg-tertiary">({node.default_depreciation_years} {" "}{_ui("ans)")}</span>
           )}
-          {!node.is_active && <Badge variant="default" size="xs">inactif</Badge>}
+          {!node.is_active && <Badge variant="default" size="xs">{_ui("inactif")}</Badge>}
           <div className="flex-1" />
           {node.level < 3 && (
-            <Button onClick={() => setModalState({ kind: 'create_child', parent: node })} variant="ghost" size="xs" title="Sous-catégorie">
-              <Plus size={11} /> enfant
-            </Button>
+            <Button onClick={() => setModalState({ kind: 'create_child', parent: node })} variant="ghost" size="xs" title={_ui("Sous-catégorie")}>
+              <Plus size={11} /> {" "}{_ui("enfant")}{" "}</Button>
           )}
-          <Button onClick={() => setModalState({ kind: 'edit', category: node })} variant="ghost" size="icon-sm" title="Modifier">
+          <Button onClick={() => setModalState({ kind: 'edit', category: node })} variant="ghost" size="icon-sm" title={_ui("Modifier")}>
             <Pencil size={11} strokeWidth={2.2} />
           </Button>
-          <Button onClick={() => handleToggleActive(node)} variant="ghost" size="icon-sm" title={node.is_active ? 'Désactiver' : 'Réactiver'} className={node.is_active ? 'hover:text-warning' : 'hover:text-success'}>
+          <Button onClick={() => handleToggleActive(node)} variant="ghost" size="icon-sm" title={node.is_active ? _ui("Désactiver") : _ui("Réactiver")} className={node.is_active ? 'hover:text-warning' : 'hover:text-success'}>
             {node.is_active ? <Power size={11} strokeWidth={2.2} /> : <RotateCcw size={11} strokeWidth={2.2} />}
           </Button>
-          <Button onClick={() => handleDelete(node)} variant="ghost" size="icon-sm" title="Supprimer" className="hover:text-danger">
+          <Button onClick={() => handleDelete(node)} variant="ghost" size="icon-sm" title={_ui("Supprimer")} className="hover:text-danger">
             <Trash2 size={11} strokeWidth={2.2} />
           </Button>
         </div>
@@ -138,9 +141,9 @@ export default function AccountCategoriesAdminPage() {
   return (
     <div>
       <PageHeader
-        title="Plan comptable" subtitle="Paramétrage" icon={BookText} iconColor="#0ea5e9"
-        description="Hiérarchie des catégories utilisée pour le CPC, le budget et les rapports"
-        actions={<Button onClick={() => setModalState({ kind: 'create_root' })} variant="primary"><Plus size={14} strokeWidth={2.5} /> Catégorie racine</Button>}
+        title={_ui("Plan comptable")} subtitle={_ui("Paramétrage")} icon={BookText} iconColor="#0ea5e9"
+        description={_ui("Hiérarchie des catégories utilisée pour le CPC, le budget et les rapports")}
+        actions={<Button onClick={() => setModalState({ kind: 'create_root' })} variant="primary"><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Catégorie racine")}</Button>}
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-md mb-md">
@@ -148,7 +151,7 @@ export default function AccountCategoriesAdminPage() {
           const color = TYPE_COLORS[t].replace('var(--neon)', '#10b981').replace('var(--amber)', '#f59e0b').replace('var(--blue)', '#3b82f6').replace('var(--purple)', '#a855f7')
           return (
             <Card key={t} animate delay={i * 0.04} padding="md" className="border-l-[3px]" style={{ borderLeftColor: color } as any}>
-              <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-semibold">{TYPE_LABELS[t]}</div>
+              <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-semibold">{_uiNode(TYPE_LABELS[t])}</div>
               <div className="font-display text-display-sm font-extrabold mt-1" style={{ color }}>{countByType[t]}</div>
             </Card>
           )
@@ -158,19 +161,18 @@ export default function AccountCategoriesAdminPage() {
       <Card animate delay={0.2} className="mb-md">
         <div className="flex flex-wrap gap-md items-center">
           <div className="flex items-center gap-sm">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary">TYPE :</span>
+            <span className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary">{_ui("TYPE :")}</span>
             <TSelect value={filterType} onChange={(e) => setFilterType(e.target.value as any)} className="h-8 w-auto min-w-[150px] text-body-sm">
-              <option value="all">Tous</option>
-              {(['produit', 'charge_variable', 'charge_fixe', 'amortissement'] as AccountCategoryType[]).map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
+              <option value="all">{_ui("Tous")}</option>
+              {(['produit', 'charge_variable', 'charge_fixe', 'amortissement'] as AccountCategoryType[]).map(t => <option key={t} value={t}>{_uiNode(TYPE_LABELS[t])}</option>)}
             </TSelect>
           </div>
           <label className="flex items-center gap-2 text-body-sm text-fg-secondary cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
-            Afficher les inactifs
-          </label>
+            {" "}{_ui("Afficher les inactifs")}{" "}</label>
           <div className="ml-auto flex gap-1">
-            <Button onClick={() => setExpanded(new Set(flat.map(c => c.id)))} variant="ghost" size="sm"><ChevronsUpDown size={11} /> Tout déplier</Button>
-            <Button onClick={() => setExpanded(new Set())} variant="ghost" size="sm"><ChevronsDownUp size={11} /> Tout replier</Button>
+            <Button onClick={() => setExpanded(new Set(flat.map(c => c.id)))} variant="ghost" size="sm"><ChevronsUpDown size={11} /> {" "}{_ui("Tout déplier")}</Button>
+            <Button onClick={() => setExpanded(new Set())} variant="ghost" size="sm"><ChevronsDownUp size={11} /> {" "}{_ui("Tout replier")}</Button>
           </div>
         </div>
       </Card>
@@ -179,7 +181,7 @@ export default function AccountCategoriesAdminPage() {
         {loading ? (
           <div className="p-md space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
         ) : tree.length === 0 ? (
-          <EmptyState icon={BookText} title="Aucune catégorie" description="Applique la migration 009 ou crée une catégorie racine." />
+          <EmptyState icon={BookText} title={_ui("Aucune catégorie")} description={_ui("Applique la migration 009 ou crée une catégorie racine.")} />
         ) : (
           tree.map(n => renderNode(n, 0))
         )}

@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * Onglet PLAN DE CULTURE — Table détaillée des plantations budgétisées.
  * Groupement par Serre / Variété / Ferme.
@@ -16,6 +18,8 @@ type Campaign = { id: string; name: string } | undefined
 type GroupBy = 'greenhouse' | 'variety' | 'farm' | 'none'
 
 export function PlanTab(props: { rows: PlantingRow[]; campaign: Campaign; loading: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { rows, campaign, loading } = props
   const [groupBy, setGroupBy] = useState<GroupBy>('greenhouse')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -125,12 +129,12 @@ export function PlanTab(props: { rows: PlantingRow[]; campaign: Campaign; loadin
     await downloadWorkbook(wb, `PlanCulture_${(campaign?.name ?? 'campagne').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)' }}>CHARGEMENT…</div>
+  if (loading) return <div style={{ padding: 40, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)' }}>{_ui("CHARGEMENT…")}</div>
   if (rows.length === 0) {
     return (
       <div className="empty-state" style={{ padding: 60 }}>
         <div className="empty-icon">🌱</div>
-        <div className="empty-title">Aucune plantation</div>
+        <div className="empty-title">{_ui("Aucune plantation")}</div>
       </div>
     )
   }
@@ -139,7 +143,7 @@ export function PlanTab(props: { rows: PlantingRow[]; campaign: Campaign; loadin
     <div>
       {/* ─── Toolbar ─── */}
       <div className="card" style={{ padding: 12, marginBottom: 12, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)' }}>GROUPER PAR :</div>
+        <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)' }}>{_ui("GROUPER PAR :")}</div>
         {([
           { v: 'greenhouse' as GroupBy, l: 'Serre' },
           { v: 'variety' as GroupBy,    l: 'Variété' },
@@ -161,18 +165,17 @@ export function PlanTab(props: { rows: PlantingRow[]; campaign: Campaign; loadin
         <div style={{ width: 1, height: 22, background: 'var(--bd-1)', margin: '0 4px' }} />
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
           style={{ padding: 6, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 6, fontSize: 11 }}>
-          <option value="all">Tous statuts</option>
-          <option value="planifie">Planifié</option>
-          <option value="en_cours">En cours</option>
-          <option value="termine">Terminé</option>
+          <option value="all">{_ui("Tous statuts")}</option>
+          <option value="planifie">{_ui("Planifié")}</option>
+          <option value="en_cours">{_ui("En cours")}</option>
+          <option value="termine">{_ui("Terminé")}</option>
         </select>
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-          <div style={{ fontSize: 11, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)' }}>{filtered.length} plantation{filtered.length > 1 ? 's' : ''}</div>
+          <div style={{ fontSize: 11, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)' }}>{filtered.length} {" "}{_ui("plantation")}{filtered.length > 1 ? 's' : ''}</div>
           <button onClick={exportExcel}
             style={{ padding: '7px 12px', border: '1px solid var(--bd-1)', background: 'transparent', color: 'var(--tx-2)', borderRadius: 7, cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
-            📥 EXPORT XLSX
-          </button>
+            {" "}{_ui("📥 EXPORT XLSX")}{" "}</button>
         </div>
       </div>
 
@@ -181,23 +184,23 @@ export function PlanTab(props: { rows: PlantingRow[]; campaign: Campaign; loadin
         <table className="tbl" style={{ minWidth: 1500 }}>
           <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
             <tr style={{ background: 'var(--bg-deep)' }}>
-              <th style={{ position: 'sticky', left: 0, background: 'var(--bg-deep)', zIndex: 6 }}>Ferme · Serre</th>
-              <th>Variété</th>
-              <th style={{ textAlign: 'right' }}>Surf. (m²)</th>
-              <th style={{ textAlign: 'right' }}>Plants</th>
-              <th style={{ textAlign: 'right' }}>Dens.</th>
-              <th>Plant.</th>
-              <th>1ère récolte</th>
-              <th>Dern. récolte</th>
-              <th style={{ textAlign: 'right' }}>Rdt kg/m²</th>
-              <th style={{ textAlign: 'right' }}>Vol. (kg)</th>
-              <th style={{ textAlign: 'right' }}>% Exp</th>
-              <th style={{ textAlign: 'right' }}>Prix Exp</th>
-              <th style={{ textAlign: 'right' }}>Prix Loc</th>
-              <th style={{ textAlign: 'right' }}>CA Exp</th>
-              <th style={{ textAlign: 'right' }}>CA Loc</th>
-              <th style={{ textAlign: 'right' }}>CA Total</th>
-              <th>Statut</th>
+              <th style={{ position: 'sticky', left: 0, background: 'var(--bg-deep)', zIndex: 6 }}>{_ui("Ferme · Serre")}</th>
+              <th>{_ui("Variété")}</th>
+              <th style={{ textAlign: 'right' }}>{_ui("Surf. (m²)")}</th>
+              <th style={{ textAlign: 'right' }}>{_ui("Plants")}</th>
+              <th style={{ textAlign: 'right' }}>{_ui("Dens.")}</th>
+              <th>{_ui("Plant.")}</th>
+              <th>{_ui("1ère récolte")}</th>
+              <th>{_ui("Dern. récolte")}</th>
+              <th style={{ textAlign: 'right' }}>{_ui("Rdt kg/m²")}</th>
+              <th style={{ textAlign: 'right' }}>{_ui("Vol. (kg)")}</th>
+              <th style={{ textAlign: 'right' }}>{_ui("% Exp")}</th>
+              <th style={{ textAlign: 'right' }}>{_ui("Prix Exp")}</th>
+              <th style={{ textAlign: 'right' }}>{_ui("Prix Loc")}</th>
+              <th style={{ textAlign: 'right' }}>{_ui("CA Exp")}</th>
+              <th style={{ textAlign: 'right' }}>{_ui("CA Loc")}</th>
+              <th style={{ textAlign: 'right' }}>{_ui("CA Total")}</th>
+              <th>{_ui("Statut")}</th>
             </tr>
           </thead>
           <tbody>
@@ -206,7 +209,7 @@ export function PlanTab(props: { rows: PlantingRow[]; campaign: Campaign; loadin
                 {groupBy !== 'none' && (
                   <tr key={`grp-${g.key}`} style={{ background: 'color-mix(in srgb, #6366f1 8%, transparent)' }}>
                     <td colSpan={17} style={{ position: 'sticky', left: 0, background: 'color-mix(in srgb, #6366f1 8%, transparent)', padding: '8px 12px', fontWeight: 700, fontSize: 12, color: '#6366f1', fontFamily: 'var(--font-mono)', letterSpacing: .5 }}>
-                      {g.label} <span style={{ color: 'var(--tx-3)', fontWeight: 400, marginLeft: 8 }}>({g.items.length} ligne{g.items.length > 1 ? 's' : ''})</span>
+                      {_uiNode(g.label)} <span style={{ color: 'var(--tx-3)', fontWeight: 400, marginLeft: 8 }}>({g.items.length} {" "}{_ui("ligne")}{g.items.length > 1 ? 's' : ''})</span>
                     </td>
                   </tr>
                 )}
@@ -250,7 +253,7 @@ export function PlanTab(props: { rows: PlantingRow[]; campaign: Campaign; loadin
           <tfoot>
             <tr style={{ background: 'var(--bg-deep)', fontWeight: 700 }}>
               <td style={{ position: 'sticky', left: 0, background: 'var(--bg-deep)', borderRight: '1px solid var(--bd-1)', padding: '10px 12px', fontSize: 11, color: 'var(--tx-1)' }}>
-                TOTAL ({filtered.length})
+                {" "}{_ui("TOTAL (")}{filtered.length})
               </td>
               <td></td>
               <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{totals.area.toLocaleString('fr', { maximumFractionDigits: 0 })}</td>

@@ -1,0 +1,33 @@
+@font-face{font-family:'ItriX Montserrat';src:url('/itrix-corporate/Montserrat-Regular.ttf') format('truetype');font-weight:400;font-display:swap}
+@font-face{font-family:'ItriX Montserrat';src:url('/itrix-corporate/Montserrat-Medium.ttf') format('truetype');font-weight:500 800;font-display:swap}
+.itrix-documentation{--neon:#0B3D2E;--neon-2:#2E7D32;--neon-dim:#e9f1e5;--on-brand:#fff;--bg-base:#F6F4EB;--bg-card:#fff;--bg-input:#fafbf7;--bg-hover:#edf3e7;--border:#dbe3d4;--border-md:#bbccb8;--tx-1:#1F2937;--tx-2:#40594a;--tx-3:#586b5d;--font-display:'ItriX Montserrat',sans-serif;--font-body:'ItriX Montserrat',sans-serif;--font-mono:'ItriX Montserrat',sans-serif;font-family:var(--font-body);color:var(--tx-1)}
+.itrix-guide-page{background:#F6F4EB;border-radius:20px;padding:clamp(16px,2.5vw,28px)}
+.itrix-guide-hero{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:28px;border-radius:16px;background:#0B3D2E;color:#fff;border-bottom:3px solid #D4A95C}
+.itrix-guide-hero p{font-size:clamp(18px,2vw,26px);max-width:620px;margin-top:10px;line-height:1.4}
+.itrix-guide-hero small{color:#d7e6cc;letter-spacing:.08em;font-size:12px}
+.itrix-guide-logo{flex-shrink:0;width:196px;height:78px;border-radius:10px;background:white;overflow:hidden;position:relative}
+.itrix-guide-logo img{position:absolute;width:276px;max-width:none;inset-inline-start:-45px;top:-34px}
+.itrix-guide-search{border-top:3px solid #2E7D32!important}
+.itrix-wiki-nav button[aria-current='page']{background:#0B3D2E;color:#fff;border-inline-start:3px solid #D4A95C}
+.itrix-wiki-nav button[aria-current='page'] span{color:#fff}
+.itrix-wiki-nav button{border-inline-start:3px solid transparent}
+.itrix-documentation nav button[class*='bg-brand/10']{background:#0B3D2E;color:#fff;border-inline-start:3px solid #D4A95C}
+.itrix-documentation nav button[class*='bg-brand/10'] span{color:#fff}
+.itrix-documentation nav button{border-inline-start:3px solid transparent}
+.itrix-documentation input[type='search']{border-color:#bbccb8;min-height:48px}
+.itrix-documentation section:has(>label[for='wiki-search']){border-top:3px solid #2E7D32}
+.itrix-documentation h2,.itrix-documentation h3{color:#0B3D2E}
+.itrix-doc-article>section:first-of-type ol{counter-reset:itrix-step;list-style:none;padding-inline-start:0}
+.itrix-doc-article>section:first-of-type li{counter-increment:itrix-step;position:relative;padding-inline-start:40px;min-height:30px;padding-block:3px}
+.itrix-doc-article>section:first-of-type li:before{content:counter(itrix-step);position:absolute;inset-inline-start:0;top:2px;width:28px;height:28px;display:grid;place-items:center;background:#e9f1e5;border-radius:50%;color:#0B3D2E;font-weight:600}
+.itrix-doc-caution{background:#faf5e8!important;border-color:#D4A95C!important;border-inline-start-width:4px;color:#1F2937!important}
+.itrix-doc-article details{background:#fafbf7;border-color:#dbe3d4}
+.itrix-doc-article details[open]{border-color:#2E7D32;background:#fff}
+.itrix-doc-article summary{color:#0B3D2E;min-height:28px}
+.itrix-documentation :focus-visible{outline:2px solid #2E7D32;outline-offset:3px}
+.itrix-doc-field{font-family:'ItriX Montserrat',sans-serif}
+.itrix-documentation.fixed:has(>div>iframe){inset:0!important;max-width:none!important;border-radius:0;padding:12px}
+.itrix-documentation.fixed>div:has(>iframe){overflow:hidden;display:flex;min-height:0}
+.itrix-documentation.fixed>div>iframe{flex:1;min-height:0!important;height:100%;width:100%}
+html[lang='ar'] .itrix-documentation,html[lang='ar'] .itrix-doc-field{--font-display:Tahoma,Arial,sans-serif;--font-body:Tahoma,Arial,sans-serif;--font-mono:Tahoma,Arial,sans-serif;font-family:Tahoma,Arial,sans-serif}
+@media(max-width:640px){.itrix-guide-hero{align-items:flex-start;flex-direction:column;padding:20px}.itrix-guide-logo{width:178px;height:72px}.itrix-guide-logo img{width:256px;top:-32px;inset-inline-start:-42px}}

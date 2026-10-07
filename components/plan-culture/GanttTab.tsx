@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * Onglet VUE DOMAINE — Diagramme hiérarchique en cartes design.
  *
@@ -53,6 +55,8 @@ export function GanttTab(props: {
   campaign: Campaign
   loading: boolean
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { rows, greenhousesInScope, farms, campaign, loading } = props
   const [expandedFarms, setExpandedFarms] = useState<Set<string>>(new Set())  // toutes ouvertes par défaut via tout()
   const [selectedGh, setSelectedGh] = useState<string | null>(null)
@@ -114,13 +118,13 @@ export function GanttTab(props: {
     return m
   }, [tree])
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)' }}>CHARGEMENT…</div>
+  if (loading) return <div style={{ padding: 40, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)' }}>{_ui("CHARGEMENT…")}</div>
 
   if (rows.length === 0) {
     return (
       <div className="empty-state" style={{ padding: 60 }}>
         <div className="empty-icon">🌐</div>
-        <div className="empty-title">Aucune plantation à visualiser</div>
+        <div className="empty-title">{_ui("Aucune plantation à visualiser")}</div>
       </div>
     )
   }
@@ -137,7 +141,7 @@ export function GanttTab(props: {
     <div>
       {/* ─── Toolbar ─── */}
       <div className="card" style={{ padding: 12, marginBottom: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1 }}>VUE :</div>
+        <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1 }}>{_ui("VUE :")}</div>
         <button onClick={() => setShowTimeline(v => !v)}
           style={{
             padding: '6px 12px', borderRadius: 6, fontSize: 11, fontFamily: 'var(--font-mono)',
@@ -146,19 +150,16 @@ export function GanttTab(props: {
             color: showTimeline ? 'var(--neon)' : 'var(--tx-2)',
             cursor: 'pointer',
           }}>
-          {showTimeline ? '✓' : '○'} Mini-timeline
-        </button>
+          {showTimeline ? '✓' : '○'} {" "}{_ui("Mini-timeline")}{" "}</button>
         <div style={{ width: 1, height: 22, background: 'var(--bd-1)', margin: '0 4px' }} />
         <button onClick={expandAll}
           style={{ padding: '6px 12px', border: '1px solid var(--bd-1)', background: 'transparent', color: 'var(--tx-2)', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
-          ⇓ Tout déplier
-        </button>
+          {" "}{_ui("⇓ Tout déplier")}{" "}</button>
         <button onClick={collapseAll}
           style={{ padding: '6px 12px', border: '1px solid var(--bd-1)', background: 'transparent', color: 'var(--tx-2)', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
-          ⇑ Tout replier
-        </button>
+          {" "}{_ui("⇑ Tout replier")}{" "}</button>
 
-        {showTimeline&&<div className="w-full rounded-lg border border-border bg-surface-input p-3 text-sm text-fg-secondary"><strong>Calendrier prévisionnel des serres</strong><p className="mt-1">Les couleurs représentent des durées, pas l’avancement réel. Les dates de la plantation sont utilisées, sinon celles de la campagne. Pour plusieurs plantations, la barre représente celle au plus grand volume cible.</p></div>}
+        {showTimeline&&<div className="w-full rounded-lg border border-border bg-surface-input p-3 text-sm text-fg-secondary"><strong>{_ui("Calendrier prévisionnel des serres")}</strong><p className="mt-1">{_ui("Les couleurs représentent des durées, pas l’avancement réel. Les dates de la plantation sont utilisées, sinon celles de la campagne. Pour plusieurs plantations, la barre représente celle au plus grand volume cible.")}</p></div>}
       </div>
 
       {/* ─── DOMAINE (carte sommet) ─── */}
@@ -203,7 +204,7 @@ export function GanttTab(props: {
               borderLeft: '3px solid #6366f1', borderRadius: 4,
               fontSize: 11, fontFamily: 'var(--font-mono)', color: '#6366f1', letterSpacing: 1, fontWeight: 700,
             }}>
-              <span>↳ {farm.name.toUpperCase()} · {greenhouses.length} SERRE{greenhouses.length > 1 ? 'S' : ''}</span>
+              <span>↳ {farm.name.toUpperCase()} · {greenhouses.length} {" "}{_ui("SERRE")}{greenhouses.length > 1 ? 'S' : ''}</span>
             </div>
 
             <div style={{
@@ -236,6 +237,8 @@ export function GanttTab(props: {
 // CARTE DOMAINE
 // ════════════════════════════════════════════════════════════════════════════
 function DomainCard(props: { stats: DomainStats; campaign: Campaign }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { stats, campaign } = props
   return (
     <div className="card" style={{
@@ -263,12 +266,12 @@ function DomainCard(props: { stats: DomainStats; campaign: Campaign }) {
           fontSize: 22,
         }}>🏭</div>
         <div>
-          <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1.5 }}>DOMAINE</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--tx-1)', fontFamily: 'var(--font-display)' }}>BENHALIMA</div>
+          <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1.5 }}>{_ui("DOMAINE")}</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--tx-1)', fontFamily: 'var(--font-display)' }}>{_ui("BENHALIMA")}</div>
         </div>
         {campaign && (
           <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-            <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1 }}>CAMPAGNE</div>
+            <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1 }}>{_ui("CAMPAGNE")}</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx-2)' }}>{campaign.name}</div>
           </div>
         )}
@@ -280,12 +283,12 @@ function DomainCard(props: { stats: DomainStats; campaign: Campaign }) {
         gap: 10,
         position: 'relative',
       }}>
-        <BigKPI label="SURFACE" value={fmtArea(stats.totalArea)} sub={`${stats.usedGh}/${stats.totalGh} serres`} color="#0ea5e9" />
-        <BigKPI label="FERMES"   value={String(stats.farmsCount)} sub={`${stats.varieties} variété${stats.varieties > 1 ? 's' : ''}`} color="#6366f1" />
-        <BigKPI label="VOLUME CIBLE" value={fmtVol(stats.totalVolumeKg)} sub={`Rdt ${stats.avgYield.toFixed(1)} kg/m²`} color="#a855f7" />
-        <BigKPI label="CA CIBLE"     value={fmtMAD(stats.totalRevenue)} sub={`${stats.exportSharePct.toFixed(0)}% export`} color="#10b981" highlight />
+        <BigKPI label={_ui("SURFACE")} value={fmtArea(stats.totalArea)} sub={`${stats.usedGh}/${stats.totalGh} serres`} color="#0ea5e9" />
+        <BigKPI label={_ui("FERMES")}   value={String(stats.farmsCount)} sub={`${stats.varieties} variété${stats.varieties > 1 ? 's' : ''}`} color="#6366f1" />
+        <BigKPI label={_ui("VOLUME CIBLE")} value={fmtVol(stats.totalVolumeKg)} sub={`Rdt ${stats.avgYield.toFixed(1)} kg/m²`} color="#a855f7" />
+        <BigKPI label={_ui("CA CIBLE")}     value={fmtMAD(stats.totalRevenue)} sub={`${stats.exportSharePct.toFixed(0)}% export`} color="#10b981" highlight />
         {stats.emptyGh > 0 && (
-          <BigKPI label="SERRES VIDES" value={String(stats.emptyGh)} sub="à planifier" color="#f59e0b" warn />
+          <BigKPI label={_ui("SERRES VIDES")} value={String(stats.emptyGh)} sub="à planifier" color="#f59e0b" warn />
         )}
       </div>
     </div>
@@ -298,6 +301,8 @@ function DomainCard(props: { stats: DomainStats; campaign: Campaign }) {
 function FarmCard(props: {
   farm: Farm; stats: FarmStats; isOpen: boolean; onToggle: () => void; greenhouseCount: number
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { farm, stats, isOpen, onToggle, greenhouseCount } = props
   return (
     <div className="card" onClick={onToggle} style={{
@@ -315,7 +320,7 @@ function FarmCard(props: {
           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
         }}>🏠</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 9, color: '#6366f1', fontFamily: 'var(--font-mono)', letterSpacing: 1 }}>FERME</div>
+          <div style={{ fontSize: 9, color: '#6366f1', fontFamily: 'var(--font-mono)', letterSpacing: 1 }}>{_ui("FERME")}</div>
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--tx-1)' }}>{farm.name}</div>
         </div>
         <div style={{
@@ -327,9 +332,9 @@ function FarmCard(props: {
 
       {/* Mini KPI */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11 }}>
-        <KPILine label="Surface" value={fmtArea(stats.totalArea)} icon="📐" />
-        <KPILine label="Serres"  value={`${stats.usedGh}/${greenhouseCount}`} icon="🏗️" warn={stats.usedGh < greenhouseCount} />
-        <KPILine label="Volume"  value={fmtVol(stats.totalVolumeKg)} icon="📦" />
+        <KPILine label={_ui("Surface")} value={fmtArea(stats.totalArea)} icon="📐" />
+        <KPILine label={_ui("Serres")}  value={`${stats.usedGh}/${greenhouseCount}`} icon="🏗️" warn={stats.usedGh < greenhouseCount} />
+        <KPILine label={_ui("Volume")}  value={fmtVol(stats.totalVolumeKg)} icon="📦" />
         <KPILine label="CA"      value={fmtMAD(stats.totalRevenue)} icon="💰" accent />
       </div>
 
@@ -341,8 +346,8 @@ function FarmCard(props: {
             <div style={{ flex: 1, background: '#f59e0b' }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3, fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)' }}>
-            <span>Exp {stats.exportSharePct.toFixed(0)}%</span>
-            <span>Loc {(100 - stats.exportSharePct).toFixed(0)}%</span>
+            <span>{_ui("Exp")}{" "}{stats.exportSharePct.toFixed(0)}%</span>
+            <span>{_ui("Loc")}{" "}{(100 - stats.exportSharePct).toFixed(0)}%</span>
           </div>
         </div>
       )}
@@ -363,6 +368,8 @@ function GreenhouseCard(props: {
   onClick: () => void
   selected: boolean
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { gh, plantings, stats, campaign, varietyColor, showTimeline, onClick, selected } = props
   const isEmpty = plantings.length === 0
 
@@ -383,7 +390,7 @@ function GreenhouseCard(props: {
   }, [plantings, varietyColor])
 
   return (
-    <div onClick={onClick} role="button" tabIndex={0} aria-label={`Ouvrir la fiche serre ${gh.code}`} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onClick()}}} className="card" style={{
+    <div onClick={onClick} role="button" tabIndex={0} aria-label={_ui("Ouvrir la fiche serre {v0}",{v0:String(gh.code)})} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onClick()}}} className="card" style={{
       padding: 0, overflow: 'hidden', cursor: 'pointer',
       transition: 'all .2s',
       transform: selected ? 'translateY(-2px)' : 'none',
@@ -420,14 +427,14 @@ function GreenhouseCard(props: {
               background: 'color-mix(in srgb, var(--amber) 18%, transparent)',
               color: 'var(--amber)',
               fontSize: 9, fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: .5,
-            }}>⚠ VIDE</span>
+            }}>{_ui("⚠ VIDE")}</span>
           ) : (
             <span style={{
               padding: '3px 8px', borderRadius: 4,
               background: `color-mix(in srgb, ${dominantColor} 14%, transparent)`,
               color: dominantColor,
               fontSize: 9, fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: .5,
-            }}>✓ ACTIVE</span>
+            }}>{_ui("✓ ACTIVE")}</span>
           )}
         </div>
 
@@ -436,22 +443,21 @@ function GreenhouseCard(props: {
             {/* Big KPI : Volume cible */}
             <div style={{ marginBottom: 8 }}>
               <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 2 }}>
-                VOLUME CIBLE
-              </div>
+                {" "}{_ui("VOLUME CIBLE")}{" "}</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: dominantColor, fontFamily: 'var(--font-display)', lineHeight: 1 }}>
                 {fmtVol(stats.totalVolumeKg)}
               </div>
               <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginTop: 3 }}>
-                Rdt {stats.avgYield.toFixed(1)} kg/m² · CA {fmtMAD(stats.totalRevenue)}
+                {" "}{_ui("Rdt")}{" "}{stats.avgYield.toFixed(1)} {" "}{_ui("kg/m² · CA")}{" "}{fmtMAD(stats.totalRevenue)}
               </div>
             </div>
 
             {/* Mini KPI grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 10, marginBottom: 10 }}>
-              <MiniStat label="Plantée" value={`${Math.round(stats.totalPlanted).toLocaleString('fr')} m²`} />
-              <MiniStat label="Plants"  value={stats.totalPlants > 0 ? stats.totalPlants.toLocaleString('fr') : '—'} />
-              <MiniStat label="Variétés" value={String(stats.varietiesCount)} />
-              <MiniStat label="% Export" value={`${stats.exportSharePct.toFixed(0)}%`} />
+              <MiniStat label={_ui("Plantée")} value={`${Math.round(stats.totalPlanted).toLocaleString('fr')} m²`} />
+              <MiniStat label={_ui("Plants")}  value={stats.totalPlants > 0 ? stats.totalPlants.toLocaleString('fr') : '—'} />
+              <MiniStat label={_ui("Variétés")} value={String(stats.varietiesCount)} />
+              <MiniStat label={_ui("% Export")} value={`${stats.exportSharePct.toFixed(0)}%`} />
             </div>
 
             {/* Pastilles variétés */}
@@ -480,8 +486,7 @@ function GreenhouseCard(props: {
 
         {isEmpty && (
           <div style={{ padding: '14px 0', textAlign: 'center', color: 'var(--tx-3)', fontSize: 11 }}>
-            Aucune plantation budgétisée
-          </div>
+            {" "}{_ui("Aucune plantation budgétisée")}{" "}</div>
         )}
       </div>
     </div>
@@ -492,6 +497,8 @@ function GreenhouseCard(props: {
 // Mini timeline horizontale dans la carte serre (4 phases sur 1 barre)
 // ────────────────────────────────────────────────────────────────────────────
 function MiniTimeline(props: { plantings: PlantingRow[]; campaign: NonNullable<Campaign> }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { plantings, campaign } = props
   if (!campaign.preparation_start || !campaign.campaign_end) return null
   const start = +new Date(campaign.preparation_start)
@@ -543,9 +550,9 @@ function MiniTimeline(props: { plantings: PlantingRow[]; campaign: NonNullable<C
         <span>{shortDate(campaign.preparation_start)}</span>
         <span>{shortDate(campaign.campaign_end)}</span>
       </div>
-      <div aria-label="Légende du calendrier prévisionnel" className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-fg-secondary">
+      <div aria-label={_ui("Légende du calendrier prévisionnel")} className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-fg-secondary">
         {Object.entries(PHASE_COLORS).map(([phase,color])=><span key={phase} className="inline-flex items-center gap-1"><span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-sm" style={{background:color}}/>{({preparation:'Préparation',growth:'Croissance',harvest:'Récolte prévue',post:'Après récolte'} as Record<string,string>)[phase]}</span>)}
-        <span className="inline-flex items-center gap-1"><span aria-hidden="true" className="h-3 w-0.5 bg-brand"/>Aujourd’hui{today===null?' (hors période)':''}</span>
+        <span className="inline-flex items-center gap-1"><span aria-hidden="true" className="h-3 w-0.5 bg-brand"/>{_ui("Aujourd’hui")}{today===null?_ui("(hors période)"):''}</span>
       </div>
     </div>
   )
@@ -587,6 +594,8 @@ function ConnectorRow(props: { count: number; color: string }) {
 // COMPOSANTS ATOMIQUES
 // ════════════════════════════════════════════════════════════════════════════
 function BigKPI(props: { label: string; value: string; sub?: string; color: string; highlight?: boolean; warn?: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <div style={{
       padding: 10, borderRadius: 8,
@@ -596,14 +605,14 @@ function BigKPI(props: { label: string; value: string; sub?: string; color: stri
       border: `1px solid color-mix(in srgb, ${props.color} ${props.highlight ? 40 : 20}%, transparent)`,
     }}>
       <div style={{ fontSize: 8, color: props.warn ? 'var(--amber)' : 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 3 }}>
-        {props.label}
+        {_uiNode(props.label)}
       </div>
       <div style={{ fontSize: 20, fontWeight: 800, color: props.color, fontFamily: 'var(--font-display)', lineHeight: 1 }}>
         {props.value}
       </div>
       {props.sub && (
         <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>
-          {props.sub}
+          {_uiNode(props.sub)}
         </div>
       )}
     </div>
@@ -611,11 +620,13 @@ function BigKPI(props: { label: string; value: string; sub?: string; color: stri
 }
 
 function KPILine(props: { label: string; value: string; icon: string; accent?: boolean; warn?: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       <span style={{ fontSize: 12, opacity: .8 }}>{props.icon}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 8, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: .8 }}>{props.label}</div>
+        <div style={{ fontSize: 8, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: .8 }}>{_uiNode(props.label)}</div>
         <div style={{ fontSize: 11, fontWeight: 700, color: props.warn ? 'var(--amber)' : (props.accent ? 'var(--neon)' : 'var(--tx-1)'), fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {props.value}
         </div>
@@ -625,18 +636,22 @@ function KPILine(props: { label: string; value: string; icon: string; accent?: b
 }
 
 function MiniStat(props: { label: string; value: string }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <div>
-      <div style={{ fontSize: 8, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: .8 }}>{props.label}</div>
+      <div style={{ fontSize: 8, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: .8 }}>{_uiNode(props.label)}</div>
       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx-1)', fontFamily: 'var(--font-mono)' }}>{props.value}</div>
     </div>
   )
 }
 
 function KVRow(props: { label: string; value: string; accent?: string }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '3px 0' }}>
-      <span style={{ color: 'var(--tx-3)' }}>{props.label}</span>
+      <span style={{ color: 'var(--tx-3)' }}>{_uiNode(props.label)}</span>
       <span style={{ fontFamily: 'var(--font-mono)', color: props.accent ?? 'var(--tx-1)', fontWeight: props.accent ? 700 : 500 }}>{props.value}</span>
     </div>
   )

@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter } from '@/components/ui/Modal'
@@ -42,6 +44,8 @@ export function SupplierCreateModal(props: {
   onCreated: (supplier: CreatedSupplier) => void
   initialCategory?: SupplierCategory
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { activeDomain } = useAuth()
   const { open, onClose, onCreated, initialCategory = 'autre' } = props
 
@@ -105,52 +109,52 @@ export function SupplierCreateModal(props: {
   }
 
   return (
-    <Modal title="NOUVEAU FOURNISSEUR" onClose={close} size="md">
+    <Modal title={_ui("NOUVEAU FOURNISSEUR")} onClose={close} size="md">
       {error && (
         <div style={{ padding: 8, marginBottom: 10, background: 'var(--red-dim)', border: '1px solid color-mix(in srgb, var(--red) 30%, transparent)', borderRadius: 6, color: 'var(--red)', fontSize: 11 }}>
-          ⚠ {error}
+          ⚠ {_uiNode(error)}
         </div>
       )}
 
       <FormRow>
-        <FormGroup label="Nom *">
-          <Input value={name} onChange={e => handleNameChange(e.target.value)} placeholder="ex: Agri-Supply SARL" />
+        <FormGroup label={_ui("Nom *")}>
+          <Input value={name} onChange={e => handleNameChange(e.target.value)} placeholder={_ui("ex: Agri-Supply SARL")} />
         </FormGroup>
-        <FormGroup label="Code *">
-          <Input value={code} onChange={e => { setCode(e.target.value); setCodeTouched(true) }} placeholder="AGRI-1234" />
+        <FormGroup label={_ui("Code *")}>
+          <Input value={code} onChange={e => { setCode(e.target.value); setCodeTouched(true) }} placeholder={_ui("AGRI-1234")} />
         </FormGroup>
       </FormRow>
 
       <FormRow>
-        <FormGroup label="Catégorie *">
+        <FormGroup label={_ui("Catégorie *")}>
           <Select value={category} onChange={e => setCategory(e.target.value as SupplierCategory)}>
-            {CATEGORIES.map(c => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
+            {CATEGORIES.map(c => <option key={c} value={c}>{_uiNode(CATEGORY_LABELS[c])}</option>)}
           </Select>
         </FormGroup>
-        <FormGroup label="Ville">
-          <Input value={city} onChange={e => setCity(e.target.value)} placeholder="Casablanca" />
+        <FormGroup label={_ui("Ville")}>
+          <Input value={city} onChange={e => setCity(e.target.value)} placeholder={_ui("Casablanca")} />
         </FormGroup>
       </FormRow>
 
       <FormRow>
-        <FormGroup label="Email">
-          <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="contact@..." />
+        <FormGroup label={_ui("Email")}>
+          <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={_ui("contact@...")} />
         </FormGroup>
-        <FormGroup label="Téléphone">
+        <FormGroup label={_ui("Téléphone")}>
           <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+212..." />
         </FormGroup>
       </FormRow>
 
       <FormRow>
-        <FormGroup label="Contact (nom)">
-          <Input value={contactName} onChange={e => setContactName(e.target.value)} placeholder="M. Alami" />
+        <FormGroup label={_ui("Contact (nom)")}>
+          <Input value={contactName} onChange={e => setContactName(e.target.value)} placeholder={_ui("M. Alami")} />
         </FormGroup>
-        <FormGroup label="Délai paiement (jours)">
+        <FormGroup label={_ui("Délai paiement (jours)")}>
           <Input type="number" value={paymentTermsDays} onChange={e => setPaymentTermsDays(e.target.value)} />
         </FormGroup>
       </FormRow>
 
-      <FormGroup label="Notes">
+      <FormGroup label={_ui("Notes")}>
         <Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} />
       </FormGroup>
 
@@ -159,7 +163,7 @@ export function SupplierCreateModal(props: {
         onSave={submit}
         loading={saving}
         disabled={!name.trim() || !code.trim()}
-        saveLabel="CRÉER LE FOURNISSEUR"
+        saveLabel={_ui("CRÉER LE FOURNISSEUR")}
       />
     </Modal>
   )

@@ -6,7 +6,7 @@ import { cn } from '@/lib/cn'
 
 const cardVariants = cva(
   [
-    'relative bg-surface-raised border border-border rounded-lg',
+    'itrix-card relative bg-surface-raised border border-border rounded-lg',
     'transition-all duration-200 ease-smooth',
   ],
   {

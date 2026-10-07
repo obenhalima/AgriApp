@@ -3,6 +3,7 @@
  * Topbar refondu : breadcrumbs dynamiques + Cmd+K trigger + theme toggle
  * smooth + user avatar dropdown.
  */
+import { LanguageSwitcher, useLanguage } from '@/lib/i18n'
 import Link from 'next/link'
 import { BackButton } from './BackButton'
 import { usePathname, useRouter } from 'next/navigation'
@@ -25,6 +26,9 @@ import { getLiveCampaign } from '@/lib/appSettings'
 import { useRealtimeReload } from '@/lib/useRealtimeReload'
 
 export function Topbar() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+  const { t } = useLanguage()
   const pathname = usePathname()
   const router = useRouter()
   const { user, profile, role, domains, activeDomain, switchDomain, signOut } = useAuth()
@@ -126,7 +130,7 @@ export function Topbar() {
         <button
           onClick={() => window.dispatchEvent(new CustomEvent('sidebar-mobile-toggle'))}
           className="lg:hidden -ml-1 w-8 h-8 rounded-md flex items-center justify-center text-fg-secondary hover:bg-surface-sunk hover:text-fg-primary transition-colors flex-shrink-0"
-          aria-label="Ouvrir le menu"
+          aria-label={_ui("Ouvrir le menu")}
         >
           <Menu size={18} strokeWidth={2.2} />
         </button>
@@ -142,7 +146,7 @@ export function Topbar() {
                   className="flex items-center gap-1.5 text-body-sm text-fg-tertiary hover:text-fg-primary transition-colors min-w-0"
                 >
                   {Icon && <Icon size={13} strokeWidth={2.2} />}
-                  <span className="truncate">{crumb.label}</span>
+                  <span className="truncate">{t(crumb.label)}</span>
                 </Link>
               ) : (
                 <span className={cn(
@@ -157,7 +161,7 @@ export function Topbar() {
                       <Icon size={14} strokeWidth={2.2} />
                     </span>
                   )}
-                  <span className="truncate">{crumb.label}</span>
+                  <span className="truncate">{t(crumb.label)}</span>
                 </span>
               )}
             </div>
@@ -167,13 +171,14 @@ export function Topbar() {
 
       {/* ─── Right : Actions ─── */}
       <div className="flex items-center gap-xs sm:gap-sm flex-shrink-0">
+        <LanguageSwitcher />
 
         {/* Société active — le rôle et les permissions suivent cette sélection. */}
         {activeDomain && domains.length > 1 && (
-          <div className="flex items-center gap-xs" title={`Société active : ${activeDomain.domain_name}`}>
+          <div className="flex items-center gap-xs" title={_ui("Société active : {v0}",{v0:String(activeDomain.domain_name)})}>
             <Globe2 size={14} className="hidden sm:block text-fg-tertiary flex-shrink-0" />
             <select
-              aria-label="Société active"
+              aria-label={_ui("Société active")}
               value={activeDomain.domain_id}
               onChange={e => handleDomainChange(e.target.value)}
               disabled={switchingDomain}
@@ -195,13 +200,13 @@ export function Topbar() {
             'text-fg-tertiary hover:text-fg-secondary hover:border-border-strong hover:bg-surface-hover',
             'transition-all duration-150 cursor-pointer',
           )}
-          title="Recherche rapide"
+          title={_ui("Recherche rapide")}
         >
           <Search size={13} strokeWidth={2.2} />
-          <span className="text-caption">Recherche…</span>
+          <span className="text-caption">{t('Recherche…')}</span>
           <span className="flex items-center gap-0.5 ml-md">
             <kbd className="px-1.5 py-0.5 rounded border border-border text-[9px] font-mono bg-surface-raised">
-              {isMac ? '⌘' : 'Ctrl'}
+              {isMac ? '⌘' : _ui("Ctrl")}
             </kbd>
             <kbd className="px-1.5 py-0.5 rounded border border-border text-[9px] font-mono bg-surface-raised">K</kbd>
           </span>
@@ -217,7 +222,7 @@ export function Topbar() {
             'hover:bg-surface-hover hover:text-fg-secondary',
             'transition-all duration-150',
           )}
-          title="Recherche"
+          title={_ui("Recherche")}
         >
           <Search size={14} strokeWidth={2.2} />
         </button>
@@ -226,7 +231,7 @@ export function Topbar() {
         <button
           onClick={handleRefresh}
           disabled={refreshing}
-          title="Rafraîchir les données de la page"
+          title={_ui("Rafraîchir les données de la page")}
           className={cn(
             'w-8 h-8 rounded-md',
             'border border-border bg-surface-sunk/50 text-fg-tertiary',
@@ -243,11 +248,11 @@ export function Topbar() {
         {liveCampaign && (
           <Link
             href="/campagnes"
-            title={`Campagne live (${liveCampaign.source === 'manual' ? 'définie manuellement' : 'auto: status en_cours'}) — cliquer pour ouvrir`}
+            title={_ui("Campagne live ({v0}) — cliquer pour ouvrir",{v0:String(liveCampaign.source === 'manual' ? 'définie manuellement' : 'auto: status en_cours')})}
             className="hidden sm:inline-flex items-center no-underline"
           >
             <Badge variant="success" size="md" dot pulse>
-              Live · {liveCampaign.code}
+              {" "}{_ui("Live ·")}{" "}{liveCampaign.code}
             </Badge>
           </Link>
         )}
@@ -265,7 +270,7 @@ export function Topbar() {
             style={{ background: 'var(--neon)' }}
           >
             <Plus size={13} strokeWidth={2.5} />
-            {currentNav.item.label.split(' ')[0]}
+            {_ui(currentNav.item.label).split(' ')[0]}
           </Link>
         )}
 
@@ -274,8 +279,8 @@ export function Topbar() {
           const moduleKey = getModuleKeyForPath(pathname) ?? 'intro'
           if (pathname === '/guide' || pathname === '/login') return null
           return (
-            <div className="hidden lg:flex">
-              <HelpLink module={moduleKey} variant="pill" label="Aide" />
+            <div className="flex">
+              <HelpLink module={moduleKey} variant="pill" label={t('Aide')} />
             </div>
           )
         })()}
@@ -283,7 +288,7 @@ export function Topbar() {
         {/* Toggle thème animé */}
         <button
           onClick={toggleTheme}
-          title={theme === 'dark' ? 'Passer en clair' : 'Passer en sombre'}
+          title={theme === 'dark' ? _ui("Passer en clair") : _ui("Passer en sombre")}
           className={cn(
             'relative w-8 h-8 rounded-md flex items-center justify-center',
             'border border-border bg-surface-sunk/50',
@@ -320,9 +325,9 @@ export function Topbar() {
         {user && !profile && (
           <div className="flex items-center gap-sm">
             <div className="hidden sm:flex items-center gap-2 px-md py-1.5 rounded-md border border-warning/40 bg-warning/10 text-warning text-caption font-mono"
-                 title="Profil manquant — contacte un admin ou exécute le SQL de récupération">
+                 title={_ui("Profil manquant — contacte un admin ou exécute le SQL de récupération")}>
               <AlertCircle size={12} strokeWidth={2.4} />
-              <span>Profil manquant</span>
+              <span>{_ui("Profil manquant")}</span>
             </div>
             <button
               onClick={logout}
@@ -333,11 +338,11 @@ export function Topbar() {
                 'hover:bg-danger/20 hover:border-danger transition-all duration-150',
                 'disabled:opacity-50',
               )}
-              title="Se déconnecter (le profil est manquant — Nuclear l'a peut-être supprimé)"
+              title={_ui("Se déconnecter (le profil est manquant — Nuclear l'a peut-être supprimé)")}
             >
               <LogOut size={14} strokeWidth={2.4} />
               <span className="text-caption font-semibold hidden sm:inline">
-                {out ? 'Déconnexion…' : 'Déconnexion'}
+                {t(out ? 'Déconnexion…' : 'Déconnexion')}
               </span>
             </button>
           </div>
@@ -359,9 +364,9 @@ export function Topbar() {
                    style={{ background: 'color-mix(in srgb, var(--neon) 25%, transparent)', color: 'var(--neon)' }}>
                 {(profile.full_name ?? profile.email).slice(0, 1).toUpperCase()}
               </div>
-              <div className="hidden sm:block text-left leading-tight min-w-0 max-w-[140px]">
+              <div className="hidden sm:block text-start leading-tight min-w-0 max-w-[140px]">
                 <div className="text-caption font-semibold text-fg-primary truncate">{profile.full_name ?? profile.email}</div>
-                <div className="text-[9px] font-mono text-fg-tertiary truncate">{role?.name ?? 'Sans rôle'}</div>
+                <div className="text-[9px] font-mono text-fg-tertiary truncate">{role?.name ?? _ui("Sans rôle")}</div>
               </div>
               <ChevronDown size={12} strokeWidth={2.2} className={cn(
                 'text-fg-tertiary transition-transform hidden sm:block',
@@ -377,7 +382,7 @@ export function Topbar() {
                   exit={{ opacity: 0, y: -4, scale: 0.98 }}
                   transition={{ duration: 0.15 }}
                   className={cn(
-                    'absolute right-0 top-full mt-1 z-50',
+                    'absolute end-0 top-full mt-1 z-50',
                     'min-w-[220px] rounded-md',
                     'bg-surface-raised border border-border-strong',
                     'shadow-overlay overflow-hidden',
@@ -386,7 +391,7 @@ export function Topbar() {
                   {/* Header */}
                   <div className="px-md py-sm border-b border-border bg-surface-sunk">
                     <div className="text-body-sm font-semibold text-fg-primary truncate">
-                      {profile.full_name ?? 'Utilisateur'}
+                      {profile.full_name ?? _ui("Utilisateur")}
                     </div>
                     <div className="text-caption font-mono text-fg-tertiary truncate">
                       {profile.email}
@@ -403,9 +408,9 @@ export function Topbar() {
                       className="w-full flex items-center gap-sm px-md py-2 rounded-md text-body-sm text-fg-secondary hover:bg-surface-hover hover:text-fg-primary transition-colors"
                     >
                       <Search size={14} strokeWidth={2.2} />
-                      <span className="flex-1 text-left">Recherche rapide</span>
+                      <span className="flex-1 text-start">{t('Recherche rapide')}</span>
                       <span className="flex items-center gap-0.5">
-                        <kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono">{isMac ? '⌘' : 'Ctrl'}</kbd>
+                        <kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono">{isMac ? '⌘' : _ui("Ctrl")}</kbd>
                         <kbd className="px-1 py-0.5 rounded border border-border text-[9px] font-mono">K</kbd>
                       </span>
                     </button>
@@ -414,14 +419,14 @@ export function Topbar() {
                       className="w-full flex items-center gap-sm px-md py-2 rounded-md text-body-sm text-fg-secondary hover:bg-surface-hover hover:text-fg-primary transition-colors"
                     >
                       <HelpCircle size={14} strokeWidth={2.2} />
-                      <span className="flex-1 text-left">Guide utilisateur</span>
+                      <span className="flex-1 text-start">{t('Guide utilisateur')}</span>
                     </button>
                     <button
                       onClick={toggleTheme}
                       className="w-full flex items-center gap-sm px-md py-2 rounded-md text-body-sm text-fg-secondary hover:bg-surface-hover hover:text-fg-primary transition-colors"
                     >
                       {theme === 'dark' ? <Sun size={14} strokeWidth={2.2} /> : <Moon size={14} strokeWidth={2.2} />}
-                      <span className="flex-1 text-left">Thème {theme === 'dark' ? 'clair' : 'sombre'}</span>
+                      <span className="flex-1 text-start">{_ui("Thème")}{" "}{theme === 'dark' ? 'clair' : 'sombre'}</span>
                     </button>
                   </div>
 
@@ -432,7 +437,7 @@ export function Topbar() {
                       className="w-full flex items-center gap-sm px-md py-2 rounded-md text-body-sm text-danger hover:bg-danger/10 transition-colors disabled:opacity-50"
                     >
                       <LogOut size={14} strokeWidth={2.2} />
-                      <span className="flex-1 text-left">{out ? 'Déconnexion…' : 'Se déconnecter'}</span>
+                      <span className="flex-1 text-start">{t(out ? 'Déconnexion…' : 'Se déconnecter')}</span>
                     </button>
                   </div>
                 </motion.div>

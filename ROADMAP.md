@@ -1,4 +1,64 @@
-# Roadmap FarmPilot / AgriApp
+# Roadmap ItriX Farm
+
+## Pilotage actualisé — 2 octobre 2026
+
+Cette section prime sur le backlog historique ci-dessous. Un développement local ou un test simulé n'atteste ni son déploiement ni sa validation métier. Aucune publication Vercel, écriture métier distante ou migration n'est autorisée par cette mise à jour.
+
+### Architecture fonctionnelle
+
+```mermaid
+flowchart TD
+  A[Clients, profils et habilitations] --> B[Initialisation et référentiels]
+  B -->|Intégration du wizard à terminer| C[Fermes, serres, campagnes et plantations]
+  C --> D[Production et récoltes]
+  E[Achats et réceptions] --> F[Stocks et consommations]
+  F --> D
+  G[Personnel et pointage] --> D
+  D --> H[Envois Station ou Local, pesée et tri]
+  H --> I[Tarification et bordereaux]
+  I --> J[Factures et encaissements]
+  F --> K[Coûts et valorisation]
+  G --> K
+  K --> L[Pilotage 360, coût/kg et rentabilité]
+  J --> L
+  D --> L
+```
+
+Relations métier, pas une certification d'automatisation complète. Sources : `lib/navigation.tsx`, `app/recoltes/page.tsx`, `lib/stationSettlements.ts`, `app/admin/initialisation/page.tsx`.
+
+### Ordre de livraison retenu
+
+| Lot | Objectif | Statut | Critère de sortie |
+|---|---|---|---|
+| 1 | Fiabiliser récolte → envoi → tarification → facture → encaissement | En cours local | Rapprochement des kg et montants, cas partiels et retours, absence de doublons, droits et corrections recettés |
+| 2 | Fiabiliser coûts et rentabilité | À réaliser / consolider | Chaque coût/kg expliqué par ses écritures ; CA tarifé, facturé et encaissé distingués ; devises explicites |
+| 3 | Intégrer effectivement les dossiers du wizard | À réaliser | Précontrôle serveur, intégration idempotente par étape, journal et reprise après erreur |
+| 4 | Recetter les parcours par profil | À valider | Chef d'exploitation, phyto, magasinier et administratif ; droits et notifications sur téléphone réel |
+| 5 | Achever l'harmonisation et le guide | En cours local | Parcours prioritaires cohérents et utilisables sur mobile, erreurs liées aux champs |
+| 6 | Mesurer le POC | À cadrer avec les référents | Mesures initiales puis adoption, temps économisé, fiabilité et délai de tarification |
+| 7 | Préparer la commercialisation | À cadrer | Offre, support, sauvegarde/restauration et installation reproductible |
+
+Fertigation : travaux conservés, refonte suspendue selon décision utilisateur. Hors-ligne avancé, IoT et prédictions IA non prioritaires. Aucun délai de livraison engagé avant estimation.
+
+### Lot 1 — Avancement et recette restante
+
+- [x] Récapitulatif local des envois tarifés : historique complet, filtres indépendants, détails et export Excel (`components/harvest/PricedDispatchReport.tsx`).
+- [x] Allocations validées comme source de tarification, sans addition du CA miroir du lot ; prix pondéré et totaux séparés par devise (`lib/pricedDispatches.ts`).
+- [x] Tests ciblés : 8 tests unitaires (calculs et verrou UI), navigateur simulé (filtre destination, détail, téléchargement Excel et largeur mobile). Aucun envoi ou paiement réel effectué.
+- [x] Boutons Éditer/Supprimer et sélection groupée neutralisés dans l'interface pour les récoltes liées à un envoi ; nouveau contrôle avant action (`lib/harvestEditLock.ts`, `app/recoltes/page.tsx`).
+- [x] Migration 142 appliquée et recette confirmée par l'utilisateur le 2 octobre 2026. Tests SQL locaux documentés ; application distante déclarée par l'utilisateur, non réinspectée automatiquement.
+- [x] Ajouter en local les factures explicitement liées dans le récapitulatif : dédoublonnage, facturé, encaissé enregistré et solde par facture ; export dans une feuille distincte. Pas de ventilation artificielle par lot, pas de reste à facturer calculé sur des liens historiques incomplets.
+- [x] Préparer le remplacement de la logique destructive de `admin_bulk_delete_harvests` dans la migration 142, sans modifier rétroactivement 039 et sans suppression des envois/sources/orphelins.
+- [ ] Préserver la mise à jour légitime de `actual_kg` par la pesée Station (migration 059). Ne pas poser un verrou UPDATE global qui casserait ce parcours.
+- [ ] Recetter quantités estimées/réelles, envois partiels et groupés, rejets et retours, tarification directe et plusieurs bordereaux, annulation et nouvelle validation.
+- [x] Préparer 143 et sa recette SQL locale : prix pondéré, annulation/revalidation sans doublons, refus si facture liée et ferme obligatoire. Non appliquée ; voir `docs/LOT_143_RECETTE_CHAINE_RECOLTES.md`.
+- [ ] Rendre composition et tri transactionnels ; préserver les quantités estimées des sources lors des pesées partielles. Risques identifiés dans les écritures successives actuelles : lot 1 non clôturable avant correction.
+- [ ] Recetter les factures et encaissements partiels, ainsi que les refus inter-clients ; génération de facture déjà présente dans `lib/stationSettlements.ts`, contrairement au backlog ancien.
+- [ ] Validation métier sur un dossier de référence puis autorisation explicite de publication.
+
+Le wizard reste un dossier de préparation : `app/admin/initialisation/page.tsx` ne réalise pas encore l'intégration des étapes dans les modules opérationnels. Le suivi du déploiement distant doit être vérifié séparément.
+
+## Backlog historique — à réconcilier, pas un statut de livraison actuel
 
 > Backlog des évolutions produit pour le pilotage de production agricole
 > du Domaine BENHALIMA (tomates serres, Maroc).

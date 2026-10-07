@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * /cultures — Gestion des cultures (multi-culture).
  *
@@ -23,6 +25,8 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Modal } from '@/components/ui/Modal'
 
 export default function CulturesPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { isAdmin } = useAuth()
   const [crops, setCrops] = useState<Crop[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,24 +41,24 @@ export default function CulturesPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try { setCrops(await listCrops()) }
-    catch (e: any) { toast.error(`Chargement : ${e.message ?? e}`) }
+    catch (e: any) { toast.error(_ui("Chargement : {v0}",{v0:String(e.message ?? e)})) }
     finally { setLoading(false) }
-  }, [])
+  }, [_ui])
   useEffect(() => { load() }, [load])
 
   const openCatalog = async (crop: Crop) => {
     setCatalogCrop(crop); setCatalog([]); setCatalogLoading(true)
     try { setCatalog(await listCatalog(crop.code)) }
-    catch (e: any) { toast.error(`Catalogue : ${e.message ?? e}`) }
+    catch (e: any) { toast.error(_ui("Catalogue : {v0}",{v0:String(e.message ?? e)})) }
     finally { setCatalogLoading(false) }
   }
 
   const handleToggle = async (crop: Crop) => {
-    if (!isAdmin) { toast.error('Réservé aux administrateurs'); return }
+    if (!isAdmin) { toast.error(_ui("Réservé aux administrateurs")); return }
     try {
       await toggleCropActive(crop.id, !crop.is_active)
       setCrops(prev => prev.map(c => c.id === crop.id ? { ...c, is_active: !c.is_active } : c))
-    } catch (e: any) { toast.error(`MAJ : ${e.message ?? e}`) }
+    } catch (e: any) { toast.error(_ui("MAJ : {v0}",{v0:String(e.message ?? e)})) }
   }
 
   const handleImport = async () => {
@@ -62,11 +66,11 @@ export default function CulturesPage() {
     setImporting(true)
     try {
       const res = await importCatalogVarieties(catalogCrop, catalog)
-      if (res.created > 0) toast.success(`${res.created} variété(s) importée(s) dans « ${catalogCrop.name} »` + (res.skipped ? ` (${res.skipped} déjà présentes)` : ''))
-      else toast.info(res.skipped ? `Toutes les variétés sont déjà présentes (${res.skipped})` : 'Rien à importer')
-      if (res.errors.length) toast.error(`${res.errors.length} erreur(s) : ${res.errors[0]}`)
+      if (res.created > 0) toast.success(_ui("{v0} variété(s) importée(s) dans « {v1} »",{v0:String(res.created),v1:String(catalogCrop.name)}) + (res.skipped ? _ui("({v0} déjà présentes)",{v0:String(res.skipped)}) : ''))
+      else toast.info(res.skipped ? _ui("Toutes les variétés sont déjà présentes ({v0})",{v0:String(res.skipped)}) : _ui("Rien à importer"))
+      if (res.errors.length) toast.error(_ui("{v0} erreur(s) : {v1}",{v0:String(res.errors.length),v1:String(res.errors[0])}))
       setCatalogCrop(null)
-    } catch (e: any) { toast.error(`Import : ${e.message ?? e}`) }
+    } catch (e: any) { toast.error(_ui("Import : {v0}",{v0:String(e.message ?? e)})) }
     finally { setImporting(false) }
   }
 
@@ -76,13 +80,12 @@ export default function CulturesPage() {
     <div className="p-md">
       <PageHeader
         icon={Sprout}
-        title="Cultures"
-        description="Gérez les cultures de l'exploitation et leurs variétés (catalogue assisté)"
+        title={_ui("Cultures")}
+        description={_ui("Gérez les cultures de l'exploitation et leurs variétés (catalogue assisté)")}
         actions={
           <label className="flex items-center gap-2 text-body-sm cursor-pointer">
             <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
-            Afficher les cultures inactives
-          </label>
+            {" "}{_ui("Afficher les cultures inactives")}{" "}</label>
         }
       />
 
@@ -104,7 +107,7 @@ export default function CulturesPage() {
                 </div>
                 <button
                   onClick={() => handleToggle(crop)}
-                  title={crop.is_active ? 'Désactiver' : 'Activer'}
+                  title={crop.is_active ? _ui("Désactiver") : _ui("Activer")}
                   className={crop.is_active ? 'text-success' : 'text-fg-tertiary hover:text-success'}
                 >
                   <Power size={18} />
@@ -112,22 +115,21 @@ export default function CulturesPage() {
               </div>
 
               <div className="flex flex-wrap gap-1 mt-sm">
-                {crop.cycle_days_first_harvest && <Badge variant="default" size="xs">{crop.cycle_days_first_harvest} j → récolte</Badge>}
+                {crop.cycle_days_first_harvest && <Badge variant="default" size="xs">{crop.cycle_days_first_harvest} {" "}{_ui("j → récolte")}</Badge>}
                 <Badge variant="default" size="xs">{crop.default_unit}</Badge>
-                {crop.brix_relevant && <Badge variant="info" size="xs">Brix</Badge>}
+                {crop.brix_relevant && <Badge variant="info" size="xs">{_ui("Brix")}</Badge>}
                 {(crop.default_markets ?? []).map(m => <Badge key={m} variant="brand" size="xs">{m}</Badge>)}
               </div>
 
               {(crop.variety_segments ?? []).length > 0 && (
                 <div className="text-caption text-fg-tertiary mt-sm">
-                  Types : {crop.variety_segments.slice(0, 5).map(s => s.replace(/_/g, ' ')).join(', ')}{crop.variety_segments.length > 5 ? '…' : ''}
+                  {" "}{_ui("Types :")}{" "}{crop.variety_segments.slice(0, 5).map(s => s.replace(/_/g, ' ')).join(', ')}{crop.variety_segments.length > 5 ? '…' : ''}
                 </div>
               )}
 
               <div className="mt-sm pt-sm border-t border-border">
                 <Button variant="ghost" size="sm" onClick={() => openCatalog(crop)}>
-                  <Leaf size={13} /> Variétés suggérées
-                </Button>
+                  <Leaf size={13} /> {" "}{_ui("Variétés suggérées")}{" "}</Button>
               </div>
             </Card>
           ))}
@@ -136,19 +138,18 @@ export default function CulturesPage() {
 
       {/* Modal catalogue */}
       {catalogCrop && (
-        <Modal title={`${catalogCrop.icon ?? '🌱'} ${catalogCrop.name} — variétés suggérées`} onClose={() => setCatalogCrop(null)}>
+        <Modal title={_ui("{v0} {v1} — variétés suggérées",{v0:String(catalogCrop.icon ?? '🌱'),v1:String(catalogCrop.name)})} onClose={() => setCatalogCrop(null)}>
           {catalogLoading ? (
             <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
           ) : catalog.length === 0 ? (
             <div className="text-body-sm text-fg-secondary py-md text-center">
-              Aucune variété de référence pour cette culture.<br />
-              Tu peux les saisir directement dans <strong>Variétés</strong> (segments : {catalogCrop.variety_segments?.join(', ') || '—'}).
+              {" "}{_ui("Aucune variété de référence pour cette culture.")}<br />
+              {" "}{_ui("Tu peux les saisir directement dans")}{" "}<strong>{_ui("Variétés")}</strong> {" "}{_ui("(segments :")}{" "}{catalogCrop.variety_segments?.join(', ') || '—'}).
             </div>
           ) : (
             <>
               <div className="text-caption text-fg-tertiary mb-sm">
-                Variétés réelles {catalog.some(c => c.verified) && '(✅ = vérifiée/sourcée)'}. L'import crée ces variétés, prêtes à planter.
-              </div>
+                {" "}{_ui("Variétés réelles")}{" "}{catalog.some(c => c.verified) && _ui("(✅ = vérifiée/sourcée)")}{_ui(". L'import crée ces variétés, prêtes à planter.")}{" "}</div>
               <div className="divide-y divide-border max-h-[50vh] overflow-y-auto">
                 {catalog.map(v => (
                   <div key={v.id} className="flex items-start gap-sm py-2">
@@ -165,9 +166,9 @@ export default function CulturesPage() {
                 ))}
               </div>
               <div className="flex justify-end gap-2 mt-md pt-sm border-t border-border">
-                <Button variant="ghost" onClick={() => setCatalogCrop(null)}>Fermer</Button>
+                <Button variant="ghost" onClick={() => setCatalogCrop(null)}>{_ui("Fermer")}</Button>
                 <Button variant="primary" onClick={handleImport} disabled={importing}>
-                  <Download size={14} strokeWidth={2.5} /> {importing ? 'Import…' : `Importer ${catalog.length} variété(s)`}
+                  <Download size={14} strokeWidth={2.5} /> {importing ? _ui("Import…") : _ui("Importer {v0} variété(s)",{v0:String(catalog.length)})}
                 </Button>
               </div>
             </>

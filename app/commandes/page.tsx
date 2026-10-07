@@ -1,4 +1,7 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
+import '@/components/ui/workspace.css'
 /**
  * /commandes — Refonte avec design system + workflow.
  */
@@ -33,6 +36,8 @@ import {
 const ENTITY_TYPE = 'sales_order'
 
 export default function CommandesPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const [items, setItems] = useState<any[]>([])
   const [clients, setClients] = useState<any[]>([])
   const [marches, setMarches] = useState<any[]>([])
@@ -119,15 +124,15 @@ export default function CommandesPage() {
     try {
       await applyTransition({ entityType: ENTITY_TYPE, entityId: order.id, transitionId: t.id })
       setItems(prev => prev.map(o => o.id === order.id ? { ...o, status: target.code } : o))
-      toast.success(`Statut mis à jour : ${target.code}`)
-    } catch (e: any) { toast.error('Transition refusée : ' + (e?.message ?? 'erreur')) }
+      toast.success(_ui("Statut mis à jour : {v0}",{v0:String(target.code)}))
+    } catch (e: any) { toast.error(_ui("Transition refusée :") + (e?.message ?? 'erreur')) }
     finally { setTransitingId(null) }
   }
 
   const openHistory = async (orderId: string) => {
     setHistOrderId(orderId); setHistLoading(true)
     try { setHistEntries(await getEntityHistory(ENTITY_TYPE, orderId)) }
-    catch (e: any) { toast.error('Erreur historique : ' + e.message) }
+    catch (e: any) { toast.error(_ui("Erreur historique :") + e.message) }
     finally { setHistLoading(false) }
   }
 
@@ -150,58 +155,57 @@ export default function CommandesPage() {
       }).select('*, clients(name), markets(name)').single()
       if (error) throw error
       setItems(p => [data, ...p]); setDone(true)
-      toast.success(`Commande ${num} créée`)
+      toast.success(_ui("Commande {v0} créée",{v0:String(num)}))
       setTimeout(() => {
         setModal(false); setDone(false)
         setForm({ client_id: '', market_id: '', campaign_id: '', order_date: '', delivery_date: '', currency: 'MAD', notes: '' })
       }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSaving(false)
   }
 
   return (
-    <div>
+    <div className="itrix-workspace">
       {modal && (
-        <Modal title="NOUVELLE COMMANDE" onClose={() => { setModal(false); setDone(false) }}>
-          {done ? <SuccessMessage message="Commande créée !" /> : (
+        <Modal title={_ui("NOUVELLE COMMANDE")} onClose={() => { setModal(false); setDone(false) }}>
+          {done ? <SuccessMessage message={_ui("Commande créée !")} /> : (
             <div className="space-y-md">
-              <Field label="Client" required>
+              <Field label={_ui("Client")} required>
                 {clients.length === 0 ? (
                   <div className="flex items-center gap-2 px-md py-2 rounded-md border border-danger/30 bg-danger/10 text-danger text-body-sm">
-                    <AlertCircle size={14} /> Aucun client — crée d'abord un client
-                  </div>
+                    <AlertCircle size={14} /> {" "}{_ui("Aucun client — crée d'abord un client")}{" "}</div>
                 ) : (
                   <TSelect value={form.client_id} onChange={upd('client_id')}>
-                    <option value="">— Sélectionner —</option>
+                    <option value="">{_ui("— Sélectionner —")}</option>
                     {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </TSelect>
                 )}
               </Field>
-              <div className="grid grid-cols-2 gap-md">
-                <Field label="Marché">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                <Field label={_ui("Marché")}>
                   <TSelect value={form.market_id} onChange={(e) => selectMarche(e.target.value)}>
-                    <option value="">— Optionnel —</option>
+                    <option value="">{_ui("— Optionnel —")}</option>
                     {marches.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </TSelect>
                 </Field>
-                <Field label="Devise">
+                <Field label={_ui("Devise")}>
                   <TSelect value={form.currency} onChange={upd('currency')}>
-                    {['MAD', 'EUR', 'USD', 'GBP'].map(c => <option key={c}>{c}</option>)}
+                    {['MAD', _ui("EUR"), _ui("USD"), _ui("GBP")].map(c => <option key={c}>{c}</option>)}
                   </TSelect>
                 </Field>
               </div>
-              <div className="grid grid-cols-2 gap-md">
-                <Field label="Date de commande" required><TInput type="date" value={form.order_date} onChange={upd('order_date')} /></Field>
-                <Field label="Date livraison souhaitée"><TInput type="date" value={form.delivery_date} onChange={upd('delivery_date')} /></Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                <Field label={_ui("Date de commande")} required><TInput type="date" value={form.order_date} onChange={upd('order_date')} /></Field>
+                <Field label={_ui("Date livraison souhaitée")}><TInput type="date" value={form.delivery_date} onChange={upd('delivery_date')} /></Field>
               </div>
-              <Field label="Campagne">
+              <Field label={_ui("Campagne")}>
                 <TSelect value={form.campaign_id} onChange={upd('campaign_id')}>
-                  <option value="">— Optionnel —</option>
+                  <option value="">{_ui("— Optionnel —")}</option>
                   {campagnes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </TSelect>
               </Field>
-              <Field label="Notes"><Textarea rows={2} value={form.notes} onChange={upd('notes')} placeholder="Instructions, conditions particulières…" /></Field>
-              <ModalFooter onCancel={() => setModal(false)} onSave={save} loading={saving} disabled={!form.client_id || !form.order_date} saveLabel="CRÉER LA COMMANDE" />
+              <Field label={_ui("Notes")}><Textarea rows={2} value={form.notes} onChange={upd('notes')} placeholder={_ui("Instructions, conditions particulières…")} /></Field>
+              <ModalFooter onCancel={() => setModal(false)} onSave={save} loading={saving} disabled={!form.client_id || !form.order_date} saveLabel={_ui("CRÉER LA COMMANDE")} />
             </div>
           )}
         </Modal>
@@ -209,13 +213,13 @@ export default function CommandesPage() {
 
       {/* Modal historique */}
       {histOrderId && (
-        <Modal title="HISTORIQUE DES TRANSITIONS" onClose={() => { setHistOrderId(null); setHistEntries([]) }} size="md">
+        <Modal title={_ui("HISTORIQUE DES TRANSITIONS")} onClose={() => { setHistOrderId(null); setHistEntries([]) }} size="md">
           {histLoading ? (
             <div className="space-y-2 p-md">
               {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16" />)}
             </div>
           ) : histEntries.length === 0 ? (
-            <EmptyState icon={History} title="Aucune transition" description="L'historique est vide." />
+            <EmptyState icon={History} title={_ui("Aucune transition")} description={_ui("L'historique est vide.")} />
           ) : (
             <div className="space-y-sm max-h-[60vh] overflow-y-auto">
               {histEntries.map(h => (
@@ -242,15 +246,14 @@ export default function CommandesPage() {
       )}
 
       <PageHeader
-        title="Commandes"
-        subtitle="Ventes"
+        title={_ui("Commandes")}
+        subtitle={_ui("Ventes")}
         icon={ClipboardList}
         iconColor="#ec4899"
-        description={`${items.length} commande${items.length > 1 ? 's' : ''}`}
+        description={_ui("{v0} commande{v1}",{v0:String(items.length),v1:String(items.length > 1 ? 's' : '')})}
         actions={
           <Button onClick={() => setModal(true)} variant="primary">
-            <Plus size={14} strokeWidth={2.5} /> Nouvelle commande
-          </Button>
+            <Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle commande")}{" "}</Button>
         }
         stats={loading ? [] : [
           { label: 'Total',     value: String(stats.count),     icon: ClipboardList, color: '#ec4899' },
@@ -267,22 +270,22 @@ export default function CommandesPage() {
             <div className="flex items-center gap-sm flex-1 min-w-[200px] max-w-md">
               <Search size={14} className="text-fg-tertiary flex-shrink-0" />
               <TInput
-                placeholder="Rechercher numéro, client, marché…"
+                placeholder={_ui("Rechercher numéro, client, marché…")}
                 value={search} onChange={(e) => setSearch(e.target.value)}
                 className="border-none bg-transparent focus:ring-0 px-0"
               />
               {search && <button onClick={() => setSearch('')} className="text-fg-tertiary hover:text-fg-primary"><X size={14} /></button>}
             </div>
             <TSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-8 w-auto min-w-[160px] text-body-sm">
-              <option value="all">Tous statuts</option>
-              {states.map(s => <option key={s.code} value={s.code}>{s.label}</option>)}
+              <option value="all">{_ui("Tous statuts")}</option>
+              {states.map(s => <option key={s.code} value={s.code}>{_uiNode(s.label)}</option>)}
             </TSelect>
             <div className="ml-auto text-caption font-mono text-fg-tertiary">{filtered.length}/{items.length}</div>
           </div>
         </Card>
       )}
 
-      <Card animate delay={0.25} padding="none" className="overflow-hidden">
+      <Card animate delay={0.25} padding="none" className="itrix-table">
         {loading ? (
           <div className="p-md space-y-2">
             {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}
@@ -290,30 +293,30 @@ export default function CommandesPage() {
         ) : items.length === 0 ? (
           <EmptyState
             icon={ClipboardList}
-            title="Aucune commande"
-            description="Crée ta première commande client."
-            action={<Button onClick={() => setModal(true)}><Plus size={14} strokeWidth={2.5} /> Nouvelle commande</Button>}
+            title={_ui("Aucune commande")}
+            description={_ui("Crée ta première commande client.")}
+            action={<Button onClick={() => setModal(true)}><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle commande")}</Button>}
           />
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={Search}
-            title="Aucun résultat"
-            description="Aucune commande ne correspond à tes filtres."
-            action={<Button variant="ghost" onClick={() => { setSearch(''); setStatusFilter('all') }}>Réinitialiser</Button>}
+            title={_ui("Aucun résultat")}
+            description={_ui("Aucune commande ne correspond à tes filtres.")}
+            action={<Button variant="ghost" onClick={() => { setSearch(''); setStatusFilter('all') }}>{_ui("Réinitialiser")}</Button>}
           />
         ) : (
           <DataTable minWidth={1200}>
             <THead>
               <TR>
-                <TH>N° Commande</TH>
-                <TH>Client</TH>
-                <TH>Marché</TH>
-                <TH>Date</TH>
-                <TH>Livraison</TH>
-                <TH>Devise</TH>
-                <TH>Statut</TH>
-                <TH>Actions workflow</TH>
-                <TH right>Historique</TH>
+                <TH>{_ui("N° Commande")}</TH>
+                <TH>{_ui("Client")}</TH>
+                <TH>{_ui("Marché")}</TH>
+                <TH>{_ui("Date")}</TH>
+                <TH>{_ui("Livraison")}</TH>
+                <TH>{_ui("Devise")}</TH>
+                <TH>{_ui("Statut")}</TH>
+                <TH>{_ui("Actions workflow")}</TH>
+                <TH right>{_ui("Historique")}</TH>
               </TR>
             </THead>
             <tbody>
@@ -340,7 +343,7 @@ export default function CommandesPage() {
                           borderColor: `color-mix(in srgb, ${color} 30%, transparent)`,
                         }}
                       >
-                        {label}
+                        {_uiNode(label)}
                       </span>
                     </TD>
                     <TD>
@@ -367,7 +370,7 @@ export default function CommandesPage() {
                                   borderColor: `color-mix(in srgb, ${tgtColor} 30%, transparent)`,
                                 }}
                               >
-                                {isLoading ? '…' : <>{t.label} <ArrowRight size={9} /></>}
+                                {isLoading ? '…' : <>{_uiNode(t.label)} <ArrowRight size={9} /></>}
                               </button>
                             )
                           })}
@@ -375,7 +378,7 @@ export default function CommandesPage() {
                       )}
                     </TD>
                     <TD right>
-                      <Button onClick={() => openHistory(o.id)} variant="ghost" size="icon-sm" title="Historique">
+                      <Button onClick={() => openHistory(o.id)} variant="ghost" size="icon-sm" title={_ui("Historique")}>
                         <History size={12} strokeWidth={2.2} />
                       </Button>
                     </TD>

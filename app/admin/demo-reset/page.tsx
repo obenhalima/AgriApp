@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * /admin/demo-reset
  *
@@ -83,6 +85,8 @@ const MASTER_TABLES = [
 ]
 
 export default function DemoResetPage() {
+ const {t:_ui,text:_uiNode,intlLocale:_uiLocale}=useLanguage()
+
   const { isAdmin } = useAuth()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [farms, setFarms] = useState<Farm[]>([])
@@ -167,17 +171,17 @@ export default function DemoResetPage() {
         const isMissing = isRpcMissingError(error)
         setRpcStatus(isMissing ? 'missing' : 'ok')  // erreur de permission = ok (RPC existe)
         if (!silent && isMissing) {
-          toast.error('Les RPC d\'admin ne sont pas déployées. Applique la migration 036.', { duration: 5000 })
+          toast.error(_ui("Les RPC d'admin ne sont pas déployées. Applique la migration 036."), { duration: 5000 })
         } else if (!silent) {
-          toast.success('✅ Les RPC d\'admin sont opérationnelles')
+          toast.success(_ui("✅ Les RPC d'admin sont opérationnelles"))
         }
       } else {
         setRpcStatus('ok')
-        if (!silent) toast.success('✅ Les RPC d\'admin sont opérationnelles')
+        if (!silent) toast.success(_ui("✅ Les RPC d'admin sont opérationnelles"))
       }
     } catch (e: any) {
       setRpcStatus('missing')
-      if (!silent) toast.error('Erreur de test : ' + e.message)
+      if (!silent) toast.error(_ui("Erreur de test :") + e.message)
     }
   }
 
@@ -208,7 +212,7 @@ export default function DemoResetPage() {
   // ─── Action 1 : Créer une nouvelle campagne ────────────────────────────
   const createCampaign = async () => {
     if (!newCamp.code.trim() || !newCamp.name.trim() || !newCamp.farm_id) {
-      toast.error('Code, nom et ferme requis'); return
+      toast.error(_ui("Code, nom et ferme requis")); return
     }
     setSaving(true)
     try {
@@ -224,7 +228,7 @@ export default function DemoResetPage() {
       }
       const { error } = await supabase.from('campaigns').insert(payload)
       if (error) throw error
-      toast.success(`Campagne "${newCamp.name}" créée`)
+      toast.success(_ui("Campagne \"{v0}\" créée",{v0:String(newCamp.name)}))
       setNewCampaignOpen(false)
       setNewCamp({ code: '', name: '', farm_id: '', preparation_start: '', campaign_end: '', production_target_kg: '', budget_total: '' })
       load()
@@ -236,7 +240,7 @@ export default function DemoResetPage() {
   const deleteCampaign = async () => {
     if (!campaignToDelete) return
     if (confirmDelete !== campaignToDelete.code) {
-      toast.error(`Tape "${campaignToDelete.code}" pour confirmer`); return
+      toast.error(_ui("Tape \"{v0}\" pour confirmer",{v0:String(campaignToDelete.code)})); return
     }
     setSaving(true)
     try {
@@ -246,7 +250,7 @@ export default function DemoResetPage() {
       if (error) throw error
       const detailsObj = (data ?? {}) as Record<string, number>
       const total = Object.values(detailsObj).reduce((s, n) => s + (Number(n) || 0), 0)
-      toast.success(`✅ Campagne "${campaignToDelete.name}" supprimée — ${total} ligne(s) effacées au total`)
+      toast.success(_ui("✅ Campagne \"{v0}\" supprimée — {v1} ligne(s) effacées au total",{v0:String(campaignToDelete.name),v1:String(total)}))
       console.log('[admin_delete_campaign]', detailsObj)
       setDeleteCampaignId(null)
       setConfirmDelete('')
@@ -256,9 +260,9 @@ export default function DemoResetPage() {
       if (isRpcMissingError(e)) {
         setRpcStatus('missing')
         setShowMigrationSql(true)
-        toast.error('⚠️ La migration 036_admin_wipe_rpc.sql n\'est pas appliquée. Voir bannière en haut.', { duration: 6000 })
+        toast.error(_ui("⚠️ La migration 036_admin_wipe_rpc.sql n'est pas appliquée. Voir bannière en haut."), { duration: 6000 })
       } else {
-        toast.error('Erreur: ' + e.message)
+        toast.error(_ui("Erreur:") + e.message)
       }
     }
     setSaving(false)
@@ -267,7 +271,7 @@ export default function DemoResetPage() {
   // ─── Action 3 : Reset données opérationnelles (via RPC) ────────────────
   const resetOperational = async () => {
     if (confirmReset !== 'RESET') {
-      toast.error('Tape "RESET" pour confirmer'); return
+      toast.error(_ui("Tape \"RESET\" pour confirmer")); return
     }
     setSaving(true)
     const toastId = toast.loading('🔄 Reset opérationnel en cours…')
@@ -291,9 +295,9 @@ export default function DemoResetPage() {
       if (isRpcMissingError(e)) {
         setRpcStatus('missing')
         setShowMigrationSql(true)
-        toast.error('⚠️ La migration 036_admin_wipe_rpc.sql n\'est pas appliquée. Voir bannière en haut.', { duration: 6000 })
+        toast.error(_ui("⚠️ La migration 036_admin_wipe_rpc.sql n'est pas appliquée. Voir bannière en haut."), { duration: 6000 })
       } else {
-        toast.error('Erreur: ' + (e.message ?? 'inconnue'), { duration: 8000 })
+        toast.error(_ui("Erreur:") + (e.message ?? 'inconnue'), { duration: 8000 })
       }
     }
     setSaving(false)
@@ -317,7 +321,7 @@ export default function DemoResetPage() {
   // ─── Action 4 : Nuclear (via RPC) ──────────────────────────────────────
   const nuclearWipe = async () => {
     if (confirmNuclear !== 'SUPPRIMER TOUT') {
-      toast.error('Tape exactement "SUPPRIMER TOUT" pour confirmer'); return
+      toast.error(_ui("Tape exactement \"SUPPRIMER TOUT\" pour confirmer")); return
     }
     setSaving(true)
     const toastId = toast.loading('☢️ Nuclear wipe en cours… (peut prendre ~30s)')
@@ -334,7 +338,7 @@ export default function DemoResetPage() {
       console.log('[admin_nuclear_wipe] result:', result)
       toast.dismiss(toastId)
       if (errors.length > 0) {
-        toast.warning(`⚠️ Wipe partiel : ${totalRows} lignes effacées, ${errors.length} table(s) en erreur. Voir la console.`, { duration: 8000 })
+        toast.warning(_ui("⚠️ Wipe partiel : {v0} lignes effacées, {v1} table(s) en erreur. Voir la console.",{v0:String(totalRows),v1:String(errors.length)}), { duration: 8000 })
       } else {
         toast.success(`☢️ ${result?.message ?? `${totalRows} lignes effacées`}`, { duration: 5000 })
       }
@@ -347,9 +351,9 @@ export default function DemoResetPage() {
       if (isRpcMissingError(e)) {
         setRpcStatus('missing')
         setShowMigrationSql(true)
-        toast.error('⚠️ La migration 036_admin_wipe_rpc.sql n\'est pas appliquée. Voir bannière en haut.', { duration: 6000 })
+        toast.error(_ui("⚠️ La migration 036_admin_wipe_rpc.sql n'est pas appliquée. Voir bannière en haut."), { duration: 6000 })
       } else {
-        toast.error('Erreur: ' + (e.message ?? 'inconnue'), { duration: 8000 })
+        toast.error(_ui("Erreur:") + (e.message ?? 'inconnue'), { duration: 8000 })
       }
     }
     setSaving(false)
@@ -376,9 +380,9 @@ export default function DemoResetPage() {
       toast.dismiss(toastId)
       console.error('[admin_reseed_workflows]', e)
       if (isRpcMissingError(e)) {
-        toast.error('La RPC admin_reseed_workflows n\'existe pas. Applique la migration 037 sur Supabase.', { duration: 8000 })
+        toast.error(_ui("La RPC admin_reseed_workflows n'existe pas. Applique la migration 037 sur Supabase."), { duration: 8000 })
       } else {
-        toast.error('Erreur : ' + e.message)
+        toast.error(_ui("Erreur :") + e.message)
       }
     }
     setReseedingWorkflows(false)
@@ -390,7 +394,7 @@ export default function DemoResetPage() {
   const runCommerceGenerator = async () => {
     const cid = commerceCampaignId || campaigns[0]?.id
     if (!cid) {
-      toast.error('Sélectionne une campagne d\'abord')
+      toast.error(_ui("Sélectionne une campagne d'abord"))
       return
     }
     setCommerceRunning(true)
@@ -410,16 +414,16 @@ export default function DemoResetPage() {
       if (report.dispatchesCreated > 0) parts.push(`${report.dispatchesCreated} dispatches (tri + prix)`)
       if (report.invoicesCreated > 0) parts.push(`${report.invoicesCreated} factures`)
       if (report.paymentsRecorded > 0) parts.push(`${report.paymentsRecorded} paiements`)
-      if (report.totalCA > 0) parts.push(`CA généré ${Math.round(report.totalCA).toLocaleString('fr-FR')} MAD`)
+      if (report.totalCA > 0) parts.push(`CA généré ${Math.round(report.totalCA).toLocaleString(_uiLocale)} MAD`)
       if (parts.length === 0) {
         toast(`⚠ Rien généré (${report.errors.length} erreurs). Détails affichés ci-dessous.`, { duration: 8000 })
       } else {
-        toast.success(`✅ Commerce généré : ${parts.join(' · ')}${report.errors.length > 0 ? ` (avec ${report.errors.length} erreurs)` : ''}`, { duration: 8000 })
+        toast.success(_ui("✅ Commerce généré : {v0}{v1}",{v0:String(parts.join(' · ')),v1:String(report.errors.length > 0 ? ` (avec ${report.errors.length} erreurs)` : '')}), { duration: 8000 })
       }
       load()
     } catch (e: any) {
       toast.dismiss(toastId)
-      toast.error('Erreur : ' + e.message)
+      toast.error(_ui("Erreur :") + e.message)
       console.error('[commerce-gen]', e)
       setCommerceErrors([e.message ?? String(e)])
     }
@@ -609,15 +613,15 @@ export default function DemoResetPage() {
       if (summary.costs > 0) parts.push(`${summary.costs} coûts prévisionnels générés`)
       if (summary.errors > 0) parts.push(`⚠ ${summary.errors} erreurs`)
       if (parts.length === 0) {
-        toast.success('✅ Tout est déjà conforme — rien à réparer')
+        toast.success(_ui("✅ Tout est déjà conforme — rien à réparer"))
       } else {
-        toast.success(`🔧 Réparation OK : ${parts.join(' · ')}`, { duration: 8000 })
+        toast.success(_ui("🔧 Réparation OK : {v0}",{v0:String(parts.join(' · '))}), { duration: 8000 })
       }
       console.log('[repair]', summary)
       load()
     } catch (e: any) {
       toast.dismiss(toastId)
-      toast.error('Erreur réparation : ' + e.message)
+      toast.error(_ui("Erreur réparation :") + e.message)
       console.error('[repair]', e)
     }
     setRepairing(false)
@@ -789,23 +793,23 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
 
   const computePreview = () => {
     const selected = genPlantings.filter(p => selectedPlantings.has(p.id))
-    if (selected.length === 0) { toast.error('Sélectionne au moins une plantation'); return }
+    if (selected.length === 0) { toast.error(_ui("Sélectionne au moins une plantation")); return }
     const months = Array.from(selectedMonths)
     const preview = buildPreview(selected, { ...genOptions, monthsFilter: months.length > 0 ? months : undefined })
     setGenPreview(preview)
     if (preview.totalHarvests === 0) {
-      toast.warning('Aucune récolte ne serait générée avec ces options')
+      toast.warning(_ui("Aucune récolte ne serait générée avec ces options"))
     }
   }
 
   const generateHarvests = async () => {
     const selected = genPlantings.filter(p => selectedPlantings.has(p.id))
-    if (selected.length === 0) { toast.error('Sélectionne au moins une plantation'); return }
+    if (selected.length === 0) { toast.error(_ui("Sélectionne au moins une plantation")); return }
     const months = Array.from(selectedMonths)
     const harvests = generateAll(selected, { ...genOptions, monthsFilter: months.length > 0 ? months : undefined })
-    if (harvests.length === 0) { toast.error('Rien à générer'); return }
+    if (harvests.length === 0) { toast.error(_ui("Rien à générer")); return }
 
-    if (!confirm(`Générer ${harvests.length} récolte(s) (${Math.round(harvests.reduce((s, h) => s + h.qty_category_1 + h.qty_category_2 + h.qty_category_3 + h.qty_waste, 0))} kg au total) ?`)) return
+    if (!confirm(_ui("Générer {v0} récolte(s) ({v1} kg au total) ?",{v0:String(harvests.length),v1:String(Math.round(harvests.reduce((s, h) => s + h.qty_category_1 + h.qty_category_2 + h.qty_category_3 + h.qty_waste, 0)))}))) return
 
     setGenInserting(true)
     setGenProgress({ done: 0, total: harvests.length })
@@ -818,11 +822,11 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
         if (error) throw error
         setGenProgress({ done: Math.min(i + BATCH, harvests.length), total: harvests.length })
       }
-      toast.success(`✅ ${harvests.length} récolte(s) générées et insérées !`)
+      toast.success(_ui("✅ {v0} récolte(s) générées et insérées !",{v0:String(harvests.length)}))
       setGenOpen(false)
       setGenPreview(null)
     } catch (e: any) {
-      toast.error('Erreur: ' + e.message)
+      toast.error(_ui("Erreur:") + e.message)
     }
     setGenInserting(false)
   }
@@ -832,12 +836,12 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
   if (!isAdmin) {
     return (
       <div>
-        <PageHeader title="Démo / Reset" icon={ShieldAlert} iconColor="#ef4444" subtitle="Administration" />
+        <PageHeader title={_ui("Démo / Reset")} icon={ShieldAlert} iconColor="#ef4444" subtitle={_ui("Administration")} />
         <Card>
           <div className="text-center py-12">
             <ShieldAlert size={48} className="mx-auto text-danger mb-md" />
-            <div className="font-display text-heading font-bold text-fg-primary mb-sm">Accès refusé</div>
-            <div className="text-body-sm text-fg-tertiary">Cette page est réservée aux administrateurs.</div>
+            <div className="font-display text-heading font-bold text-fg-primary mb-sm">{_ui("Accès refusé")}</div>
+            <div className="text-body-sm text-fg-tertiary">{_ui("Cette page est réservée aux administrateurs.")}</div>
           </div>
         </Card>
       </div>
@@ -847,11 +851,11 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
   return (
     <div>
       <PageHeader
-        title="Démo / Reset"
-        subtitle="Administration"
+        title={_ui("Démo / Reset")}
+        subtitle={_ui("Administration")}
         icon={Database}
         iconColor="#ef4444"
-        description="Outils admin pour démarrer/supprimer des campagnes et reset les données. ⚠ Actions irréversibles."
+        description={_ui("Outils admin pour démarrer/supprimer des campagnes et reset les données. ⚠ Actions irréversibles.")}
         stats={[
           { label: 'Campagnes', value: String(campaigns.length), icon: Sprout, color: '#10b981' },
           { label: 'Fermes', value: String(farms.length), icon: Calendar, color: '#3b82f6' },
@@ -863,9 +867,7 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
         <div className="flex items-start gap-sm">
           <AlertTriangle size={20} className="text-warning flex-shrink-0 mt-0.5" />
           <div className="text-body-sm text-fg-secondary leading-relaxed">
-            <strong className="text-fg-primary">Zone sensible.</strong> Les suppressions sont <strong>irréversibles</strong>. Les données auth/rôles ne sont jamais affectées.
-            Pour un environnement de production, utilise plutôt les snapshots Supabase.
-          </div>
+            <strong className="text-fg-primary">{_ui("Zone sensible.")}</strong> {" "}{_ui("Les suppressions sont")}{" "}<strong>{_ui("irréversibles")}</strong>{_ui(". Les données auth/rôles ne sont jamais affectées. Pour un environnement de production, utilise plutôt les snapshots Supabase.")}{" "}</div>
         </div>
       </Card>
 
@@ -885,29 +887,26 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
           <div className="flex-1 text-body-sm text-fg-secondary leading-relaxed">
             {rpcStatus === 'ok' && (
               <>
-                <strong className="text-success">✅ RPC admin opérationnelles.</strong> La migration <code className="font-mono">036</code> est bien appliquée — toutes les actions de cette page fonctionneront.
-              </>
+                <strong className="text-success">{_ui("✅ RPC admin opérationnelles.")}</strong> {" "}{_ui("La migration")}{" "}<code className="font-mono">036</code> {" "}{_ui("est bien appliquée — toutes les actions de cette page fonctionneront.")}{" "}</>
             )}
             {rpcStatus === 'missing' && (
               <>
-                <strong className="text-danger">🚨 Migration 036 PAS appliquée — c'est pour ça que les fermes ne sont pas supprimées !</strong>
-                <div className="mt-1">Les actions destructives nécessitent les RPC Postgres. Sans elles, les RLS bloquent silencieusement les DELETE sur farms/greenhouses.</div>
+                <strong className="text-danger">{_ui("🚨 Migration 036 PAS appliquée — c'est pour ça que les fermes ne sont pas supprimées !")}</strong>
+                <div className="mt-1">{_ui("Les actions destructives nécessitent les RPC Postgres. Sans elles, les RLS bloquent silencieusement les DELETE sur farms/greenhouses.")}</div>
               </>
             )}
             {rpcStatus === 'unknown' && (
               <>
-                <strong className="text-fg-primary">Pré-requis :</strong> les actions destructives utilisent les RPC Postgres définies dans la migration <code className="font-mono text-info">036_admin_wipe_rpc.sql</code>.
+                <strong className="text-fg-primary">{_ui("Pré-requis :")}</strong> {" "}{_ui("les actions destructives utilisent les RPC Postgres définies dans la migration")}{" "}<code className="font-mono text-info">{_ui("036_admin_wipe_rpc.sql")}</code>.
               </>
             )}
           </div>
           <div className="flex gap-2 flex-shrink-0">
             <Button onClick={() => checkRpcAvailability(false)} variant="secondary" size="xs">
-              Tester
-            </Button>
+              {" "}{_ui("Tester")}{" "}</Button>
             {rpcStatus === 'missing' && (
               <Button onClick={() => setShowMigrationSql(true)} variant="primary" size="xs">
-                Voir le SQL
-              </Button>
+                {" "}{_ui("Voir le SQL")}{" "}</Button>
             )}
           </div>
         </div>
@@ -927,15 +926,13 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <div className="font-display text-heading font-bold text-fg-primary">🧙 Setup démo complète</div>
-              <Badge variant="brand" size="xs">WIZARD</Badge>
+              <div className="font-display text-heading font-bold text-fg-primary">{_ui("🧙 Setup démo complète")}</div>
+              <Badge variant="brand" size="xs">{_ui("WIZARD")}</Badge>
             </div>
             <div className="text-body-sm text-fg-tertiary leading-relaxed mb-md">
-              Wizard 4 étapes qui crée une démo en partant de zéro : <strong>fermes → serres → variétés → campagne → plantations</strong>. Parfait juste après un Reset ou un Nuclear.
-            </div>
+              {" "}{_ui("Wizard 4 étapes qui crée une démo en partant de zéro :")}{" "}<strong>{_ui("fermes → serres → variétés → campagne → plantations")}</strong>{_ui(". Parfait juste après un Reset ou un Nuclear.")}{" "}</div>
             <Button onClick={() => setWizardOpen(true)} variant="primary">
-              <Sparkles size={14} /> Lancer le wizard
-            </Button>
+              <Sparkles size={14} /> {" "}{_ui("Lancer le wizard")}{" "}</Button>
           </div>
         </div>
       </Card>
@@ -949,17 +946,13 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
           </div>
           <div className="flex-1 min-w-0">
             <div className="font-display text-body font-bold text-fg-primary mb-1">
-              🔧 Réparer ma démo (Générer budget = 0)
-            </div>
+              {" "}{_ui("🔧 Réparer ma démo (Générer budget = 0)")}{" "}</div>
             <div className="text-caption text-fg-tertiary leading-relaxed mb-md">
-              Patche les données existantes pour que <strong>"Générer budget"</strong> fonctionne :
-              copie <code>first_harvest_date → harvest_start_date</code>, met <code>export_share_pct = 70</code> aux plantations,
-              ajoute <code>avg_price_export</code> aux variétés sans prix export, et génère les <code>cost_entries</code> prévisionnels si aucun n'existe.
-              <br/>
-              <em>À utiliser si tu as déjà créé une démo avant le fix d'aujourd'hui — au lieu de refaire le wizard.</em>
+              {" "}{_ui("Patche les données existantes pour que")}{" "}<strong>{_ui("\"Générer budget\"")}</strong> {" "}{_ui("fonctionne : copie")}{" "}<code>{_ui("first_harvest_date → harvest_start_date")}</code>{_ui(", met")}{" "}<code>{_ui("export_share_pct = 70")}</code> {" "}{_ui("aux plantations, ajoute")}{" "}<code>{"avg_price_export"}</code> {" "}{_ui("aux variétés sans prix export, et génère les")}{" "}<code>{"cost_entries"}</code> {" "}{_ui("prévisionnels si aucun n'existe.")}{" "}<br/>
+              <em>{_ui("À utiliser si tu as déjà créé une démo avant le fix d'aujourd'hui — au lieu de refaire le wizard.")}</em>
             </div>
             <Button onClick={repairDemoData} variant="primary" size="sm" loading={repairing} disabled={repairing}>
-              <RotateCcw size={13} /> {repairing ? 'Réparation…' : 'Réparer ma démo'}
+              <RotateCcw size={13} /> {repairing ? _ui("Réparation…") : _ui("Réparer ma démo")}
             </Button>
           </div>
         </div>
@@ -974,19 +967,15 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
           </div>
           <div className="flex-1 min-w-0">
             <div className="font-display text-body font-bold text-fg-primary mb-1">
-              🔄 Restaurer les workflows (sales_order + purchase_order)
-            </div>
+              {" "}{_ui("🔄 Restaurer les workflows (sales_order + purchase_order)")}{" "}</div>
             <div className="text-caption text-fg-tertiary leading-relaxed mb-md">
-              Si tu as perdu les définitions de workflow (par exemple après un Nuclear avant la protection 036),
-              ce bouton restaure les workflows par défaut <strong>commandes clients</strong> et <strong>bons d'achat</strong>
-              tels que définis dans les migrations 006 et 008.
+              {" "}{_ui("Si tu as perdu les définitions de workflow (par exemple après un Nuclear avant la protection 036), ce bouton restaure les workflows par défaut")}{" "}<strong>{_ui("commandes clients")}</strong> {" "}{_ui("et")}{" "}<strong>{_ui("bons d'achat")}</strong>
+              {" "}{_ui("tels que définis dans les migrations 006 et 008.")}{" "}<br/>
+              <em>{_ui("Idempotent : ne fait rien si les workflows sont déjà présents.")}</em>
               <br/>
-              <em>Idempotent : ne fait rien si les workflows sont déjà présents.</em>
-              <br/>
-              <strong className="text-warning">Pré-requis :</strong> appliquer la migration <code>037_admin_reseed_workflows.sql</code> via Supabase SQL Editor.
-            </div>
+              <strong className="text-warning">{_ui("Pré-requis :")}</strong> {" "}{_ui("appliquer la migration")}{" "}<code>{_ui("037_admin_reseed_workflows.sql")}</code> {" "}{_ui("via Supabase SQL Editor.")}{" "}</div>
             <Button onClick={reseedWorkflows} variant="primary" size="sm" loading={reseedingWorkflows} disabled={reseedingWorkflows}>
-              <RotateCcw size={13} /> {reseedingWorkflows ? 'Reseed…' : 'Restaurer les workflows'}
+              <RotateCcw size={13} /> {reseedingWorkflows ? _ui("Reseed…") : _ui("Restaurer les workflows")}
             </Button>
           </div>
         </div>
@@ -1001,13 +990,11 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
               <Plus size={20} strokeWidth={2.4} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="font-display text-body font-bold text-fg-primary mb-1">Démarrer une nouvelle campagne</div>
+              <div className="font-display text-body font-bold text-fg-primary mb-1">{_ui("Démarrer une nouvelle campagne")}</div>
               <div className="text-caption text-fg-tertiary leading-relaxed mb-md">
-                Crée une campagne vierge en planification. Tu pourras ensuite y rattacher des plantations, budgets et données.
-              </div>
+                {" "}{_ui("Crée une campagne vierge en planification. Tu pourras ensuite y rattacher des plantations, budgets et données.")}{" "}</div>
               <Button onClick={() => setNewCampaignOpen(true)} variant="primary" size="sm">
-                <Plus size={13} /> Nouvelle campagne
-              </Button>
+                <Plus size={13} /> {" "}{_ui("Nouvelle campagne")}{" "}</Button>
             </div>
           </div>
         </Card>
@@ -1020,12 +1007,11 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
               <Trash2 size={20} strokeWidth={2.4} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="font-display text-body font-bold text-fg-primary mb-1">Supprimer une campagne</div>
+              <div className="font-display text-body font-bold text-fg-primary mb-1">{_ui("Supprimer une campagne")}</div>
               <div className="text-caption text-fg-tertiary leading-relaxed mb-md">
-                Efface une campagne et <strong className="text-warning">toutes ses données liées</strong> : plantations, récoltes, coûts, factures, dispatches…
-              </div>
+                {" "}{_ui("Efface une campagne et")}{" "}<strong className="text-warning">{_ui("toutes ses données liées")}</strong> {" "}{_ui(": plantations, récoltes, coûts, factures, dispatches…")}{" "}</div>
               {campaigns.length === 0 ? (
-                <div className="text-caption text-fg-tertiary italic">Aucune campagne</div>
+                <div className="text-caption text-fg-tertiary italic">{_ui("Aucune campagne")}</div>
               ) : (
                 <div className="flex flex-col gap-1.5">
                   {campaigns.slice(0, 5).map(c => (
@@ -1056,15 +1042,12 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-display text-body font-bold text-fg-primary mb-1 flex items-center gap-2">
-                Générer jeu de récoltes
-                <Badge variant="info" size="xs">SMART</Badge>
+                {" "}{_ui("Générer jeu de récoltes")}{" "}<Badge variant="info" size="xs">{_ui("SMART")}</Badge>
               </div>
               <div className="text-caption text-fg-tertiary leading-relaxed mb-md">
-                Génère automatiquement des récoltes réalistes <strong>mois par mois</strong> en respectant : production cible, yield kg/m², courbe en cloche (phénologie tomate), variance configurable, mix qualité.
-              </div>
+                {" "}{_ui("Génère automatiquement des récoltes réalistes")}{" "}<strong>{_ui("mois par mois")}</strong> {" "}{_ui("en respectant : production cible, yield kg/m², courbe en cloche (phénologie tomate), variance configurable, mix qualité.")}{" "}</div>
               <Button onClick={() => openGenerator()} variant="primary" size="sm">
-                <Dices size={13} /> Ouvrir le générateur
-              </Button>
+                <Dices size={13} /> {" "}{_ui("Ouvrir le générateur")}{" "}</Button>
             </div>
           </div>
         </Card>
@@ -1078,17 +1061,15 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-display text-body font-bold text-fg-primary mb-1 flex items-center gap-2">
-                Générer chaîne commerciale
-                <Badge variant="success" size="xs">PHASE 2</Badge>
+                {" "}{_ui("Générer chaîne commerciale")}{" "}<Badge variant="success" size="xs">{_ui("PHASE 2")}</Badge>
               </div>
               <div className="text-caption text-fg-tertiary leading-relaxed mb-md">
-                Depuis les récoltes existantes, génère <strong>dispatches station</strong> (1/semaine/variété) + <strong>tri</strong> (freinte/écart) + <strong>prix saisonniers</strong> (Export EUR / Local MAD) + <strong>factures clients</strong> avec paiements partiels. Indispensable pour remplir les modules Dispatches, Tri, Factures et Marges.
-              </div>
+                {" "}{_ui("Depuis les récoltes existantes, génère")}{" "}<strong>{_ui("dispatches station")}</strong> {" "}{_ui("(1/semaine/variété) +")}{" "}<strong>{_ui("tri")}</strong> {" "}{_ui("(freinte/écart) +")}{" "}<strong>{_ui("prix saisonniers")}</strong> {" "}{_ui("(Export EUR / Local MAD) +")}{" "}<strong>{_ui("factures clients")}</strong> {" "}{_ui("avec paiements partiels. Indispensable pour remplir les modules Dispatches, Tri, Factures et Marges.")}{" "}</div>
 
               <div className="grid grid-cols-2 gap-md mb-md">
-                <Field label="Campagne">
+                <Field label={_ui("Campagne")}>
                   <TSelect value={commerceCampaignId} onChange={(e) => setCommerceCampaignId(e.target.value)}>
-                    <option value="">— Auto : 1ère active —</option>
+                    <option value="">{_ui("— Auto : 1ère active —")}</option>
                     {campaigns.map(c => (
                       <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
                     ))}
@@ -1102,7 +1083,7 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
                       onChange={(e) => setCommerceGenerateInvoices(e.target.checked)}
                       className="w-4 h-4 accent-success"
                     />
-                    <span>Générer aussi les factures clients</span>
+                    <span>{_ui("Générer aussi les factures clients")}</span>
                   </label>
                 </div>
               </div>
@@ -1116,28 +1097,26 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
                     className="w-4 h-4 accent-success"
                   />
                   <span>
-                    Uniquement récoltes passées
-                    <span className="text-caption text-fg-tertiary ml-1">
-                      (décoche pour générer aussi sur les récoltes futures — utile pour les démos)
-                    </span>
+                    {" "}{_ui("Uniquement récoltes passées")}{" "}<span className="text-caption text-fg-tertiary ml-1">
+                      {" "}{_ui("(décoche pour générer aussi sur les récoltes futures — utile pour les démos)")}{" "}</span>
                   </span>
                 </label>
               </div>
 
               <Button onClick={runCommerceGenerator} variant="primary" size="sm" loading={commerceRunning} disabled={commerceRunning}>
-                <Sparkles size={13} /> {commerceRunning ? 'Génération…' : 'Générer commerce'}
+                <Sparkles size={13} /> {commerceRunning ? _ui("Génération…") : _ui("Générer commerce")}
               </Button>
 
               {/* ─── Affichage des erreurs et rapport ─── */}
               {commerceReport && (
                 <div className="mt-md rounded-md border border-border bg-surface-sunk p-sm space-y-1 text-body-sm">
-                  <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-semibold mb-1">Rapport du dernier run</div>
-                  <div>📦 Dispatches envoyés : <strong>{commerceReport.dispatchesCreated}</strong></div>
-                  <div>🔬 Triages appliqués : <strong>{commerceReport.triApplied ?? 0}</strong></div>
-                  <div>📑 Bordereaux station créés : <strong>{commerceReport.settlementsCreated ?? 0}</strong> (validés : {commerceReport.settlementsValidated ?? 0})</div>
-                  <div>💰 Lots tarifés : <strong>{commerceReport.pricedSet ?? 0}</strong></div>
-                  <div>📄 Factures : <strong>{commerceReport.invoicesCreated}</strong></div>
-                  <div>💵 CA total : <strong>{Math.round(commerceReport.totalCA ?? 0).toLocaleString('fr-FR')} MAD</strong></div>
+                  <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-semibold mb-1">{_ui("Rapport du dernier run")}</div>
+                  <div>{_ui("📦 Dispatches envoyés :")}{" "}<strong>{commerceReport.dispatchesCreated}</strong></div>
+                  <div>{_ui("🔬 Triages appliqués :")}{" "}<strong>{commerceReport.triApplied ?? 0}</strong></div>
+                  <div>{_ui("📑 Bordereaux station créés :")}{" "}<strong>{commerceReport.settlementsCreated ?? 0}</strong> {" "}{_ui("(validés :")}{" "}{commerceReport.settlementsValidated ?? 0})</div>
+                  <div>{_ui("💰 Lots tarifés :")}{" "}<strong>{commerceReport.pricedSet ?? 0}</strong></div>
+                  <div>{_ui("📄 Factures :")}{" "}<strong>{commerceReport.invoicesCreated}</strong></div>
+                  <div>{_ui("💵 CA total :")}{" "}<strong>{Math.round(commerceReport.totalCA ?? 0).toLocaleString(_uiLocale)} MAD</strong></div>
                 </div>
               )}
 
@@ -1145,14 +1124,14 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
                 <div className="mt-sm rounded-md border border-danger bg-danger/10 p-sm">
                   <div className="flex items-center gap-sm mb-sm">
                     <AlertCircle size={14} className="text-danger" />
-                    <strong className="text-fg-primary">{commerceErrors.length} erreur(s) lors de la génération</strong>
+                    <strong className="text-fg-primary">{commerceErrors.length} {" "}{_ui("erreur(s) lors de la génération")}</strong>
                   </div>
                   <ul className="space-y-1 text-caption text-fg-secondary max-h-48 overflow-auto pl-4 list-disc">
                     {commerceErrors.slice(0, 30).map((err, i) => (
                       <li key={i} className="font-mono text-[11px] break-words">{err}</li>
                     ))}
                     {commerceErrors.length > 30 && (
-                      <li className="text-fg-tertiary italic">… et {commerceErrors.length - 30} autres erreurs (voir console F12)</li>
+                      <li className="text-fg-tertiary italic">{_ui("… et")}{" "}{commerceErrors.length - 30} {" "}{_ui("autres erreurs (voir console F12)")}</li>
                     )}
                   </ul>
                 </div>
@@ -1169,13 +1148,11 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
               <RotateCcw size={20} strokeWidth={2.4} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="font-display text-body font-bold text-fg-primary mb-1">Reset données opérationnelles</div>
+              <div className="font-display text-body font-bold text-fg-primary mb-1">{_ui("Reset données opérationnelles")}</div>
               <div className="text-caption text-fg-tertiary leading-relaxed mb-md">
-                Vide <strong>toutes les transactions</strong> (récoltes, coûts, factures, dispatches, alertes, messages bot…) mais <strong className="text-success">garde le master data</strong> (fermes, serres, variétés, clients, employés, stock).
-              </div>
+                {" "}{_ui("Vide")}{" "}<strong>{_ui("toutes les transactions")}</strong> {" "}{_ui("(récoltes, coûts, factures, dispatches, alertes, messages bot…) mais")}{" "}<strong className="text-success">{_ui("garde le master data")}</strong> {" "}{_ui("(fermes, serres, variétés, clients, employés, stock).")}{" "}</div>
               <Button onClick={() => setResetOpsOpen(true)} variant="destructive" size="sm">
-                <RotateCcw size={13} /> Reset opérationnel
-              </Button>
+                <RotateCcw size={13} /> {" "}{_ui("Reset opérationnel")}{" "}</Button>
             </div>
           </div>
         </Card>
@@ -1191,16 +1168,12 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-display text-body font-bold text-fg-primary mb-1 flex items-center gap-2">
-                ☢️ Nuclear — Tout supprimer
-                <Badge variant="danger" size="xs">DANGER</Badge>
+                {" "}{_ui("☢️ Nuclear — Tout supprimer")}{" "}<Badge variant="danger" size="xs">{_ui("DANGER")}</Badge>
               </div>
               <div className="text-caption text-fg-tertiary leading-relaxed mb-md">
-                Vide la <strong className="text-danger">totalité de la base</strong> (sauf authentification + rôles). Toutes les fermes, serres, employés, données — tout disparaît.
-                Ne sert que pour un reset complet en démo.
-              </div>
+                {" "}{_ui("Vide la")}{" "}<strong className="text-danger">{_ui("totalité de la base")}</strong> {" "}{_ui("(sauf authentification + rôles). Toutes les fermes, serres, employés, données — tout disparaît. Ne sert que pour un reset complet en démo.")}{" "}</div>
               <Button onClick={() => setNuclearOpen(true)} variant="destructive" size="sm">
-                <Skull size={13} /> Activer le nuclear
-              </Button>
+                <Skull size={13} /> {" "}{_ui("Activer le nuclear")}{" "}</Button>
             </div>
           </div>
         </Card>
@@ -1210,13 +1183,13 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
       <Card animate className="mt-lg" padding="none">
         <div className="px-md py-sm border-b border-border bg-surface-sunk">
           <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-bold">
-            Campagnes en base ({campaigns.length})
+            {" "}{_ui("Campagnes en base (")}{campaigns.length})
           </div>
         </div>
         {loading ? (
-          <div className="p-md text-center text-fg-tertiary text-caption">Chargement…</div>
+          <div className="p-md text-center text-fg-tertiary text-caption">{_ui("Chargement…")}</div>
         ) : campaigns.length === 0 ? (
-          <div className="p-lg text-center text-fg-tertiary text-caption">Aucune campagne</div>
+          <div className="p-lg text-center text-fg-tertiary text-caption">{_ui("Aucune campagne")}</div>
         ) : (
           <div className="divide-y divide-border">
             {campaigns.map(c => (
@@ -1235,8 +1208,7 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
                   {c.status ?? '?'}
                 </Badge>
                 <Button onClick={() => setDeleteCampaignId(c.id)} variant="ghost" size="xs">
-                  <Trash2 size={11} /> Supprimer
-                </Button>
+                  <Trash2 size={11} /> {" "}{_ui("Supprimer")}{" "}</Button>
               </div>
             ))}
           </div>
@@ -1249,12 +1221,12 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
 
       {/* ─── Modal : Générateur ─── */}
       {genOpen && (
-        <Modal title="🎲 Générer jeu de récoltes test" onClose={() => { setGenOpen(false); setGenPreview(null) }} size="lg">
+        <Modal title={_ui("🎲 Générer jeu de récoltes test")} onClose={() => { setGenOpen(false); setGenPreview(null) }} size="lg">
           <div className="space-y-md">
             {/* 1. Campagne */}
-            <Field label="Campagne" required>
+            <Field label={_ui("Campagne")} required>
               <TSelect value={genCampaignId} onChange={(e) => onSelectCampaignForGen(e.target.value)}>
-                <option value="">— Sélectionner —</option>
+                <option value="">{_ui("— Sélectionner —")}</option>
                 {campaigns.map(c => (
                   <option key={c.id} value={c.id}>{c.name} ({c.code}) · {c.farms?.name ?? '?'}</option>
                 ))}
@@ -1263,34 +1235,33 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
 
             {genLoading && (
               <div className="text-center py-4 text-fg-tertiary text-caption">
-                <Loader2 size={16} className="inline-block animate-spin mr-2" />Chargement plantations…
-              </div>
+                <Loader2 size={16} className="inline-block animate-spin mr-2" />{_ui("Chargement plantations…")}{" "}</div>
             )}
 
             {!genLoading && genCampaignId && genPlantings.length > 0 && (
               <>
                 {/* 2. Options génération */}
                 <div className="grid grid-cols-3 gap-md">
-                  <Field label="Cadence">
+                  <Field label={_ui("Cadence")}>
                     <TSelect value={genOptions.frequency} onChange={(e) => { setGenOptions(o => ({ ...o, frequency: e.target.value as HarvestFrequency })); setGenPreview(null) }}>
-                      <option value="weekly">1/semaine</option>
-                      <option value="biweekly">2/semaine</option>
-                      <option value="triweekly">3/semaine</option>
+                      <option value="weekly">{_ui("1/semaine")}</option>
+                      <option value="biweekly">{_ui("2/semaine")}</option>
+                      <option value="triweekly">{_ui("3/semaine")}</option>
                     </TSelect>
                   </Field>
-                  <Field label="Variance">
+                  <Field label={_ui("Variance")}>
                     <TSelect value={genOptions.variance} onChange={(e) => { setGenOptions(o => ({ ...o, variance: e.target.value as VarianceLevel })); setGenPreview(null) }}>
-                      <option value="low">Faible (±8%)</option>
-                      <option value="medium">Moyenne (±18%)</option>
-                      <option value="high">Élevée (±30%)</option>
+                      <option value="low">{_ui("Faible (±8%)")}</option>
+                      <option value="medium">{_ui("Moyenne (±18%)")}</option>
+                      <option value="high">{_ui("Élevée (±30%)")}</option>
                     </TSelect>
                   </Field>
-                  <Field label="Qualité">
+                  <Field label={_ui("Qualité")}>
                     <TSelect value={genOptions.quality} onChange={(e) => { setGenOptions(o => ({ ...o, quality: e.target.value as QualityPreset })); setGenPreview(null) }}>
-                      <option value="excellent">Excellente (72% Cat 1)</option>
-                      <option value="good">Bonne (60% Cat 1)</option>
-                      <option value="average">Moyenne (48% Cat 1)</option>
-                      <option value="poor">Faible (35% Cat 1)</option>
+                      <option value="excellent">{_ui("Excellente (72% Cat 1)")}</option>
+                      <option value="good">{_ui("Bonne (60% Cat 1)")}</option>
+                      <option value="average">{_ui("Moyenne (48% Cat 1)")}</option>
+                      <option value="poor">{_ui("Faible (35% Cat 1)")}</option>
                     </TSelect>
                   </Field>
                 </div>
@@ -1303,7 +1274,7 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
                       onChange={(e) => { setGenOptions(o => ({ ...o, onlyPast: e.target.checked })); setGenPreview(null) }}
                       className="w-4 h-4 accent-brand"
                     />
-                    <span>Uniquement les dates passées (jusqu'à aujourd'hui)</span>
+                    <span>{_ui("Uniquement les dates passées (jusqu'à aujourd'hui)")}</span>
                   </label>
                 </div>
 
@@ -1311,11 +1282,11 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
                 <div>
                   <div className="flex items-center justify-between mb-sm">
                     <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-bold">
-                      Plantations à inclure ({selectedPlantings.size}/{genPlantings.length})
+                      {" "}{_ui("Plantations à inclure (")}{selectedPlantings.size}/{genPlantings.length})
                     </div>
                     <div className="flex gap-1">
-                      <Button onClick={() => { setSelectedPlantings(new Set(genPlantings.map(p => p.id))); setGenPreview(null) }} variant="ghost" size="xs">Tout</Button>
-                      <Button onClick={() => { setSelectedPlantings(new Set()); setGenPreview(null) }} variant="ghost" size="xs">Aucun</Button>
+                      <Button onClick={() => { setSelectedPlantings(new Set(genPlantings.map(p => p.id))); setGenPreview(null) }} variant="ghost" size="xs">{_ui("Tout")}</Button>
+                      <Button onClick={() => { setSelectedPlantings(new Set()); setGenPreview(null) }} variant="ghost" size="xs">{_ui("Aucun")}</Button>
                     </div>
                   </div>
                   <div className="max-h-32 overflow-y-auto rounded border border-border bg-surface-sunk p-2 space-y-1">
@@ -1335,7 +1306,7 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
                           <span className="text-fg-tertiary">·</span>
                           <span className="text-fg-secondary">{p.variety_name ?? p.variety_code ?? '?'}</span>
                           <span className="ml-auto font-mono text-fg-tertiary text-[10px]">
-                            {Math.round(total).toLocaleString('fr-FR')} kg cible · {p.harvest_start_date ?? '?'} → {p.harvest_end_date ?? '?'}
+                            {Math.round(total).toLocaleString(_uiLocale)} {" "}{_ui("kg cible ·")}{" "}{p.harvest_start_date ?? '?'} → {p.harvest_end_date ?? '?'}
                           </span>
                         </label>
                       )
@@ -1348,17 +1319,17 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
                   <div>
                     <div className="flex items-center justify-between mb-sm">
                       <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-bold">
-                        Mois à inclure ({selectedMonths.size}/{availableMonths.length})
+                        {" "}{_ui("Mois à inclure (")}{selectedMonths.size}/{availableMonths.length})
                       </div>
                       <div className="flex gap-1">
-                        <Button onClick={() => { setSelectedMonths(new Set(availableMonths)); setGenPreview(null) }} variant="ghost" size="xs">Tout</Button>
-                        <Button onClick={() => { setSelectedMonths(new Set()); setGenPreview(null) }} variant="ghost" size="xs">Aucun</Button>
+                        <Button onClick={() => { setSelectedMonths(new Set(availableMonths)); setGenPreview(null) }} variant="ghost" size="xs">{_ui("Tout")}</Button>
+                        <Button onClick={() => { setSelectedMonths(new Set()); setGenPreview(null) }} variant="ghost" size="xs">{_ui("Aucun")}</Button>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {availableMonths.map(m => {
                         const date = new Date(m + '-01T00:00:00')
-                        const label = date.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+                        const label = date.toLocaleDateString(_uiLocale, { month: 'short', year: '2-digit' })
                         return (
                           <button
                             key={m}
@@ -1368,7 +1339,7 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
                               : 'bg-surface-sunk border-border text-fg-tertiary hover:border-border-strong'
                             }`}
                           >
-                            {label}
+                            {_uiNode(label)}
                           </button>
                         )
                       })}
@@ -1378,44 +1349,42 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
 
                 {/* 5. Bouton Aperçu */}
                 <Button onClick={computePreview} variant="secondary" size="sm">
-                  <Eye size={13} /> Calculer l'aperçu
-                </Button>
+                  <Eye size={13} /> {" "}{_ui("Calculer l'aperçu")}{" "}</Button>
 
                 {/* 6. Aperçu */}
                 {genPreview && (
                   <div className="rounded-md border border-border bg-surface-sunk p-md">
                     <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-bold mb-sm">
-                      📊 Aperçu de génération
-                    </div>
+                      {" "}{_ui("📊 Aperçu de génération")}{" "}</div>
                     <div className="grid grid-cols-3 gap-md mb-md">
                       <div>
-                        <div className="text-caption text-fg-tertiary">Plantations</div>
+                        <div className="text-caption text-fg-tertiary">{_ui("Plantations")}</div>
                         <div className="font-display text-heading font-bold text-fg-primary">{genPreview.totalPlantings}</div>
                       </div>
                       <div>
-                        <div className="text-caption text-fg-tertiary">Récoltes</div>
+                        <div className="text-caption text-fg-tertiary">{_ui("Récoltes")}</div>
                         <div className="font-display text-heading font-bold text-brand">{genPreview.totalHarvests}</div>
                       </div>
                       <div>
-                        <div className="text-caption text-fg-tertiary">Total kg</div>
-                        <div className="font-display text-heading font-bold text-success">{Math.round(genPreview.totalKg).toLocaleString('fr-FR')}</div>
+                        <div className="text-caption text-fg-tertiary">{_ui("Total kg")}</div>
+                        <div className="font-display text-heading font-bold text-success">{Math.round(genPreview.totalKg).toLocaleString(_uiLocale)}</div>
                       </div>
                     </div>
 
                     {genPreview.byMonth.length > 0 && (
                       <div className="mb-md">
-                        <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary mb-1">Par mois</div>
+                        <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary mb-1">{_ui("Par mois")}</div>
                         <div className="flex flex-wrap gap-1.5">
                           {genPreview.byMonth.map(b => {
                             const date = new Date(b.month + '-01T00:00:00')
-                            const label = date.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+                            const label = date.toLocaleDateString(_uiLocale, { month: 'short', year: '2-digit' })
                             return (
                               <div key={b.month} className="px-2 py-1 rounded bg-surface-raised border border-border text-[10px]">
-                                <span className="font-semibold text-fg-primary">{label}</span>
+                                <span className="font-semibold text-fg-primary">{_uiNode(label)}</span>
                                 <span className="text-fg-tertiary mx-1">·</span>
                                 <span className="text-brand font-mono">{b.harvests}×</span>
                                 <span className="text-fg-tertiary mx-1">·</span>
-                                <span className="text-success font-mono">{Math.round(b.kg).toLocaleString('fr-FR')}kg</span>
+                                <span className="text-success font-mono">{Math.round(b.kg).toLocaleString(_uiLocale)}kg</span>
                               </div>
                             )
                           })}
@@ -1425,13 +1394,13 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
 
                     {genPreview.byPlanting.length > 0 && (
                       <div>
-                        <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary mb-1">Top plantations</div>
+                        <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary mb-1">{_ui("Top plantations")}</div>
                         <div className="space-y-1">
                           {genPreview.byPlanting.slice(0, 5).map(p => (
                             <div key={p.plantingId} className="flex items-center justify-between text-caption">
-                              <span className="text-fg-secondary truncate">{p.label}</span>
+                              <span className="text-fg-secondary truncate">{_uiNode(p.label)}</span>
                               <span className="text-fg-tertiary font-mono ml-2 flex-shrink-0">
-                                {p.harvests}× · {Math.round(p.kg).toLocaleString('fr-FR')} kg
+                                {p.harvests}× · {Math.round(p.kg).toLocaleString(_uiLocale)} kg
                               </span>
                             </div>
                           ))}
@@ -1447,10 +1416,9 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
                     <div className="flex items-center gap-sm">
                       <Loader2 size={16} className="animate-spin text-info" />
                       <div className="flex-1">
-                        <div className="text-body-sm font-semibold text-fg-primary">Insertion en cours…</div>
+                        <div className="text-body-sm font-semibold text-fg-primary">{_ui("Insertion en cours…")}</div>
                         <div className="text-caption text-fg-tertiary">
-                          {genProgress.done} / {genProgress.total} récoltes
-                        </div>
+                          {genProgress.done} / {genProgress.total} {" "}{_ui("récoltes")}{" "}</div>
                         <div className="h-1.5 mt-1 rounded-full bg-surface-sunk overflow-hidden">
                           <div className="h-full bg-info transition-all duration-300"
                             style={{ width: `${(genProgress.done / Math.max(genProgress.total, 1)) * 100}%` }} />
@@ -1465,22 +1433,21 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
             {!genLoading && genCampaignId && genPlantings.length === 0 && (
               <div className="rounded-md bg-warning/10 border border-warning/30 p-md text-body-sm text-fg-secondary">
                 <AlertTriangle size={16} className="inline-block text-warning mr-2" />
-                Cette campagne n'a aucune plantation. Crée d'abord des plantations dans <code>/admin/budgets</code> ou <code>/plan-culture</code>.
+                {" "}{_ui("Cette campagne n'a aucune plantation. Crée d'abord des plantations dans")}{" "}<code>/admin/budgets</code> {" "}{_ui("ou")}{" "}<code>/plan-culture</code>.
               </div>
             )}
 
             {/* Footer */}
             <div className="flex justify-end gap-sm pt-sm border-t border-border">
               <Button onClick={() => { setGenOpen(false); setGenPreview(null) }} variant="secondary" disabled={genInserting}>
-                Fermer
-              </Button>
+                {" "}{_ui("Fermer")}{" "}</Button>
               <Button
                 onClick={generateHarvests}
                 variant="primary"
                 disabled={!genPreview || genPreview.totalHarvests === 0 || genInserting}
                 loading={genInserting}
               >
-                <Dices size={13} /> GÉNÉRER {genPreview ? `(${genPreview.totalHarvests})` : ''}
+                <Dices size={13} /> {" "}{_ui("GÉNÉRER")}{" "}{genPreview ? `(${genPreview.totalHarvests})` : ''}
               </Button>
             </div>
           </div>
@@ -1489,33 +1456,33 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
 
       {/* ─── Modal : Nouvelle campagne ─── */}
       {newCampaignOpen && (
-        <Modal title="✨ Nouvelle campagne" onClose={() => setNewCampaignOpen(false)} size="md">
+        <Modal title={_ui("✨ Nouvelle campagne")} onClose={() => setNewCampaignOpen(false)} size="md">
           <div className="space-y-md">
-            <Field label="Code (unique)" required>
+            <Field label={_ui("Code (unique)")} required>
               <TInput value={newCamp.code} onChange={(e) => setNewCamp(s => ({ ...s, code: e.target.value }))} placeholder="C-2026-2027" />
             </Field>
-            <Field label="Nom" required>
-              <TInput value={newCamp.name} onChange={(e) => setNewCamp(s => ({ ...s, name: e.target.value }))} placeholder="Campagne 2026-2027" />
+            <Field label={_ui("Nom")} required>
+              <TInput value={newCamp.name} onChange={(e) => setNewCamp(s => ({ ...s, name: e.target.value }))} placeholder={_ui("Campagne 2026-2027")} />
             </Field>
-            <Field label="Ferme" required>
+            <Field label={_ui("Ferme")} required>
               <TSelect value={newCamp.farm_id} onChange={(e) => setNewCamp(s => ({ ...s, farm_id: e.target.value }))}>
-                <option value="">— Sélectionner —</option>
+                <option value="">{_ui("— Sélectionner —")}</option>
                 {farms.map(f => <option key={f.id} value={f.id}>{f.name} {f.code ? `(${f.code})` : ''}</option>)}
               </TSelect>
             </Field>
             <div className="grid grid-cols-2 gap-md">
-              <Field label="Début préparation">
+              <Field label={_ui("Début préparation")}>
                 <TInput type="date" value={newCamp.preparation_start} onChange={(e) => setNewCamp(s => ({ ...s, preparation_start: e.target.value }))} />
               </Field>
-              <Field label="Fin campagne">
+              <Field label={_ui("Fin campagne")}>
                 <TInput type="date" value={newCamp.campaign_end} onChange={(e) => setNewCamp(s => ({ ...s, campaign_end: e.target.value }))} />
               </Field>
             </div>
             <div className="grid grid-cols-2 gap-md">
-              <Field label="Objectif production (kg)">
+              <Field label={_ui("Objectif production (kg)")}>
                 <TInput type="number" value={newCamp.production_target_kg} onChange={(e) => setNewCamp(s => ({ ...s, production_target_kg: e.target.value }))} placeholder="500000" />
               </Field>
-              <Field label="Budget total (MAD)">
+              <Field label={_ui("Budget total (MAD)")}>
                 <TInput type="number" value={newCamp.budget_total} onChange={(e) => setNewCamp(s => ({ ...s, budget_total: e.target.value }))} placeholder="2000000" />
               </Field>
             </div>
@@ -1523,7 +1490,7 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
               onCancel={() => setNewCampaignOpen(false)}
               onSave={createCampaign}
               loading={saving}
-              saveLabel="CRÉER LA CAMPAGNE"
+              saveLabel={_ui("CRÉER LA CAMPAGNE")}
               disabled={!newCamp.code || !newCamp.name || !newCamp.farm_id}
             />
           </div>
@@ -1533,7 +1500,7 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
       {/* ─── Modal : Suppression campagne ─── */}
       {campaignToDelete && (
         <Modal
-          title={`⚠ Supprimer « ${campaignToDelete.name} »`}
+          title={_ui("⚠ Supprimer « {v0} »",{v0:String(campaignToDelete.name)})}
           onClose={() => { setDeleteCampaignId(null); setConfirmDelete('') }}
           size="md"
         >
@@ -1542,20 +1509,20 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
               <div className="flex items-start gap-sm">
                 <AlertTriangle size={18} className="text-warning flex-shrink-0 mt-0.5" />
                 <div className="text-body-sm text-fg-secondary leading-relaxed">
-                  Cette action supprime <strong>définitivement</strong> :
+                  {" "}{_ui("Cette action supprime")}{" "}<strong>{_ui("définitivement")}</strong> :
                   <ul className="mt-sm space-y-1 list-disc list-inside">
-                    <li>La campagne <code className="text-warning">{campaignToDelete.code}</code></li>
-                    <li>Toutes les plantations, récoltes, dispatches</li>
-                    <li>Tous les coûts, factures, paiements liés</li>
-                    <li>Opérations culturales et heures de main d'œuvre</li>
-                    <li>Amortissements de la campagne</li>
-                    <li>Budgets et lignes budgétaires</li>
+                    <li>{_ui("La campagne")}{" "}<code className="text-warning">{campaignToDelete.code}</code></li>
+                    <li>{_ui("Toutes les plantations, récoltes, dispatches")}</li>
+                    <li>{_ui("Tous les coûts, factures, paiements liés")}</li>
+                    <li>{_ui("Opérations culturales et heures de main d'œuvre")}</li>
+                    <li>{_ui("Amortissements de la campagne")}</li>
+                    <li>{_ui("Budgets et lignes budgétaires")}</li>
                   </ul>
                 </div>
               </div>
             </div>
 
-            <Field label={`Tape "${campaignToDelete.code}" pour confirmer`}>
+            <Field label={_ui("Tape \"{v0}\" pour confirmer",{v0:String(campaignToDelete.code)})}>
               <TInput
                 value={confirmDelete}
                 onChange={(e) => setConfirmDelete(e.target.value)}
@@ -1566,16 +1533,14 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
 
             <div className="flex justify-end gap-sm">
               <Button onClick={() => { setDeleteCampaignId(null); setConfirmDelete('') }} variant="secondary">
-                Annuler
-              </Button>
+                {" "}{_ui("Annuler")}{" "}</Button>
               <Button
                 onClick={deleteCampaign}
                 variant="destructive"
                 disabled={confirmDelete !== campaignToDelete.code || saving}
                 loading={saving}
               >
-                <Trash2 size={13} /> SUPPRIMER DÉFINITIVEMENT
-              </Button>
+                <Trash2 size={13} /> {" "}{_ui("SUPPRIMER DÉFINITIVEMENT")}{" "}</Button>
             </div>
           </div>
         </Modal>
@@ -1584,7 +1549,7 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
       {/* ─── Modal : Reset opérationnel ─── */}
       {resetOpsOpen && (
         <Modal
-          title="⚠ Reset des données opérationnelles"
+          title={_ui("⚠ Reset des données opérationnelles")}
           onClose={() => { setResetOpsOpen(false); setConfirmReset('') }}
           size="md"
         >
@@ -1593,7 +1558,7 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
               <div className="flex items-start gap-sm">
                 <AlertOctagon size={18} className="text-danger flex-shrink-0 mt-0.5" />
                 <div className="text-body-sm text-fg-secondary leading-relaxed">
-                  Va supprimer <strong className="text-danger">toutes les transactions</strong> :
+                  {" "}{_ui("Va supprimer")}{" "}<strong className="text-danger">{_ui("toutes les transactions")}</strong> :
                   <div className="grid grid-cols-2 gap-1 mt-sm text-[10px] font-mono">
                     {OPERATIONAL_TABLES.map(t => <div key={t} className="text-fg-tertiary">• {t}</div>)}
                   </div>
@@ -1604,32 +1569,29 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
               <div className="flex items-start gap-sm">
                 <CheckCircle2 size={18} className="text-success flex-shrink-0 mt-0.5" />
                 <div className="text-body-sm text-fg-secondary leading-relaxed">
-                  <strong>Conservé :</strong> fermes, serres, variétés, clients, fournisseurs, employés, stock (références), comptes utilisateurs, rôles, chatbot users.
-                </div>
+                  <strong>{_ui("Conservé :")}</strong> {" "}{_ui("fermes, serres, variétés, clients, fournisseurs, employés, stock (références), comptes utilisateurs, rôles, chatbot users.")}{" "}</div>
               </div>
             </div>
 
-            <Field label='Tape "RESET" pour confirmer'>
+            <Field label={_ui("Tape \"RESET\" pour confirmer")}>
               <TInput
                 value={confirmReset}
                 onChange={(e) => setConfirmReset(e.target.value)}
-                placeholder="RESET"
+                placeholder={_ui("RESET")}
                 autoFocus
               />
             </Field>
 
             <div className="flex justify-end gap-sm">
               <Button onClick={() => { setResetOpsOpen(false); setConfirmReset('') }} variant="secondary">
-                Annuler
-              </Button>
+                {" "}{_ui("Annuler")}{" "}</Button>
               <Button
                 onClick={resetOperational}
                 variant="destructive"
                 disabled={confirmReset !== 'RESET' || saving}
                 loading={saving}
               >
-                <RotateCcw size={13} /> RESET
-              </Button>
+                <RotateCcw size={13} /> {" "}{_ui("RESET")}{" "}</Button>
             </div>
           </div>
         </Modal>
@@ -1638,7 +1600,7 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
       {/* ─── Modal : Nuclear ─── */}
       {nuclearOpen && (
         <Modal
-          title="☢️ NUCLEAR — Suppression complète"
+          title={_ui("☢️ NUCLEAR — Suppression complète")}
           onClose={() => { setNuclearOpen(false); setConfirmNuclear('') }}
           size="md"
         >
@@ -1647,35 +1609,33 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
               <div className="flex items-start gap-sm">
                 <Skull size={22} className="text-danger flex-shrink-0 mt-0.5" />
                 <div className="text-body-sm text-fg-primary leading-relaxed">
-                  <strong className="text-danger text-base">ATTENTION — Action ULTRA destructive.</strong>
-                  <div className="mt-sm">Va supprimer absolument toutes les données métier :</div>
+                  <strong className="text-danger text-base">{_ui("ATTENTION — Action ULTRA destructive.")}</strong>
+                  <div className="mt-sm">{_ui("Va supprimer absolument toutes les données métier :")}</div>
                   <ul className="mt-sm space-y-1 list-disc list-inside text-fg-secondary">
-                    <li>Toutes les transactions (campaigns, harvests, costs, invoices…)</li>
-                    <li>Toutes les fermes, serres, variétés</li>
-                    <li>Tous les clients, fournisseurs, marchés</li>
-                    <li>Tous les employés, équipes, stock</li>
-                    <li>Tous les chatbot users (Telegram enrollments)</li>
+                    <li>{_ui("Toutes les transactions (campaigns, harvests, costs, invoices…)")}</li>
+                    <li>{_ui("Toutes les fermes, serres, variétés")}</li>
+                    <li>{_ui("Tous les clients, fournisseurs, marchés")}</li>
+                    <li>{_ui("Tous les employés, équipes, stock")}</li>
+                    <li>{_ui("Tous les chatbot users (Telegram enrollments)")}</li>
                   </ul>
                   <div className="mt-md text-success">
-                    <strong>Conservé uniquement :</strong> comptes Supabase Auth, rôles, permissions, catégories comptables.
-                  </div>
+                    <strong>{_ui("Conservé uniquement :")}</strong> {" "}{_ui("comptes Supabase Auth, rôles, permissions, catégories comptables.")}{" "}</div>
                 </div>
               </div>
             </div>
 
-            <Field label='Tape exactement "SUPPRIMER TOUT" pour confirmer'>
+            <Field label={_ui("Tape exactement \"SUPPRIMER TOUT\" pour confirmer")}>
               <TInput
                 value={confirmNuclear}
                 onChange={(e) => setConfirmNuclear(e.target.value)}
-                placeholder="SUPPRIMER TOUT"
+                placeholder={_ui("SUPPRIMER TOUT")}
                 autoFocus
               />
             </Field>
 
             <div className="flex justify-end gap-sm">
               <Button onClick={() => { setNuclearOpen(false); setConfirmNuclear('') }} variant="secondary">
-                Annuler
-              </Button>
+                {" "}{_ui("Annuler")}{" "}</Button>
               <Button
                 onClick={nuclearWipe}
                 variant="destructive"
@@ -1683,8 +1643,7 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
                 loading={saving}
               >
                 {saving ? <Loader2 size={13} className="animate-spin" /> : <Skull size={13} />}
-                ☢️ LANCER LE NUCLEAR
-              </Button>
+                {" "}{_ui("☢️ LANCER LE NUCLEAR")}{" "}</Button>
             </div>
           </div>
         </Modal>
@@ -1697,7 +1656,7 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
           onComplete={(campaignId) => {
             // Après le wizard, recharge la liste + propose direct le générateur
             load()
-            toast.success('💡 Astuce : enchaîne avec "Générer jeu de récoltes" pour remplir les données', { duration: 5000 })
+            toast.success(_ui("💡 Astuce : enchaîne avec \"Générer jeu de récoltes\" pour remplir les données"), { duration: 5000 })
             // Auto-pré-sélectionne la nouvelle campagne pour le générateur
             setTimeout(() => openGenerator(campaignId), 800)
           }}
@@ -1706,21 +1665,21 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
 
       {/* ─── Modal : SQL Migration 036 à copier-coller ─── */}
       {showMigrationSql && (
-        <Modal title="📋 Migration 036 — À appliquer sur Supabase" onClose={() => setShowMigrationSql(false)} size="lg">
+        <Modal title={_ui("📋 Migration 036 — À appliquer sur Supabase")} onClose={() => setShowMigrationSql(false)} size="lg">
           <div className="space-y-md">
             <div className="rounded-md bg-warning/10 border border-warning/30 p-md">
               <div className="flex items-start gap-sm">
                 <AlertTriangle size={18} className="text-warning flex-shrink-0 mt-0.5" />
                 <div className="text-body-sm text-fg-secondary leading-relaxed">
-                  <strong>Procédure (1 minute) :</strong>
+                  <strong>{_ui("Procédure (1 minute) :")}</strong>
                   <ol className="mt-sm list-decimal list-inside space-y-1">
-                    <li>Va sur <a href="https://supabase.com/dashboard" target="_blank" rel="noopener" className="text-info underline">supabase.com/dashboard</a></li>
-                    <li>Sélectionne ton projet <strong>FarmPilot / AgriApp</strong></li>
-                    <li>Menu de gauche → <strong>SQL Editor</strong> → bouton <strong>+ New query</strong></li>
-                    <li>Copie le bloc SQL ci-dessous (bouton <strong>Copier</strong> à droite)</li>
-                    <li>Colle dans l'éditeur SQL → clique <strong>Run</strong> (ou <code>Ctrl+Enter</code>)</li>
-                    <li>Tu dois voir <code className="text-success">"Success. No rows returned"</code></li>
-                    <li>Reviens ici → clique <strong>Tester</strong> pour confirmer ✅</li>
+                    <li>{_ui("Va sur")}{" "}<a href="https://supabase.com/dashboard" target="_blank" rel="noopener" className="text-info underline">{_ui("supabase.com/dashboard")}</a></li>
+                    <li>{_ui("Sélectionne ton projet")}{" "}<strong>ItriX Farm / AgriApp</strong></li>
+                    <li>{_ui("Menu de gauche →")}{" "}<strong>{_ui("SQL Editor")}</strong> {" "}{_ui("→ bouton")}{" "}<strong>{_ui("+ New query")}</strong></li>
+                    <li>{_ui("Copie le bloc SQL ci-dessous (bouton")}{" "}<strong>{_ui("Copier")}</strong> {" "}{_ui("à droite)")}</li>
+                    <li>{_ui("Colle dans l'éditeur SQL → clique")}{" "}<strong>{_ui("Run")}</strong> {" "}{_ui("(ou")}{" "}<code>{_ui("Ctrl+Enter")}</code>)</li>
+                    <li>{_ui("Tu dois voir")}{" "}<code className="text-success">{_ui("\"Success. No rows returned\"")}</code></li>
+                    <li>{_ui("Reviens ici → clique")}{" "}<strong>{_ui("Tester")}</strong> {" "}{_ui("pour confirmer ✅")}</li>
                   </ol>
                 </div>
               </div>
@@ -1731,13 +1690,12 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
                 <Button
                   onClick={() => {
                     navigator.clipboard.writeText(MIGRATION_036_SQL)
-                    toast.success('📋 Copié dans le presse-papiers')
+                    toast.success(_ui("📋 Copié dans le presse-papiers"))
                   }}
                   variant="primary"
                   size="xs"
                 >
-                  📋 Copier
-                </Button>
+                  {" "}{_ui("📋 Copier")}{" "}</Button>
               </div>
               <pre className="bg-surface-sunk border border-border rounded-md p-md text-[10px] font-mono text-fg-primary max-h-96 overflow-auto leading-relaxed">
                 {MIGRATION_036_SQL}
@@ -1745,10 +1703,9 @@ GRANT EXECUTE ON FUNCTION admin_delete_campaign(UUID) TO authenticated;`
             </div>
 
             <div className="flex justify-end gap-sm">
-              <Button onClick={() => setShowMigrationSql(false)} variant="secondary">Fermer</Button>
+              <Button onClick={() => setShowMigrationSql(false)} variant="secondary">{_ui("Fermer")}</Button>
               <Button onClick={() => { setShowMigrationSql(false); checkRpcAvailability(false) }} variant="primary">
-                ✅ J'ai appliqué la migration — Tester
-              </Button>
+                {" "}{_ui("✅ J'ai appliqué la migration — Tester")}{" "}</Button>
             </div>
           </div>
         </Modal>

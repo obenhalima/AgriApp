@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * /serres — Gestion des serres (vitrine du nouveau design system).
  * Cards avec gradient, badges sémantiques, animations stagger, toasts.
@@ -43,50 +45,53 @@ function FormBlock({
   isNew?: boolean
   farms: any[]
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { values: GH_TYPES } = useReferenceList('greenhouse_type')
   const { values: GH_STATUS } = useReferenceList('greenhouse_status')
   return (
     <div className="space-y-md">
       {isNew && (
-        <Field label="Ferme" required>
+        <Field label={_ui("Ferme")} required>
           {farms.length === 0 ? (
             <div className="flex items-center gap-2 px-md py-2 rounded-md border border-danger/30 bg-danger/10 text-danger text-body-sm">
-              <AlertCircle size={14} /> Aucune ferme — crée d'abord une ferme
-            </div>
+              <AlertCircle size={14} /> {" "}{_ui("Aucune ferme — crée d'abord une ferme")}{" "}</div>
           ) : (
             <TSelect value={vals.farm_id} onChange={onChange('farm_id')}>
-              <option value="">— Sélectionner —</option>
+              <option value="">{_ui("— Sélectionner —")}</option>
               {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
             </TSelect>
           )}
         </Field>
       )}
       <div className="grid grid-cols-2 gap-md">
-        <Field label="Code"><TInput value={vals.code} onChange={onChange('code')} /></Field>
-        <Field label="Nom" required><TInput value={vals.name} onChange={onChange('name')} placeholder="Serre Nord A" autoFocus /></Field>
+        <Field label={_ui("Code")}><TInput value={vals.code} onChange={onChange('code')} /></Field>
+        <Field label={_ui("Nom")} required><TInput value={vals.name} onChange={onChange('name')} placeholder={_ui("Serre Nord A")} autoFocus /></Field>
       </div>
       <div className="grid grid-cols-2 gap-md">
-        <Field label="Type">
+        <Field label={_ui("Type")}>
           <TSelect value={vals.type} onChange={onChange('type')}>
-            {GH_TYPES.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
+            {GH_TYPES.map(t => <option key={t.code} value={t.code}>{_uiNode(t.label)}</option>)}
           </TSelect>
         </Field>
-        <Field label="Statut">
+        <Field label={_ui("Statut")}>
           <TSelect value={vals.status} onChange={onChange('status')}>
-            {GH_STATUS.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
+            {GH_STATUS.map(t => <option key={t.code} value={t.code}>{_uiNode(t.label)}</option>)}
           </TSelect>
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-md">
-        <Field label="Superficie totale (m²)" required><TInput type="number" value={vals.total_area} onChange={onChange('total_area')} placeholder="5000" /></Field>
-        <Field label="Exploitable (m²)" hint="= totale si vide"><TInput type="number" value={vals.exploitable_area} onChange={onChange('exploitable_area')} /></Field>
+        <Field label={_ui("Superficie totale (m²)")} required><TInput type="number" value={vals.total_area} onChange={onChange('total_area')} placeholder="5000" /></Field>
+        <Field label={_ui("Exploitable (m²)")} hint="= totale si vide"><TInput type="number" value={vals.exploitable_area} onChange={onChange('exploitable_area')} /></Field>
       </div>
-      <Field label="Notes"><Textarea rows={2} value={vals.notes} onChange={onChange('notes')} /></Field>
+      <Field label={_ui("Notes")}><Textarea rows={2} value={vals.notes} onChange={onChange('notes')} /></Field>
     </div>
   )
 }
 
 export default function SerresPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { activeDomain } = useAuth()
   const { values: GH_STATUS } = useReferenceList('greenhouse_status')
   const statusColor = (code: string) => GH_STATUS.find(v => v.code === code)?.color || '#64748b'
@@ -180,9 +185,9 @@ export default function SerresPage() {
       }).select('*, farms(name)').single()
       if (error) throw error
       setSerres(p => [data, ...p]); setDone(true)
-      toast.success(`Serre "${data.name}" créée`)
+      toast.success(_ui("Serre \"{v0}\" créée",{v0:String(data.name)}))
       setTimeout(() => { setModalNew(false); setDone(false) }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSaving(false)
   }
 
@@ -199,40 +204,40 @@ export default function SerresPage() {
       }).eq('id', modalEdit.id)
       if (error) throw error
       setDone(true)
-      toast.success('Serre modifiée')
+      toast.success(_ui("Serre modifiée"))
       setTimeout(() => { setModalEdit(null); setDone(false); load() }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSaving(false)
   }
 
   const del = async (id: string, name: string) => {
-    if (!confirm(`Supprimer "${name}" ?`)) return
+    if (!confirm(_ui("Supprimer \"{v0}\" ?",{v0:String(name)}))) return
     try {
       await deleteSerre(id)
       setSerres(p => p.filter(s => s.id !== id))
-      toast.success(`Serre "${name}" supprimée`)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+      toast.success(_ui("Serre \"{v0}\" supprimée",{v0:String(name)}))
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
   }
 
   return (
     <div>
       {/* ─── Modals ─── */}
       {modalNew && (
-        <Modal title="NOUVELLE SERRE" onClose={() => { setModalNew(false); setDone(false) }}>
-          {done ? <SuccessMessage message="Serre créée !" /> : (
+        <Modal title={_ui("NOUVELLE SERRE")} onClose={() => { setModalNew(false); setDone(false) }}>
+          {done ? <SuccessMessage message={_ui("Serre créée !")} /> : (
             <>
               <FormBlock vals={form} onChange={upd} isNew farms={farms} />
-              <ModalFooter onCancel={() => setModalNew(false)} onSave={save} loading={saving} disabled={!form.farm_id || !form.name || !form.total_area} saveLabel="CRÉER" />
+              <ModalFooter onCancel={() => setModalNew(false)} onSave={save} loading={saving} disabled={!form.farm_id || !form.name || !form.total_area} saveLabel={_ui("CRÉER")} />
             </>
           )}
         </Modal>
       )}
       {modalEdit && (
-        <Modal title={`MODIFIER — ${modalEdit.name}`} onClose={() => { setModalEdit(null); setDone(false) }}>
-          {done ? <SuccessMessage message="Serre modifiée !" /> : (
+        <Modal title={_ui("MODIFIER — {v0}",{v0:String(modalEdit.name)})} onClose={() => { setModalEdit(null); setDone(false) }}>
+          {done ? <SuccessMessage message={_ui("Serre modifiée !")} /> : (
             <>
               <FormBlock vals={formE} onChange={updE} isNew={false} farms={farms} />
-              <ModalFooter onCancel={() => setModalEdit(null)} onSave={saveEdit} loading={saving} disabled={!formE.name} saveLabel="ENREGISTRER" />
+              <ModalFooter onCancel={() => setModalEdit(null)} onSave={saveEdit} loading={saving} disabled={!formE.name} saveLabel={_ui("ENREGISTRER")} />
             </>
           )}
         </Modal>
@@ -240,16 +245,15 @@ export default function SerresPage() {
 
       {/* ─── Page Header avec stats ─── */}
       <PageHeader
-        title="Serres"
-        subtitle="Infrastructure"
+        title={_ui("Serres")}
+        subtitle={_ui("Infrastructure")}
         icon={Box}
         iconColor="#0ea5e9"
-        description={`${stats.count} serre${stats.count > 1 ? 's' : ''} sur ${stats.farms} ferme${stats.farms > 1 ? 's' : ''}`}
+        description={_ui("{v0} serre{v1} sur {v2} ferme{v3}",{v0:String(stats.count),v1:String(stats.count > 1 ? 's' : ''),v2:String(stats.farms),v3:String(stats.farms > 1 ? 's' : '')})}
         actions={
           <Button onClick={openNew} variant="primary" size="md">
             <Plus size={14} strokeWidth={2.5} />
-            Nouvelle serre
-          </Button>
+            {" "}{_ui("Nouvelle serre")}{" "}</Button>
         }
         stats={loading ? [] : [
           { label: 'Total',       value: String(stats.count),                    icon: Box,      color: '#0ea5e9' },
@@ -267,7 +271,7 @@ export default function SerresPage() {
             <div className="flex items-center gap-sm flex-1 min-w-[200px] max-w-md">
               <Search size={14} className="text-fg-tertiary flex-shrink-0" />
               <TInput
-                placeholder="Rechercher code, nom, ferme…"
+                placeholder={_ui("Rechercher code, nom, ferme…")}
                 value={search} onChange={(e) => setSearch(e.target.value)}
                 className="border-none bg-transparent focus:ring-0 px-0"
               />
@@ -278,23 +282,22 @@ export default function SerresPage() {
               )}
             </div>
             <div className="flex items-center gap-sm">
-              <Badge variant="default" size="sm">FERME</Badge>
+              <Badge variant="default" size="sm">{_ui("FERME")}</Badge>
               <TSelect value={farmFilter} onChange={(e) => setFarmFilter(e.target.value)} className="h-8 text-body-sm w-auto min-w-[160px]">
-                <option value="all">Toutes</option>
+                <option value="all">{_ui("Toutes")}</option>
                 {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </TSelect>
             </div>
             <div className="flex items-center gap-sm">
-              <Badge variant="default" size="sm">STATUT</Badge>
+              <Badge variant="default" size="sm">{_ui("STATUT")}</Badge>
               <TSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-8 text-body-sm w-auto min-w-[140px]">
-                <option value="all">Tous</option>
-                {GH_STATUS.map(s => <option key={s.code} value={s.code}>{s.label}</option>)}
+                <option value="all">{_ui("Tous")}</option>
+                {GH_STATUS.map(s => <option key={s.code} value={s.code}>{_uiNode(s.label)}</option>)}
               </TSelect>
             </div>
             {(search || farmFilter !== 'all' || statusFilter !== 'all') && (
               <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setFarmFilter('all'); setStatusFilter('all') }}>
-                Réinitialiser
-              </Button>
+                {" "}{_ui("Réinitialiser")}{" "}</Button>
             )}
             <div className="ml-auto text-caption font-mono text-fg-tertiary">
               {filtered.length}/{serres.length}
@@ -313,16 +316,16 @@ export default function SerresPage() {
       ) : serres.length === 0 ? (
         <EmptyState
           icon={Box}
-          title="Aucune serre"
-          description="Crée ta première serre pour commencer à planifier les cultures."
-          action={<Button onClick={openNew}><Plus size={14} strokeWidth={2.5} /> Nouvelle serre</Button>}
+          title={_ui("Aucune serre")}
+          description={_ui("Crée ta première serre pour commencer à planifier les cultures.")}
+          action={<Button onClick={openNew}><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle serre")}</Button>}
         />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Search}
-          title="Aucun résultat"
-          description="Aucune serre ne correspond à tes filtres."
-          action={<Button variant="ghost" onClick={() => { setSearch(''); setFarmFilter('all'); setStatusFilter('all') }}>Réinitialiser</Button>}
+          title={_ui("Aucun résultat")}
+          description={_ui("Aucune serre ne correspond à tes filtres.")}
+          action={<Button variant="ghost" onClick={() => { setSearch(''); setFarmFilter('all'); setStatusFilter('all') }}>{_ui("Réinitialiser")}</Button>}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-md">
@@ -366,13 +369,13 @@ export default function SerresPage() {
                   {/* Stats */}
                   <div className="grid grid-cols-2 gap-sm mb-md">
                     <div className="rounded-md bg-surface-sunk border border-border px-md py-sm">
-                      <div className="font-mono text-[9px] uppercase tracking-wider text-fg-tertiary mb-0.5">Superficie</div>
+                      <div className="font-mono text-[9px] uppercase tracking-wider text-fg-tertiary mb-0.5">{_ui("Superficie")}</div>
                       <div className="font-display text-heading font-bold text-fg-primary">
                         <AreaDisplay value={Number(s.total_area)} showTooltip={false} />
                       </div>
                     </div>
                     <div className="rounded-md bg-surface-sunk border border-border px-md py-sm">
-                      <div className="font-mono text-[9px] uppercase tracking-wider text-fg-tertiary mb-0.5">Exploitable</div>
+                      <div className="font-mono text-[9px] uppercase tracking-wider text-fg-tertiary mb-0.5">{_ui("Exploitable")}</div>
                       <div className="font-display text-heading font-bold text-info">
                         <AreaDisplay value={Number(s.exploitable_area || s.total_area)} showTooltip={false} />
                       </div>
@@ -382,7 +385,7 @@ export default function SerresPage() {
                   {/* Barre d'usage */}
                   <div className="mb-md">
                     <div className="flex justify-between items-center text-caption font-mono text-fg-tertiary mb-1">
-                      <span>Taux d'exploitation</span>
+                      <span>{_ui("Taux d'exploitation")}</span>
                       <span className="text-fg-secondary tabular-nums">{usagePct.toFixed(0)}%</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-surface-sunk overflow-hidden">
@@ -405,9 +408,8 @@ export default function SerresPage() {
                   {/* Actions */}
                   <div className="mt-auto grid grid-cols-[1fr_auto] gap-xs pt-sm border-t border-border">
                     <Button onClick={() => openEdit(s)} variant="secondary" size="sm">
-                      <Pencil size={12} strokeWidth={2.5} /> Modifier
-                    </Button>
-                    <Button onClick={() => del(s.id, s.name)} variant="destructive" size="icon-sm" title="Supprimer">
+                      <Pencil size={12} strokeWidth={2.5} /> {" "}{_ui("Modifier")}{" "}</Button>
+                    <Button onClick={() => del(s.id, s.name)} variant="destructive" size="icon-sm" title={_ui("Supprimer")}>
                       <Trash2 size={13} strokeWidth={2.2} />
                     </Button>
                   </div>

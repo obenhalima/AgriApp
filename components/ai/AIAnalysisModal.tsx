@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { analyzeCPC, AICPCInput } from '@/lib/aiAnalysis'
@@ -94,6 +96,8 @@ export function AIAnalysisModal(props: {
   input: AICPCInput
   onClose: () => void
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { input, onClose } = props
   const [loading, setLoading] = useState(true)
   const [analysis, setAnalysis] = useState('')
@@ -113,16 +117,16 @@ export function AIAnalysisModal(props: {
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(analysis)
-    alert('Analyse copiée dans le presse-papier')
+    alert(_ui("Analyse copiée dans le presse-papier"))
   }
 
   return (
-    <Modal title="🤖 ANALYSE IA — COMPTE D'EXPLOITATION" onClose={onClose} size="lg">
+    <Modal title={_ui("🤖 ANALYSE IA — COMPTE D'EXPLOITATION")} onClose={onClose} size="lg">
       <div style={{ padding: 8, marginBottom: 12, background: 'var(--bg-deep)', border: '1px solid var(--bd-1)', borderRadius: 6, fontSize: 11, color: 'var(--tx-3)' }}>
-        <strong>Campagne :</strong> {input.context.campaignName} · <strong>Version :</strong> {input.context.versionName} · <strong>Périmètre :</strong> {
-          input.context.scope === 'domain' ? 'Domaine entier' :
-          input.context.scope === 'farm' ? `Ferme ${input.context.farmName ?? ''}` :
-          `Serre ${input.context.greenhouseCode ?? ''}`
+        <strong>{_ui("Campagne :")}</strong> {input.context.campaignName} · <strong>{_ui("Version :")}</strong> {input.context.versionName} · <strong>{_ui("Périmètre :")}</strong> {
+          input.context.scope === 'domain' ? _ui("Domaine entier") :
+          input.context.scope === 'farm' ? _ui("Ferme {v0}",{v0:String(input.context.farmName ?? '')}) :
+          _ui("Serre {v0}",{v0:String(input.context.greenhouseCode ?? '')})
         }
       </div>
 
@@ -130,26 +134,22 @@ export function AIAnalysisModal(props: {
         <div style={{ padding: '40px 20px', textAlign: 'center' }}>
           <div style={{ display: 'inline-block', width: 24, height: 24, border: '2px solid var(--bd-1)', borderTopColor: 'var(--neon)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
           <div style={{ marginTop: 14, color: 'var(--tx-2)', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 1 }}>
-            L'IA analyse vos chiffres...
-          </div>
+            {" "}{_ui("L'IA analyse vos chiffres...")}{" "}</div>
           <div style={{ marginTop: 6, color: 'var(--tx-3)', fontSize: 10 }}>
-            ~5 secondes
-          </div>
-          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+            {" "}{_ui("~5 secondes")}{" "}</div>
+          <style>{"@keyframes spin { to { transform: rotate(360deg) } }"}</style>
         </div>
       )}
 
       {error && (
         <div style={{ padding: 12, background: 'var(--red-dim)', border: '1px solid color-mix(in srgb, var(--red) 30%, transparent)', borderRadius: 8, color: 'var(--red)', fontSize: 12 }}>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>⚠ Erreur</div>
-          <div>{error}</div>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>{_ui("⚠ Erreur")}</div>
+          <div>{_uiNode(error)}</div>
           <div style={{ marginTop: 8, fontSize: 11, color: 'var(--tx-3)' }}>
-            Vérifie que <code>GEMINI_API_KEY</code> est bien configuré dans les secrets Supabase (Dashboard → Edge Functions → <strong>ai-analyze-cpc</strong> → Secrets).
-            La Edge Function doit aussi avoir JWT verification <strong>désactivé</strong>.
+            {" "}{_ui("Vérifie que")}{" "}<code>{"GEMINI_API_KEY"}</code> {" "}{_ui("est bien configuré dans les secrets Supabase (Dashboard → Edge Functions →")}{" "}<strong>{"ai-analyze-cpc"}</strong> {" "}{_ui("→ Secrets). La Edge Function doit aussi avoir JWT verification")}{" "}<strong>{_ui("désactivé")}</strong>.
           </div>
           <button onClick={run} style={{ marginTop: 10, padding: '6px 12px', background: 'transparent', border: '1px solid var(--red)50', color: 'var(--red)', borderRadius: 6, cursor: 'pointer', fontSize: 11 }}>
-            Réessayer
-          </button>
+            {" "}{_ui("Réessayer")}{" "}</button>
         </div>
       )}
 
@@ -161,16 +161,13 @@ export function AIAnalysisModal(props: {
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--bd-1)' }}>
             <button onClick={copyToClipboard}
               style={{ padding: '7px 12px', background: 'transparent', border: '1px solid var(--bd-1)', color: 'var(--tx-2)', borderRadius: 6, cursor: 'pointer', fontSize: 11 }}>
-              📋 Copier
-            </button>
+              {" "}{_ui("📋 Copier")}{" "}</button>
             <button onClick={run}
               style={{ padding: '7px 12px', background: 'transparent', border: '1px solid var(--bd-1)', color: 'var(--tx-2)', borderRadius: 6, cursor: 'pointer', fontSize: 11 }}>
-              🔄 Re-analyser
-            </button>
+              {" "}{_ui("🔄 Re-analyser")}{" "}</button>
             <button onClick={onClose}
               style={{ padding: '7px 12px', background: 'var(--neon-dim)', border: '1px solid color-mix(in srgb, var(--neon) 40%, transparent)', color: 'var(--neon)', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
-              Fermer
-            </button>
+              {" "}{_ui("Fermer")}{" "}</button>
           </div>
         </>
       )}

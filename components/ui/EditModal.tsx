@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { Input, Modal, ModalFooter } from './Modal'
 
 interface Field {
@@ -22,13 +24,15 @@ interface EditModalProps {
 }
 
 export function EditModal({ title, fields, values, onChange, onSave, onCancel, loading, done, doneMessage }: EditModalProps) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   if (done) {
     return (
       <Modal title={title} onClose={onCancel}>
         <div style={{ textAlign: 'center', padding: '36px 0' }}>
           <div style={{ fontSize: 48, marginBottom: 14 }}>✅</div>
           <div style={{ fontFamily: 'Rajdhani,sans-serif', fontSize: 18, fontWeight: 700, color: '#00e87a', textTransform: 'uppercase', letterSpacing: 1 }}>
-            {doneMessage || 'Modifié avec succès !'}
+            {doneMessage || _ui("Modifié avec succès !")}
           </div>
         </div>
       </Modal>
@@ -39,10 +43,10 @@ export function EditModal({ title, fields, values, onChange, onSave, onCancel, l
     <Modal title={title} onClose={onCancel}>
       {fields.map(f => (
         <div key={f.key} style={{ marginBottom: 14 }}>
-          <label className="form-label">{f.label}</label>
+          <label className="form-label">{_uiNode(f.label)}</label>
           {f.type === 'select' ? (
             <select className="form-input" value={values[f.key] ?? ''} onChange={e => onChange(f.key, e.target.value)}>
-              {f.options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {f.options?.map(o => <option key={o.value} value={o.value}>{_uiNode(o.label)}</option>)}
             </select>
           ) : f.type === 'textarea' ? (
             <textarea className="form-input" rows={3} value={values[f.key] ?? ''} onChange={e => onChange(f.key, e.target.value)} placeholder={f.placeholder} style={{ resize: 'vertical' }} />
@@ -51,7 +55,7 @@ export function EditModal({ title, fields, values, onChange, onSave, onCancel, l
           )}
         </div>
       ))}
-      <ModalFooter onCancel={onCancel} onSave={onSave} loading={loading} saveLabel="ENREGISTRER LES MODIFICATIONS" />
+      <ModalFooter onCancel={onCancel} onSave={onSave} loading={loading} saveLabel={_ui("ENREGISTRER LES MODIFICATIONS")} />
     </Modal>
   )
 }

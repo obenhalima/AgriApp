@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
@@ -16,6 +18,8 @@ import {
   computeGrid, gridKey, monthKey,
 } from '@/lib/budgets'
 import { BudgetImportModal } from '@/components/budget/BudgetImportModal'
+import '@/components/ui/workspace.css'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { useAuth } from '@/lib/auth'
 import { GenerateSalesBudgetModal } from '@/components/budget/GenerateSalesBudgetModal'
 import {
@@ -35,6 +39,8 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function BudgetsAdminPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { activeDomain } = useAuth()
   const [campaigns, setCampaigns]   = useState<Campaign[]>([])
   const [farms, setFarms]           = useState<Farm[]>([])
@@ -98,10 +104,10 @@ export default function BudgetsAdminPage() {
         if (c.data && c.data.length > 0) setCampaignId(c.data[0].id)
         if (f.data && f.data.length > 0) setFarmId(f.data[0].id)
       } catch (e: any) {
-        toast.error('Erreur chargement référentiels : ' + e.message)
+        toast.error(_ui("Erreur chargement référentiels :") + e.message)
       } finally { setLoadingRefs(false) }
     })()
-  }, [activeDomain?.domain_id])
+  }, [activeDomain?.domain_id,_ui])
 
   // Versions d'une campagne
   useEffect(() => {
@@ -137,10 +143,10 @@ export default function BudgetsAdminPage() {
           fetched = await listBudgetLines({ versionId })
         }
         setLines(fetched)
-      } catch (e: any) { toast.error('Erreur chargement lignes : ' + e.message) }
+      } catch (e: any) { toast.error(_ui("Erreur chargement lignes :") + e.message) }
       finally { setLinesLoading(false) }
     })()
-  }, [versionId, farmId, level, greenhouseId])
+  }, [versionId, farmId, level, greenhouseId,_ui])
 
   // ── Calculs dérivés ──
   const campaign = useMemo(() => campaigns.find(c => c.id === campaignId), [campaigns, campaignId])
@@ -254,17 +260,17 @@ export default function BudgetsAdminPage() {
         }
         return prev
       })
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
   }
 
   const createVersion = async () => {
     console.log('[createVersion] click', { campaignId, newVersion })
     if (!campaignId) {
-      toast.error('Sélectionne une campagne d\'abord')
+      toast.error(_ui("Sélectionne une campagne d'abord"))
       return
     }
     if (!newVersion.code.trim() || !newVersion.name.trim()) {
-      toast.error('Code et nom sont requis')
+      toast.error(_ui("Code et nom sont requis"))
       return
     }
     try {
@@ -274,10 +280,10 @@ export default function BudgetsAdminPage() {
       setVersionId(v.id)
       setVersionModal(false)
       setNewVersion({ code: '', name: '' })
-      toast.success(`✅ Version "${v.code} — ${v.name}" créée`)
+      toast.success(_ui("✅ Version \"{v0} — {v1}\" créée",{v0:String(v.code),v1:String(v.name)}))
     } catch (e: any) {
       console.error('[createVersion] error:', e)
-      toast.error('Erreur : ' + (e?.message ?? 'inconnue'))
+      toast.error(_ui("Erreur :") + (e?.message ?? 'inconnue'))
     }
   }
 
@@ -291,26 +297,26 @@ export default function BudgetsAdminPage() {
     try {
       const u = await setBudgetVersionStatus(version.id, to)
       setVersions(prev => prev.map(v => v.id === u.id ? u : v))
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
   }
 
   const duplicate = async () => {
     if (!version) return
-    const code = prompt('Code de la nouvelle version :', `${version.code}_v2`)
+    const code = prompt(_ui("Code de la nouvelle version :"), `${version.code}_v2`)
     if (!code) return
-    const name = prompt('Nom de la nouvelle version :', `${version.name} (copie)`)
+    const name = prompt(_ui("Nom de la nouvelle version :"), _ui("{v0} (copie)",{v0:String(version.name)}))
     if (!name) return
     try {
       const v = await duplicateBudgetVersion(version.id, { code, name })
       setVersions(prev => [v, ...prev])
       setVersionId(v.id)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
   }
 
   // ── EXPORT EXCEL MULTI-ONGLETS (Index + Domaine + Fermes + Serres) ──
   const exportBudgetToExcel = async (levelChoice: 'domain' | 'domain_farms' | 'all' = 'all') => {
-    if (!versionId || !version) { toast.error('Sélectionnez une version d\'abord'); return }
-    if (categories.length === 0 || months.length === 0) { toast.error('Données insuffisantes'); return }
+    if (!versionId || !version) { toast.error(_ui("Sélectionnez une version d'abord")); return }
+    if (categories.length === 0 || months.length === 0) { toast.error(_ui("Données insuffisantes")); return }
     setExporting(true)
 
     const campName = campaign?.name ?? 'Campagne'
@@ -576,11 +582,11 @@ export default function BudgetsAdminPage() {
                 fontSize: depth === 0 ? 13 : 12,
                 color: hasChildren ? 'var(--tx-1)' : 'var(--tx-2)',
               }}>
-                {node.label}
+                {_uiNode(node.label)}
               </span>
               {hasChildren && !willRenderChildren && (
                 <span style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginLeft: 4 }}>
-                  ({node.children.length} sous-catégorie{node.children.length > 1 ? 's' : ''})
+                  ({node.children.length} {" "}{_ui("sous-catégorie")}{node.children.length > 1 ? 's' : ''})
                 </span>
               )}
             </div>
@@ -621,14 +627,14 @@ export default function BudgetsAdminPage() {
   }
 
   // ── Rendu principal ──
-  if (loadingRefs) return <div style={{ padding: 40, color: 'var(--tx-3)' }}>CHARGEMENT...</div>
+  if (loadingRefs) return <div style={{ padding: 40, color: 'var(--tx-3)' }}>{_ui("CHARGEMENT...")}</div>
 
   return (
-    <div style={{ background: 'var(--bg-base)', minHeight: '100vh' }}>
+    <div className="itrix-workspace">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <div className="page-title">BUDGETS</div>
-          <div className="page-sub">Saisie budgétaire mensuelle par ferme, serre et catégorie comptable</div>
+          <PageHeader title={_ui("Budgets")} subtitle="ItriX Farm · Finance"/>
+          <div className="page-sub">{_ui("Saisie budgétaire mensuelle par ferme, serre et catégorie comptable")}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Toggle profondeur d'affichage */}
@@ -657,9 +663,9 @@ export default function BudgetsAdminPage() {
 
           {/* Toggle unité */}
           <div style={{ display: 'flex', border: '1px solid var(--bd-1)', borderRadius: 7, overflow: 'hidden' }}>
-            {(['MAD', 'kMAD'] as const).map(u => (
+            {(['MAD', "kMAD"] as const).map(u => (
               <button key={u} onClick={() => setUnit(u)}
-                title={u === 'MAD' ? 'Affichage en MAD' : 'Affichage en milliers de MAD'}
+                title={u === 'MAD' ? _ui("Affichage en MAD") : _ui("Affichage en milliers de MAD")}
                 style={{
                   padding: '9px 12px',
                   background: unit === u ? 'var(--bg-deep)' : 'transparent',
@@ -678,7 +684,7 @@ export default function BudgetsAdminPage() {
           <button
             onClick={() => setGenerateModal(true)}
             disabled={!versionId || !campaignId}
-            title={versionId ? 'Générer le budget : CA depuis plantations + charges depuis coûts prévisionnels' : 'Sélectionnez une version d\'abord'}
+            title={versionId ? _ui("Générer le budget : CA depuis plantations + charges depuis coûts prévisionnels") : _ui("Sélectionnez une version d'abord")}
             style={{
               padding: '9px 14px',
               background: 'color-mix(in srgb, var(--amber) 18%, transparent)',
@@ -691,12 +697,11 @@ export default function BudgetsAdminPage() {
               letterSpacing: 1,
               opacity: (versionId && campaignId) ? 1 : 0.5,
             }}>
-            🧮 GÉNÉRER BUDGET
-          </button>
+            {" "}{_ui("🧮 GÉNÉRER BUDGET")}{" "}</button>
           <button
             onClick={() => setImportModal(true)}
             disabled={!versionId}
-            title={versionId ? 'Importer un fichier Excel dans cette version' : 'Sélectionnez ou créez une version d\'abord'}
+            title={versionId ? _ui("Importer un fichier Excel dans cette version") : _ui("Sélectionnez ou créez une version d'abord")}
             style={{
               padding: '9px 14px',
               background: 'var(--neon-dim)',
@@ -709,14 +714,13 @@ export default function BudgetsAdminPage() {
               letterSpacing: 1,
               opacity: versionId ? 1 : 0.5,
             }}>
-            📤 IMPORT EXCEL
-          </button>
+            {" "}{_ui("📤 IMPORT EXCEL")}{" "}</button>
           <button
             onClick={() => setExportModal(true)}
             disabled={!versionId}
             title={versionId
-              ? 'Exporter en Excel avec choix du niveau de détail (Index + Domaine + Fermes + Serres)'
-              : 'Sélectionnez une version d\'abord'}
+              ? _ui("Exporter en Excel avec choix du niveau de détail (Index + Domaine + Fermes + Serres)")
+              : _ui("Sélectionnez une version d'abord")}
             style={{
               padding: '9px 14px',
               background: 'transparent',
@@ -729,8 +733,7 @@ export default function BudgetsAdminPage() {
               letterSpacing: 1,
               opacity: versionId ? 1 : 0.5,
             }}>
-            📥 EXPORT XLSX
-          </button>
+            {" "}{_ui("📥 EXPORT XLSX")}{" "}</button>
         </div>
       </div>
 
@@ -742,30 +745,28 @@ export default function BudgetsAdminPage() {
           border: '1px solid color-mix(in srgb, var(--amber) 40%, transparent)',
           color: 'var(--tx-1)', fontSize: 13,
         }}>
-          ⚠ <strong>Aucune campagne en base.</strong> Crée d'abord une campagne :
-          {' '}<a href="/admin/demo-reset" style={{ color: 'var(--neon)', fontWeight: 600 }}>via le wizard /admin/demo-reset</a>
-          {' '}ou <a href="/campagnes" style={{ color: 'var(--neon)', fontWeight: 600 }}>manuellement dans /campagnes</a>.
+          ⚠ <strong>{_ui("Aucune campagne en base.")}</strong> {" "}{_ui("Crée d'abord une campagne :")}{" "}{' '}<a href="/admin/demo-reset" style={{ color: 'var(--neon)', fontWeight: 600 }}>{_ui("via le wizard /admin/demo-reset")}</a>
+          {' '}{_ui("ou")}{" "}<a href="/campagnes" style={{ color: 'var(--neon)', fontWeight: 600 }}>{_ui("manuellement dans /campagnes")}</a>.
         </div>
       )}
 
       {/* Filtres globaux */}
-      <div className="card" style={{ padding: 14, marginBottom: 14, display: 'grid', gridTemplateColumns: '1.3fr 1.5fr 1fr auto 1.3fr', gap: 10, alignItems: 'end' }}>
+      <div className="card itrix-filters" style={{ padding: 18, marginBottom: 18 }}>
         <div>
-          <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>CAMPAGNE</div>
+          <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{_ui("CAMPAGNE")}</div>
           <select value={campaignId} onChange={e => setCampaignId(e.target.value)}
             style={{ width: '100%', padding: 8, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 6 }}>
-            {campaigns.length === 0 && <option value="">— aucune campagne —</option>}
+            {campaigns.length === 0 && <option value="">{_ui("— aucune campagne —")}</option>}
             {campaigns.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
           </select>
         </div>
         <div>
           <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>
-            VERSION
-          </div>
-          <div style={{ display: 'flex', gap: 4 }}>
+            {" "}{_ui("VERSION")}{" "}</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <select value={versionId} onChange={e => setVersionId(e.target.value)} disabled={!versions.length}
-              style={{ flex: 1, padding: 8, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 6 }}>
-              {versions.length === 0 && <option value="">— aucune version —</option>}
+              style={{ flex: '1 1 120px', minWidth: 0, maxWidth: '100%', padding: 8, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 6 }}>
+              {versions.length === 0 && <option value="">{_ui("— aucune version —")}</option>}
               {versions.map(v => (
                 <option key={v.id} value={v.id}>
                   {v.code} — {v.name} [{v.status}]
@@ -777,15 +778,15 @@ export default function BudgetsAdminPage() {
                 console.log('[+ NOUVELLE] click', { campaignId, campaigns: campaigns.length })
                 if (!campaignId) {
                   if (campaigns.length === 0) {
-                    toast.error('Aucune campagne disponible. Crée d\'abord une campagne via /admin/demo-reset ou /campagnes.')
+                    toast.error(_ui("Aucune campagne disponible. Crée d'abord une campagne via /admin/demo-reset ou /campagnes."))
                   } else {
-                    toast.error('Sélectionne une campagne dans le filtre à gauche.')
+                    toast.error(_ui("Sélectionne une campagne dans le filtre à gauche."))
                   }
                   return
                 }
                 setVersionModal(true)
               }}
-              title={campaignId ? 'Créer une nouvelle version' : 'Sélectionnez une campagne d\'abord'}
+              title={campaignId ? _ui("Créer une nouvelle version") : _ui("Sélectionnez une campagne d'abord")}
               style={{
                 padding: '0 12px',
                 background: campaignId ? 'var(--neon-dim)' : 'transparent',
@@ -797,19 +798,18 @@ export default function BudgetsAdminPage() {
                 fontFamily: 'var(--font-mono)',
                 whiteSpace: 'nowrap',
               }}>
-              + NOUVELLE
-            </button>
+              {" "}{_ui("+ NOUVELLE")}{" "}</button>
           </div>
         </div>
         <div>
-          <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>FERME</div>
+          <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{_ui("FERME")}</div>
           <select value={farmId} onChange={e => setFarmId(e.target.value)} disabled={level === 'domain' || level === 'multi_farm'}
             style={{ width: '100%', padding: 8, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 6, opacity: (level === 'domain' || level === 'multi_farm') ? 0.4 : 1 }}>
             {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
         </div>
         <div>
-          <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>VUE</div>
+          <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{_ui("VUE")}</div>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {([
               { k: 'farm',         l: 'Ferme (saisie)',    title: 'Saisie au niveau ferme (loyers, MOD, frais communs) — éditable' },
@@ -832,10 +832,10 @@ export default function BudgetsAdminPage() {
           </div>
         </div>
         <div>
-          <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>SERRE</div>
+          <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{_ui("SERRE")}</div>
           <select value={greenhouseId} onChange={e => setGreenhouseId(e.target.value)} disabled={level !== 'greenhouse'}
             style={{ width: '100%', padding: 8, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 6, opacity: level === 'greenhouse' ? 1 : 0.4 }}>
-            {ghsForFarm.length === 0 && <option value="">— aucune serre —</option>}
+            {ghsForFarm.length === 0 && <option value="">{_ui("— aucune serre —")}</option>}
             {ghsForFarm.map(g => <option key={g.id} value={g.id}>{g.code} — {g.name}</option>)}
           </select>
         </div>
@@ -850,52 +850,46 @@ export default function BudgetsAdminPage() {
           <span style={{ fontSize: 12, color: 'var(--tx-2)' }}>{version.name}</span>
           {level === 'consolidated' && (
             <span className="tag" style={{ background: 'color-mix(in srgb, var(--purple) 20%, transparent)', color: 'var(--purple)', border: '1px solid color-mix(in srgb, var(--purple) 40%, transparent)', fontSize: 10, fontFamily: 'var(--font-mono)' }}>
-              CONSOLIDÉ — {[
+              {" "}{_ui("CONSOLIDÉ —")}{" "}{[
                 lines.filter(l => l.greenhouse_id === null).length,
-                `ferme + ${lines.filter(l => l.greenhouse_id !== null).length} ligne(s) serre`,
+                _ui("ferme + {v0} ligne(s) serre",{v0:String(lines.filter(l => l.greenhouse_id !== null).length)}),
               ].join(' ')}
             </span>
           )}
           {level === 'domain' && (
             <span className="tag" style={{ background: 'color-mix(in srgb, var(--purple) 20%, transparent)', color: 'var(--purple)', border: '1px solid color-mix(in srgb, var(--purple) 40%, transparent)', fontSize: 10, fontFamily: 'var(--font-mono)' }}>
-              DOMAINE — {farms.length} ferme(s)
-            </span>
+              {" "}{_ui("DOMAINE —")}{" "}{farms.length} {" "}{_ui("ferme(s)")}{" "}</span>
           )}
           <div style={{ flex: 1 }} />
           <span style={{ fontSize: 11, color: 'var(--tx-3)' }}>
-            {level === 'farm'         && 'Total niveau ferme : '}
-            {level === 'greenhouse'   && 'Total serre : '}
-            {level === 'consolidated' && 'Total consolidé ferme : '}
-            {level === 'domain'       && 'Total domaine : '}
+            {level === 'farm'         && _ui("Total niveau ferme :")}
+            {level === 'greenhouse'   && _ui("Total serre :")}
+            {level === 'consolidated' && _ui("Total consolidé ferme :")}
+            {level === 'domain'       && _ui("Total domaine :")}
             <strong style={{ color: 'var(--tx-1)', fontFamily: 'var(--font-mono)' }}>{fmt(grid.grandTotal)} {unit}</strong>
           </span>
           <div style={{ flex: 1 }} />
           {version.status === 'brouillon' && (
             <button onClick={() => changeStatus('valide')}
               style={{ padding: '6px 12px', border: '1px solid var(--neon)50', background: 'var(--neon-dim)', color: 'var(--neon)', borderRadius: 6, cursor: 'pointer', fontSize: 11 }}>
-              Valider
-            </button>
+              {" "}{_ui("Valider")}{" "}</button>
           )}
           {version.status === 'valide' && (
             <>
               <span style={{ fontSize: 10, color: 'var(--tx-3)', fontStyle: 'italic' }}>
-                Version validée — verrouillée (retour brouillon réservé à l'admin)
-              </span>
+                {" "}{_ui("Version validée — verrouillée (retour brouillon réservé à l'admin)")}{" "}</span>
               <button onClick={() => changeStatus('fige')}
                 style={{ padding: '6px 12px', border: '1px solid var(--purple)50', background: 'color-mix(in srgb, var(--purple) 20%, transparent)', color: 'var(--purple)', borderRadius: 6, cursor: 'pointer', fontSize: 11 }}>
-                Figer
-              </button>
+                {" "}{_ui("Figer")}{" "}</button>
               <button onClick={duplicate}
                 style={{ padding: '6px 12px', border: '1px solid var(--bd-1)', background: 'transparent', color: 'var(--tx-2)', borderRadius: 6, cursor: 'pointer', fontSize: 11 }}>
-                Dupliquer pour amendement
-              </button>
+                {" "}{_ui("Dupliquer pour amendement")}{" "}</button>
             </>
           )}
           {version.status === 'fige' && (
             <button onClick={duplicate}
               style={{ padding: '6px 12px', border: '1px solid var(--bd-1)', background: 'transparent', color: 'var(--tx-2)', borderRadius: 6, cursor: 'pointer', fontSize: 11 }}>
-              Dupliquer pour amendement
-            </button>
+              {" "}{_ui("Dupliquer pour amendement")}{" "}</button>
           )}
         </div>
       )}
@@ -904,22 +898,19 @@ export default function BudgetsAdminPage() {
       {campaigns.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">📅</div>
-          <div className="empty-title">Aucune campagne en base</div>
+          <div className="empty-title">{_ui("Aucune campagne en base")}</div>
           <div style={{ color: 'var(--tx-3)', fontSize: 12, marginTop: 8 }}>
-            Crée d'abord une campagne (menu <strong>EXPLOITATION → Campagnes</strong>), puis reviens ici pour saisir le budget.
-          </div>
+            {" "}{_ui("Crée d'abord une campagne (menu")}{" "}<strong>{_ui("EXPLOITATION → Campagnes")}</strong>{_ui("), puis reviens ici pour saisir le budget.")}{" "}</div>
         </div>
       ) : !version ? (
         <div className="empty-state">
           <div className="empty-icon">📊</div>
-          <div className="empty-title">Aucune version de budget pour cette campagne</div>
+          <div className="empty-title">{_ui("Aucune version de budget pour cette campagne")}</div>
           <div style={{ color: 'var(--tx-3)', fontSize: 12, marginTop: 8 }}>
-            Clique sur le bouton <strong style={{ color: 'var(--neon)' }}>+ NOUVELLE</strong> à droite du sélecteur VERSION pour créer la première version.
-          </div>
+            {" "}{_ui("Clique sur le bouton")}{" "}<strong style={{ color: 'var(--neon)' }}>{_ui("+ NOUVELLE")}</strong> {" "}{_ui("à droite du sélecteur VERSION pour créer la première version.")}{" "}</div>
           <button onClick={() => setVersionModal(true)}
             style={{ marginTop: 16, padding: '9px 14px', background: 'var(--neon-dim)', color: 'var(--neon)', border: '1px solid color-mix(in srgb, var(--neon) 40%, transparent)', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 1 }}>
-            + CRÉER UNE VERSION
-          </button>
+            {" "}{_ui("+ CRÉER UNE VERSION")}{" "}</button>
         </div>
       ) : (
         <>
@@ -927,20 +918,19 @@ export default function BudgetsAdminPage() {
           {level === 'multi_farm' && totalsByFarm.length > 0 && (
             <div className="card" style={{ padding: 14, marginBottom: 12 }}>
               <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 8, fontWeight: 700 }}>
-                🏭 DÉTAIL PAR FERME ({totalsByFarm.length} fermes · trié par CA décroissant)
-              </div>
+                {" "}{_ui("🏭 DÉTAIL PAR FERME (")}{totalsByFarm.length} {" "}{_ui("fermes · trié par CA décroissant)")}{" "}</div>
               <div style={{ overflowX: 'auto' }}>
                 <table className="tbl" style={{ width: '100%', minWidth: 800 }}>
                   <thead>
                     <tr>
-                      <th>Ferme</th>
-                      <th style={{ textAlign: 'right' }}>CA Produits</th>
-                      <th style={{ textAlign: 'right' }}>Ch. Variables</th>
-                      <th style={{ textAlign: 'right' }}>Ch. Fixes</th>
+                      <th>{_ui("Ferme")}</th>
+                      <th style={{ textAlign: 'right' }}>{_ui("CA Produits")}</th>
+                      <th style={{ textAlign: 'right' }}>{_ui("Ch. Variables")}</th>
+                      <th style={{ textAlign: 'right' }}>{_ui("Ch. Fixes")}</th>
                       <th style={{ textAlign: 'right' }}>EBITDA</th>
-                      <th style={{ textAlign: 'right' }}>Amort.</th>
-                      <th style={{ textAlign: 'right', borderLeft: '2px solid var(--bd-1)' }}>Résultat</th>
-                      <th style={{ textAlign: 'right', fontSize: 9 }}>% CA</th>
+                      <th style={{ textAlign: 'right' }}>{_ui("Amort.")}</th>
+                      <th style={{ textAlign: 'right', borderLeft: '2px solid var(--bd-1)' }}>{_ui("Résultat")}</th>
+                      <th style={{ textAlign: 'right', fontSize: 9 }}>{_ui("% CA")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -960,7 +950,7 @@ export default function BudgetsAdminPage() {
                     ))}
                     {/* Ligne totale */}
                     <tr style={{ borderTop: '2px solid var(--neon)', background: 'color-mix(in srgb, var(--neon) 8%, transparent)' }}>
-                      <td style={{ fontWeight: 800 }}>TOTAL DOMAINE</td>
+                      <td style={{ fontWeight: 800 }}>{_ui("TOTAL DOMAINE")}</td>
                       <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--neon)', fontFamily: 'var(--font-mono)' }}>{fmt(totalsByFarm.reduce((s, ft) => s + ft.produit, 0))}</td>
                       <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--amber)', fontFamily: 'var(--font-mono)' }}>{fmt(totalsByFarm.reduce((s, ft) => s + ft.charge_variable, 0))}</td>
                       <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--blue)', fontFamily: 'var(--font-mono)' }}>{fmt(totalsByFarm.reduce((s, ft) => s + ft.charge_fixe, 0))}</td>
@@ -973,23 +963,22 @@ export default function BudgetsAdminPage() {
                 </table>
               </div>
               <div style={{ fontSize: 10, color: 'var(--tx-3)', marginTop: 8 }}>
-                💡 Ce tableau résume par ferme. La grille détaillée ci-dessous montre toutes les catégories agrégées sur le domaine.
-              </div>
+                {" "}{_ui("💡 Ce tableau résume par ferme. La grille détaillée ci-dessous montre toutes les catégories agrégées sur le domaine.")}{" "}</div>
             </div>
           )}
 
-        <div className="card" style={{ padding: 0, overflow: 'auto', maxHeight: 'calc(100vh - 360px)' }}>
-          {linesLoading && <div style={{ padding: 20, color: 'var(--tx-3)' }}>Chargement des lignes...</div>}
+        <div className="card itrix-table" style={{ padding: 0, overflow: 'auto', maxHeight: 'calc(100vh - 360px)' }}>
+          {linesLoading && <div style={{ padding: 20, color: 'var(--tx-3)' }}>{_ui("Chargement des lignes...")}</div>}
           <table className="tbl" style={{ minWidth: 1400 }}>
             <thead>
               <tr>
-                <th style={{ position: 'sticky', left: 0, background: 'var(--bg-deep)', zIndex: 2, minWidth: 220 }}>Catégorie</th>
+                <th style={{ position: 'sticky', left: 0, background: 'var(--bg-deep)', zIndex: 2, minWidth: 220 }}>{_ui("Catégorie")}</th>
                 {months.map(m => (
                   <th key={`${m.year}-${m.month}`} style={{ textAlign: 'right', minWidth: 85, fontSize: 10 }}>
-                    {MONTH_LABELS_FR[m.month - 1]} {String(m.year).slice(-2)}
+                    {_uiNode(MONTH_LABELS_FR[m.month - 1])} {String(m.year).slice(-2)}
                   </th>
                 ))}
-                <th style={{ textAlign: 'right', borderLeft: '2px solid var(--bd-1)', minWidth: 110 }}>Total</th>
+                <th style={{ textAlign: 'right', borderLeft: '2px solid var(--bd-1)', minWidth: 110 }}>{_ui("Total")}</th>
               </tr>
             </thead>
             <tbody>
@@ -997,7 +986,7 @@ export default function BudgetsAdminPage() {
               {/* ════════════════ SYNTHÈSE CPC ════════════════ */}
               {/* Total Produits */}
               <SynthesisRow
-                label="TOTAL PRODUITS"
+                label={_ui("TOTAL PRODUITS")}
                 months={months}
                 monthly={typeTotals.monthly.produit}
                 total={typeTotals.total.produit}
@@ -1007,7 +996,7 @@ export default function BudgetsAdminPage() {
               />
               {/* Total Charges variables */}
               <SynthesisRow
-                label="TOTAL CHARGES VARIABLES"
+                label={_ui("TOTAL CHARGES VARIABLES")}
                 months={months}
                 monthly={typeTotals.monthly.charge_variable}
                 total={typeTotals.total.charge_variable}
@@ -1017,7 +1006,7 @@ export default function BudgetsAdminPage() {
               />
               {/* Total Charges fixes */}
               <SynthesisRow
-                label="TOTAL CHARGES FIXES"
+                label={_ui("TOTAL CHARGES FIXES")}
                 months={months}
                 monthly={typeTotals.monthly.charge_fixe}
                 total={typeTotals.total.charge_fixe}
@@ -1038,7 +1027,7 @@ export default function BudgetsAdminPage() {
                 const caTotal = typeTotals.total.produit
                 return (
                   <SynthesisRow
-                    label="= EBITDA"
+                    label={_ui("= EBITDA")}
                     sublabel={caTotal > 0 ? `${(ebitdaTotal / caTotal * 100).toFixed(1)}% du CA` : undefined}
                     months={months}
                     monthly={ebitdaMonthly}
@@ -1052,7 +1041,7 @@ export default function BudgetsAdminPage() {
               })()}
               {/* Total Amortissements */}
               <SynthesisRow
-                label="TOTAL AMORTISSEMENTS"
+                label={_ui("TOTAL AMORTISSEMENTS")}
                 months={months}
                 monthly={typeTotals.monthly.amortissement}
                 total={typeTotals.total.amortissement}
@@ -1075,7 +1064,7 @@ export default function BudgetsAdminPage() {
                 const caTotal = typeTotals.total.produit
                 return (
                   <SynthesisRow
-                    label="= RÉSULTAT D'EXPLOITATION"
+                    label={_ui("= RÉSULTAT D'EXPLOITATION")}
                     sublabel={caTotal > 0 ? `${(resTotal / caTotal * 100).toFixed(1)}% du CA` : undefined}
                     months={months}
                     monthly={resMonthly}
@@ -1095,20 +1084,20 @@ export default function BudgetsAdminPage() {
 
       {/* Modal création version */}
       {versionModal && (
-        <Modal title="NOUVELLE VERSION DE BUDGET" onClose={() => setVersionModal(false)} size="md">
+        <Modal title={_ui("NOUVELLE VERSION DE BUDGET")} onClose={() => setVersionModal(false)} size="md">
           <FormRow>
-            <FormGroup label="Code *">
-              <Input value={newVersion.code} onChange={e => setNewVersion({ ...newVersion, code: e.target.value })} placeholder="BUD-V1" />
+            <FormGroup label={_ui("Code *")}>
+              <Input value={newVersion.code} onChange={e => setNewVersion({ ...newVersion, code: e.target.value })} placeholder={_ui("BUD-V1")} />
             </FormGroup>
-            <FormGroup label="Nom *">
-              <Input value={newVersion.name} onChange={e => setNewVersion({ ...newVersion, name: e.target.value })} placeholder="Budget initial 2025-2026" />
+            <FormGroup label={_ui("Nom *")}>
+              <Input value={newVersion.name} onChange={e => setNewVersion({ ...newVersion, name: e.target.value })} placeholder={_ui("Budget initial 2025-2026")} />
             </FormGroup>
           </FormRow>
           <ModalFooter
             onCancel={() => setVersionModal(false)}
             onSave={createVersion}
             disabled={!newVersion.code.trim() || !newVersion.name.trim()}
-            saveLabel="CRÉER LA VERSION"
+            saveLabel={_ui("CRÉER LA VERSION")}
           />
         </Modal>
       )}
@@ -1162,11 +1151,9 @@ export default function BudgetsAdminPage() {
           }}>
             <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid var(--bd-1)' }}>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--tx-1)', letterSpacing: -.2, textTransform: 'uppercase' }}>
-                📥 Export Excel — Choisir le niveau de détail
-              </div>
+                {" "}{_ui("📥 Export Excel — Choisir le niveau de détail")}{" "}</div>
               <div style={{ fontSize: 12, color: 'var(--tx-3)', marginTop: 4 }}>
-                Le fichier généré aura un onglet d'index avec liens cliquables vers chaque feuille.
-              </div>
+                {" "}{_ui("Le fichier généré aura un onglet d'index avec liens cliquables vers chaque feuille.")}{" "}</div>
             </div>
             <div style={{ padding: 18 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1208,8 +1195,7 @@ export default function BudgetsAdminPage() {
                     color: 'var(--tx-2)', borderRadius: 7, cursor: exporting ? 'wait' : 'pointer',
                     fontSize: 12, fontFamily: 'var(--font-mono)',
                   }}>
-                  Annuler
-                </button>
+                  {" "}{_ui("Annuler")}{" "}</button>
                 <button onClick={async () => {
                     setExportModal(false)
                     await exportBudgetToExcel(exportLevel)
@@ -1220,7 +1206,7 @@ export default function BudgetsAdminPage() {
                     fontSize: 12, fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: 1,
                     opacity: exporting ? .6 : 1,
                   }}>
-                  {exporting ? 'GÉNÉRATION…' : 'GÉNÉRER LE FICHIER'}
+                  {exporting ? _ui("GÉNÉRATION…") : _ui("GÉNÉRER LE FICHIER")}
                 </button>
               </div>
             </div>
@@ -1246,6 +1232,8 @@ function SynthesisRow(props: {
   negative?: boolean   // affiche en négatif (charges)
   borderTop?: boolean  // trait de séparation au-dessus
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { label, sublabel, months, monthly, total, color, fmt, strong, negative, borderTop } = props
   const bg = strong
     ? `color-mix(in srgb, ${color} 18%, transparent)`
@@ -1254,7 +1242,7 @@ function SynthesisRow(props: {
   return (
     <tr style={{ background: bg, borderTop: borderTop ? `2px solid ${color}60` : undefined }}>
       <td style={{ position: 'sticky', left: 0, background: bg, zIndex: 1, fontWeight: strong ? 800 : 700, color, fontSize: strong ? 13 : 11, letterSpacing: .5 }}>
-        {label}
+        {_uiNode(label)}
         {sublabel && <div style={{ fontSize: 9, color: 'var(--tx-3)', fontWeight: 400, marginTop: 2, fontFamily: 'var(--font-mono)' }}>{sublabel}</div>}
       </td>
       {months.map(m => {
@@ -1283,6 +1271,8 @@ function BudgetCellInput({ value, editable, unit, onCommit }: {
   unit: 'MAD' | 'kMAD'
   onCommit: (valueInMAD: string) => void
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   // Affiche en unité courante, stocke toujours en MAD
   const displayValue = value
     ? (unit === 'kMAD'
@@ -1321,7 +1311,7 @@ function BudgetCellInput({ value, editable, unit, onCommit }: {
         if (e.key === 'Escape') { setLocal(displayValue); (e.target as HTMLInputElement).blur() }
       }}
       placeholder="0"
-      title={unit === 'kMAD' ? 'Saisie en kMAD (milliers)' : 'Saisie en MAD'}
+      title={unit === 'kMAD' ? _ui("Saisie en kMAD (milliers)") : _ui("Saisie en MAD")}
       style={{
         width: '100%', padding: '6px 8px', textAlign: 'right',
         fontFamily: 'var(--font-mono)', fontSize: 11,

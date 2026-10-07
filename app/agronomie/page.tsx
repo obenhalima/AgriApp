@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -21,6 +23,8 @@ const TYPE_VARIANT: Record<string, 'success' | 'warning' | 'info' | 'brand' | 'd
 }
 
 export default function AgronomePage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { values: TYPES } = useReferenceList('operation_type')
   const [items, setItems] = useState<any[]>([])
   const [plantings, setPlantings] = useState<any[]>([])
@@ -87,76 +91,76 @@ export default function AgronomePage() {
       }).select('*, campaign_plantings(*, greenhouses(code,name), varieties(commercial_name))').single()
       if (error) throw error
       setItems(p => [data, ...p]); setDone(true)
-      toast.success('Intervention enregistrée')
+      toast.success(_ui("Intervention enregistrée"))
       setTimeout(() => {
         setModal(false); setDone(false)
         setForm({ campaign_planting_id: '', operation_type: 'traitement', operation_date: '', product_used: '', dose_per_m2: '', total_quantity: '', unit: 'L', duration_hours: '', water_volume_liters: '', ec_ms_cm: '', ph_value: '', temperature: '', humidity_pct: '', worker_count: '', observations: '' })
       }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSaving(false)
   }
 
   return (
     <div>
       {modal && (
-        <Modal title="NOUVELLE INTERVENTION" onClose={() => { setModal(false); setDone(false) }} size="lg">
-          {done ? <SuccessMessage message="Intervention enregistrée !" /> : (
+        <Modal title={_ui("NOUVELLE INTERVENTION")} onClose={() => { setModal(false); setDone(false) }} size="lg">
+          {done ? <SuccessMessage message={_ui("Intervention enregistrée !")} /> : (
             <div className="space-y-md">
-              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary">Identification</div>
-              <FormGroup label="Plantation / Serre *">
+              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary">{_ui("Identification")}</div>
+              <FormGroup label={_ui("Plantation / Serre *")}>
                 {plantings.length === 0
-                  ? <div className="rounded-md border border-danger/30 bg-danger/10 p-md text-danger text-body-sm">⚠ Aucune plantation disponible</div>
+                  ? <div className="rounded-md border border-danger/30 bg-danger/10 p-md text-danger text-body-sm">{_ui("⚠ Aucune plantation disponible")}</div>
                   : <TSelect value={form.campaign_planting_id} onChange={upd('campaign_planting_id')}>
-                      <option value="">— Sélectionner —</option>
+                      <option value="">{_ui("— Sélectionner —")}</option>
                       {plantings.map(p => <option key={p.id} value={p.id}>{p.greenhouses?.name} · {p.varieties?.commercial_name}</option>)}
                     </TSelect>
                 }
               </FormGroup>
               <FormRow>
-                <FormGroup label="Type d'opération">
-                  <TSelect value={form.operation_type} onChange={upd('operation_type')}>{TYPES.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}</TSelect>
+                <FormGroup label={_ui("Type d'opération")}>
+                  <TSelect value={form.operation_type} onChange={upd('operation_type')}>{TYPES.map(t => <option key={t.code} value={t.code}>{_uiNode(t.label)}</option>)}</TSelect>
                 </FormGroup>
-                <FormGroup label="Date *"><TInput type="date" value={form.operation_date} onChange={upd('operation_date')} /></FormGroup>
+                <FormGroup label={_ui("Date *")}><TInput type="date" value={form.operation_date} onChange={upd('operation_date')} /></FormGroup>
               </FormRow>
 
-              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mt-md">Produit & dosage</div>
+              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mt-md">{_ui("Produit & dosage")}</div>
               <FormRow>
-                <FormGroup label="Produit utilisé"><TInput value={form.product_used} onChange={upd('product_used')} placeholder="Azoxystrobin 250SC" /></FormGroup>
-                <FormGroup label="Dose / m²"><TInput type="number" value={form.dose_per_m2} onChange={upd('dose_per_m2')} placeholder="0.15" /></FormGroup>
+                <FormGroup label={_ui("Produit utilisé")}><TInput value={form.product_used} onChange={upd('product_used')} placeholder={_ui("Azoxystrobin 250SC")} /></FormGroup>
+                <FormGroup label={_ui("Dose / m²")}><TInput type="number" value={form.dose_per_m2} onChange={upd('dose_per_m2')} placeholder="0.15" /></FormGroup>
               </FormRow>
               <FormRow>
-                <FormGroup label="Quantité totale"><TInput type="number" value={form.total_quantity} onChange={upd('total_quantity')} /></FormGroup>
-                <FormGroup label="Unité"><TSelect value={form.unit} onChange={upd('unit')}>{['L', 'kg', 'mL', 'g', 'unité'].map(u => <option key={u}>{u}</option>)}</TSelect></FormGroup>
+                <FormGroup label={_ui("Quantité totale")}><TInput type="number" value={form.total_quantity} onChange={upd('total_quantity')} /></FormGroup>
+                <FormGroup label={_ui("Unité")}><TSelect value={form.unit} onChange={upd('unit')}>{['L', 'kg', 'mL', 'g', _ui("unité")].map(u => <option key={u}>{u}</option>)}</TSelect></FormGroup>
               </FormRow>
 
-              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mt-md">Irrigation / Fertigation</div>
+              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mt-md">{_ui("Irrigation / Fertigation")}</div>
               <FormRow>
-                <FormGroup label="Volume eau (L)"><TInput type="number" value={form.water_volume_liters} onChange={upd('water_volume_liters')} /></FormGroup>
-                <FormGroup label="EC (mS/cm)"><TInput type="number" value={form.ec_ms_cm} onChange={upd('ec_ms_cm')} placeholder="3.5" /></FormGroup>
+                <FormGroup label={_ui("Volume eau (L)")}><TInput type="number" value={form.water_volume_liters} onChange={upd('water_volume_liters')} /></FormGroup>
+                <FormGroup label={_ui("EC (mS/cm)")}><TInput type="number" value={form.ec_ms_cm} onChange={upd('ec_ms_cm')} placeholder="3.5" /></FormGroup>
               </FormRow>
               <FormRow>
                 <FormGroup label="pH"><TInput type="number" value={form.ph_value} onChange={upd('ph_value')} placeholder="6.2" /></FormGroup>
-                <FormGroup label="Durée (heures)"><TInput type="number" value={form.duration_hours} onChange={upd('duration_hours')} placeholder="2.5" /></FormGroup>
+                <FormGroup label={_ui("Durée (heures)")}><TInput type="number" value={form.duration_hours} onChange={upd('duration_hours')} placeholder="2.5" /></FormGroup>
               </FormRow>
 
-              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mt-md">Conditions</div>
+              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mt-md">{_ui("Conditions")}</div>
               <FormRow>
-                <FormGroup label="Température (°C)"><TInput type="number" value={form.temperature} onChange={upd('temperature')} placeholder="24" /></FormGroup>
-                <FormGroup label="Humidité (%)"><TInput type="number" value={form.humidity_pct} onChange={upd('humidity_pct')} placeholder="75" /></FormGroup>
+                <FormGroup label={_ui("Température (°C)")}><TInput type="number" value={form.temperature} onChange={upd('temperature')} placeholder="24" /></FormGroup>
+                <FormGroup label={_ui("Humidité (%)")}><TInput type="number" value={form.humidity_pct} onChange={upd('humidity_pct')} placeholder="75" /></FormGroup>
               </FormRow>
-              <FormGroup label="Nombre d'ouvriers"><TInput type="number" value={form.worker_count} onChange={upd('worker_count')} placeholder="3" /></FormGroup>
-              <FormGroup label="Observations"><Textarea rows={2} value={form.observations} onChange={upd('observations')} /></FormGroup>
+              <FormGroup label={_ui("Nombre d'ouvriers")}><TInput type="number" value={form.worker_count} onChange={upd('worker_count')} placeholder="3" /></FormGroup>
+              <FormGroup label={_ui("Observations")}><Textarea rows={2} value={form.observations} onChange={upd('observations')} /></FormGroup>
 
-              <ModalFooter onCancel={() => setModal(false)} onSave={save} loading={saving} disabled={!form.campaign_planting_id || !form.operation_date} saveLabel="ENREGISTRER" />
+              <ModalFooter onCancel={() => setModal(false)} onSave={save} loading={saving} disabled={!form.campaign_planting_id || !form.operation_date} saveLabel={_ui("ENREGISTRER")} />
             </div>
           )}
         </Modal>
       )}
 
       <PageHeader
-        title="Journal agronomique" subtitle="Cultural" icon={FlaskConical} iconColor="#06b6d4"
-        description={`${items.length} intervention${items.length > 1 ? 's' : ''} enregistrée${items.length > 1 ? 's' : ''}`}
-        actions={<div className="flex gap-xs"><Link href="/agronomie/produits"><Button variant="ghost"><FlaskConical size={14} /> Produits phyto</Button></Link><Link href="/agronomie/traitements"><Button variant="secondary"><ShieldCheck size={14} /> Demandes de traitement</Button></Link><Button onClick={() => setModal(true)} variant="primary"><Plus size={14} strokeWidth={2.5} /> Nouvelle intervention</Button></div>}
+        title={_ui("Journal agronomique")} subtitle={_ui("Cultural")} icon={FlaskConical} iconColor="#06b6d4"
+        description={_ui("{v0} intervention{v1} enregistrée{v2}",{v0:String(items.length),v1:String(items.length > 1 ? 's' : ''),v2:String(items.length > 1 ? 's' : '')})}
+        actions={<div className="flex gap-xs"><Link href="/agronomie/produits"><Button variant="ghost"><FlaskConical size={14} /> {" "}{_ui("Produits phyto")}</Button></Link><Link href="/agronomie/traitements"><Button variant="secondary"><ShieldCheck size={14} /> {" "}{_ui("Demandes de traitement")}</Button></Link><Button onClick={() => setModal(true)} variant="primary"><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle intervention")}</Button></div>}
         stats={loading ? [] : [
           { label: 'Total', value: String(stats.count), icon: FlaskConical, color: '#06b6d4' },
           { label: 'Types', value: String(stats.types), icon: FlaskConical, color: '#a855f7' },
@@ -170,12 +174,12 @@ export default function AgronomePage() {
           <div className="flex items-center gap-md flex-wrap">
             <div className="flex items-center gap-sm flex-1 min-w-[200px] max-w-md">
               <Search size={14} className="text-fg-tertiary" />
-              <TInput placeholder="Rechercher produit, serre, variété…" value={search} onChange={(e) => setSearch(e.target.value)} className="border-none bg-transparent focus:ring-0 px-0" />
+              <TInput placeholder={_ui("Rechercher produit, serre, variété…")} value={search} onChange={(e) => setSearch(e.target.value)} className="border-none bg-transparent focus:ring-0 px-0" />
               {search && <button onClick={() => setSearch('')} className="text-fg-tertiary hover:text-fg-primary"><X size={14} /></button>}
             </div>
             <TSelect value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="h-8 w-auto min-w-[160px] text-body-sm">
-              <option value="all">Tous types</option>
-              {TYPES.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
+              <option value="all">{_ui("Tous types")}</option>
+              {TYPES.map(t => <option key={t.code} value={t.code}>{_uiNode(t.label)}</option>)}
             </TSelect>
           </div>
         </Card>
@@ -185,11 +189,11 @@ export default function AgronomePage() {
         {loading ? (
           <div className="p-md space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
         ) : items.length === 0 ? (
-          <EmptyState icon={FlaskConical} title="Aucune intervention" description="Enregistre la première intervention agronomique." action={<Button onClick={() => setModal(true)}><Plus size={14} /> Nouvelle</Button>} />
+          <EmptyState icon={FlaskConical} title={_ui("Aucune intervention")} description={_ui("Enregistre la première intervention agronomique.")} action={<Button onClick={() => setModal(true)}><Plus size={14} /> {" "}{_ui("Nouvelle")}</Button>} />
         ) : (
           <DataTable minWidth={1200}>
             <THead>
-              <TR><TH>Date</TH><TH>Serre</TH><TH>Variété</TH><TH>Type</TH><TH>Produit</TH><TH right>Dose/m²</TH><TH right>Qté</TH><TH right>EC</TH><TH right>pH</TH><TH right>Ouvriers</TH><TH>Notes</TH></TR>
+              <TR><TH>{_ui("Date")}</TH><TH>{_ui("Serre")}</TH><TH>{_ui("Variété")}</TH><TH>{_ui("Type")}</TH><TH>{_ui("Produit")}</TH><TH right>{_ui("Dose/m²")}</TH><TH right>{_ui("Qté")}</TH><TH right>EC</TH><TH right>pH</TH><TH right>{_ui("Ouvriers")}</TH><TH>{_ui("Notes")}</TH></TR>
             </THead>
             <tbody>
               {filtered.map((op, i) => {

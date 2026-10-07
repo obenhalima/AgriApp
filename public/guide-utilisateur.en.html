@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>User Guide — ItriX Farm</title>
+<style>
+:root{--p:#4f46e5;--pl:#eef2ff;--g:#10b981;--w:#f59e0b;--r:#ef4444;--t:#1e293b;--m:#64748b;--b:#e2e8f0;--bg:#f8fafc;--wh:#ffffff;--sb:#1e1b4b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;color:var(--t);background:var(--bg);line-height:1.6}
+.cover{background:linear-gradient(135deg,#1e1b4b,#312e81,#4338ca);color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 40px;page-break-after:always}
+.cover .lw{background:rgba(255,255,255,.12);border-radius:24px;padding:20px 36px;margin-bottom:40px;border:1px solid rgba(255,255,255,.2)}
+.cover .lw h1{font-size:2.2rem;font-weight:800}.cover .lw p{font-size:.85rem;opacity:.6;letter-spacing:2px;text-transform:uppercase;margin-top:4px}
+.cover h2{font-size:3.5rem;font-weight:800;line-height:1.1;margin-bottom:16px}
+.cover .sub{font-size:1.15rem;opacity:.8;max-width:500px}
+.cover .pill{display:inline-block;background:rgba(16,185,129,.2);border:1px solid rgba(16,185,129,.5);color:#6ee7b7;border-radius:20px;padding:6px 20px;font-size:.85rem;margin-top:24px;letter-spacing:1px}
+.cover .meta{margin-top:60px;font-size:.82rem;opacity:.45}
+
+.toc{max-width:860px;margin:0 auto;padding:60px 40px;page-break-after:always}
+.toc h2{font-size:1.8rem;font-weight:700;margin-bottom:32px;color:var(--p);border-bottom:3px solid var(--p);padding-bottom:12px}
+.tg{margin-bottom:28px}.tg-t{font-size:.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--m);margin-bottom:8px}
+.ti{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px dotted var(--b);font-size:.93rem}
+.ti .n{font-size:.78rem;color:var(--m);min-width:36px;font-weight:700}
+
+.page{max-width:1060px;margin:0 auto;padding:60px 40px;page-break-after:always}
+.sh{display:flex;align-items:flex-start;gap:20px;margin-bottom:36px;padding-bottom:24px;border-bottom:2px solid var(--b)}
+.si{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0}
+.sn{font-size:.72rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--p);margin-bottom:4px}
+.st{font-size:1.9rem;font-weight:800;line-height:1.1}.sd{font-size:.93rem;color:var(--m);margin-top:6px}
+
+.sb{margin:28px 0}.sl{display:flex;align-items:center;gap:8px;font-size:.76rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--m);margin-bottom:10px}
+.sl::before{content:'';display:block;width:12px;height:12px;border-radius:3px;background:var(--p);flex-shrink:0}
+.sw{border-radius:14px;overflow:hidden;border:1px solid var(--b);box-shadow:0 4px 24px rgba(0,0,0,.08)}
+.sw img{width:100%;display:block}
+.sc{font-size:.82rem;color:var(--m);margin-top:10px;padding:10px 14px;background:var(--wh);border-radius:8px;border-left:3px solid var(--p);line-height:1.6}
+
+.cb{font-size:.95rem;line-height:1.8;color:#334155;margin-bottom:20px}
+.kg{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:20px 0}
+.kc{background:var(--wh);border:1px solid var(--b);border-radius:12px;padding:16px;border-top:3px solid var(--p)}
+.kc.g{border-top-color:var(--g)}.kc.o{border-top-color:var(--w)}.kc.r{border-top-color:var(--r)}.kc.pu{border-top-color:#8b5cf6}.kc.pk{border-top-color:#ec4899}
+.kl{font-size:.68rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--m)}
+.kv{font-size:1.5rem;font-weight:800;margin:4px 0 2px}
+.ks{font-size:.76rem;color:var(--m)}
+
+.steps{counter-reset:s;list-style:none;margin:16px 0}
+.steps li{counter-increment:s;display:flex;gap:16px;margin-bottom:16px;align-items:flex-start}
+.steps li::before{content:counter(s);min-width:28px;height:28px;background:var(--p);color:#fff;border-radius:50%;font-size:.8rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.steps li p{font-size:.92rem;line-height:1.6}
+.steps li strong{display:block;font-size:.88rem;margin-bottom:2px}
+
+.ib{background:var(--pl);border:1px solid #c7d2fe;border-radius:10px;padding:14px 18px;margin:16px 0;font-size:.88rem;line-height:1.6;display:flex;gap:12px;align-items:flex-start}
+.wb{background:#fffbeb;border-color:#fcd34d}
+.ic{font-size:1.1rem;flex-shrink:0;margin-top:1px}
+
+table{width:100%;border-collapse:collapse;font-size:.87rem;margin:16px 0}
+th{background:#f1f5f9;font-weight:700;padding:10px 14px;text-align:left;font-size:.76rem;letter-spacing:.5px;border-bottom:2px solid var(--b);color:var(--m);text-transform:uppercase}
+td{padding:10px 14px;border-bottom:1px solid var(--b);vertical-align:top}
+tr:hover td{background:#fafafa}
+
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:.7rem;font-weight:700;letter-spacing:.5px}
+.bg{background:#dcfce7;color:#166534}.bo{background:#fef3c7;color:#92400e}.bb{background:#dbeafe;color:#1e40af}
+.bpu{background:#ede9fe;color:#5b21b6}.br{background:#fee2e2;color:#991b1b}.bt{background:#ccfbf1;color:#134e4a}
+
+.tc{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:20px 0}
+.fc{background:var(--wh);border:1px solid var(--b);border-radius:12px;padding:20px}
+.fc h4{font-size:.95rem;font-weight:700;margin-bottom:8px}
+.fc p{font-size:.85rem;color:var(--m);line-height:1.6}
+.fc ul{margin-top:8px;padding-left:18px;font-size:.84rem;color:var(--m)}
+.fc ul li{margin-bottom:4px}
+
+.nm{background:#1e1b4b;color:#fff;border-radius:14px;padding:28px;margin:20px 0;display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.ng h4{font-size:.62rem;letter-spacing:2px;text-transform:uppercase;opacity:.5;margin-bottom:8px}
+.ng ul{list-style:none}.ng li{font-size:.82rem;opacity:.85;padding:3px 0}
+.ng li::before{content:'›';margin-right:6px;opacity:.5}
+
+h2.sub{font-size:1.3rem;font-weight:700;margin:28px 0 12px;color:var(--t)}
+h3.sub{font-size:1.05rem;font-weight:700;margin:20px 0 8px;color:var(--p)}
+hr.dv{border:none;border-top:1px solid var(--b);margin:32px 0}
+</style>
+<link rel="stylesheet" href="guide-brand.css">
+</head><body>
+
+<div class="cover">
+  <div class="lw"><h1>ItriX Farm</h1><p>by ItriX Technologies</p></div>
+  <h2>Guide<br>User</h2>
+  <p class="sub">Complete manual of the application of agricultural production management under greenhouses</p>
+  <div class="pill">● LIVE · growing season 2025–2026</div>
+  <p class="meta">Version 1.0 · April 2026 · Administrator : Omar BENKIRANE</p>
+</div>
+
+<div class="toc">
+  <h2>📋 Contents</h2>
+  <div class="tg"><div class="tg-t">Introduction</div>
+    <div class="ti"><span class="n">—</span>General presentation &amp; navigation</div>
+    <div class="ti"><span class="n">—</span>Status Bar &amp; Global elements</div>
+  </div>
+  <div class="tg"><div class="tg-t">Pilotage</div>
+    <div class="ti"><span class="n">01</span>Executive Dashboard — Consolidated overview</div>
+    <div class="ti"><span class="n">02</span>Harvests — Lots &amp; quality</div>
+    <div class="ti"><span class="n">03</span>Production — Plantation monitoring</div>
+    <div class="ti"><span class="n">04</span>Agronomy — Crop Journal</div>
+  </div>
+  <div class="tg"><div class="tg-t">Trade</div>
+    <div class="ti"><span class="n">05</span>Markets · Customers · Orders</div>
+    <div class="ti"><span class="n">06</span>Invoices — Credit clients &amp; Debit suppliers</div>
+  </div>
+  <div class="tg"><div class="tg-t">Operation</div>
+    <div class="ti"><span class="n">07</span>Farms · Serres · Varieties · Countryside</div>
+  </div>
+  <div class="tg"><div class="tg-t">Resources</div>
+    <div class="ti"><span class="n">08</span>Suppliers — Procurement yearbook</div>
+    <div class="ti"><span class="n">09</span>Purchases — Order forms</div>
+    <div class="ti"><span class="n">10</span>Inventory &amp; alerts</div>
+  </div>
+  <div class="tg"><div class="tg-t">Finance &amp; Configuration</div>
+    <div class="ti"><span class="n">11</span>Costs &amp; Budget</div>
+    <div class="ti"><span class="n">12</span>Margins &amp; IA Forecast</div>
+    <div class="ti"><span class="n">13</span>Parameter &amp; Administration</div>
+  </div>
+  <div class="tg"><div class="tg-t">Annexes</div>
+    <div class="ti"><span class="n">A</span>First start workflow — 13 steps</div>
+    <div class="ti"><span class="n">B</span>Colour codes &amp; status badges</div>
+  </div>
+</div>
+<div class="page" id="intro">
+  <div class="sh"><div class="si" style="background:#eef2ff">🗺️</div><div>
+    <div class="sn">Introduction</div>
+    <div class="st">Introduction &amp; Navigation</div>
+    <div class="sd">General structure of the application and interface markers</div>
+  </div></div>
+  <p class="cb"><strong>ItriX Farm</strong> is a web-based farm execution management system (MES). It centralises real time monitoring of greenhouse production, crop traceability, commercial management, resource control and financial management on one platform.</p>
+  <h2 class="sub">Structure of navigation</h2>
+  <p class="cb">The interface is organised around a <strong>left side navigation bar</strong> The active page is identified by a point (•) to the right of its name.</p>
+  <div class="nm">
+    <div class="ng"><h4>Pilotage</h4><ul><li>Dashboard</li><li>Harvesting</li><li>Production</li><li>Agronomy</li></ul></div>
+    <div class="ng"><h4>Trade</h4><ul><li>Markets</li><li>Clients</li><li>Orders</li><li>Invoices</li></ul></div>
+    <div class="ng"><h4>Operation</h4><ul><li>Farms</li><li>Locks</li><li>Varieties</li><li>Campaigns</li></ul></div>
+    <div class="ng"><h4>Resources · Finance</h4><ul><li>Suppliers</li><li>Purchases · Stocks</li><li>Costs · Margins</li><li>IA &amp; Forecast</li></ul></div>
+  </div>
+  <h2 class="sub">Upper bar</h2>
+  <table>
+    <thead><tr><th>Element</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge bg">● LIVE · 2025-2026</span></td><td>Application connected to database in production mode, active growing season</td></tr>
+      <tr><td>☀️ LIGHT /</td><td>Switch between light and dark theme</td></tr>
+      <tr><td><strong>Omar BENKIRANE · Administrator</strong></td><td>Connected user and its role in the application</td></tr>
+      <tr><td>Logout</td><td>Session disconnection button</td></tr>
+      <tr><td><strong>Context button (top right)</strong></td><td>Change according to module: + PLANTATION, + RECOLT, + INTERVENTION, + FACTURE...</td></tr>
+    </tbody>
+  </table>
+  <h2 class="sub">Sidebar buttons</h2>
+  <div class="tc">
+    <div class="fc"><h4>📌 FIXED / RED.</h4><p>Pin or reduce the width of the sidebar. Useful for expanding the workspace, available at the bottom left of the navigation menu.</p></div>
+    <div class="fc"><h4># All / # Replies</h4><p>Develops or folds all the groups in the navigation menu, available at the top of the sidebar.</p></div>
+  </div>
+  <div class="ib"><span class="ic">💡</span><span>The number displayed to the right of each group title (e.g. PILOTAGE 4) indicates the number of pages in this group.</span></div>
+</div>
+
+<div class="page" id="dashboard">
+  <div class="sh"><div class="si" style="background:#eef2ff">📊</div><div>
+    <div class="sn">Module 01 · Piloting</div>
+    <div class="st">Executive Dashboard</div>
+    <div class="sd">Consolidated overview — Production · Finance · Quality · Active growing season</div>
+  </div></div>
+  <p class="cb">The Dashboard is the <strong>central dashboard</strong> It offers a 360° view of the activity, with a unique time filter to analyze production, revenue, costs and quality on the same time axis.</p>
+  <div class="sb">
+    <div class="sl">Main view of the Executive Dashboard</div>
+    <div class="sw"><img src="/guide-screenshots/dashboard.png" alt="Dashboard" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/dashboard.png</div>')"/></div>
+    <div class="sc">The Dashboard displays real-time synchronization (28/04/2026 · 15:09), quick action shortcuts (New harvest, Follow greenhouses, Update prices, Check margins), time filter and 6 KPI indicators.</div>
+  </div>
+  <h2 class="sub">The 6 key indicators (KPIs)</h2>
+  <div class="kg">
+    <div class="kc"><div class="kl">Filtered production</div><div class="kv" style="color:#2563eb">0 – ∞ t</div><div class="ks">Volume collected over the period</div></div>
+    <div class="kc"><div class="kl">CA filtered</div><div class="kv" style="color:#2563eb">k MAD</div><div class="ks">CA confirmed — invoices over the period</div></div>
+    <div class="kc o"><div class="kl">Actual costs</div><div class="kv" style="color:#d97706">k MAD</div><div class="ks">Expenses incurred over the period</div></div>
+    <div class="kc r"><div class="kl">Gross margin</div><div class="kv" style="color:#dc2626">±k MAD</div><div class="ks">CA – Costs = margin pressure</div></div>
+    <div class="kc g"><div class="kl">Premium</div><div class="kv" style="color:#059669">%</div><div class="ks">Production share category 1</div></div>
+    <div class="kc pk"><div class="kl">Collection:</div><div class="kv" style="color:#db2777">%</div><div class="ks">Cash-flow rate</div></div>
+  </div>
+  <div class="sb">
+    <div class="sl">KPIs &amp; Production/Finance + Executive Summary</div>
+    <div class="sw"><img src="/guide-screenshots/dashboard-kpis.png" alt="Dashboard — KPIs" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/dashboard-kpis.png</div>')"/></div>
+    <div class="sc">The graph <strong>Production and Finance</strong> Overlays 4 curves (Production, Waste, CA, Costs) on double axis. <strong>Executive summary</strong> Summary: Gross Margin, Recovery, Premium Rate, Loss Rate, and number of active campaigns (5 greenhouses followed).</div>
+  </div>
+  <h2 class="sub">Time Filter</h2>
+  <table><thead><tr><th>Mode</th><th>Use</th></tr></thead><tbody>
+    <tr><td><span class="badge bb">Per month</span></td><td>Select a specific month via the drop-down menu (ex: June 2026)</td></tr>
+    <tr><td><span class="badge bb">Per week</span></td><td>Weekly analysis of the current growing season</td></tr>
+    <tr><td><span class="badge bb">Specific period</span></td><td>Free entry of a custom start and end date</td></tr>
+  </tbody></table>
+  <h2 class="sub">Quick Shortcuts</h2>
+  <div class="tc">
+    <div class="fc"><h4>🌿 New harvest</h4><p>Opens the form for entering a new batch directly, without going through the Harvest menu.</p></div>
+    <div class="fc"><h4>🏠 Follow greenhouses</h4><p>Quick access to the monitoring view of active greenhouses and their recent interventions.</p></div>
+    <div class="fc"><h4>💰 Update prices</h4><p>Shortcut to crop lots without price assigned, for fast pricing.</p></div>
+    <div class="fc"><h4>📈 Check margins</h4><p>Direct access to Marges module to control profitability by variety.</p></div>
+  </div>
+</div>
+<div class="page" id="recoltes">
+  <div class="sh"><div class="si" style="background:#f0fdf4">🌾</div><div>
+    <div class="sn">Module 02 · Piloting</div>
+    <div class="st">Harvesting</div>
+    <div class="sd">Seizure and monitoring of harvested lots — quality · dispatches · markets · CA</div>
+  </div></div>
+  <p class="cb">Page <strong>Harvesting</strong> It displays quality indicators (freight, deviation, loss), market detail, and a complete list of lots with their status.</p>
+  <div class="sb">
+    <div class="sl">Harvest Page — growing season 2025-2026 (actual data)</div>
+    <div class="sw"><img src="/guide-screenshots/recoltes.png" alt="Récoltes" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/recoltes.png</div>')"/></div>
+    <div class="sc">9 lots · 13.7 t harvested · CA confirmed 146 112MAD. Dispatches in 2 markets: <em>EXPORT – Salad Time</em> (9 dispatches) and <em>Local market Souss</em> Average brake pressure 1.1% · Average difference 2.5% · Estimated loss 375.6 kg.</div>
+  </div>
+  <h2 class="sub">Summary indicators</h2>
+  <div class="kg">
+    <div class="kc"><div class="kl">Lots</div><div class="kv" style="color:#2563eb">9</div><div class="ks">Total number of lots</div></div>
+    <div class="kc"><div class="kl">Harvested</div><div class="kv" style="color:#2563eb">13.7 t</div><div class="ks">Total weight</div></div>
+    <div class="kc"><div class="kl">Dispatches</div><div class="kv" style="color:#2563eb">14</div><div class="ks">Displays created</div></div>
+    <div class="kc o"><div class="kl">No price</div><div class="kv" style="color:#d97706">0</div><div class="ks">Tarif lot</div></div>
+    <div class="kc pu"><div class="kl">Confirmed</div><div class="kv" style="color:#7c3aed">146 k</div><div class="ks">Validated turnover</div></div>
+    <div class="kc r"><div class="kl">Alerts</div><div class="kv" style="color:#dc2626">0</div><div class="ks">Anomalies to be treated</div></div>
+  </div>
+  <h2 class="sub">Columns in the Batch Table</h2>
+  <table><thead><tr><th>Column</th><th>Description</th></tr></thead><tbody>
+    <tr><td><strong>LOT No</strong></td><td>Self-generated unique identifier (e.g. LOT-20260425-5140)</td></tr>
+    <tr><td><strong>DATE</strong></td><td>Date of harvest</td></tr>
+    <tr><td><strong>SERRE · VARIETÉ</strong></td><td>Origin of the lot (ex: Serre / VITALIA)</td></tr>
+    <tr><td><strong>QUANTITY</strong></td><td>Gross weight harvested (e.g. 900 kg, 1000 kg)</td></tr>
+    <tr><td><strong>MARKETS</strong></td><td>Destination contracts assigned to the lot</td></tr>
+    <tr><td><strong>FREINT / SCART</strong></td><td>Waste (F%) and sizing gap (E%)</td></tr>
+    <tr><td><strong>C. CONFIRMED</strong></td><td>Validated financial value of the lot inMAD</td></tr>
+    <tr><td><strong>STATUS</strong></td><td><span class="badge bg">CLOSED</span> <span class="badge bt">IN PROGRESS</span> <span class="badge bo">WITHOUT PRICES</span></td></tr>
+  </tbody></table>
+  <h2 class="sub">Seizing a new harvest</h2>
+  <ol class="steps">
+    <li><p><strong>Click on &quot; + KNOW RECOLATE&quot;</strong> (high right) or &quot;+ RECOLTE&quot; in the top bar.</p></li>
+    <li><p><strong>Select greenhouse</strong> of origin and the <strong>variety</strong> harvested.</p></li>
+    <li><p><strong>Enter the gross quantity</strong>, date and brake/gauge measurements.</p></li>
+    <li><p><strong>Assign Market(s)</strong> destination to create dispatches.</p></li>
+    <li><p><strong>Add the selling price</strong> — the lot is entered into status <span class="badge bg">CLOSED</span>.</p></li>
+  </ol>
+  <div class="ib wb"><span class="ic">⚠️</span><span>Priceless lots appear in the tab <strong>No price</strong> and do not contribute to the confirmed CA. They must be charged quickly for up-to-date accounting.</span></div>
+  <h2 class="sub">Filter tabs</h2>
+  <table><thead><tr><th>Tab</th><th>Content</th></tr></thead><tbody>
+    <tr><td><strong>RECOLENT</strong></td><td>All lots in the growing season, sorted by date descending</td></tr>
+    <tr><td><strong>WITHOUT PRICES</strong></td><td>Lots waiting for pricing — processing priority</td></tr>
+    <tr><td><strong>CONFIRMED</strong></td><td>Validated dispatches with CA and confirmed markets</td></tr>
+    <tr><td><strong>ALERTS</strong></td><td>Anomalies detected: significant deviations, missing data</td></tr>
+  </tbody></table>
+</div>
+
+<div class="page" id="production">
+  <div class="sh"><div class="si" style="background:#fffbeb">🏭</div><div>
+    <div class="sn">Module 03 · Piloting</div>
+    <div class="st">Production</div>
+    <div class="sd">Monitoring of active plantations — yields &amp; theoretical greenhouse objectives</div>
+  </div></div>
+  <p class="cb">Page <strong>Monitoring Production</strong> list all the plantations of the current growing season, with their technical parameters and theoretical production objectives calculated automatically.</p>
+  <div class="sb">
+    <div class="sl">Monitoring Production — growing season 2025-2026</div>
+    <div class="sw"><img src="/guide-screenshots/production.png" alt="Production" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/production.png</div>')"/></div>
+    <div class="sc">5 plantations on 2.12 ha · Objective 1 003 t · 5 greenhouses. Varieties: VITALIA (main square) and MIRRAVIA (S1, S2, S3). Yields between 45 and 50 kg/m2. All in status <span class="badge bg">PLANNED</span>.</div>
+  </div>
+  <h2 class="sub">Columns in the planting table</h2>
+  <table><thead><tr><th>Column</th><th>Description</th></tr></thead><tbody>
+    <tr><td><strong>SERRE</strong></td><td>Greenhouse identifier (Serre, S1, S2, S3...)</td></tr>
+    <tr><td><strong>VARIETY</strong></td><td>Planted variety (from the Variety Reference)</td></tr>
+    <tr><td><strong>SURFACE</strong></td><td>Area in m2 allocated to planting</td></tr>
+    <tr><td><strong>Give it back.</strong></td><td>Expected yield in kg/m2 (orange if critical)</td></tr>
+    <tr><td><strong>PROD. THEO.</strong></td><td>Area × Yield = expected production in tonnes</td></tr>
+    <tr><td><strong>PLANT DATE.</strong></td><td>Date of cultivation</td></tr>
+    <tr><td><strong>SURF. DISPO</strong></td><td>Remaining available area in the greenhouse</td></tr>
+    <tr><td><strong>STATUS</strong></td><td><span class="badge bg">PLANNED</span> <span class="badge bt">IN PROGRESS</span> <span class="badge bb">TERMINATED</span></td></tr>
+  </tbody></table>
+  <h2 class="sub">Creating a plantation</h2>
+  <ol class="steps">
+    <li><p><strong>Click on &quot;+ PLANTATION&quot;</strong> (high right purple button).</p></li>
+    <li><p><strong>Select the growing season</strong> active, <strong>greenhouse</strong> available and the <strong>variety</strong>.</p></li>
+    <li><p><strong>Seizing the surface</strong> (m2) and the <strong>expected performance</strong> (kg/m2) — theoretical production is calculated automatically.</p></li>
+    <li><p><strong>Indicate date of planting</strong> and validate.</p></li>
+  </ol>
+  <div class="ib"><span class="ic">💡</span><span>The <strong>total theoretical production</strong> at the top of the page (orange) is the sum of all plantings. It serves as a reference objective for the growing season. Click on the icon</span></div>
+</div>
+<div class="page" id="agronomie">
+  <div class="sh"><div class="si" style="background:#f0fdf4">🧪</div><div>
+    <div class="sn">Module 04 · Piloting</div>
+    <div class="st">Agronomy — Cultural Journal</div>
+    <div class="sd">Full traceability of technical interventions on crops</div>
+  </div></div>
+  <p class="cb">The <strong>Journal Agronomique</strong> is the technical logbook of crops. Each intervention (fertilization, plant protection treatment, irrigation, size...) is timed and linked to a specific greenhouse and variety.</p>
+  <div class="sb">
+    <div class="sl">Journal Agronomique</div>
+    <div class="sw"><img src="/guide-screenshots/agronomie.png" alt="Agronomie" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/agronomie.png</div>')"/></div>
+    <div class="sc">Fertilization intervention on greenhouse S1 (MIRRAVIA) on 24/03/2026, product <em>test01</em>, dose 50, quantity 3 L, 5 workers. Columns EC and pH allow to plot the parameters of the nutrient solution.</div>
+  </div>
+  <h2 class="sub">Columns of the journal</h2>
+  <table><thead><tr><th>Column</th><th>Description</th></tr></thead><tbody>
+    <tr><td><strong>DATE</strong></td><td>Date of intervention</td></tr>
+    <tr><td><strong>SERRE · VARIETÉ</strong></td><td>Culture</td></tr>
+    <tr><td><strong>TYPE</strong></td><td>FERTILIZATION, PHYTOSANITARY, IRRIGATION, SIZE, OTHER...</td></tr>
+    <tr><td><strong>PRODUCT</strong></td><td>Product name used</td></tr>
+    <tr><td><strong>DOSE/M2</strong></td><td>Dosage applied per m2 (orange if not standard)</td></tr>
+    <tr><td><strong>QTÉ</strong></td><td>Total quantity used with unit</td></tr>
+    <tr><td><strong>EC / PH</strong></td><td>Electrical conductivity and pH of the solution (optional)</td></tr>
+    <tr><td><strong>WORKERS</strong></td><td>Number of workers engaged in the intervention</td></tr>
+    <tr><td><strong>NOTES</strong></td><td>Free comments and observations</td></tr>
+  </tbody></table>
+  <h2 class="sub">Save intervention</h2>
+  <ol class="steps">
+    <li><p><strong>Click on &quot;+ INTERVENTION&quot;</strong> (top right or top bar).</p></li>
+    <li><p><strong>Select greenhouse</strong> and <strong>variety</strong> concerned.</p></li>
+    <li><p><strong>Select the type of intervention</strong> in the drop-down list.</p></li>
+    <li><p><strong>Inform the product</strong>, the dose per m2 and total quantity.</p></li>
+    <li><p>(Optional) Enter <strong>EC</strong>, <strong>pH</strong>, on <strong>Number of workers</strong> and <strong>Notes</strong>.</p></li>
+    <li><p><strong>Validate</strong> — the intervention is recorded with automatic time stamping.</p></li>
+  </ol>
+</div>
+
+<div class="page" id="commerce">
+  <div class="sh"><div class="si" style="background:#fff7ed">🛒</div><div>
+    <div class="sn">Modules 05-06 · Trade</div>
+    <div class="st">Markets · Customers · Orders · Invoices</div>
+    <div class="sd">Commercial management — outlets, customers, sales and billing</div>
+  </div></div>
+  <div class="tc">
+    <div class="fc"><h4>🌍 Markets</h4><p>Register of sales markets (export, local, wholesaler...). Each market is suitable for harvest dispatches.</p><ul><li>Button: <strong>+ NEW MARKET</strong></li><li>Definition of type and tariff conditions</li></ul></div>
+    <div class="fc"><h4>👥 Clients</h4><p>Customer directory buyers related to orders and invoices for full commercial traceability.</p><ul><li>Button: <strong>+ NEW CUSTOMER</strong></li><li>Name, contact details, payment terms</li></ul></div>
+    <div class="fc"><h4>📝 Orders</h4><p>Customer purchase orders linking a customer, quantity, variety and sale price.</p><ul><li>Button: <strong>+ NEW ORDER</strong></li><li>Link to a client and harvested lot</li></ul></div>
+    <div class="fc"><h4>💡 Recommended flow</h4><p>1. Create the <strong>Market</strong><br>2. Create the <strong>Client</strong><br>3. Save the <strong>Command</strong><br>4. Generate the <strong>Invoice</strong></p></div>
+  </div>
+  <hr class="dv"/>
+  <div class="sh" style="margin-top:24px;margin-bottom:24px"><div class="si" style="background:#f0fdf4;font-size:1.4rem">🧾</div><div>
+    <div class="sn">Module 06 · Trade</div>
+    <div class="st">Invoices</div>
+    <div class="sd">Invoices (credit) and suppliers (debit) — cash and maturities</div>
+  </div></div>
+  <div class="sb">
+    <div class="sl">Page Bills — Customer Credit View</div>
+    <div class="sw"><img src="/guide-screenshots/factures.png" alt="Factures" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/factures.png</div>')"/></div>
+    <div class="sc">95 000MADCashed · 61 865MADnet balance 33 135MAD. The monthly calendar (April 2026) and the next due date list close to each other, in blue (credit receivable) and amber (debit payable).</div>
+  </div>
+  <h2 class="sub">Financial indicators</h2>
+  <table><thead><tr><th>Indicator</th><th>Meaning</th></tr></thead><tbody>
+    <tr><td><strong>Cash</strong></td><td>Total settlement received from customers on the growing season</td></tr>
+    <tr><td><strong>Payments</strong></td><td>Total payments to suppliers</td></tr>
+    <tr><td><strong>Net balance</strong></td><td>Cash receipts – Payments = net cash position</td></tr>
+    <tr><td><strong>Claims</strong></td><td>Amount outstanding (invoices not paid)</td></tr>
+    <tr><td><strong>Debts</strong></td><td>Amount outstanding (invoices not paid)</td></tr>
+  </tbody></table>
+  <h2 class="sub">Create a customer invoice</h2>
+  <ol class="steps">
+    <li><p><strong>Click on &quot;+ CUSTOMER FACTURE&quot;.</strong></p></li>
+    <li><p><strong>Select client</strong> and link the order or dispatches concerned.</p></li>
+    <li><p><strong>Check amounts</strong>, due date and payment conditions.</p></li>
+    <li><p><strong>Validate</strong> — the invoice appears in the maturity statement.</p></li>
+  </ol>
+</div>
+<div class="page" id="exploitation">
+  <div class="sh"><div class="si" style="background:#f0f9ff">🏗️</div><div>
+    <div class="sn">Module 07 · Operation</div>
+    <div class="st">Farms · Serres · Varieties · Countryside</div>
+    <div class="sd">Basic benchmarks — infrastructure and season configuration</div>
+  </div></div>
+  <p class="cb">Section <strong>Operation</strong> contains the repositories on which the entire application is based. It must be configured first when initial setting up.</p>
+  <div class="tc">
+    <div class="fc"><h4>🏘️ Farms &amp; Sites</h4><p>Upper geographic level. Group several greenhouses. Button: <strong>+ NEW FERM</strong>.</p><ul><li>Name, code, location</li><li>Then attach the greenhouses</li></ul></div>
+    <div class="fc"><h4>🏠 Locks</h4><p>The unit of production is a farm-based element. <strong>+ NEW SERRE</strong>.</p><ul><li>Identifier (S1, S2...), surface m2</li><li>Used everywhere in the app</li></ul></div>
+    <div class="fc"><h4>🌱 Varieties</h4><p>Catalogue of cultivated varieties. Button: <strong>+ NEW VARIETÉ</strong>.</p><ul><li>MIRRAVIA, VITALIA, etc.</li><li>Reference yield, category</li></ul></div>
+    <div class="fc"><h4>📅 Campaigns</h4><p>Sets a season with its dates and goals. <strong>+ NEW growing season</strong>.</p><ul><li>Planting/harvest dates</li><li>Budget and tonnage objective</li></ul></div>
+  </div>
+  <div class="sb">
+    <div class="sl">Campaigns — growing season 2025-2026 active</div>
+    <div class="sw"><img src="/guide-screenshots/campagnes.png" alt="Campagnes" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/campagnes.png</div>')"/></div>
+    <div class="sc">growing season 2025-2026 (CAMP-2026-01, Domaine Souss Agri) — status PLANNING. Planting : 2026-08-31 · Beginning harvest : 2025-07-01 · End harvest : 2026-08-31. 3 farms available. Budget and tonnage target to be defined.</div>
+  </div>
+  <div class="ib wb"><span class="ic">⚠️</span><span><strong>Mandatory order:</strong> Farm → Serres → Varieties → growing season. Without these basic data, the Production, Harvest and Agronomy modules do not work.</span></div>
+</div>
+
+<div class="page" id="ressources">
+  <div class="sh"><div class="si" style="background:#fef9f0">📦</div><div>
+    <div class="sn">Modules 08-09-10 · Resources</div>
+    <div class="st">Suppliers · Purchases · Stocks</div>
+    <div class="sd">Supply management and inventory control</div>
+  </div></div>
+  <div class="sb">
+    <div class="sl">Suppliers — Supplier Directory</div>
+    <div class="sw"><img src="/guide-screenshots/fournisseurs.png" alt="Fournisseurs" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/fournisseurs.png</div>')"/></div>
+    <div class="sc">3 suppliers: <em>fONUN3</em> (Processors), <em>Supplier 1a</em> (Packaging), <em>Test 1</em> (Phytosanitary, Casablanca, test@test.com). All with payment deadline 30 days.</div>
+  </div>
+  <table><thead><tr><th>Column</th><th>Description</th></tr></thead><tbody>
+    <tr><td><strong>CODE · NAME</strong></td><td>Single identifier and name of supplier</td></tr>
+    <tr><td><strong>CATEGORY</strong></td><td><span class="badge bg">FERTILISER</span> <span class="badge bo">PACKAGING</span> <span class="badge bb">PLANT HEALTH</span></td></tr>
+    <tr><td><strong>LMP TIME</strong></td><td>Contractual payment period in days (e.g. 30 days)</td></tr>
+  </tbody></table>
+  <h2 class="sub">Purchases — Order forms</h2>
+  <div class="tc">
+    <div class="fc"><h4>📋 + GOOD ACHAT</h4><p>Creates a formal order form from a supplier. Allows for the follow-up of receipt and payment.</p></div>
+    <div class="fc"><h4>⚡ DIRECT ACHATE</h4><p>Saves a spot purchase without order form. Ideal for small urgent or unforeseen purchases.</p></div>
+  </div>
+  <hr class="dv"/>
+  <div class="sb">
+    <div class="sl">Stocks — Critical alert inventory</div>
+    <div class="sw"><img src="/guide-screenshots/stocks.png" alt="Stocks" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/stocks.png</div>')"/></div>
+    <div class="sc">4 articles. <em>Output 1</em> (Semences) : stock -395 kg / threshold 10 kg → <span class="badge br">⚠ ALERT</span>. <em>Net</em> (Replacement parts): 109 rolls OK. <em>Pipe</em> (Consumables): 100 rolls OK. Orange banner alerts the article.</div>
+  </div>
+  <h2 class="sub">Stock movements</h2>
+  <table><thead><tr><th>Action</th><th>Description</th></tr></thead><tbody>
+    <tr><td><strong>+ IN</strong></td><td>Entry of goods or resupply — increases quantity</td></tr>
+    <tr><td><strong>- OUT</strong></td><td>Consumption or stock output — Decrement of quantity</td></tr>
+    <tr><td><strong>MOVEMENTS</strong></td><td>Complete history of all input and output movements by item</td></tr>
+  </tbody></table>
+  <div class="ib"><span class="ic">💡</span><span>When an article passes below its threshold, a <span class="badge br">⚠ ALERT</span> appears in the status column and a warning banner appears at the top of the page. Click on the link to access the article directly.</span></div>
+</div>
+<div class="page" id="finances">
+  <div class="sh"><div class="si" style="background:#fff7ed">💰</div><div>
+    <div class="sn">Modules 11-12 · Finance</div>
+    <div class="st">Costs &amp; Budget · Margins · IA &amp; Forecast</div>
+    <div class="sd">Financial pilotage — actual expenditure vs budget, cost-effectiveness and analytical</div>
+  </div></div>
+  <div class="sb">
+    <div class="sl">Costs &amp; Budget — View Real costs</div>
+    <div class="sw"><img src="/guide-screenshots/couts.png" alt="Coûts & Budget" loading="lazy" style="max-width:100%;border-radius:10px;border:1px solid #e5e7eb;display:block;box-shadow:0 1px 3px rgba(0,0,0,.08)" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fef3c7;border-radius:10px;padding:24px;text-align:center;border:2px dashed #f59e0b;color:#92400e;font-size:0.9rem\'>⚠ Image manquante : /guide-screenshots/couts.png</div>')"/></div>
+    <div class="sc">99 total inflows: 38 real costs (1 135 kMAD) + 61 budget inflows. <strong>-61,4%</strong>. Costs are grouped by category <em>VARIABLE CHARGES</em> with filters by Countryside / Farm / Lock / Type / Period.</div>
+  </div>
+  <h2 class="sub">Two main tabs</h2>
+  <div class="tc">
+    <div class="fc"><h4>Actual costs <span class="badge bb" style="margin-left:6px">38</span></h4><p>Actual charges incurred. Seizures manually or generated by stock exits and purchases.</p><ul><li>Total actual in kMAD</li><li>Enters displayed</li><li>Budget variance → Actual (%)</li></ul></div>
+    <div class="fc"><h4>Estimated budget <span class="badge bpu" style="margin-left:6px">61</span></h4><p>Planned budget envelopes by category.</p><ul><li>Defined in Settings → Budgets</li><li>Breakdown by growing season / greenhouse / type</li><li>Compared to real-time</li></ul></div>
+  </div>
+  <h2 class="sub">Filters available</h2>
+  <table><thead><tr><th>Filter</th><th>Options</th></tr></thead><tbody>
+    <tr><td><strong>Countryside / Farmhouse / Serre</strong></td><td>Target a specific combination or display all</td></tr>
+    <tr><td><strong>Type</strong></td><td>Variable loads, fixed loads, labour, etc.</td></tr>
+    <tr><td><strong>Date from / Date to</strong></td><td>Period of seizure or occurrence of cost</td></tr>
+    <tr><td><strong>Research</strong></td><td>Free text on description or category</td></tr>
+  </tbody></table>
+  <h2 class="sub">Entering a Cost</h2>
+  <ol class="steps">
+    <li><p><strong>Click on &quot;+ SAVE COST&quot;.</strong></p></li>
+    <li><p><strong>Select the growing season and greenhouse</strong> The Commission has not yet taken any action to ensure that the measures taken by the Member States are implemented.</p></li>
+    <li><p><strong>Select type and category</strong> - I&#x27;m not.</p></li>
+    <li><p><strong>Enter amount</strong> ( MAD ), date and description.</p></li>
+    <li><p><strong>Validate</strong> — the budget/real difference is automatically recalculated.</p></li>
+  </ol>
+  <hr class="dv"/>
+  <div class="tc">
+    <div class="fc"><h4>📊 Margins (Rentability)</h4><p>Automatic calculation of gross margins by variety and greenhouse. Comparison CA vs. Charged costs.</p><div class="ib" style="margin-top:10px"><span class="ic">🔧</span><span style="font-size:.82rem">Module waiting to connect to the real data.</span></div></div>
+    <div class="fc"><h4>🤖 IA &amp; Forecast</h4><p>Simulations and forecasts based on analytical models of production and revenue.</p><div class="ib" style="margin-top:10px"><span class="ic">🔧</span><span style="font-size:.82rem">Module waiting to connect to the real data.</span></div></div>
+  </div>
+</div>
+
+<div class="page" id="admin">
+  <div class="sh"><div class="si" style="background:#f8f4ff">⚙️</div><div>
+    <div class="sn">Module 13 · Parameterization &amp; Administration</div>
+    <div class="st">Configuration &amp; Access management</div>
+    <div class="sd">Chart of Accounts, Budgets, Workflows, Users and Roles</div>
+  </div></div>
+  <h2 class="sub">Parameter</h2>
+  <table><thead><tr><th>Submodule</th><th>Role</th></tr></thead><tbody>
+    <tr><td><strong>📒 Chart of Accounts</strong></td><td>Sets the tree of accounting categories to rank costs and revenues.</td></tr>
+    <tr><td><strong>💼 Budgets</strong></td><td>Budget envelopes by growing season, greenhouse and type of charge. Power the Budget tab.</td></tr>
+    <tr><td><strong>📋 Operating account</strong></td><td>Sets the structure of the profit and loss account. Used for management financial reports.</td></tr>
+    <tr><td><strong>🔁 Workflows</strong></td><td>Automation rules and validation circuits (approvals, alerts on overruns).</td></tr>
+  </tbody></table>
+  <hr class="dv"/>
+  <h2 class="sub">Administration</h2>
+  <div class="tc">
+    <div class="fc"><h4>👤 Users</h4><p>User account management — list of assets, assigned roles and access rights.</p><ul><li>View active users</li><li>See assigned roles</li></ul></div>
+    <div class="fc"><h4>🔐 Roles &amp; Permissions</h4><p>Customizable access profiles (Administrateur, Production Manager, Commercial...) with module permissions.</p><ul><li>Creating Roles</li><li>Associate permissions</li><li>Restrict reading/writing</li></ul></div>
+  </div>
+  <div class="ib wb"><span class="ic">⚠️</span><span>Only profile <strong>Administrator</strong> a access to the Administration and Settings modules. Other profiles are limited to the modules allowed in Roles &amp; Permission.</span></div>
+</div>
+<div class="page" id="workflow">
+  <div class="sh"><div class="si" style="background:#f0fdf4">🚀</div><div>
+    <div class="sn">Appendix A</div>
+    <div class="st">First start workflow</div>
+    <div class="sd">Recommended Initial Configuration — 13 Steps to Be Operational</div>
+  </div></div>
+  <p class="cb">To configure the application from scratch, follow this order of entry. Each step depends on the previous one to ensure consistency of data.</p>
+  <ol class="steps">
+    <li><p><strong>Farms → Farms:</strong> Create the farm of the domain (root geographical entity).</p></li>
+    <li><p><strong>Operation → Locks:</strong> Add each greenhouse with its identifier, surface and attachment farm.</p></li>
+    <li><p><strong>Exploitation → Varieties:</strong> Create the catalogue (VITALIA, MIRRAVIA...) with reference yields.</p></li>
+    <li><p><strong>Exploitation → Campaigns:</strong> Create the growing season with planting dates, beginning and end of harvest.</p></li>
+    <li><p><strong>Resources → Suppliers:</strong> Register suppliers by category with payment deadlines.</p></li>
+    <li><p><strong>Resources → Stocks:</strong> Create items with alert thresholds and unit costs. Enter the initial stock via <strong>+ IN</strong>.</p></li>
+    <li><p><strong>Trade → Customers :</strong> Register buyers (exporters, local markets) and their conditions.</p></li>
+    <li><p><strong>Trade → Markets :</strong> Define destination markets (EXPORT, LOCAL...) for dispatches.</p></li>
+    <li><p><strong>Parameter → Chart of Accounts &amp; Budgets:</strong> Configure cost categories and budget envelopes.</p></li>
+    <li><p><strong>Production → Create plantations:</strong> Record each plantation (severe × variety × surface × yield × date).</p></li>
+    <li><p><strong>Harvests → Seize the first harvest:</strong> Create lots with weight, greenhouse, variety and destination market.</p></li>
+    <li><p><strong>Agronomy → Journalize interventions:</strong> Record the fertilizations and treatments with the water.</p></li>
+    <li><p><strong>Trade → Orders &amp; Invoices:</strong> Create customer orders and generate invoices for tracking the CA.</p></li>
+  </ol>
+  <div class="ib"><span class="ic">✅</span><span>Once these 13 steps are complete, the <strong>Executive Dashboard</strong> displays all indicators in real time. KPIs automatically update each new entry in the application.</span></div>
+</div>
+
+<div class="page" id="couleurs">
+  <div class="sh"><div class="si" style="background:#fff7f0">🎨</div><div>
+    <div class="sn">Appendix B</div>
+    <div class="st">Colour codes &amp; Status badges</div>
+    <div class="sd">Quick reference for reading the visual indicators of the interface</div>
+  </div></div>
+  <h2 class="sub">Colours of numerical values</h2>
+  <table><thead><tr><th>Colour</th><th>Meaning</th><th>Example</th></tr></thead><tbody>
+    <tr><td style="color:#2563eb;font-weight:700">● Blue</td><td>Production values or CA</td><td>13.7 t · 146 k MAD · 2.12 ha</td></tr>
+    <tr><td style="color:#d97706;font-weight:700">● Orange</td><td>Yields, thresholds, light alerts</td><td>50 kg/m2 · 10 k costs</td></tr>
+    <tr><td style="color:#7c3aed;font-weight:700">● Violet</td><td>Theoretical objectives</td><td>1 003 t theoretical production</td></tr>
+    <tr><td style="color:#059669;font-weight:700">Green</td><td>Confirmed values / OK status</td><td>CLOSED · ✓ OK</td></tr>
+    <tr><td style="color:#dc2626;font-weight:700">● Red</td><td>Critical alerts/negative values</td><td>-395 kg stock ·</td></tr>
+    <tr><td style="color:#db2777;font-weight:700">● Pink</td><td>Collection indicators</td><td>0% cash</td></tr>
+  </tbody></table>
+  <h2 class="sub">Status badges</h2>
+  <table><thead><tr><th>Badge</th><th>Module</th><th>Meaning</th></tr></thead><tbody>
+    <tr><td><span class="badge bg">PLANNED</span></td><td>Production</td><td>Registered plantation, not yet in active harvest</td></tr>
+    <tr><td><span class="badge bt">IN PROGRESS</span></td><td>Production / Harvesting</td><td>Active plantation or batch in treatment</td></tr>
+    <tr><td><span class="badge bb">CLOSED</span></td><td>Harvesting</td><td>Finalized lot with price and confirmed dispatches</td></tr>
+    <tr><td><span class="badge bo">WITHOUT PRICES</span></td><td>Harvesting</td><td>Collected lot without pricing — to be processed</td></tr>
+    <tr><td><span class="badge br">⚠ ALERT</span></td><td>Stock</td><td>Stock below minimum threshold — resupply required</td></tr>
+    <tr><td><span class="badge bg">✓ OK</span></td><td>Stock</td><td>Satisfactory stock level</td></tr>
+    <tr><td><span class="badge bpu">PLANNING</span></td><td>Campaigns</td><td>growing season in planning phase</td></tr>
+  </tbody></table>
+  <h2 class="sub">Icons of action</h2>
+  <table><thead><tr><th>Icon</th><th>Action</th><th>Modules concerned</th></tr></thead><tbody>
+    <tr><td>🖊 Orange pencil</td><td>Edit registration</td><td>Production, Suppliers, Stocks, Campaigns</td></tr>
+    <tr><td>⏸ Red</td><td>Disable / archive</td><td>Suppliers</td></tr>
+    <tr><td>+ IN / - OUT</td><td>In/out of stock</td><td>Stock</td></tr>
+    <tr><td>📊 MOVEMENTS</td><td>Movement history</td><td>Stock</td></tr>
+  </tbody></table>
+  <div style="margin-top:48px;padding:32px;background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:16px;text-align:center;color:white">
+    <h3 style="font-size:1.4rem;margin-bottom:8px">ItriX Farm</h3>
+    <p style="opacity:.7;font-size:.9rem">Production MES · User Guide v1.0 · growing season 2025-2026</p>
+    <p style="opacity:.5;font-size:.8rem;margin-top:16px">For assistance, contact the administrator: Omar BENKIRANE</p>
+  </div>
+</div>
+
+<script src="/guide-screenshots-update.js"></script></body></html>

@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { UserCog, UserPlus, Lock, Users, UserCheck, Pencil, ShieldCheck, KeyRound, Briefcase, Mail, RefreshCw } from 'lucide-react'
@@ -18,6 +20,8 @@ import { listDomains, type Domain } from '@/lib/domains'
 import { BusinessCapability, FunctionCapability, OperationalFunction, getUserOrganizationConfig, listOrganizationCatalog, saveUserOrganizationConfig } from '@/lib/organization'
 
 export default function UsersAdminPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { user, isAdmin, isPlatformAdmin, activeDomain } = useAuth()
   const [users, setUsers] = useState<UserProfile[]>([])
   const [roles, setRoles] = useState<Role[]>([])
@@ -91,7 +95,7 @@ export default function UsersAdminPage() {
     try {
       await updateProfileRole(userId, roleId || null)
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, role_id: roleId || null, role_name: roles.find(r => r.id === roleId)?.name ?? null, is_admin: roles.find(r => r.id === roleId)?.is_admin ?? false } : u))
-      toast.success('Rôle mis à jour')
+      toast.success(_ui("Rôle mis à jour"))
     } catch (e: any) { toast.error(e.message) }
   }
 
@@ -99,13 +103,13 @@ export default function UsersAdminPage() {
     try {
       await updateProfileActive(userId, next)
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_active: next } : u))
-      toast.success(next ? 'Utilisateur activé' : 'Utilisateur désactivé')
+      toast.success(next ? _ui("Utilisateur activé") : _ui("Utilisateur désactivé"))
     } catch (e: any) { toast.error(e.message) }
   }
 
   const submitInvite = async () => {
-    if (!invite.email || !invite.password) { toast.error('Email et mot de passe requis'); return }
-    if (!invite.role_id || inviteDomains.length === 0) { toast.error('Sélectionne un rôle et au moins une société'); return }
+    if (!invite.email || !invite.password) { toast.error(_ui("Email et mot de passe requis")); return }
+    if (!invite.role_id || inviteDomains.length === 0) { toast.error(_ui("Sélectionne un rôle et au moins une société")); return }
     setInviting(true)
     try {
       const created = await createUser({
@@ -116,7 +120,7 @@ export default function UsersAdminPage() {
       setInviteOpen(false)
       setInvite({ email: '', password: '', full_name: '', role_id: '' })
       setInviteDomains([])
-      toast.success('Utilisateur créé')
+      toast.success(_ui("Utilisateur créé"))
       await load()
     } catch (e: any) { toast.error(e.message) }
     finally { setInviting(false) }
@@ -163,11 +167,11 @@ export default function UsersAdminPage() {
   const submitEdit = async () => {
     if (!editing) return
     if (isPlatformAdmin && !editForm.is_platform_admin && editForm.is_active && editMemberships.length === 0) {
-      toast.error('Sélectionne au moins une société pour cet utilisateur actif.')
+      toast.error(_ui("Sélectionne au moins une société pour cet utilisateur actif."))
       return
     }
     if (isPlatformAdmin && editMemberships.some(item => !item.role_id)) {
-      toast.error('Sélectionne un rôle pour chaque société autorisée.')
+      toast.error(_ui("Sélectionne un rôle pour chaque société autorisée."))
       return
     }
     setSavingEdit(true)
@@ -196,7 +200,7 @@ export default function UsersAdminPage() {
           )
         }
       }
-      toast.success('Utilisateur modifié')
+      toast.success(_ui("Utilisateur modifié"))
       setEditing(null)
       await load()
     } catch (e: any) { toast.error(e.message) }
@@ -208,7 +212,7 @@ export default function UsersAdminPage() {
     setSendingReset(true)
     try {
       await sendUserPasswordReset(editing.id)
-      toast.success(`Lien de réinitialisation envoyé à ${editing.email}`)
+      toast.success(_ui("Lien de réinitialisation envoyé à {v0}",{v0:String(editing.email)}))
     } catch (e: any) {
       toast.error(e.message)
     } finally {
@@ -239,15 +243,15 @@ export default function UsersAdminPage() {
     try {
       await setTemporaryUserPassword(editing.id, temporaryPassword)
       setTemporaryPasswordApplied(true)
-      toast.success('Mot de passe temporaire appliqué. Le changement sera obligatoire à la connexion.')
+      toast.success(_ui("Mot de passe temporaire appliqué. Le changement sera obligatoire à la connexion."))
     } catch (e: any) { toast.error(e.message) }
     finally { setApplyingTemporaryPassword(false) }
   }
 
   const prepareTemporaryPasswordEmail = () => {
     if (!editing || !temporaryPasswordApplied) return
-    const subject = encodeURIComponent('FarmPilot — Votre mot de passe temporaire')
-    const body = encodeURIComponent(`Bonjour ${editing.full_name || ''},\n\nVotre mot de passe FarmPilot a été réinitialisé.\n\nIdentifiant : ${editing.email}\nMot de passe temporaire : ${temporaryPassword}\n\nÀ votre prochaine connexion, vous devrez obligatoirement choisir un nouveau mot de passe personnel.\n\nCordialement,`)
+    const subject = encodeURIComponent('ItriX Farm — Votre mot de passe temporaire')
+    const body = encodeURIComponent(`Bonjour ${editing.full_name || ''},\n\nVotre mot de passe ItriX Farm a été réinitialisé.\n\nIdentifiant : ${editing.email}\nMot de passe temporaire : ${temporaryPassword}\n\nÀ votre prochaine connexion, vous devrez obligatoirement choisir un nouveau mot de passe personnel.\n\nCordialement,`)
     window.location.href = `mailto:${encodeURIComponent(editing.email)}?subject=${subject}&body=${body}`
   }
 
@@ -263,7 +267,7 @@ export default function UsersAdminPage() {
           capability_id: capabilityId, farm_id: null, granted: value === 'grant', reason: 'Paramétrage depuis la fiche utilisateur',
         })),
       )
-      toast.success('Fonctions et habilitations enregistrées')
+      toast.success(_ui("Fonctions et habilitations enregistrées"))
     } catch (e: any) {
       toast.error(e.message)
     } finally {
@@ -276,15 +280,15 @@ export default function UsersAdminPage() {
     .map(mapping => mapping.capability_id))
 
   if (!isAdmin) return (
-    <EmptyState icon={Lock} title="Accès réservé aux administrateurs" />
+    <EmptyState icon={Lock} title={_ui("Accès réservé aux administrateurs")} />
   )
 
   return (
     <div>
       <PageHeader
-        title="Utilisateurs" subtitle="Administration" icon={UserCog} iconColor="#ef4444"
-        description={`${users.length} utilisateur${users.length > 1 ? 's' : ''} · ${users.filter(u => u.is_active).length} actif${users.filter(u => u.is_active).length > 1 ? 's' : ''}`}
-        actions={<Button onClick={openInvite} variant="primary"><UserPlus size={14} strokeWidth={2.5} /> Inviter un utilisateur</Button>}
+        title={_ui("Utilisateurs")} subtitle={_ui("Administration")} icon={UserCog} iconColor="#ef4444"
+        description={_ui("{v0} utilisateur{v1} · {v2} actif{v3}",{v0:String(users.length),v1:String(users.length > 1 ? 's' : ''),v2:String(users.filter(u => u.is_active).length),v3:String(users.filter(u => u.is_active).length > 1 ? 's' : '')})}
+        actions={<Button onClick={openInvite} variant="primary"><UserPlus size={14} strokeWidth={2.5} /> {" "}{_ui("Inviter un utilisateur")}</Button>}
         stats={loading ? [] : [
           { label: 'Total', value: String(users.length), icon: Users, color: '#0ea5e9' },
           { label: 'Actifs', value: String(users.filter(u => u.is_active).length), icon: UserCheck, color: '#10b981' },
@@ -297,10 +301,10 @@ export default function UsersAdminPage() {
         {loading ? (
           <div className="p-md space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
         ) : users.length === 0 ? (
-          <EmptyState icon={Users} title="Aucun utilisateur" />
+          <EmptyState icon={Users} title={_ui("Aucun utilisateur")} />
         ) : (
           <DataTable minWidth={1000}>
-            <THead><TR><TH>Utilisateur</TH><TH>Email</TH><TH>Clients / Sociétés</TH><TH>Niveau plateforme</TH><TH>Rôle</TH><TH>Statut</TH><TH>Dernière connexion</TH><TH>Actions</TH></TR></THead>
+            <THead><TR><TH>{_ui("Utilisateur")}</TH><TH>{_ui("Email")}</TH><TH>{_ui("Clients / Sociétés")}</TH><TH>{_ui("Niveau plateforme")}</TH><TH>{_ui("Rôle")}</TH><TH>{_ui("Statut")}</TH><TH>{_ui("Dernière connexion")}</TH><TH>{_ui("Actions")}</TH></TR></THead>
             <tbody>
               {users.map((u, i) => (
                 <TR key={u.id} animate delay={0.04 + i * 0.02} className={!u.is_active ? 'opacity-50' : ''}>
@@ -321,36 +325,35 @@ export default function UsersAdminPage() {
                     <div className="flex flex-wrap gap-1">
                       {(memberships[u.id] ?? []).filter(m => m.is_active).map(m => {
                         const domain = domains.find(d => d.id === m.domain_id)
-                        return domain ? <Badge key={m.domain_id} variant={m.is_default ? 'brand' : 'default'} size="sm">{domain.name}{m.is_default ? ' · défaut' : ''}</Badge> : null
+                        return domain ? <Badge key={m.domain_id} variant={m.is_default ? 'brand' : 'default'} size="sm">{domain.name}{m.is_default ? _ui("· défaut") : ''}</Badge> : null
                       })}
                       {(memberships[u.id] ?? []).filter(m => m.is_active).length === 0 && <span className="text-caption text-fg-tertiary">—</span>}
                     </div>
                   </TD>
                   <TD>
                     {u.is_platform_admin ? (
-                      <Badge variant="danger" size="sm"><ShieldCheck size={11} /> Super admin</Badge>
+                      <Badge variant="danger" size="sm"><ShieldCheck size={11} /> {" "}{_ui("Super admin")}</Badge>
                     ) : (
-                      <span className="text-caption text-fg-tertiary">Utilisateur</span>
+                      <span className="text-caption text-fg-tertiary">{_ui("Utilisateur")}</span>
                     )}
                   </TD>
                   <TD>
                     <TSelect value={u.role_id ?? ''} onChange={(e) => onChangeRole(u.id, e.target.value)} disabled={!isPlatformAdmin} className="h-7 text-caption w-auto min-w-[140px]">
-                      <option value="">— Aucun —</option>
-                      {roles.map(r => <option key={r.id} value={r.id}>{r.name}{r.is_admin ? ' (admin)' : ''}</option>)}
+                      <option value="">{_ui("— Aucun —")}</option>
+                      {roles.map(r => <option key={r.id} value={r.id}>{r.name}{r.is_admin ? _ui("(admin)") : ''}</option>)}
                     </TSelect>
                   </TD>
                   <TD>
                     <button onClick={() => onToggleActive(u.id, !u.is_active)}
                       disabled={u.is_platform_admin && !isPlatformAdmin}
                       className={`px-2.5 py-0.5 rounded text-caption font-mono uppercase font-semibold border transition-colors ${u.is_active ? 'border-success/40 bg-success/15 text-success' : 'border-border bg-transparent text-fg-tertiary'}`}>
-                      {u.is_active ? 'Actif' : 'Désactivé'}
+                      {u.is_active ? _ui("Actif") : _ui("Désactivé")}
                     </button>
                   </TD>
                   <TD className="text-caption text-fg-tertiary">{u.last_login_at ? new Date(u.last_login_at).toLocaleString('fr') : '—'}</TD>
                   <TD>
                     <Button variant="secondary" size="sm" onClick={() => openEdit(u)}>
-                      <Pencil size={12} /> Modifier
-                    </Button>
+                      <Pencil size={12} /> {" "}{_ui("Modifier")}{" "}</Button>
                   </TD>
                 </TR>
               ))}
@@ -360,25 +363,24 @@ export default function UsersAdminPage() {
       </Card>
 
       {inviteOpen && (
-        <Modal title="INVITER UN UTILISATEUR" onClose={() => setInviteOpen(false)} size="md">
+        <Modal title={_ui("INVITER UN UTILISATEUR")} onClose={() => setInviteOpen(false)} size="md">
           <div className="space-y-md">
             <div className="rounded-md bg-surface-sunk border border-border p-md text-caption text-fg-tertiary">
-              L'utilisateur sera créé avec email confirmé. Communique-lui son mot de passe par un canal sécurisé.
-            </div>
+              {" "}{_ui("L'utilisateur sera créé avec email confirmé. Communique-lui son mot de passe par un canal sécurisé.")}{" "}</div>
             <FormRow>
-              <FormGroup label="Email *"><TInput type="email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} placeholder="user@domaine.com" /></FormGroup>
-              <FormGroup label="Nom complet"><TInput value={invite.full_name} onChange={(e) => setInvite({ ...invite, full_name: e.target.value })} placeholder="Prénom Nom" /></FormGroup>
+              <FormGroup label={_ui("Email *")}><TInput type="email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} placeholder={_ui("user@domaine.com")} /></FormGroup>
+              <FormGroup label={_ui("Nom complet")}><TInput value={invite.full_name} onChange={(e) => setInvite({ ...invite, full_name: e.target.value })} placeholder={_ui("Prénom Nom")} /></FormGroup>
             </FormRow>
             <FormRow>
-              <FormGroup label="Mot de passe * (min 8 car.)"><TInput type="password" value={invite.password} onChange={(e) => setInvite({ ...invite, password: e.target.value })} placeholder="••••••••" /></FormGroup>
-              <FormGroup label="Rôle">
+              <FormGroup label={_ui("Mot de passe * (min 8 car.)")}><TInput type="password" value={invite.password} onChange={(e) => setInvite({ ...invite, password: e.target.value })} placeholder="••••••••" /></FormGroup>
+              <FormGroup label={_ui("Rôle")}>
                 <TSelect value={invite.role_id} onChange={(e) => setInvite({ ...invite, role_id: e.target.value })}>
-                  <option value="">— Plus tard —</option>
+                  <option value="">{_ui("— Plus tard —")}</option>
                   {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </TSelect>
               </FormGroup>
             </FormRow>
-            <FormGroup label="Clients / Sociétés autorisés *">
+            <FormGroup label={_ui("Clients / Sociétés autorisés *")}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-xs rounded-md border border-border p-sm">
                 {manageableDomains.map(company => (
                   <label key={company.id} className="flex items-center gap-sm p-xs text-body-sm cursor-pointer">
@@ -388,46 +390,44 @@ export default function UsersAdminPage() {
                   </label>
                 ))}
               </div>
-              {manageableDomains.length === 1 && <div className="mt-1 text-caption text-fg-tertiary">Société imposée automatiquement : vous n’en administrez qu’une.</div>}
+              {manageableDomains.length === 1 && <div className="mt-1 text-caption text-fg-tertiary">{_ui("Société imposée automatiquement : vous n’en administrez qu’une.")}</div>}
             </FormGroup>
-            <ModalFooter onCancel={() => setInviteOpen(false)} onSave={submitInvite} loading={inviting} disabled={!invite.email || !invite.password || invite.password.length < 8 || !invite.role_id || inviteDomains.length === 0} saveLabel="CRÉER L'UTILISATEUR" />
+            <ModalFooter onCancel={() => setInviteOpen(false)} onSave={submitInvite} loading={inviting} disabled={!invite.email || !invite.password || invite.password.length < 8 || !invite.role_id || inviteDomains.length === 0} saveLabel={_ui("CRÉER L'UTILISATEUR")} />
           </div>
         </Modal>
       )}
 
       {editing && (
-        <Modal title={`MODIFIER — ${editing.full_name ?? editing.email}`} onClose={() => setEditing(null)} size="md">
+        <Modal title={_ui("MODIFIER — {v0}",{v0:String(editing.full_name ?? editing.email)})} onClose={() => setEditing(null)} size="md">
           <div className="space-y-md">
             <FormRow>
-              <FormGroup label="Nom complet">
+              <FormGroup label={_ui("Nom complet")}>
                 <TInput value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} />
               </FormGroup>
-              <FormGroup label="Téléphone">
+              <FormGroup label={_ui("Téléphone")}>
                 <TInput value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
               </FormGroup>
             </FormRow>
-            <FormGroup label="Email">
+            <FormGroup label={_ui("Email")}>
               <div>
                 <TInput value={editing.email} disabled />
                 <Button type="button" variant="secondary" size="sm" loading={sendingReset} onClick={sendPasswordReset} className="mt-sm">
-                  <KeyRound size={13} /> Envoyer un lien de réinitialisation
-                </Button>
+                  <KeyRound size={13} /> {" "}{_ui("Envoyer un lien de réinitialisation")}{" "}</Button>
                 <Button type="button" variant="secondary" size="sm" onClick={openTemporaryReset} className="mt-sm ml-xs" disabled={editing.id === user?.id}>
-                  <RefreshCw size={13} /> Définir un mot de passe temporaire
-                </Button>
+                  <RefreshCw size={13} /> {" "}{_ui("Définir un mot de passe temporaire")}{" "}</Button>
               </div>
             </FormGroup>
             <FormRow>
-              <FormGroup label={isPlatformAdmin ? 'Rôle global' : 'Rôle global (lecture seule)'}>
+              <FormGroup label={isPlatformAdmin ? _ui("Rôle global") : _ui("Rôle global (lecture seule)")}>
                 <TSelect value={editForm.role_id} onChange={(e) => setEditForm({ ...editForm, role_id: e.target.value })} disabled={!isPlatformAdmin}>
-                  <option value="">— Aucun —</option>
-                  {roles.map(r => <option key={r.id} value={r.id}>{r.name}{r.is_admin ? ' (admin)' : ''}</option>)}
+                  <option value="">{_ui("— Aucun —")}</option>
+                  {roles.map(r => <option key={r.id} value={r.id}>{r.name}{r.is_admin ? _ui("(admin)") : ''}</option>)}
                 </TSelect>
               </FormGroup>
-              <FormGroup label="Statut du compte">
+              <FormGroup label={_ui("Statut du compte")}>
                 <TSelect value={editForm.is_active ? 'active' : 'inactive'} onChange={(e) => setEditForm({ ...editForm, is_active: e.target.value === 'active' })}>
-                  <option value="active">Actif</option>
-                  <option value="inactive">Désactivé</option>
+                  <option value="active">{_ui("Actif")}</option>
+                  <option value="inactive">{_ui("Désactivé")}</option>
                 </TSelect>
               </FormGroup>
             </FormRow>
@@ -442,18 +442,16 @@ export default function UsersAdminPage() {
                 />
                 <span>
                   <span className="flex items-center gap-1.5 font-semibold text-body-sm text-fg-primary">
-                    <ShieldCheck size={14} className="text-purple-500" /> Super-administrateur plateforme
-                  </span>
+                    <ShieldCheck size={14} className="text-purple-500" /> {" "}{_ui("Super-administrateur plateforme")}{" "}</span>
                   <span className="block mt-1 text-caption text-fg-tertiary">
-                    Accès global à tous les clients / sociétés. Seul un super-administrateur peut modifier ce statut.
-                  </span>
+                    {" "}{_ui("Accès global à tous les clients / sociétés. Seul un super-administrateur peut modifier ce statut.")}{" "}</span>
                 </span>
               </label>
             </div>
             {(isPlatformAdmin || activeDomain) && (
               <div className="rounded-md border border-border p-md space-y-sm">
-                <div className="font-semibold text-body-sm text-fg-primary">Affectation aux clients / sociétés</div>
-                <div className="text-caption text-fg-tertiary">{isPlatformAdmin ? 'Sélectionne une ou plusieurs sociétés et le rôle appliqué dans chacune.' : `Tu peux administrer uniquement ${manageableDomains.length > 1 ? 'les sociétés où tu es administrateur' : 'la société actuellement sélectionnée'}.`}</div>
+                <div className="font-semibold text-body-sm text-fg-primary">{_ui("Affectation aux clients / sociétés")}</div>
+                <div className="text-caption text-fg-tertiary">{isPlatformAdmin ? _ui("Sélectionne une ou plusieurs sociétés et le rôle appliqué dans chacune.") : _ui("Tu peux administrer uniquement {v0}.",{v0:String(manageableDomains.length > 1 ? 'les sociétés où tu es administrateur' : 'la société actuellement sélectionnée')})}</div>
                 {manageableDomains.map(domain => {
                   const membership = editMemberships.find(item => item.domain_id === domain.id)
                   return (
@@ -463,17 +461,16 @@ export default function UsersAdminPage() {
                         <span>{domain.name}<span className="block font-mono text-[10px] text-fg-tertiary">{domain.code}</span></span>
                       </label>
                       <TSelect value={membership?.role_id ?? ''} onChange={e => updateMembership(domain.id, { role_id: e.target.value })} disabled={!membership}>
-                        <option value="">— Rôle —</option>
+                        <option value="">{_ui("— Rôle —")}</option>
                         {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                       </TSelect>
                       {isPlatformAdmin ? <label className="flex items-center gap-xs text-caption text-fg-secondary">
-                        <input type="radio" name="default-domain" checked={Boolean(membership?.is_default)} disabled={!membership} onChange={() => updateMembership(domain.id, { is_default: true })} /> Défaut
-                      </label> : <Badge variant={membership?.is_active ? 'success' : 'default'} size="sm">{membership ? 'Actif' : 'Non affecté'}</Badge>}
+                        <input type="radio" name="default-domain" checked={Boolean(membership?.is_default)} disabled={!membership} onChange={() => updateMembership(domain.id, { is_default: true })} /> {" "}{_ui("Défaut")}{" "}</label> : <Badge variant={membership?.is_active ? 'success' : 'default'} size="sm">{membership ? _ui("Actif") : _ui("Non affecté")}</Badge>}
                     </div>
                   )
                 })}
                 {isPlatformAdmin && !editForm.is_platform_admin && editForm.is_active && editMemberships.length === 0 && (
-                  <div className="text-caption text-danger">Un utilisateur actif doit avoir au moins une société.</div>
+                  <div className="text-caption text-danger">{_ui("Un utilisateur actif doit avoir au moins une société.")}</div>
                 )}
               </div>
             )}
@@ -481,12 +478,12 @@ export default function UsersAdminPage() {
               <div className="rounded-md border border-border p-md space-y-md">
                 <div className="flex items-start justify-between gap-md">
                   <div>
-                    <div className="flex items-center gap-xs font-semibold text-body-sm text-fg-primary"><Briefcase size={14} /> Fonctions et habilitations métier</div>
-                    <div className="mt-1 text-caption text-fg-tertiary">Les fonctions peuvent être cumulées. Une habilitation individuelle peut compléter ou retirer un droit hérité.</div>
+                    <div className="flex items-center gap-xs font-semibold text-body-sm text-fg-primary"><Briefcase size={14} /> {" "}{_ui("Fonctions et habilitations métier")}</div>
+                    <div className="mt-1 text-caption text-fg-tertiary">{_ui("Les fonctions peuvent être cumulées. Une habilitation individuelle peut compléter ou retirer un droit hérité.")}</div>
                   </div>
-                  <Button type="button" size="sm" variant="secondary" loading={orgSaving} disabled={orgLoading} onClick={saveOrganization}>Enregistrer cette société</Button>
+                  <Button type="button" size="sm" variant="secondary" loading={orgSaving} disabled={orgLoading} onClick={saveOrganization}>{_ui("Enregistrer cette société")}</Button>
                 </div>
-                <Field label="Société à paramétrer">
+                <Field label={_ui("Société à paramétrer")}>
                   <TSelect value={orgDomainId} onChange={e => setOrgDomainId(e.target.value)}>
                     {(memberships[editing.id] ?? []).filter(item => item.is_active && manageableDomains.some(domain => domain.id === item.domain_id)).map(item => {
                       const domain = domains.find(value => value.id === item.domain_id)
@@ -496,25 +493,25 @@ export default function UsersAdminPage() {
                 </Field>
                 {orgLoading ? <Skeleton className="h-32" /> : <>
                   <div>
-                    <div className="font-mono text-caption uppercase text-fg-tertiary mb-xs">Fonctions exercées</div>
+                    <div className="font-mono text-caption uppercase text-fg-tertiary mb-xs">{_ui("Fonctions exercées")}</div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-xs">
                       {orgFunctions.map(fn => <label key={fn.id} className="flex items-start gap-sm rounded-md border border-border bg-surface-sunk p-sm cursor-pointer">
                         <input type="checkbox" className="mt-1" checked={selectedFunctions.includes(fn.id)} onChange={e => setSelectedFunctions(current => e.target.checked ? [...current,fn.id] : current.filter(id => id !== fn.id))} />
-                        <span><span className="block text-body-sm font-semibold">{fn.name}</span>{fn.description && <span className="block text-caption text-fg-tertiary">{fn.description}</span>}</span>
+                        <span><span className="block text-body-sm font-semibold">{fn.name}</span>{fn.description && <span className="block text-caption text-fg-tertiary">{_uiNode(fn.description)}</span>}</span>
                       </label>)}
                     </div>
                   </div>
                   <div>
-                    <div className="font-mono text-caption uppercase text-fg-tertiary mb-xs">Habilitations effectives et exceptions</div>
+                    <div className="font-mono text-caption uppercase text-fg-tertiary mb-xs">{_ui("Habilitations effectives et exceptions")}</div>
                     <div className="space-y-xs">
                       {orgCapabilities.map(capability => {
                         const override = capabilityOverrides[capability.id] ?? 'inherit'
                         const inherited = inheritedCapabilities.has(capability.id)
                         const effective = override === 'grant' || (override === 'inherit' && inherited)
                         return <div key={capability.id} className="grid grid-cols-[1fr_150px] items-center gap-sm rounded-md border border-border px-sm py-xs">
-                          <div><span className="text-body-sm">{capability.name}</span><Badge size="xs" variant={effective ? 'success' : 'default'} className="ml-xs">{effective ? 'Autorisée' : 'Non autorisée'}</Badge>{capability.is_sensitive && <Badge size="xs" variant="warning" className="ml-xs">Sensible</Badge>}</div>
+                          <div><span className="text-body-sm">{capability.name}</span><Badge size="xs" variant={effective ? 'success' : 'default'} className="ml-xs">{effective ? _ui("Autorisée") : _ui("Non autorisée")}</Badge>{capability.is_sensitive && <Badge size="xs" variant="warning" className="ml-xs">{_ui("Sensible")}</Badge>}</div>
                           <TSelect value={override} onChange={e => setCapabilityOverrides(current => ({...current,[capability.id]:e.target.value as any}))} className="h-7 text-caption">
-                            <option value="inherit">Héritée des fonctions</option><option value="grant">Accorder</option><option value="deny">Retirer</option>
+                            <option value="inherit">{_ui("Héritée des fonctions")}</option><option value="grant">{_ui("Accorder")}</option><option value="deny">{_ui("Retirer")}</option>
                           </TSelect>
                         </div>
                       })}
@@ -526,28 +523,27 @@ export default function UsersAdminPage() {
             <ModalFooter
               onCancel={() => setEditing(null)} onSave={submitEdit} loading={savingEdit}
               disabled={isPlatformAdmin && ((!editForm.is_platform_admin && editForm.is_active && editMemberships.length === 0) || editMemberships.some(item => !item.role_id))}
-              saveLabel="ENREGISTRER"
+              saveLabel={_ui("ENREGISTRER")}
             />
           </div>
         </Modal>
       )}
       {temporaryResetOpen && editing && (
-        <Modal title={`MOT DE PASSE TEMPORAIRE — ${editing.full_name ?? editing.email}`} onClose={() => setTemporaryResetOpen(false)} size="sm">
+        <Modal title={_ui("MOT DE PASSE TEMPORAIRE — {v0}",{v0:String(editing.full_name ?? editing.email)})} onClose={() => setTemporaryResetOpen(false)} size="sm">
           <div className="space-y-md">
             <div className="rounded-md border border-warning/30 bg-warning/10 p-md text-body-sm text-warning">
-              Ce mot de passe ne sera pas conservé dans FarmPilot. Après son application, l’utilisateur devra le remplacer dès sa prochaine connexion.
-            </div>
-            <FormGroup label="Mot de passe temporaire (min. 8 caractères)">
+              {" "}{_ui("Ce mot de passe ne sera pas conservé dans ItriX Farm. Après son application, l’utilisateur devra le remplacer dès sa prochaine connexion.")}{" "}</div>
+            <FormGroup label={_ui("Mot de passe temporaire (min. 8 caractères)")}>
               <div className="flex gap-xs">
                 <TInput type="text" value={temporaryPassword} onChange={e => { setTemporaryPassword(e.target.value); setTemporaryPasswordApplied(false) }} />
-                <Button type="button" variant="secondary" size="sm" onClick={generateTemporaryPassword}><RefreshCw size={13}/> Générer</Button>
+                <Button type="button" variant="secondary" size="sm" onClick={generateTemporaryPassword}><RefreshCw size={13}/> {" "}{_ui("Générer")}</Button>
               </div>
             </FormGroup>
-            {temporaryPasswordApplied && <div className="rounded-md border border-success/30 bg-success/10 p-md text-body-sm text-success">Le mot de passe temporaire est actif et le changement obligatoire est programmé.</div>}
+            {temporaryPasswordApplied && <div className="rounded-md border border-success/30 bg-success/10 p-md text-body-sm text-success">{_ui("Le mot de passe temporaire est actif et le changement obligatoire est programmé.")}</div>}
             <div className="flex flex-wrap justify-end gap-xs border-t border-border pt-md">
-              <Button type="button" variant="ghost" onClick={() => setTemporaryResetOpen(false)}>FERMER</Button>
-              <Button type="button" variant="secondary" onClick={prepareTemporaryPasswordEmail} disabled={!temporaryPasswordApplied}><Mail size={13}/> PRÉPARER L’E-MAIL</Button>
-              <Button type="button" loading={applyingTemporaryPassword} onClick={applyTemporaryPassword} disabled={temporaryPassword.length < 8 || temporaryPasswordApplied}><KeyRound size={13}/> APPLIQUER</Button>
+              <Button type="button" variant="ghost" onClick={() => setTemporaryResetOpen(false)}>{_ui("FERMER")}</Button>
+              <Button type="button" variant="secondary" onClick={prepareTemporaryPasswordEmail} disabled={!temporaryPasswordApplied}><Mail size={13}/> {" "}{_ui("PRÉPARER L’E-MAIL")}</Button>
+              <Button type="button" loading={applyingTemporaryPassword} onClick={applyTemporaryPassword} disabled={temporaryPassword.length < 8 || temporaryPasswordApplied}><KeyRound size={13}/> {" "}{_ui("APPLIQUER")}</Button>
             </div>
           </div>
         </Modal>

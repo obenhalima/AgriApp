@@ -1,4 +1,7 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
+import '@/components/ui/workspace.css'
 /**
  * /factures — Refonte avec design system.
  * Conserve toute la logique (calendrier, échéances, paiements) — refait l'UI.
@@ -77,6 +80,8 @@ const STATUS_CONFIG: Record<string, { variant: 'success' | 'warning' | 'danger' 
 
 // ════════════════════════════════════════════════════════════════════════════
 export default function FacturesPage() {
+ const {t:_ui,text:_uiNode,intlLocale:_uiLocale}=useLanguage()
+
   const { activeDomain } = useAuth()
   const { values: PAY_METHODS } = useReferenceList('payment_method')
   const [tab, setTab] = useState<InvoiceTab>('clients')
@@ -233,10 +238,10 @@ export default function FacturesPage() {
           const local = clients.find((c) => c.id === enriched.client_id)
           enriched.clients = { name: local?.name ?? '(client inconnu)' }
         }
-        toast.info(`Facture ${enriched.invoice_number} chargée (n'apparaissait pas via la requête principale)`)
+        toast.info(_ui("Facture {v0} chargée (n'apparaissait pas via la requête principale)",{v0:String(enriched.invoice_number)}))
         setClientInvoices((prev) => [enriched, ...prev])
       })
-  }, [focusInvoiceId, clientInvoices, loading, clients])
+  }, [focusInvoiceId, clientInvoices, loading, clients,_ui])
 
   // ─── Onglet actif depuis ?tab=bordereaux|clients|fournisseurs ─────────
   useEffect(() => {
@@ -420,18 +425,18 @@ export default function FacturesPage() {
       const total = Number(clientForm.subtotal)
       const created = await createFacture({ ...clientForm, subtotal: total, total_amount: total })
       setClientInvoices(p => [created, ...p]); setDone(true)
-      toast.success('Facture client créée')
+      toast.success(_ui("Facture client créée"))
       setTimeout(() => {
         resetModalState()
         setClientForm({ client_id: '', invoice_date: '', due_date: '', subtotal: '', notes: '' })
       }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSaving(false)
   }
 
   const saveSupplierInvoice = async () => {
     if (!supplierForm.supplier_id || !supplierForm.invoice_date || !supplierForm.due_date || !supplierForm.subtotal) {
-      toast.error('Champs requis manquants')
+      toast.error(_ui("Champs requis manquants"))
       return
     }
     setSaving(true)
@@ -445,14 +450,14 @@ export default function FacturesPage() {
         subtotal: total, total_amount: total,
       })
       setSupplierInvoices(p => [created, ...p]); setDone(true)
-      toast.success('✅ Facture fournisseur créée' + (supplierForm.po_id ? ' et liée au bon d\'achat' : ''))
+      toast.success(_ui("✅ Facture fournisseur créée") + (supplierForm.po_id ? _ui("et liée au bon d'achat") : ''))
       setTimeout(() => {
         resetModalState()
         setSupplierForm({ supplier_id: '', po_id: '', campaign_id: '', greenhouse_id: '', cost_category: 'services', invoice_date: '', due_date: '', subtotal: '', notes: '' })
       }, 1200)
     } catch (e: any) {
       console.error('[saveSupplierInvoice]', e)
-      toast.error('Erreur : ' + e.message)
+      toast.error(_ui("Erreur :") + e.message)
     }
     setSaving(false)
   }
@@ -483,9 +488,9 @@ export default function FacturesPage() {
     try {
       await payerFacture({ invoice_id: selectedClientInvoice.id, amount, payment_method: clientPaymentForm.payment_method, reference: clientPaymentForm.reference })
       await load(); setDone(true)
-      toast.success('Encaissement enregistré')
+      toast.success(_ui("Encaissement enregistré"))
       setTimeout(() => { resetModalState(); setClientPaymentForm({ amount: '', payment_method: 'virement', reference: '' }) }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSaving(false)
   }
 
@@ -499,150 +504,150 @@ export default function FacturesPage() {
     try {
       await payerFactureFournisseur({ supplier_invoice_id: selectedSupplierInvoice.id, amount, payment_method: supplierPaymentForm.payment_method, reference: supplierPaymentForm.reference })
       await load(); setDone(true)
-      toast.success('Paiement fournisseur enregistré')
+      toast.success(_ui("Paiement fournisseur enregistré"))
       setTimeout(() => { resetModalState(); setSupplierPaymentForm({ amount: '', payment_method: 'virement', reference: '' }) }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSaving(false)
   }
 
   // ════════════════════════════════════════════════════════════════════════
   return (
-    <div>
+    <div className="itrix-workspace">
       {/* ─── MODALS ─── */}
       {modal === 'facture_client' && (
-        <Modal title="Nouvelle facture client" onClose={resetModalState}>
-          {done ? <SuccessMessage message="Facture client créée !" /> : (
+        <Modal title={_ui("Nouvelle facture client")} onClose={resetModalState}>
+          {done ? <SuccessMessage message={_ui("Facture client créée !")} /> : (
             <div className="space-y-md">
-              <Field label="Client" required>
+              <Field label={_ui("Client")} required>
                 <TSelect value={clientForm.client_id} onChange={(e) => setClientForm(f => ({ ...f, client_id: e.target.value }))}>
-                  <option value="">— Sélectionner —</option>
+                  <option value="">{_ui("— Sélectionner —")}</option>
                   {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </TSelect>
               </Field>
-              <div className="grid grid-cols-2 gap-md">
-                <Field label="Date facture" required><TInput type="date" value={clientForm.invoice_date} onChange={(e) => setClientForm(f => ({ ...f, invoice_date: e.target.value }))} /></Field>
-                <Field label="Date échéance" required><TInput type="date" value={clientForm.due_date} onChange={(e) => setClientForm(f => ({ ...f, due_date: e.target.value }))} /></Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                <Field label={_ui("Date facture")} required><TInput type="date" value={clientForm.invoice_date} onChange={(e) => setClientForm(f => ({ ...f, invoice_date: e.target.value }))} /></Field>
+                <Field label={_ui("Date échéance")} required><TInput type="date" value={clientForm.due_date} onChange={(e) => setClientForm(f => ({ ...f, due_date: e.target.value }))} /></Field>
               </div>
-              <Field label="Montant total (MAD)" required><TInput type="number" value={clientForm.subtotal} onChange={(e) => setClientForm(f => ({ ...f, subtotal: e.target.value }))} /></Field>
-              <Field label="Notes"><Textarea rows={2} value={clientForm.notes} onChange={(e) => setClientForm(f => ({ ...f, notes: e.target.value }))} /></Field>
-              <ModalFooter onCancel={resetModalState} onSave={saveClientInvoice} loading={saving} disabled={!clientForm.client_id || !clientForm.invoice_date || !clientForm.due_date || !clientForm.subtotal} saveLabel="Créer la facture" />
+              <Field label={_ui("Montant total (MAD)")} required><TInput type="number" value={clientForm.subtotal} onChange={(e) => setClientForm(f => ({ ...f, subtotal: e.target.value }))} /></Field>
+              <Field label={_ui("Notes")}><Textarea rows={2} value={clientForm.notes} onChange={(e) => setClientForm(f => ({ ...f, notes: e.target.value }))} /></Field>
+              <ModalFooter onCancel={resetModalState} onSave={saveClientInvoice} loading={saving} disabled={!clientForm.client_id || !clientForm.invoice_date || !clientForm.due_date || !clientForm.subtotal} saveLabel={_ui("Créer la facture")} />
             </div>
           )}
         </Modal>
       )}
 
       {modal === 'facture_fournisseur' && (
-        <Modal title="Nouvelle facture fournisseur" onClose={resetModalState} size="lg">
-          {done ? <SuccessMessage message="Facture fournisseur créée !" /> : (
+        <Modal title={_ui("Nouvelle facture fournisseur")} onClose={resetModalState} size="lg">
+          {done ? <SuccessMessage message={_ui("Facture fournisseur créée !")} /> : (
             <div className="space-y-md">
               {/* Lien optionnel vers un bon d'achat */}
-              <Field label="Bon d'achat lié (optionnel)" hint="Sélectionne pour auto-remplir fournisseur + montant">
+              <Field label={_ui("Bon d'achat lié (optionnel)")} hint="Sélectionne pour auto-remplir fournisseur + montant">
                 <TSelect value={supplierForm.po_id} onChange={(e) => selectPoForInvoice(e.target.value)}>
-                  <option value="">— Aucun (saisie libre) —</option>
+                  <option value="">{_ui("— Aucun (saisie libre) —")}</option>
                   {purchaseOrders
                     .filter(po => !supplierForm.supplier_id || po.supplier_id === supplierForm.supplier_id)
                     .map(po => (
                       <option key={po.id} value={po.id}>
-                        {po.po_number} · {po.suppliers?.name ?? '?'} · {Number(po.total_amount ?? 0).toLocaleString('fr-FR')} MAD · {po.status}
+                        {po.po_number} · {po.suppliers?.name ?? '?'} · {Number(po.total_amount ?? 0).toLocaleString(_uiLocale)} {" "}{_ui("MAD ·")}{" "}{po.status}
                       </option>
                     ))}
                 </TSelect>
               </Field>
 
-              <Field label="Fournisseur" required>
+              <Field label={_ui("Fournisseur")} required>
                 <TSelect value={supplierForm.supplier_id} onChange={(e) => setSupplierForm(f => ({ ...f, supplier_id: e.target.value, po_id: '' }))}>
-                  <option value="">— Sélectionner —</option>
+                  <option value="">{_ui("— Sélectionner —")}</option>
                   {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </TSelect>
               </Field>
-              <div className="grid grid-cols-2 gap-md">
-                <Field label="Date facture" required><TInput type="date" value={supplierForm.invoice_date} onChange={(e) => setSupplierForm(f => ({ ...f, invoice_date: e.target.value }))} /></Field>
-                <Field label="Date échéance" required><TInput type="date" value={supplierForm.due_date} onChange={(e) => setSupplierForm(f => ({ ...f, due_date: e.target.value }))} /></Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                <Field label={_ui("Date facture")} required><TInput type="date" value={supplierForm.invoice_date} onChange={(e) => setSupplierForm(f => ({ ...f, invoice_date: e.target.value }))} /></Field>
+                <Field label={_ui("Date échéance")} required><TInput type="date" value={supplierForm.due_date} onChange={(e) => setSupplierForm(f => ({ ...f, due_date: e.target.value }))} /></Field>
               </div>
-              <div className="grid grid-cols-2 gap-md">
-                <Field label="Campagne">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                <Field label={_ui("Campagne")}>
                   <TSelect value={supplierForm.campaign_id} onChange={(e) => setSupplierForm(f => ({ ...f, campaign_id: e.target.value }))}>
-                    <option value="">— Optionnel —</option>
+                    <option value="">{_ui("— Optionnel —")}</option>
                     {campagnes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </TSelect>
                 </Field>
-                <Field label="Serre">
+                <Field label={_ui("Serre")}>
                   <TSelect value={supplierForm.greenhouse_id} onChange={(e) => setSupplierForm(f => ({ ...f, greenhouse_id: e.target.value }))}>
-                    <option value="">— Optionnel —</option>
+                    <option value="">{_ui("— Optionnel —")}</option>
                     {serres.map(s => <option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}
                   </TSelect>
                 </Field>
               </div>
-              <div className="grid grid-cols-2 gap-md">
-                <Field label="Catégorie">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                <Field label={_ui("Catégorie")}>
                   <TSelect value={supplierForm.cost_category} onChange={(e) => setSupplierForm(f => ({ ...f, cost_category: e.target.value }))}>
                     {['semences', 'engrais', 'phytosanitaires', 'irrigation', 'emballage', 'transport', 'energie', 'services', 'equipement', 'divers'].map(c => <option key={c} value={c}>{c}</option>)}
                   </TSelect>
                 </Field>
-                <Field label="Montant total (MAD)" required><TInput type="number" value={supplierForm.subtotal} onChange={(e) => setSupplierForm(f => ({ ...f, subtotal: e.target.value }))} /></Field>
+                <Field label={_ui("Montant total (MAD)")} required><TInput type="number" value={supplierForm.subtotal} onChange={(e) => setSupplierForm(f => ({ ...f, subtotal: e.target.value }))} /></Field>
               </div>
-              <Field label="Notes"><Textarea rows={2} value={supplierForm.notes} onChange={(e) => setSupplierForm(f => ({ ...f, notes: e.target.value }))} /></Field>
-              <ModalFooter onCancel={resetModalState} onSave={saveSupplierInvoice} loading={saving} disabled={!supplierForm.supplier_id || !supplierForm.invoice_date || !supplierForm.due_date || !supplierForm.subtotal} saveLabel="Créer la facture" />
+              <Field label={_ui("Notes")}><Textarea rows={2} value={supplierForm.notes} onChange={(e) => setSupplierForm(f => ({ ...f, notes: e.target.value }))} /></Field>
+              <ModalFooter onCancel={resetModalState} onSave={saveSupplierInvoice} loading={saving} disabled={!supplierForm.supplier_id || !supplierForm.invoice_date || !supplierForm.due_date || !supplierForm.subtotal} saveLabel={_ui("Créer la facture")} />
             </div>
           )}
         </Modal>
       )}
 
       {modal === 'paiement_client' && selectedClientInvoice && (
-        <Modal title="Encaisser une facture client" onClose={resetModalState}>
-          {done ? <SuccessMessage message="Encaissement enregistré !" /> : (
+        <Modal title={_ui("Encaisser une facture client")} onClose={resetModalState}>
+          {done ? <SuccessMessage message={_ui("Encaissement enregistré !")} /> : (
             <div className="space-y-md">
               <div className="rounded-lg border border-success/30 bg-success/5 p-md">
                 <div className="font-mono text-caption text-fg-secondary">{selectedClientInvoice.invoice_number} · {selectedClientInvoice.clients?.name}</div>
                 <div className="mt-1 text-body-sm">
-                  À encaisser : <strong className="text-success font-mono"><MoneyDisplay value={Math.max(Number(selectedClientInvoice.total_amount || 0) - Number(selectedClientInvoice.paid_amount || 0), 0)} /></strong>
+                  {" "}{_ui("À encaisser :")}{" "}<strong className="text-success font-mono"><MoneyDisplay value={Math.max(Number(selectedClientInvoice.total_amount || 0) - Number(selectedClientInvoice.paid_amount || 0), 0)} /></strong>
                 </div>
               </div>
-              <Field label="Montant encaissé" required><TInput type="number" value={clientPaymentForm.amount} onChange={(e) => { setClientPaymentForm(f => ({ ...f, amount: e.target.value })); setPaymentError('') }} autoFocus /></Field>
-              <div className="grid grid-cols-2 gap-md">
-                <Field label="Mode de paiement">
+              <Field label={_ui("Montant encaissé")} required><TInput type="number" value={clientPaymentForm.amount} onChange={(e) => { setClientPaymentForm(f => ({ ...f, amount: e.target.value })); setPaymentError('') }} autoFocus /></Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                <Field label={_ui("Mode de paiement")}>
                   <TSelect value={clientPaymentForm.payment_method} onChange={(e) => setClientPaymentForm(f => ({ ...f, payment_method: e.target.value }))}>
-                    {PAY_METHODS.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
+                    {PAY_METHODS.map(p => <option key={p.code} value={p.code}>{_uiNode(p.label)}</option>)}
                   </TSelect>
                 </Field>
-                <Field label="Référence"><TInput value={clientPaymentForm.reference} onChange={(e) => setClientPaymentForm(f => ({ ...f, reference: e.target.value }))} /></Field>
+                <Field label={_ui("Référence")}><TInput value={clientPaymentForm.reference} onChange={(e) => setClientPaymentForm(f => ({ ...f, reference: e.target.value }))} /></Field>
               </div>
               {paymentError && (
                 <div className="rounded-md border border-danger/30 bg-danger/5 p-sm text-body-sm text-danger flex items-center gap-2">
                   <AlertCircle size={14} /> {paymentError}
                 </div>
               )}
-              <ModalFooter onCancel={resetModalState} onSave={saveClientPayment} loading={saving} disabled={!clientPaymentForm.amount} saveLabel="Encaisser" />
+              <ModalFooter onCancel={resetModalState} onSave={saveClientPayment} loading={saving} disabled={!clientPaymentForm.amount} saveLabel={_ui("Encaisser")} />
             </div>
           )}
         </Modal>
       )}
 
       {modal === 'paiement_fournisseur' && selectedSupplierInvoice && (
-        <Modal title="Régler une facture fournisseur" onClose={resetModalState}>
-          {done ? <SuccessMessage message="Paiement fournisseur enregistré !" /> : (
+        <Modal title={_ui("Régler une facture fournisseur")} onClose={resetModalState}>
+          {done ? <SuccessMessage message={_ui("Paiement fournisseur enregistré !")} /> : (
             <div className="space-y-md">
               <div className="rounded-lg border border-warning/30 bg-warning/5 p-md">
                 <div className="font-mono text-caption text-fg-secondary">{selectedSupplierInvoice.invoice_number} · {selectedSupplierInvoice.suppliers?.name}</div>
                 <div className="mt-1 text-body-sm">
-                  À régler : <strong className="text-warning font-mono"><MoneyDisplay value={Math.max(Number(selectedSupplierInvoice.total_amount || 0) - Number(selectedSupplierInvoice.paid_amount || 0), 0)} /></strong>
+                  {" "}{_ui("À régler :")}{" "}<strong className="text-warning font-mono"><MoneyDisplay value={Math.max(Number(selectedSupplierInvoice.total_amount || 0) - Number(selectedSupplierInvoice.paid_amount || 0), 0)} /></strong>
                 </div>
               </div>
-              <Field label="Montant réglé" required><TInput type="number" value={supplierPaymentForm.amount} onChange={(e) => { setSupplierPaymentForm(f => ({ ...f, amount: e.target.value })); setPaymentError('') }} autoFocus /></Field>
-              <div className="grid grid-cols-2 gap-md">
-                <Field label="Mode de paiement">
+              <Field label={_ui("Montant réglé")} required><TInput type="number" value={supplierPaymentForm.amount} onChange={(e) => { setSupplierPaymentForm(f => ({ ...f, amount: e.target.value })); setPaymentError('') }} autoFocus /></Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+                <Field label={_ui("Mode de paiement")}>
                   <TSelect value={supplierPaymentForm.payment_method} onChange={(e) => setSupplierPaymentForm(f => ({ ...f, payment_method: e.target.value }))}>
-                    {PAY_METHODS.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
+                    {PAY_METHODS.map(p => <option key={p.code} value={p.code}>{_uiNode(p.label)}</option>)}
                   </TSelect>
                 </Field>
-                <Field label="Référence"><TInput value={supplierPaymentForm.reference} onChange={(e) => setSupplierPaymentForm(f => ({ ...f, reference: e.target.value }))} /></Field>
+                <Field label={_ui("Référence")}><TInput value={supplierPaymentForm.reference} onChange={(e) => setSupplierPaymentForm(f => ({ ...f, reference: e.target.value }))} /></Field>
               </div>
               {paymentError && (
                 <div className="rounded-md border border-danger/30 bg-danger/5 p-sm text-body-sm text-danger flex items-center gap-2">
                   <AlertCircle size={14} /> {paymentError}
                 </div>
               )}
-              <ModalFooter onCancel={resetModalState} onSave={saveSupplierPayment} loading={saving} disabled={!supplierPaymentForm.amount} saveLabel="Régler" />
+              <ModalFooter onCancel={resetModalState} onSave={saveSupplierPayment} loading={saving} disabled={!supplierPaymentForm.amount} saveLabel={_ui("Régler")} />
             </div>
           )}
         </Modal>
@@ -650,62 +655,61 @@ export default function FacturesPage() {
 
       {/* ─── HEADER ─── */}
       <PageHeader
-        title="Factures"
-        subtitle="Trésorerie"
+        title={_ui("Factures")}
+        subtitle={_ui("Trésorerie")}
         icon={Receipt}
         iconColor="#f43f5e"
-        description="Crédit clients · Débit fournisseurs · Échéances"
+        description={_ui("Crédit clients · Débit fournisseurs · Échéances")}
         actions={
           <Button onClick={() => setModal(tab === 'clients' ? 'facture_client' : 'facture_fournisseur')} variant="primary">
-            <Plus size={14} strokeWidth={2.5} /> {tab === 'clients' ? 'Facture client' : 'Facture fournisseur'}
+            <Plus size={14} strokeWidth={2.5} /> {tab === 'clients' ? _ui("Facture client") : _ui("Facture fournisseur")}
           </Button>
         }
       />
 
       {/* ─── KPI Trésorerie (5 hero) ─── */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-md mb-md">
+        <div className="itrix-kpis">
           {Array.from({ length: 5 }).map((_, i) => <SkeletonKPI key={i} />)}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-md mb-md">
-          <KPICard label="Encaissements" icon={ArrowDownCircle} accent="#10b981" delay={0}    value={<MoneyDisplay value={treasury.collected}   compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="MAD reçus" />
-          <KPICard label="Paiements"     icon={ArrowUpCircle}   accent="#f59e0b" delay={0.05} value={<MoneyDisplay value={treasury.paidOut}    compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="MAD versés" />
-          <KPICard label="Solde net"     icon={treasury.net >= 0 ? TrendingUp : TrendingDown} accent={treasury.net >= 0 ? '#22c55e' : '#ef4444'} delay={0.1}
+        <div className="itrix-kpis">
+          <KPICard label={_ui("Encaissements")} icon={ArrowDownCircle} accent="#10b981" delay={0}    value={<MoneyDisplay value={treasury.collected}   compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="MAD reçus" />
+          <KPICard label={_ui("Paiements")}     icon={ArrowUpCircle}   accent="#f59e0b" delay={0.05} value={<MoneyDisplay value={treasury.paidOut}    compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="MAD versés" />
+          <KPICard label={_ui("Solde net")}     icon={treasury.net >= 0 ? TrendingUp : TrendingDown} accent={treasury.net >= 0 ? '#22c55e' : '#ef4444'} delay={0.1}
             value={<MoneyDisplay value={treasury.net} compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />}
             sub={treasury.net >= 0 ? 'Excédent' : 'Déficit'}
           />
-          <KPICard label="Créances"      icon={Wallet}          accent="#3b82f6" delay={0.15} value={<MoneyDisplay value={treasury.receivables} compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="MAD à recevoir" />
-          <KPICard label="Dettes"        icon={AlertTriangle}   accent="#ef4444" delay={0.2}  value={<MoneyDisplay value={treasury.payables}    compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="MAD à payer" />
+          <KPICard label={_ui("Créances")}      icon={Wallet}          accent="#3b82f6" delay={0.15} value={<MoneyDisplay value={treasury.receivables} compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="MAD à recevoir" />
+          <KPICard label={_ui("Dettes")}        icon={AlertTriangle}   accent="#ef4444" delay={0.2}  value={<MoneyDisplay value={treasury.payables}    compact="auto" showCurrency={false} className="!text-current font-display !text-display-sm" />} sub="MAD à payer" />
         </div>
       )}
 
       {/* ─── Calendrier + Échéances (2 colonnes) ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-md mb-md">
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-md mb-md">
         {/* Calendrier */}
         <Card animate delay={0.25} padding="none" className="overflow-hidden">
-          <div className="px-md py-sm border-b border-border flex items-center justify-between">
+          <div className="px-md py-sm border-b border-border flex flex-wrap gap-2 items-center justify-between">
             <div>
               <div className="font-display text-heading-sm font-bold text-fg-primary flex items-center gap-2">
-                <Calendar size={14} className="text-info" /> Calendrier
-              </div>
-              <div className="font-mono text-caption text-fg-tertiary mt-0.5">Échéances du mois</div>
+                <Calendar size={14} className="text-info" /> {" "}{_ui("Calendrier")}{" "}</div>
+              <div className="font-mono text-caption text-fg-tertiary mt-0.5">{_ui("Échéances du mois")}</div>
             </div>
             <div className="flex items-center gap-1">
-              <Button onClick={() => setCalendarMonthOffset(v => v - 1)} variant="ghost" size="icon-sm" title="Mois précédent">
+              <Button onClick={() => setCalendarMonthOffset(v => v - 1)} variant="ghost" size="icon-sm" title={_ui("Mois précédent")}>
                 <ChevronLeft size={12} strokeWidth={2.2} />
               </Button>
               <div className="font-mono text-caption font-semibold text-fg-secondary text-center min-w-[88px] capitalize">
                 {formatMonthLabel(calendarDate)}
               </div>
-              <Button onClick={() => setCalendarMonthOffset(v => v + 1)} variant="ghost" size="icon-sm" title="Mois suivant">
+              <Button onClick={() => setCalendarMonthOffset(v => v + 1)} variant="ghost" size="icon-sm" title={_ui("Mois suivant")}>
                 <ChevronRight size={12} strokeWidth={2.2} />
               </Button>
             </div>
           </div>
           <div className="p-sm">
             <div className="grid grid-cols-7 gap-1 mb-1">
-              {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(d => (
+              {[_ui("Lun"), _ui("Mar"), _ui("Mer"), _ui("Jeu"), _ui("Ven"), _ui("Sam"), _ui("Dim")].map(d => (
                 <div key={d} className="font-mono text-[8px] uppercase tracking-wider text-fg-tertiary text-center font-semibold">{d}</div>
               ))}
             </div>
@@ -719,7 +723,7 @@ export default function FacturesPage() {
                     day.events.length > 0 && 'hover:border-border-strong hover:shadow-raised cursor-pointer'
                   )}>
                     <div className={cn('font-display text-[11px] font-bold', day.isToday ? 'text-brand' : 'text-fg-primary')}>
-                      {day.label}
+                      {_uiNode(day.label)}
                     </div>
                     {day.events.length > 0 && (
                       <div className="flex flex-wrap gap-0.5 mt-0.5">
@@ -743,12 +747,12 @@ export default function FacturesPage() {
                     content={
                       <div className="space-y-1">
                         <div className="font-mono text-[10px] text-fg-tertiary uppercase tracking-wider mb-1">
-                          {new Date(`${day.iso}T00:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })}
+                          {new Date(`${day.iso}T00:00:00`).toLocaleDateString(_uiLocale, { day: '2-digit', month: 'long' })}
                         </div>
                         {day.events.map((e, i) => (
                           <div key={i} className="text-caption">
-                            <Badge variant={e.kind === 'client' ? 'info' : 'warning'} size="xs">{e.kind === 'client' ? 'Crédit' : 'Débit'}</Badge>
-                            <span className="ml-1.5 font-semibold">{e.label}</span>
+                            <Badge variant={e.kind === 'client' ? 'info' : 'warning'} size="xs">{e.kind === 'client' ? _ui("Crédit") : _ui("Débit")}</Badge>
+                            <span className="ml-1.5 font-semibold">{_uiNode(e.label)}</span>
                             <span className="ml-1 text-fg-tertiary font-mono">{e.invoice_number}</span>
                           </div>
                         ))}
@@ -761,32 +765,31 @@ export default function FacturesPage() {
               })}
             </div>
             <div className="flex gap-md mt-md text-caption font-mono text-fg-tertiary">
-              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-info" />Crédit</span>
-              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-warning" />Débit</span>
+              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-info" />{_ui("Crédit")}</span>
+              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-warning" />{_ui("Débit")}</span>
             </div>
           </div>
         </Card>
 
         {/* Prochaines échéances */}
-        <Card animate delay={0.3} padding="none" className="overflow-hidden">
+        <Card animate delay={0.3} padding="none" className="itrix-table">
           <div className="px-md py-sm border-b border-border">
             <div className="font-display text-heading-sm font-bold text-fg-primary flex items-center gap-2">
-              <FileBarChart size={14} className="text-warning" /> Prochaines échéances
-            </div>
-            <div className="font-mono text-caption text-fg-tertiary mt-0.5">Top 12 par proximité</div>
+              <FileBarChart size={14} className="text-warning" /> {" "}{_ui("Prochaines échéances")}{" "}</div>
+            <div className="font-mono text-caption text-fg-tertiary mt-0.5">{_ui("Top 12 par proximité")}</div>
           </div>
           {nextDue.length === 0 ? (
-            <div className="p-xl text-center text-fg-tertiary text-body-sm">Aucune échéance ouverte à venir.</div>
+            <div className="p-xl text-center text-fg-tertiary text-body-sm">{_ui("Aucune échéance ouverte à venir.")}</div>
           ) : (
             <DataTable>
               <THead>
                 <TR>
-                  <TH>Type</TH>
-                  <TH>Compte</TH>
-                  <TH>N° Facture</TH>
-                  <TH>Échéance</TH>
-                  <TH right>Jours</TH>
-                  <TH right>Montant</TH>
+                  <TH>{_ui("Type")}</TH>
+                  <TH>{_ui("Compte")}</TH>
+                  <TH>{_ui("N° Facture")}</TH>
+                  <TH>{_ui("Échéance")}</TH>
+                  <TH right>{_ui("Jours")}</TH>
+                  <TH right>{_ui("Montant")}</TH>
                 </TR>
               </THead>
               <tbody>
@@ -794,10 +797,10 @@ export default function FacturesPage() {
                   <TR key={`${item.kind}-${item.invoice_number}-${i}`} animate delay={0.35 + i * 0.02}>
                     <TD>
                       <Badge variant={item.kind === 'client' ? 'info' : 'warning'} size="xs">
-                        {item.kind === 'client' ? 'Crédit' : 'Débit'}
+                        {item.kind === 'client' ? _ui("Crédit") : _ui("Débit")}
                       </Badge>
                     </TD>
-                    <TD className="font-display font-semibold text-fg-primary">{item.label}</TD>
+                    <TD className="font-display font-semibold text-fg-primary">{_uiNode(item.label)}</TD>
                     <TD mono className="text-caption">{item.invoice_number}</TD>
                     <TD mono className="text-caption text-fg-secondary">{item.due_date}</TD>
                     <TD right mono className={cn('font-bold', item.daysLeft <= 7 ? 'text-danger' : 'text-warning')}>{item.daysLeft}j</TD>
@@ -813,7 +816,7 @@ export default function FacturesPage() {
       {/* ─── Tab toggle + Filtres ─── */}
       <Card animate delay={0.35} className="mb-md">
         <div className="flex flex-wrap gap-md items-center">
-          <div className="flex gap-1 p-1 rounded-md border border-border bg-surface-sunk">
+          <div className="itrix-tabs itrix-invoice-tabs !mb-0 max-w-full">
             {[
               { k: 'clients' as InvoiceTab, l: 'Crédit clients', i: ArrowDownCircle, c: '#10b981' },
               { k: 'fournisseurs' as InvoiceTab, l: 'Débit fournisseurs', i: ArrowUpCircle, c: '#f59e0b' },
@@ -823,6 +826,7 @@ export default function FacturesPage() {
                 <button
                   key={t.k}
                   onClick={() => setTab(t.k)}
+                  aria-pressed={tab === t.k}
                   className={cn(
                     'flex items-center gap-2 h-8 px-md rounded font-mono text-caption uppercase tracking-wider font-semibold transition-all',
                     tab === t.k
@@ -841,7 +845,7 @@ export default function FacturesPage() {
           <div className="flex items-center gap-sm flex-1 min-w-[200px] max-w-md">
             <Search size={14} className="text-fg-tertiary flex-shrink-0" />
             <TInput
-              placeholder={`Rechercher numéro, ${tab === 'clients' ? 'client' : 'fournisseur'}…`}
+              placeholder={_ui("Rechercher numéro, {v0}…",{v0:String(tab === 'clients' ? 'client' : 'fournisseur')})}
               value={search} onChange={(e) => setSearch(e.target.value)}
               className="border-none bg-transparent focus:ring-0 px-0"
             />
@@ -849,23 +853,23 @@ export default function FacturesPage() {
           </div>
 
           {tab === 'clients' ? (
-            <TSelect value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} className="h-8 w-auto min-w-[180px] text-body-sm">
-              <option value="all">Tous les clients</option>
+            <TSelect aria-label={_ui("Filtrer par client")} value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} className="h-8 w-auto min-w-[180px] text-body-sm">
+              <option value="all">{_ui("Tous les clients")}</option>
               {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </TSelect>
           ) : (
-            <TSelect value={supplierFilter} onChange={(e) => setSupplierFilter(e.target.value)} className="h-8 w-auto min-w-[180px] text-body-sm">
-              <option value="all">Tous les fournisseurs</option>
+            <TSelect aria-label={_ui("Filtrer par fournisseur")} value={supplierFilter} onChange={(e) => setSupplierFilter(e.target.value)} className="h-8 w-auto min-w-[180px] text-body-sm">
+              <option value="all">{_ui("Tous les fournisseurs")}</option>
               {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </TSelect>
           )}
 
-          <TSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-8 w-auto min-w-[150px] text-body-sm">
-            <option value="all">Tous statuts</option>
-            <option value="en_attente">En attente</option>
-            <option value="partiellement_paye">Partiel</option>
-            <option value="en_retard">En retard</option>
-            <option value="paye">Payée</option>
+          <TSelect aria-label={_ui("Statut des factures")} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-8 w-auto min-w-[150px] text-body-sm">
+            <option value="all">{_ui("Tous statuts")}</option>
+            <option value="en_attente">{_ui("En attente")}</option>
+            <option value="partiellement_paye">{_ui("Partiel")}</option>
+            <option value="en_retard">{_ui("En retard")}</option>
+            <option value="paye">{_ui("Payée")}</option>
           </TSelect>
         </div>
       </Card>
@@ -891,7 +895,7 @@ export default function FacturesPage() {
               >
                 <div className="flex items-center gap-sm mb-1">
                   <Icon size={12} strokeWidth={2.5} style={{ color: kpi.color }} />
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-semibold">{kpi.label}</span>
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-semibold">{_uiNode(kpi.label)}</span>
                 </div>
                 <div className="font-display text-display-sm font-extrabold" style={{ color: kpi.color }}>
                   <MoneyDisplay value={kpi.value} compact="auto" showCurrency={false} className="!text-current" />
@@ -904,20 +908,20 @@ export default function FacturesPage() {
 
       {/* ─── Synthèse par compte ─── */}
       {balance.length > 0 && (
-        <Card animate delay={0.45} padding="none" className="overflow-hidden mb-md">
+        <Card animate delay={0.45} padding="none" className="itrix-table mb-md">
           <div className="px-md py-sm border-b border-border">
             <div className="font-display text-heading-sm font-bold text-fg-primary">
-              Synthèse {tab === 'clients' ? 'clients' : 'fournisseurs'}
+              {" "}{_ui("Synthèse")}{" "}{tab === 'clients' ? 'clients' : 'fournisseurs'}
             </div>
           </div>
           <DataTable>
             <THead>
               <TR>
-                <TH>Compte</TH>
-                <TH right>Factures</TH>
-                <TH right>Total</TH>
-                <TH right>{tab === 'clients' ? 'Encaissé' : 'Réglé'}</TH>
-                <TH right>Encours</TH>
+                <TH>{_ui("Compte")}</TH>
+                <TH right>{_ui("Factures")}</TH>
+                <TH right>{_ui("Total")}</TH>
+                <TH right>{tab === 'clients' ? _ui("Encaissé") : _ui("Réglé")}</TH>
+                <TH right>{_ui("Encours")}</TH>
               </TR>
             </THead>
             <tbody>
@@ -942,21 +946,19 @@ export default function FacturesPage() {
         const hiddenCount = totalRaw - totalShown
         if (hiddenCount > 0 && (clientFilter !== 'all' || supplierFilter !== 'all' || statusFilter !== 'all' || search)) {
           return (
-            <div className="mb-md rounded-md border border-warning bg-warning/10 px-md py-sm flex items-center justify-between gap-md">
+            <div role="status" className="itrix-notice mb-md border border-warning bg-warning/10 flex flex-wrap items-center justify-between gap-md">
               <div className="text-body-sm text-fg-primary">
                 <AlertCircle size={14} className="inline mr-1 text-warning" />
-                <strong>{hiddenCount}</strong> facture(s) cachée(s) par les filtres actifs
-                {search && <span className="font-mono text-xs ml-2">[recherche: "{search}"]</span>}
-                {clientFilter !== 'all' && tab === 'clients' && <span className="font-mono text-xs ml-2">[client filtré]</span>}
-                {statusFilter !== 'all' && <span className="font-mono text-xs ml-2">[statut: {statusFilter}]</span>}
+                <strong>{hiddenCount}</strong> {" "}{_ui("facture(s) cachée(s) par les filtres actifs")}{" "}{search && <span className="font-mono text-xs ml-2">{_ui("[recherche: \"")}{search}"]</span>}
+                {clientFilter !== 'all' && tab === 'clients' && <span className="font-mono text-xs ml-2">{_ui("[client filtré]")}</span>}
+                {statusFilter !== 'all' && <span className="font-mono text-xs ml-2">{_ui("[statut:")}{" "}{statusFilter}]</span>}
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => { setSearch(''); setClientFilter('all'); setSupplierFilter('all'); setStatusFilter('all') }}
               >
-                <X size={12} /> Réinitialiser
-              </Button>
+                <X size={12} /> {" "}{_ui("Réinitialiser")}{" "}</Button>
             </div>
           )
         }
@@ -964,7 +966,7 @@ export default function FacturesPage() {
       })()}
 
       {/* ─── Table principale ─── */}
-      <Card animate delay={0.5} padding="none" className="overflow-hidden">
+      <Card animate delay={0.5} padding="none" className="itrix-table">
         {loading ? (
           <div className="p-md space-y-2">
             {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}
@@ -972,24 +974,24 @@ export default function FacturesPage() {
         ) : (tab === 'clients' ? filteredClient : filteredSupplier).length === 0 ? (
           <EmptyState
             icon={Receipt}
-            title={tab === 'clients' ? 'Aucune facture client' : 'Aucune facture fournisseur'}
-            description="Les factures s'afficheront ici."
-            action={<Button onClick={() => setModal(tab === 'clients' ? 'facture_client' : 'facture_fournisseur')}><Plus size={14} strokeWidth={2.5} /> Nouvelle</Button>}
+            title={tab === 'clients' ? _ui("Aucune facture client") : _ui("Aucune facture fournisseur")}
+            description={_ui("Les factures s'afficheront ici.")}
+            action={<Button onClick={() => setModal(tab === 'clients' ? 'facture_client' : 'facture_fournisseur')}><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle")}</Button>}
           />
         ) : (
           <DataTable minWidth={tab === 'clients' ? 1100 : 1200}>
             <THead>
               <TR>
-                <TH>N° Facture</TH>
-                <TH>{tab === 'clients' ? 'Client' : 'Fournisseur'}</TH>
-                {tab === 'fournisseurs' && <TH>Catégorie</TH>}
-                <TH>Date</TH>
-                <TH>Échéance</TH>
-                <TH right>Montant</TH>
-                <TH right>{tab === 'clients' ? 'Encaissé' : 'Réglé'}</TH>
-                <TH right>Reste</TH>
-                <TH>Statut</TH>
-                <TH right>Actions</TH>
+                <TH>{_ui("N° Facture")}</TH>
+                <TH>{tab === 'clients' ? _ui("Client") : _ui("Fournisseur")}</TH>
+                {tab === 'fournisseurs' && <TH>{_ui("Catégorie")}</TH>}
+                <TH>{_ui("Date")}</TH>
+                <TH>{_ui("Échéance")}</TH>
+                <TH right>{_ui("Montant")}</TH>
+                <TH right>{tab === 'clients' ? _ui("Encaissé") : _ui("Réglé")}</TH>
+                <TH right>{_ui("Reste")}</TH>
+                <TH>{_ui("Statut")}</TH>
+                <TH right>{_ui("Actions")}</TH>
               </TR>
             </THead>
             <tbody>
@@ -1020,7 +1022,7 @@ export default function FacturesPage() {
                     <TD right mono><MoneyDisplay value={Number(item.total_amount || 0)} compact="auto" className="text-fg-primary" /></TD>
                     <TD right mono><MoneyDisplay value={Number(item.paid_amount || 0)} compact="auto" className="text-success" /></TD>
                     <TD right mono><MoneyDisplay value={remaining} compact="auto" className={remaining > 0 ? 'text-warning font-bold' : 'text-fg-tertiary'} /></TD>
-                    <TD><Badge variant={st.variant} size="sm">{st.label}</Badge></TD>
+                    <TD><Badge variant={st.variant} size="sm">{_uiNode(st.label)}</Badge></TD>
                     <TD right>
                       <div className="flex gap-1 justify-end">
                         {/* Bouton PDF : disponible pour les factures bordereau (FB-*) */}
@@ -1029,7 +1031,7 @@ export default function FacturesPage() {
                             onClick={() => window.open(`/factures/bordereau/${settlementByInvoiceId.get(item.id)}/print`, '_blank')}
                             variant="ghost"
                             size="xs"
-                            title="Ouvrir la vue imprimable du bordereau lié"
+                            title={_ui("Ouvrir la vue imprimable du bordereau lié")}
                           >
                             <Printer size={12} /> PDF
                           </Button>
@@ -1047,7 +1049,7 @@ export default function FacturesPage() {
                             variant={tab === 'clients' ? 'primary' : 'secondary'}
                             size="xs"
                           >
-                            {tab === 'clients' ? 'Encaisser' : 'Régler'}
+                            {tab === 'clients' ? _ui("Encaisser") : _ui("Régler")}
                           </Button>
                         )}
                       </div>

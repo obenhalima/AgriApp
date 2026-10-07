@@ -1,5 +1,6 @@
 'use client'
 import * as React from 'react'
+import {useLanguage} from '@/lib/i18n'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/cn'
 
@@ -52,16 +53,18 @@ export interface BadgeProps
 }
 
 const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
-  ({ className, variant, size, pulse, dot = false, children, ...props }, ref) => (
+  ({ className, variant, size, pulse, dot = false, children, ...props }, ref) => {
+    const {text}=useLanguage()
+    return (
     <span
       ref={ref}
       className={cn(badgeVariants({ variant, size, pulse, className }))}
       {...props}
     >
       {dot && <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />}
-      {children}
+      {text(children)}
     </span>
-  )
+  )}
 )
 Badge.displayName = 'Badge'
 

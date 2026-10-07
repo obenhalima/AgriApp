@@ -1,6 +1,13 @@
 'use client'
+import { useLanguage } from "@/lib/i18n"
+
+import '@/components/ui/workspace.css'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { HarvestPeopleFields } from '@/components/harvest/HarvestPeopleFields'
 import { harvestPeopleInput } from '@/lib/harvestPeople'
+import { sentHarvestIds } from '@/lib/harvestEditLock'
+import { PricedDispatchReport } from '@/components/harvest/PricedDispatchReport'
+import { HarvestMigration } from '@/components/harvest/HarvestMigration'
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { HarvestDarNotice } from '@/components/HarvestDarNotice'
@@ -15,7 +22,7 @@ import { useAuth } from '@/lib/auth'
 // Onglets : Récoltes | À envoyer | À trier | À tarifer | Confirmés | Alertes
 // ============================================================
 
-type Tab = 'liste' | 'a_envoyer' | 'a_peser' | 'a_trier' | 'a_tarifer' | 'confirmes' | 'ca' | 'stock_retour' | 'bordereaux' | 'alertes'
+type Tab = 'liste' | 'a_envoyer' | 'a_peser' | 'a_trier' | 'a_tarifer' | 'confirmes' | 'ca' | 'stock_retour' | 'bordereaux' | 'alertes' | 'recap_tarifes'
 
 const fmt = (n: number) => Math.round(n).toLocaleString('fr-FR')
 const fmt2 = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -32,6 +39,10 @@ function computeUsed(harvestId: string, sources: any[], legacyDirect: any[]): nu
 }
 
 export default function RecoltesPage() {
+ const {t:_ui,text:_uiNode,intlLocale:_uiLocale}=useLanguage()
+
+ const {t}=useLanguage()
+
   const { values: trayTypes } = useReferenceList('tray_type')
   const { profile, activeDomain } = useAuth()
   const myId = profile?.id ?? null
@@ -95,6 +106,7 @@ export default function RecoltesPage() {
   // ─── Chargement ───
   const load = useCallback(async () => {
     setLoading(true); setError('')
+    setHarvests(previous => previous.map(h => ({ ...h, edit_locked: true })))
     if (!activeDomain) {
       setHarvests([]); setDispatches([]); setSources([]); setPlantings([]); setStockRetour([]); setLoading(false)
       return
@@ -136,7 +148,8 @@ export default function RecoltesPage() {
           .gte('created_at', since30),
       ])
       if (hRes.error) throw hRes.error
-      setHarvests(hRes.data ?? [])
+      const sent = await sentHarvestIds(activeDomain.domain_id, (hRes.data ?? []).map(h => h.id))
+      setHarvests((hRes.data ?? []).map(h => ({ ...h, edit_locked: sent.has(h.id) })))
       setDispatches(dRes.data ?? [])
       setSources(sRes.data ?? [])
       setPlantings(pRes.data ?? [])
@@ -509,6 +522,7 @@ export default function RecoltesPage() {
   }
 
   const openEdit = (h: any) => {
+    if (h.edit_locked) return
     setFormEdit({ harvest_people:h.harvest_people==null?'':String(h.harvest_people),harvest_hours:h.harvest_hours==null?'':String(h.harvest_hours),harvest_full_day:!!h.harvest_full_day,campaign_planting_id: h.campaign_planting_id, harvest_date: h.harvest_date, total_qty: String(h.total_qty || ''), notes: h.notes || '' })
     setModalEdit(h); setDone(false); setError('')
   }
@@ -516,6 +530,9 @@ export default function RecoltesPage() {
     if (!modalEdit) return
     setSaving(true); setError('')
     try {
+      if (!activeDomain) throw new Error('Sélectionnez un client avant de modifier la récolte.')
+      const sent = await sentHarvestIds(activeDomain.domain_id, [modalEdit.id])
+      if (sent.has(modalEdit.id)) throw new Error('Cette récolte a déjà été envoyée, même partiellement. Sa modification est désactivée.')
       // Correction directe du poids estimé (sans repasser par les plateaux).
       // On synchronise estimated_kg et le miroir qty_category_1.
       const qty = Number(formEdit.total_qty) || 0
@@ -536,27 +553,31 @@ export default function RecoltesPage() {
   }
 
   const deleteRecolte = async (h: any) => {
-    if (!confirm(`Supprimer la récolte ${h.lot_number} ? Tous les envois associés seront aussi supprimés.`)) return
+    if (h.edit_locked) return
+    if (!confirm(_ui("Supprimer la récolte {v0} ? Cette action est irréversible.",{v0:String(h.lot_number)}))) return
     try {
-      await supabase.from('harvest_lot_sources').delete().eq('harvest_id', h.id)
-      await supabase.from('harvest_lots').delete().eq('harvest_id', h.id)
-      await supabase.from('harvests').delete().eq('id', h.id)
+      if (!activeDomain) throw new Error('Sélectionnez un client.')
+      if ((await sentHarvestIds(activeDomain.domain_id, [h.id])).size) throw new Error('Récolte déjà envoyée : suppression interdite. Actualisez la liste.')
+      const { error } = await supabase.from('harvests').delete().eq('id', h.id).eq('domain_id', activeDomain.domain_id)
+      if (error) throw error
       load()
-    } catch (e: any) { alert('Erreur : ' + e.message) }
+    } catch (e: any) { alert(_ui("Erreur :") + e.message) }
   }
 
   // ─── Suppression en masse (via RPC pour bypasser RLS) ───
   const bulkDeleteRecoltes = async (ids: string[]) => {
     if (ids.length === 0) return
-    if (!confirm(`Supprimer ${ids.length} récolte(s) ? Les envois associés (si applicable) seront aussi supprimés. Cette action est irréversible.`)) return
+    if (!confirm(_ui("Supprimer {v0} récolte(s) non envoyée(s) ? Cette action est irréversible.",{v0:String(ids.length)}))) return
     try {
+      if (!activeDomain) throw new Error('Sélectionnez un client.')
+      if ((await sentHarvestIds(activeDomain.domain_id, ids)).size) throw new Error('La sélection contient une récolte déjà envoyée. Aucune suppression effectuée. Actualisez la liste.')
       const { data, error } = await supabase.rpc('admin_bulk_delete_harvests', { p_harvest_ids: ids })
       if (error) {
         const msg = (error.message ?? '').toLowerCase()
         if (msg.includes('could not find the function') || msg.includes('does not exist') || error.code === 'PGRST202') {
-          alert('⚠️ La RPC admin_bulk_delete_harvests n\'existe pas en DB.\n\nApplique la migration 039_admin_bulk_delete_harvests.sql via le SQL Editor de Supabase.')
+          alert(_ui("La suppression groupée sécurisée est indisponible. Demandez à l’administrateur de vérifier les migrations, notamment 142_sent_harvest_guard.sql. Ne réinstallez pas l’ancienne suppression en cascade."))
         } else {
-          alert('Erreur : ' + error.message)
+          alert(_ui("Erreur :") + error.message)
         }
         console.error('[bulkDelete] RPC error:', error)
         return
@@ -567,7 +588,7 @@ export default function RecoltesPage() {
       load()
     } catch (e: any) {
       console.error('[bulkDelete] catch:', e)
-      alert('Erreur : ' + (e?.message ?? 'inconnue'))
+      alert(_ui("Erreur :") + (e?.message ?? 'inconnue'))
     }
   }
 
@@ -595,14 +616,14 @@ export default function RecoltesPage() {
 
   // ─── Render ───
   return (
-    <div style={{ padding: '20px 24px', maxWidth: 1500 }}>
+    <div className="itrix-workspace">
       {/* Header */}
-      <header style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
+      <header className="itrix-toolbar" style={{ marginBottom: 18 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--text-main)' }}>🌿 Récoltes</h1>
+            <PageHeader title={t("Récoltes")} subtitle="ItriX Farm · Production"/>
             {realtimeOk && (
-              <span title="Mises à jour temps réel actives" key={realtimeNudge}
+              <span title={_ui("Mises à jour temps réel actives")} key={realtimeNudge}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                   padding: '2px 8px', borderRadius: 12,
@@ -615,16 +636,15 @@ export default function RecoltesPage() {
               </span>
             )}
           </div>
-          <style>{`@keyframes pulse{0%{opacity:.4;transform:scale(.95)}50%{opacity:1;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}`}</style>
+          <style>{"@keyframes pulse{0%{opacity:.4;transform:scale(.95)}50%{opacity:1;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}"}</style>
           <div style={{ color: 'var(--text-sub)', fontSize: 12.5, marginTop: 4 }}>
-            <strong>{kpis.lots}</strong> lot(s) · <strong>{(kpis.kg / 1000).toFixed(1)} t</strong> récoltées
-            {kpis.ca > 0 && <> · CA confirmé <strong style={{ color: 'var(--neon)' }}>{fmt(kpis.ca)} MAD</strong></>}
+            <strong>{kpis.lots}</strong> {" "}{_ui("lot(s) ·")}{" "}<strong>{(kpis.kg / 1000).toFixed(1)} t</strong> {" "}{_ui("récoltées")}{" "}{kpis.ca > 0 && <> {" "}{_ui("· CA confirmé")}{" "}<strong style={{ color: 'var(--neon)' }}>{fmt(kpis.ca)} MAD</strong></>}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button onClick={manualRefresh} title={`Dernier refresh : ${lastRefresh.toLocaleTimeString('fr-FR')}`} className="btn-ghost" style={{ fontSize: 11, padding: '6px 10px' }}>
-            ↻ Rafraîchir
-          </button>
+        <div className="itrix-actions">
+          <HarvestMigration />
+          <button onClick={manualRefresh} title={_ui("Dernier refresh : {v0}",{v0:String(lastRefresh.toLocaleTimeString(_uiLocale))})} className="btn-ghost" style={{ fontSize: 11, padding: '6px 10px' }}>
+            {t("↻ Rafraîchir")}</button>
           <Link
             href="#" onClick={(e) => { e.preventDefault(); setTab('bordereaux') }}
             className="btn-ghost"
@@ -635,38 +655,34 @@ export default function RecoltesPage() {
               textDecoration: 'none',
               display: 'inline-flex', alignItems: 'center', gap: 4,
             }}
-            title="Saisir les prix via le bordereau de la station"
+            title={_ui("Saisir les prix via le bordereau de la station")}
           >
-            📑 BORDEREAUX PRIX
-          </Link>
+            {t("📑 BORDEREAUX PRIX")}</Link>
           <button onClick={() => setModalAlerte(true)} className="btn-ghost" style={{ fontSize: 11, color: 'var(--red)', borderColor: 'color-mix(in srgb,var(--red) 25%,transparent)' }}>
-            ⚠ SANS RÉCOLTE
-          </button>
+            {t("⚠ SANS RÉCOLTE")}</button>
           {tab === 'a_envoyer' ? (
             <button onClick={() => setModalCompose(true)} disabled={aEnvoyer.length === 0} className="btn-primary" style={{ fontSize: 11.5 }}>
-              📦 COMPOSER UN ENVOI
-            </button>
+              {t("📦 COMPOSER UN ENVOI")}</button>
           ) : (
             <button onClick={() => setModalNew(true)} className="btn-primary" style={{ fontSize: 11.5 }}>
-              + SAISIR RÉCOLTE
-            </button>
+              {t("+ SAISIR RÉCOLTE")}</button>
           )}
         </div>
       </header>
 
       {error && (
         <div style={{ padding: 12, marginBottom: 14, background: 'var(--red-dim)', border: '1px solid var(--red)', borderRadius: 6, color: 'var(--text-main)', fontSize: 12.5 }}>
-          ⚠ {error}
+          ⚠ {_uiNode(error)}
         </div>
       )}
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10, marginBottom: 14 }}>
-        <KPI icon="🌿" label="Récoltes" value={kpis.lots} sub={`${(kpis.kg / 1000).toFixed(1)} t total`} color="#10b981" />
-        <KPI icon="🚚" label="À envoyer" value={fmt(kpis.a_envoyer_kg) + ' kg'} sub={`${aEnvoyer.length} récolte(s)`} color="#22c55e" />
-        <KPI icon="📦" label="À trier" value={kpis.a_trier_n} sub="envois pending" color="#f59e0b" />
-        <KPI icon="🔬" label="À tarifer" value={kpis.a_tarifer_n} sub="envois triés" color="#3b82f6" />
-        <KPI icon="✓" label="Confirmés" value={kpis.confirmes_n} sub="prix saisi" color="#0ea5e9" />
+      <div className="itrix-kpis">
+        <KPI icon="🌿" label={t("Récoltes")} value={kpis.lots} sub={`${(kpis.kg / 1000).toFixed(1)} t total`} color="#10b981" />
+        <KPI icon="🚚" label={t("À envoyer")} value={fmt(kpis.a_envoyer_kg) + ' kg'} sub={`${aEnvoyer.length} récolte(s)`} color="#22c55e" />
+        <KPI icon="📦" label={t("À trier")} value={kpis.a_trier_n} sub="envois pending" color="#f59e0b" />
+        <KPI icon="🔬" label={t("À tarifer")} value={kpis.a_tarifer_n} sub="envois triés" color="#3b82f6" />
+        <KPI icon="✓" label={t("Confirmés")} value={kpis.confirmes_n} sub="prix saisi" color="#0ea5e9" />
         <KPI icon="💰" label="CA" value={fmt(kpis.ca) + ' MAD'} sub="encaissé" color="#a855f7" />
       </div>
 
@@ -680,60 +696,57 @@ export default function RecoltesPage() {
           display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
         }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: 1 }}>
-            🔍 Filtres
-          </span>
+            {t("🔍 Filtres")}</span>
 
           {/* Date du */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <label style={{ fontSize: 11, color: 'var(--text-sub)' }}>Du</label>
-            <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)}
+            <label style={{ fontSize: 11, color: 'var(--text-sub)' }}>{t("Du")}</label>
+            <input aria-label={_ui("Récoltes du")} type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)}
               style={{ padding: '4px 8px', fontSize: 12, border: '1px solid var(--bd-1)', borderRadius: 4, background: 'var(--bg-1)', color: 'var(--text-main)' }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <label style={{ fontSize: 11, color: 'var(--text-sub)' }}>Au</label>
-            <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)}
+            <label style={{ fontSize: 11, color: 'var(--text-sub)' }}>{t("Au")}</label>
+            <input aria-label={_ui("Récoltes au")} type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)}
               style={{ padding: '4px 8px', fontSize: 12, border: '1px solid var(--bd-1)', borderRadius: 4, background: 'var(--bg-1)', color: 'var(--text-main)' }} />
           </div>
 
           {/* Ferme */}
-          <select value={filterFarmId} onChange={e => { setFilterFarmId(e.target.value); setFilterGreenhouseId('') }}
+          <select aria-label={_ui("Filtrer les récoltes par ferme")} value={filterFarmId} onChange={e => { setFilterFarmId(e.target.value); setFilterGreenhouseId('') }}
             style={{ padding: '4px 8px', fontSize: 12, border: '1px solid var(--bd-1)', borderRadius: 4, background: 'var(--bg-1)', color: 'var(--text-main)', minWidth: 140 }}>
-            <option value="">Toutes fermes</option>
+            <option value="">{t("Toutes fermes")}</option>
             {farmsForFilter.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
 
           {/* Serre */}
-          <select value={filterGreenhouseId} onChange={e => setFilterGreenhouseId(e.target.value)}
+          <select aria-label={_ui("Filtrer les récoltes par serre")} value={filterGreenhouseId} onChange={e => setFilterGreenhouseId(e.target.value)}
             style={{ padding: '4px 8px', fontSize: 12, border: '1px solid var(--bd-1)', borderRadius: 4, background: 'var(--bg-1)', color: 'var(--text-main)', minWidth: 180 }}>
-            <option value="">Toutes serres</option>
+            <option value="">{t("Toutes serres")}</option>
             {greenhousesForFilter.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
           </select>
 
           {/* Variété */}
-          <select value={filterVarietyId} onChange={e => setFilterVarietyId(e.target.value)}
+          <select aria-label={_ui("Filtrer les récoltes par variété")} value={filterVarietyId} onChange={e => setFilterVarietyId(e.target.value)}
             style={{ padding: '4px 8px', fontSize: 12, border: '1px solid var(--bd-1)', borderRadius: 4, background: 'var(--bg-1)', color: 'var(--text-main)', minWidth: 180 }}>
-            <option value="">Toutes variétés</option>
+            <option value="">{t("Toutes variétés")}</option>
             {varietiesForFilter.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
           </select>
 
           {/* Reset */}
           {hasActiveFilter && (
             <button onClick={resetFilters} className="btn-ghost" style={{ fontSize: 11, padding: '4px 10px', color: '#3b82f6', marginLeft: 'auto' }}>
-              ✕ Réinitialiser
-            </button>
+              {t("✕ Réinitialiser")}</button>
           )}
 
           {/* Compteur */}
           {hasActiveFilter && (
             <span style={{ fontSize: 11, color: 'var(--text-sub)', fontFamily: 'var(--font-mono)' }}>
-              {harvestsFiltered.length} récolte(s) · {dispatchesFiltered.length} dispatch(es)
-            </span>
+              {harvestsFiltered.length} {" "}{_ui("récolte(s) ·")}{" "}{dispatchesFiltered.length} {" "}{_ui("dispatch(es)")}{" "}</span>
           )}
         </div>
       )}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid var(--bd-1)', marginBottom: 14, overflowX: 'auto' }}>
+      <div className="itrix-tabs" role="group" aria-label={t("Étapes des récoltes")}>
         {([
           ['liste', '📋 Récoltes', kpis.lots],
           ['a_envoyer', '🚚 À envoyer', aEnvoyer.length],
@@ -741,12 +754,13 @@ export default function RecoltesPage() {
           ['a_trier', '📦 À trier', aTrier.length],
           ['a_tarifer', '🔬 À tarifer', aTarifer.length],
           ['confirmes', '✅ Confirmés', confirmes.length],
+          ['recap_tarifes', 'Envois tarifés · Récapitulatif', -1],
           ['ca', '💰 CA réalisé', caData.rows.length],
           ['bordereaux', '📑 Bordereaux station', settlementCount],
           ['stock_retour', '🔄 Stock retour', stockRetour.length],
           ['alertes', '⚠ Alertes', alertesActives.length],
         ] as [Tab, string, number][]).map(([k, l, c]) => (
-          <button key={k} onClick={() => setTab(k)}
+          <button key={k} aria-pressed={tab===k} onClick={() => setTab(k)}
             style={{
               padding: '8px 14px', border: 'none',
               background: tab === k ? 'var(--bg-2)' : 'transparent',
@@ -754,7 +768,7 @@ export default function RecoltesPage() {
               borderBottom: tab === k ? '2px solid var(--neon)' : '2px solid transparent',
               cursor: 'pointer', fontSize: 12.5, fontWeight: 500, whiteSpace: 'nowrap',
             }}>
-            {l} <span style={{ marginLeft: 4, padding: '1px 6px', borderRadius: 9, background: 'var(--bg-2)', color: 'var(--text-sub)', fontSize: 10.5 }}>{c}</span>
+            {t(l)} {c >= 0 && <span style={{ marginInlineStart: 4, padding: '1px 6px', borderRadius: 9, background: 'var(--bg-2)', color: 'var(--text-sub)', fontSize: 10.5 }}>{c}</span>}
           </button>
         ))}
       </div>
@@ -774,6 +788,7 @@ export default function RecoltesPage() {
       {tab === 'a_trier' && <ATrierTab dispatches={aTrier} onPick={d => setModalTri(d)} loading={loading} />}
       {tab === 'a_tarifer' && <ATariferTab dispatches={aTarifer} summary={unpricedByMarketVariety} onPick={d => setModalPrice(d)} onOpenPeriod={() => setModalPeriodPrice(true)} onGotoBordereaux={() => setTab('bordereaux')} loading={loading} />}
       {tab === 'confirmes' && <ConfirmesTab dispatches={confirmes} loading={loading} />}
+      {tab === 'recap_tarifes' && activeDomain && <PricedDispatchReport key={activeDomain.domain_id} domainId={activeDomain.domain_id}/>}
       {tab === 'ca' && <CaTab data={caData} myName={myName} myId={myId} loading={loading} />}
       {tab === 'bordereaux' && <BordereauxSection />}
       {tab === 'stock_retour' && <StockRetourTab lots={stockRetour} onReload={load} loading={loading} />}
@@ -839,6 +854,10 @@ function ListeTab({ harvests, trayByHarvest, sortKey, sortDir, onSort, onEdit, o
   harvests: any[]; trayByHarvest: Map<string, any[]>; sortKey: SortKey; sortDir: 'asc' | 'desc'; onSort: (k: SortKey) => void;
   onEdit: (h: any) => void; onDelete: (h: any) => void; onBulkDelete: (ids: string[]) => void; loading: boolean
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+ const {t}=useLanguage()
+
   // Rend une cellule « Plateaux » : total plateaux + détail par type (tooltip)
   const renderTrays = (h: any) => {
     const lines = trayByHarvest.get(h.id) ?? []
@@ -850,9 +869,9 @@ function ListeTab({ harvests, trayByHarvest, sortKey, sortDir, onSort, onEdit, o
     const label = main.tray_type_label || main.tray_type_code
     return (
       <span title={detail} style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 1.25 }}>
-        <span style={{ fontWeight: 600 }}>{totalTrays} pl.</span>
+        <span style={{ fontWeight: 600 }}>{totalTrays} {" "}{_ui("pl.")}</span>
         <span style={{ fontSize: 10, color: 'var(--text-sub)' }}>
-          {label}{lines.length > 1 ? ` +${lines.length - 1}` : ''}
+          {_uiNode(label)}{lines.length > 1 ? ` +${lines.length - 1}` : ''}
         </span>
       </span>
     )
@@ -864,16 +883,18 @@ function ListeTab({ harvests, trayByHarvest, sortKey, sortDir, onSort, onEdit, o
       <span
         onClick={() => onSort(key)}
         style={{ cursor: 'pointer', userSelect: 'none', color: isActive ? 'var(--neon)' : undefined, fontWeight: isActive ? 700 : undefined }}
-        title="Cliquer pour trier"
+        title={t("Cliquer pour trier")}
       >
-        {label} {isActive ? (sortDir === 'asc' ? '▲' : '▼') : <span style={{ opacity: 0.3 }}>⇅</span>}
+        {_uiNode(label)} {isActive ? (sortDir === 'asc' ? '▲' : '▼') : <span style={{ opacity: 0.3 }}>⇅</span>}
       </span>
     )
   }
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const allSelected = harvests.length > 0 && harvests.every(h => selected.has(h.id))
-  const someSelected = selected.size > 0
+  const eligible = harvests.filter(h => !h.edit_locked)
+  const selectedIds = eligible.filter(h => selected.has(h.id)).map(h => h.id)
+  const allSelected = eligible.length > 0 && selectedIds.length === eligible.length
+  const someSelected = selectedIds.length > 0
 
   const toggle = (id: string) => {
     const next = new Set(selected)
@@ -882,7 +903,7 @@ function ListeTab({ harvests, trayByHarvest, sortKey, sortDir, onSort, onEdit, o
   }
   const toggleAll = () => {
     if (allSelected) setSelected(new Set())
-    else setSelected(new Set(harvests.map(h => h.id)))
+    else setSelected(new Set(eligible.map(h => h.id)))
   }
 
   return (
@@ -898,17 +919,15 @@ function ListeTab({ harvests, trayByHarvest, sortKey, sortDir, onSort, onEdit, o
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
           <span style={{ fontSize: 13, color: 'var(--text-main)', fontWeight: 600 }}>
-            ☑️ {selected.size} récolte(s) sélectionnée(s)
-          </span>
+            ☑️ {selectedIds.length} {" "}{_ui("récolte(s) sélectionnée(s)")}{" "}</span>
           <button
-            onClick={() => { onBulkDelete(Array.from(selected)); setSelected(new Set()) }}
+            onClick={() => { onBulkDelete(selectedIds); setSelected(new Set()) }}
             style={{
               padding: '6px 14px', borderRadius: 6,
               background: 'var(--red)', color: 'white', border: 'none',
               fontSize: 12, fontWeight: 600, cursor: 'pointer',
             }}>
-            🗑️ Supprimer la sélection
-          </button>
+            {" "}{_ui("🗑️ Supprimer la sélection")}{" "}</button>
           <button
             onClick={() => setSelected(new Set())}
             style={{
@@ -916,18 +935,17 @@ function ListeTab({ harvests, trayByHarvest, sortKey, sortDir, onSort, onEdit, o
               background: 'transparent', color: 'var(--text-sub)',
               border: '1px solid var(--bd-1)', fontSize: 12, cursor: 'pointer',
             }}>
-            Désélectionner
-          </button>
+            {t("Désélectionner")}</button>
         </div>
       )}
 
       <Table
         headers={[
           <input key="sa" type="checkbox" checked={allSelected} onChange={toggleAll}
-            style={{ cursor: 'pointer', width: 16, height: 16 }} title="Tout sélectionner" />,
+            style={{ cursor: 'pointer', width: 16, height: 16 }} title={t("Tout sélectionner")} />,
           sortHeader('Lot', 'lot_number'),
           sortHeader('Date', 'harvest_date'),
-          <span key="gv">{sortHeader('Serre', 'greenhouse')} / {sortHeader('Variété', 'variety')}</span>,
+          <span key="gv">{sortHeader(_ui("Serre"), 'greenhouse')} / {sortHeader(_ui("Variété"), 'variety')}</span>,
           'Plateaux',
           sortHeader('Total', 'total_qty'),
           sortHeader('Engagé', 'used_kg'),
@@ -935,7 +953,7 @@ function ListeTab({ harvests, trayByHarvest, sortKey, sortDir, onSort, onEdit, o
           'Actions',
         ]}
         loading={loading}
-        empty="Aucune récolte. Cliquer + Saisir récolte."
+        empty={_ui("Aucune récolte. Cliquer + Saisir récolte.")}
         rows={harvests}>
         {(h: any) => (
           <tr key={h.id} style={{
@@ -943,7 +961,7 @@ function ListeTab({ harvests, trayByHarvest, sortKey, sortDir, onSort, onEdit, o
             background: selected.has(h.id) ? 'color-mix(in srgb, var(--red) 5%, transparent)' : undefined,
           }}>
             <td style={{ ...td, width: 36, textAlign: 'center' }}>
-              <input type="checkbox" checked={selected.has(h.id)} onChange={() => toggle(h.id)}
+              <input type="checkbox" disabled={h.edit_locked} checked={!h.edit_locked && selected.has(h.id)} onChange={() => toggle(h.id)}
                 style={{ cursor: 'pointer', width: 18, height: 18, accentColor: 'var(--red)' }} />
             </td>
             <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{h.lot_number}</td>
@@ -956,8 +974,8 @@ function ListeTab({ harvests, trayByHarvest, sortKey, sortDir, onSort, onEdit, o
               {fmt(h.remaining_kg)}
             </td>
             <td style={{ ...td, whiteSpace: 'nowrap' }}>
-              <button onClick={() => onEdit(h)} className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px', marginRight: 4 }}>Éditer</button>
-              <button onClick={() => onDelete(h)} className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px', color: 'var(--red)' }}>Supprimer</button>
+              <button onClick={() => onEdit(h)} disabled={h.edit_locked} title={h.edit_locked ? _ui("Récolte déjà envoyée (même partiellement) : modification désactivée.") : _ui("Modifier cette récolte")} className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px', marginRight: 4, opacity: h.edit_locked ? 0.45 : 1, cursor: h.edit_locked ? 'not-allowed' : 'pointer' }}>{t("Éditer")}</button>
+              <button onClick={() => onDelete(h)} disabled={h.edit_locked} title={h.edit_locked ? _ui("Récolte déjà envoyée (même partiellement) : suppression désactivée.") : _ui("Supprimer cette récolte")} className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px', color: 'var(--red)', opacity: h.edit_locked ? 0.45 : 1, cursor: h.edit_locked ? 'not-allowed' : 'pointer' }}>{t("Supprimer")}</button>
             </td>
           </tr>
         )}
@@ -967,9 +985,15 @@ function ListeTab({ harvests, trayByHarvest, sortKey, sortDir, onSort, onEdit, o
 }
 
 function AEnvoyerTab({ harvests, onBulkDelete, loading }: { harvests: any[]; onBulkDelete: (ids: string[]) => void; loading: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+ const {t}=useLanguage()
+
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const allSelected = harvests.length > 0 && harvests.every(h => selected.has(h.id))
-  const someSelected = selected.size > 0
+  const eligible = harvests.filter(h => !h.edit_locked)
+  const selectedIds = eligible.filter(h => selected.has(h.id)).map(h => h.id)
+  const allSelected = eligible.length > 0 && selectedIds.length === eligible.length
+  const someSelected = selectedIds.length > 0
 
   const toggle = (id: string) => {
     const next = new Set(selected)
@@ -978,15 +1002,13 @@ function AEnvoyerTab({ harvests, onBulkDelete, loading }: { harvests: any[]; onB
   }
   const toggleAll = () => {
     if (allSelected) setSelected(new Set())
-    else setSelected(new Set(harvests.map(h => h.id)))
+    else setSelected(new Set(eligible.map(h => h.id)))
   }
 
   return (
     <div>
       <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--text-sub)' }}>
-        Récoltes ayant encore une quantité <strong>disponible</strong> à inclure dans un envoi station.
-        Cliquer sur <strong>📦 COMPOSER UN ENVOI</strong> en haut pour créer un envoi multi-récoltes.
-      </div>
+        {" "}{_ui("Récoltes ayant encore une quantité")}{" "}<strong>{_ui("disponible")}</strong> {" "}{_ui("à inclure dans un envoi station. Cliquer sur")}{" "}<strong>{t("📦 COMPOSER UN ENVOI")}</strong> {" "}{_ui("en haut pour créer un envoi multi-récoltes.")}{" "}</div>
 
       {/* Barre d'action sticky quand des lignes sont sélectionnées */}
       {someSelected && (
@@ -999,17 +1021,15 @@ function AEnvoyerTab({ harvests, onBulkDelete, loading }: { harvests: any[]; onB
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
           <span style={{ fontSize: 13, color: 'var(--text-main)', fontWeight: 600 }}>
-            ☑️ {selected.size} récolte(s) sélectionnée(s)
-          </span>
+            ☑️ {selectedIds.length} {" "}{_ui("récolte(s) sélectionnée(s)")}{" "}</span>
           <button
-            onClick={() => { onBulkDelete(Array.from(selected)); setSelected(new Set()) }}
+            onClick={() => { onBulkDelete(selectedIds); setSelected(new Set()) }}
             style={{
               padding: '6px 14px', borderRadius: 6,
               background: 'var(--red)', color: 'white', border: 'none',
               fontSize: 12, fontWeight: 600, cursor: 'pointer',
             }}>
-            🗑️ Supprimer la sélection
-          </button>
+            {" "}{_ui("🗑️ Supprimer la sélection")}{" "}</button>
           <button
             onClick={() => setSelected(new Set())}
             style={{
@@ -1017,19 +1037,18 @@ function AEnvoyerTab({ harvests, onBulkDelete, loading }: { harvests: any[]; onB
               background: 'transparent', color: 'var(--text-sub)',
               border: '1px solid var(--bd-1)', fontSize: 12, cursor: 'pointer',
             }}>
-            Désélectionner
-          </button>
+            {t("Désélectionner")}</button>
         </div>
       )}
 
       <Table
         headers={[
           <input key="sa" type="checkbox" checked={allSelected} onChange={toggleAll}
-            style={{ cursor: 'pointer', width: 18, height: 18 }} title="Tout sélectionner" />,
+            style={{ cursor: 'pointer', width: 18, height: 18 }} title={t("Tout sélectionner")} />,
           'Lot récolte', 'Date', 'Serre / Variété', 'Total', 'Engagé', 'Disponible',
         ]}
         loading={loading}
-        empty="Toutes les récoltes sont engagées dans un envoi ✓"
+        empty={_ui("Toutes les récoltes sont engagées dans un envoi ✓")}
         rows={harvests}>
         {(h: any) => (
           <tr key={h.id} style={{
@@ -1037,7 +1056,7 @@ function AEnvoyerTab({ harvests, onBulkDelete, loading }: { harvests: any[]; onB
             background: selected.has(h.id) ? 'color-mix(in srgb, var(--red) 5%, transparent)' : undefined,
           }}>
             <td style={{ ...td, width: 36, textAlign: 'center' }}>
-              <input type="checkbox" checked={selected.has(h.id)} onChange={() => toggle(h.id)}
+              <input type="checkbox" disabled={h.edit_locked} checked={!h.edit_locked && selected.has(h.id)} onChange={() => toggle(h.id)}
                 style={{ cursor: 'pointer', width: 18, height: 18, accentColor: 'var(--red)' }} />
             </td>
             <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{h.lot_number}</td>
@@ -1054,12 +1073,15 @@ function AEnvoyerTab({ harvests, onBulkDelete, loading }: { harvests: any[]; onB
 }
 
 function APeserTab({ dispatches, onPick, loading }: { dispatches: any[]; onPick: (d: any) => void; loading: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+ const {t}=useLanguage()
+
   return (
     <div>
       <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--text-sub)' }}>
-        Envois partis à la station avec un poids <strong>estimé</strong> (plateaux). Saisis le <strong>tonnage réel</strong> pesé par la station — il sera réparti au prorata sur les récoltes.
-      </div>
-      <Table headers={['Lot dispatch', 'Date', 'Marché', 'Variété', 'Récoltes incluses', 'Estimé (kg)', 'Action']} loading={loading} empty="Aucun envoi en attente de pesée ✓" rows={dispatches}>
+        {" "}{_ui("Envois partis à la station avec un poids")}{" "}<strong>{_ui("estimé")}</strong> {" "}{_ui("(plateaux). Saisis le")}{" "}<strong>{_ui("tonnage réel")}</strong> {" "}{_ui("pesé par la station — il sera réparti au prorata sur les récoltes.")}{" "}</div>
+      <Table headers={['Lot dispatch', 'Date', 'Marché', 'Variété', 'Récoltes incluses', 'Estimé (kg)', 'Action']} loading={loading} empty={_ui("Aucun envoi en attente de pesée ✓")} rows={dispatches}>
         {(d: any) => (
           <tr key={d.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
             <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{d.lot_number}</td>
@@ -1073,15 +1095,15 @@ function APeserTab({ dispatches, onPick, loading }: { dispatches: any[]; onPick:
             <td style={{ ...td, fontSize: 11, color: 'var(--text-sub)' }}>
               {(d.sources?.length ?? 0) > 0
                 ? d.sources.map((s: any) => `${s.harvests?.lot_number ?? '?'} (${fmt(s.qty_contributed_kg)})`).join(', ')
-                : <em style={{ color: 'var(--text-sub)' }} title="Envoi issu d'une seule récolte (non composé)">
+                : <em style={{ color: 'var(--text-sub)' }} title={_ui("Envoi issu d'une seule récolte (non composé)")}>
                     {d.parent_harvest?.lot_number
-                      ? `Récolte directe · ${d.parent_harvest.lot_number}`
-                      : 'Récolte directe'}
+                      ? _ui("Récolte directe · {v0}",{v0:String(d.parent_harvest.lot_number)})
+                      : _ui("Récolte directe")}
                   </em>}
             </td>
             <td style={tdNum}>{fmt(d.estimated_kg ?? d.quantity_kg)}</td>
             <td style={td}>
-              <button onClick={() => onPick(d)} className="btn-primary" style={{ fontSize: 11, padding: '4px 10px' }}>⚖️ Saisir tonnage</button>
+              <button onClick={() => onPick(d)} className="btn-primary" style={{ fontSize: 11, padding: '4px 10px' }}>{t("⚖️ Saisir tonnage")}</button>
             </td>
           </tr>
         )}
@@ -1091,6 +1113,10 @@ function APeserTab({ dispatches, onPick, loading }: { dispatches: any[]; onPick:
 }
 
 function PeseeModal({ dispatch, sources, onClose, onDone }: { dispatch: any; sources: any[]; onClose: () => void; onDone: () => void }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+ const {t}=useLanguage()
+
   const lines = useMemo(() => sources.filter((s: any) => s.harvest_lot_id === dispatch.id), [sources, dispatch.id])
   const totalEst = useMemo(() => lines.reduce((s: number, l: any) => s + Number(l.qty_contributed_kg || 0), 0)
     || Number(dispatch.estimated_kg ?? dispatch.quantity_kg ?? 0), [lines, dispatch])
@@ -1113,26 +1139,25 @@ function PeseeModal({ dispatch, sources, onClose, onDone }: { dispatch: any; sou
   }
 
   return (
-    <Modal title={`⚖️ Pesée station — ${dispatch.lot_number}`} onClose={onClose}>
+    <Modal title={_ui("⚖️ Pesée station — {v0}",{v0:String(dispatch.lot_number)})} onClose={onClose}>
       <div style={{ fontSize: 12.5, color: 'var(--text-sub)', marginBottom: 10 }}>
-        Le tonnage réel sera réparti au <strong>prorata de l'estimation</strong> sur chaque récolte de l'envoi.
-      </div>
+        {" "}{_ui("Le tonnage réel sera réparti au")}{" "}<strong>{_ui("prorata de l'estimation")}</strong> {" "}{_ui("sur chaque récolte de l'envoi.")}{" "}</div>
 
       {/* Estimation + saisie */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.3)', borderRadius: 6, padding: '8px 12px', marginBottom: 10 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#b45309' }}>Poids estimé (plateaux)</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#b45309' }}>{t("Poids estimé (plateaux)")}</span>
         <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 15, color: '#b45309' }}>{fmt(totalEst)} kg</span>
       </div>
 
-      <FormGroup label="Tonnage réel pesé par la station (kg) *">
+      <FormGroup label={t("Tonnage réel pesé par la station (kg) *")}>
         <Input type="number" value={realKg} onChange={(e: any) => setRealKg(e.target.value)} placeholder={String(Math.round(totalEst))} autoFocus />
       </FormGroup>
 
       {real > 0 && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: ecart < 0 ? 'rgba(239,68,68,.08)' : 'rgba(34,197,94,.08)', border: `1px solid ${ecart < 0 ? 'rgba(239,68,68,.3)' : 'rgba(34,197,94,.3)'}`, borderRadius: 6, padding: '6px 12px', marginBottom: 10 }}>
-          <span style={{ fontSize: 12.5, color: 'var(--text-sub)' }}>Écart estimation → réel</span>
+          <span style={{ fontSize: 12.5, color: 'var(--text-sub)' }}>{t("Écart estimation → réel")}</span>
           <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: ecart < 0 ? '#dc2626' : '#16a34a' }}>
-            {ecart >= 0 ? '+' : ''}{fmt2(ecart)} kg ({ecartPct >= 0 ? '+' : ''}{ecartPct.toFixed(1)}%)
+            {ecart >= 0 ? '+' : ''}{fmt2(ecart)} {" "}{_ui("kg (")}{ecartPct >= 0 ? '+' : ''}{ecartPct.toFixed(1)}%)
           </span>
         </div>
       )}
@@ -1140,13 +1165,13 @@ function PeseeModal({ dispatch, sources, onClose, onDone }: { dispatch: any; sou
       {/* Aperçu répartition */}
       {lines.length > 0 && real > 0 && (
         <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: .4 }}>Répartition prorata</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: .4 }}>{t("Répartition prorata")}</div>
           <div style={{ border: '1px solid var(--bd-1)', borderRadius: 6, overflow: 'hidden' }}>
             {lines.map((l: any, i: number) => {
               const part = totalEst > 0 ? real * (Number(l.qty_contributed_kg) / totalEst) : 0
               return (
                 <div key={l.harvest_id ?? i} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 10px', fontSize: 12, borderTop: i ? '1px solid var(--bd-1)' : 'none' }}>
-                  <span style={{ color: 'var(--text-sub)' }}>{l.harvests?.lot_number ?? l.harvest_id?.slice(0, 8)} <span style={{ color: 'var(--text-muted)' }}>(est. {fmt(l.qty_contributed_kg)})</span></span>
+                  <span style={{ color: 'var(--text-sub)' }}>{l.harvests?.lot_number ?? l.harvest_id?.slice(0, 8)} <span style={{ color: 'var(--text-muted)' }}>{_ui("(est.")}{" "}{fmt(l.qty_contributed_kg)})</span></span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{fmt2(part)} kg</span>
                 </div>
               )
@@ -1156,18 +1181,22 @@ function PeseeModal({ dispatch, sources, onClose, onDone }: { dispatch: any; sou
       )}
 
       {err && <ErrorBox msg={err} />}
-      <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel="VALIDER LA PESÉE" disabled={real <= 0} />
+      <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel={_ui("VALIDER LA PESÉE")} disabled={real <= 0} />
     </Modal>
   )
 }
 
 function ATrierTab({ dispatches, onPick, loading }: { dispatches: any[]; onPick: (d: any) => void; loading: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+ const {t}=useLanguage()
+
   return (
     <div>
       <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--text-sub)' }}>
-        Envois envoyés à la station, en attente de saisie du <strong>tri (freinte + écart)</strong>.
+        {" "}{_ui("Envois envoyés à la station, en attente de saisie du")}{" "}<strong>{_ui("tri (freinte + écart)")}</strong>.
       </div>
-      <Table headers={['Lot dispatch', 'Date', 'Marché', 'Variété', 'Récoltes incluses', 'Brute (kg)', 'Action']} loading={loading} empty="Aucun envoi en attente de tri ✓" rows={dispatches}>
+      <Table headers={['Lot dispatch', 'Date', 'Marché', 'Variété', 'Récoltes incluses', 'Brute (kg)', 'Action']} loading={loading} empty={_ui("Aucun envoi en attente de tri ✓")} rows={dispatches}>
         {(d: any) => (
           <tr key={d.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
             <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{d.lot_number}</td>
@@ -1181,15 +1210,15 @@ function ATrierTab({ dispatches, onPick, loading }: { dispatches: any[]; onPick:
             <td style={{ ...td, fontSize: 11, color: 'var(--text-sub)' }}>
               {(d.sources?.length ?? 0) > 0
                 ? d.sources.map((s: any) => `${s.harvests?.lot_number ?? '?'} (${fmt(s.qty_contributed_kg)})`).join(', ')
-                : <em style={{ color: 'var(--text-sub)' }} title="Envoi issu d'une seule récolte (non composé)">
+                : <em style={{ color: 'var(--text-sub)' }} title={_ui("Envoi issu d'une seule récolte (non composé)")}>
                     {d.parent_harvest?.lot_number
-                      ? `Récolte directe · ${d.parent_harvest.lot_number}`
-                      : 'Récolte directe'}
+                      ? _ui("Récolte directe · {v0}",{v0:String(d.parent_harvest.lot_number)})
+                      : _ui("Récolte directe")}
                   </em>}
             </td>
             <td style={tdNum}>{fmt(d.quantity_kg)}</td>
             <td style={td}>
-              <button onClick={() => onPick(d)} className="btn-primary" style={{ fontSize: 11, padding: '4px 10px' }}>🔬 Saisir tri</button>
+              <button onClick={() => onPick(d)} className="btn-primary" style={{ fontSize: 11, padding: '4px 10px' }}>{t("🔬 Saisir tri")}</button>
             </td>
           </tr>
         )}
@@ -1199,6 +1228,10 @@ function ATrierTab({ dispatches, onPick, loading }: { dispatches: any[]; onPick:
 }
 
 function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, onGotoBordereaux, loading }: { dispatches: any[]; summary: any[]; onPick: (d: any) => void; onOpenPeriod: () => void; onGotoBordereaux: () => void; loading: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+ const {t}=useLanguage()
+
   const summaryTotals = useMemo(() => ({
     remaining: summary.reduce((s, r) => s + r.remaining_kg, 0),
     accepted: summary.reduce((s, r) => s + r.accepted_kg, 0),
@@ -1211,8 +1244,7 @@ function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, onGotoBorderea
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 12.5, color: 'var(--text-sub)' }}>
-          Envois <strong>triés</strong>, en attente du <strong>prix /kg</strong> pour confirmer le CA.
-        </div>
+          {" "}{_ui("Envois")}{" "}<strong>{_ui("triés")}</strong>{_ui(", en attente du")}{" "}<strong>{_ui("prix /kg")}</strong> {" "}{_ui("pour confirmer le CA.")}{" "}</div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={onGotoBordereaux}
@@ -1224,13 +1256,11 @@ function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, onGotoBorderea
               border: 'none', cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 4,
             }}
-            title="Saisir les prix via le bordereau envoyé par la station (méthode recommandée)"
+            title={_ui("Saisir les prix via le bordereau envoyé par la station (méthode recommandée)")}
           >
-            📑 BORDEREAUX PRIX
-          </button>
+            {t("📑 BORDEREAUX PRIX")}</button>
           <button onClick={onOpenPeriod} disabled={dispatches.length === 0} className="btn-ghost" style={{ fontSize: 11.5, padding: '6px 12px', color: '#a855f7', borderColor: 'color-mix(in srgb,#a855f7 30%,transparent)' }}>
-            📅 TARIF PAR PÉRIODE
-          </button>
+            {" "}{_ui("📅 TARIF PAR PÉRIODE")}{" "}</button>
         </div>
       </div>
 
@@ -1247,10 +1277,8 @@ function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, onGotoBorderea
         }}>
           <span style={{ fontSize: 14 }}>💡</span>
           <span>
-            <strong>Tip :</strong> au lieu de tarifer dispatch par dispatch, utilisez
-            {' '}<a href="#" onClick={(e) => { e.preventDefault(); onGotoBordereaux() }} style={{ color: '#8b5cf6', fontWeight: 600 }}>les bordereaux station</a>{' '}
-            pour saisir le prix de la semaine entière (allocation FIFO automatique).
-          </span>
+            <strong>{_ui("Tip :")}</strong> {" "}{_ui("au lieu de tarifer dispatch par dispatch, utilisez")}{" "}{' '}<a href="#" onClick={(e) => { e.preventDefault(); onGotoBordereaux() }} style={{ color: '#8b5cf6', fontWeight: 600 }}>{_ui("les bordereaux station")}</a>{' '}
+            {" "}{_ui("pour saisir le prix de la semaine entière (allocation FIFO automatique).")}{" "}</span>
         </div>
       )}
 
@@ -1272,24 +1300,23 @@ function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, onGotoBorderea
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 14 }}>📊</span>
               <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-main)' }}>
-                Dispo à tarifer · par marché × variété × ferme
-              </span>
+                {" "}{_ui("Dispo à tarifer · par marché × variété × ferme")}{" "}</span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-sub)', display: 'flex', gap: 16 }}>
-              <span><strong style={{ color: '#3b82f6', fontSize: 13 }}>{fmt(summaryTotals.remaining)} kg</strong> à tarifer</span>
-              <span><strong>{summaryTotals.lots}</strong> lot(s) · dont <strong>{summaryTotals.partialLots}</strong> partiel(s)</span>
+              <span><strong style={{ color: '#3b82f6', fontSize: 13 }}>{fmt(summaryTotals.remaining)} kg</strong> {" "}{_ui("à tarifer")}</span>
+              <span><strong>{summaryTotals.lots}</strong> {" "}{_ui("lot(s) · dont")}{" "}<strong>{summaryTotals.partialLots}</strong> {" "}{_ui("partiel(s)")}</span>
             </div>
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--bd-1)', background: 'var(--bg-1)' }}>
-                <th style={{ ...th, textAlign: 'left' }}>Marché</th>
-                <th style={{ ...th, textAlign: 'left' }}>Variété</th>
-                <th style={{ ...th, textAlign: 'left' }}>Ferme</th>
-                <th style={{ ...th, textAlign: 'right' }}>Acceptée</th>
-                <th style={{ ...th, textAlign: 'right' }}>Déjà tarifée</th>
-                <th style={{ ...th, textAlign: 'right' }}>Restant à tarifer</th>
-                <th style={{ ...th, textAlign: 'right' }}>Lots</th>
+                <th style={{ ...th, textAlign: 'left' }}>{t("Marché")}</th>
+                <th style={{ ...th, textAlign: 'left' }}>{t("Variété")}</th>
+                <th style={{ ...th, textAlign: 'left' }}>{t("Ferme")}</th>
+                <th style={{ ...th, textAlign: 'right' }}>{t("Acceptée")}</th>
+                <th style={{ ...th, textAlign: 'right' }}>{t("Déjà tarifée")}</th>
+                <th style={{ ...th, textAlign: 'right' }}>{t("Restant à tarifer")}</th>
+                <th style={{ ...th, textAlign: 'right' }}>{t("Lots")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1316,9 +1343,8 @@ function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, onGotoBorderea
                     <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-mono)', color: '#3b82f6', fontWeight: 700 }}>
                       {fmt(r.remaining_kg)}
                       {isPartial && (
-                        <span title="Cette ligne est partiellement tarifée (un bordereau l'a déjà payée en partie)" style={{ marginLeft: 4, fontSize: 9, padding: '1px 4px', borderRadius: 3, background: 'rgba(245,158,11,.15)', color: '#f59e0b' }}>
-                          PARTIEL
-                        </span>
+                        <span title={_ui("Cette ligne est partiellement tarifée (un bordereau l'a déjà payée en partie)")} style={{ marginLeft: 4, fontSize: 9, padding: '1px 4px', borderRadius: 3, background: 'rgba(245,158,11,.15)', color: '#f59e0b' }}>
+                          {" "}{_ui("PARTIEL")}{" "}</span>
                       )}
                     </td>
                     <td style={{ ...td, textAlign: 'right', color: 'var(--text-sub)' }}>
@@ -1329,7 +1355,7 @@ function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, onGotoBorderea
                 )
               })}
               <tr style={{ background: 'var(--bg-1)', fontWeight: 700 }}>
-                <td style={td} colSpan={3}>TOTAL</td>
+                <td style={td} colSpan={3}>{_ui("TOTAL")}</td>
                 <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{fmt(summaryTotals.accepted)}</td>
                 <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-mono)', color: '#f59e0b' }}>{fmt(summaryTotals.partial)}</td>
                 <td style={{ ...td, textAlign: 'right', fontFamily: 'var(--font-mono)', color: '#3b82f6' }}>{fmt(summaryTotals.remaining)}</td>
@@ -1339,7 +1365,7 @@ function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, onGotoBorderea
           </table>
         </div>
       )}
-      <Table headers={['Lot', 'Date', 'Marché', 'Variété', 'Brute', 'Freinte', 'Écart', 'Acceptée', 'Action']} loading={loading} empty="Aucun envoi en attente de prix." rows={dispatches}>
+      <Table headers={['Lot', 'Date', 'Marché', 'Variété', 'Brute', 'Freinte', 'Écart', 'Acceptée', 'Action']} loading={loading} empty={_ui("Aucun envoi en attente de prix.")} rows={dispatches}>
         {(d: any) => (
           <tr key={d.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
             <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{d.lot_number}</td>
@@ -1355,7 +1381,7 @@ function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, onGotoBorderea
             <td style={tdNum}>{(d.ecart_pct ?? 0).toFixed(1)}%</td>
             <td style={{ ...tdNum, color: 'var(--neon)', fontWeight: 700 }}>{fmt(d.qty_acceptee_kg ?? 0)}</td>
             <td style={td}>
-              <button onClick={() => onPick(d)} className="btn-primary" style={{ fontSize: 11, padding: '4px 10px' }}>💰 Tarifer</button>
+              <button onClick={() => onPick(d)} className="btn-primary" style={{ fontSize: 11, padding: '4px 10px' }}>{t("💰 Tarifer")}</button>
             </td>
           </tr>
         )}
@@ -1365,12 +1391,13 @@ function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, onGotoBorderea
 }
 
 function ConfirmesTab({ dispatches, loading }: { dispatches: any[]; loading: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <div>
       <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--text-sub)' }}>
-        Envois avec prix confirmé et CA calculé.
-      </div>
-      <Table headers={['Lot', 'Date', 'Marché', 'Variété', 'Acceptée', 'Prix /kg', 'CA', 'Réf station']} loading={loading} empty="Aucun envoi confirmé." rows={dispatches}>
+        {" "}{_ui("Envois avec prix confirmé et CA calculé.")}{" "}</div>
+      <Table headers={['Lot', 'Date', 'Marché', 'Variété', 'Acceptée', 'Prix /kg', 'CA', 'Réf station']} loading={loading} empty={_ui("Aucun envoi confirmé.")} rows={dispatches}>
         {(d: any) => (
           <tr key={d.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
             <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{d.lot_number}</td>
@@ -1393,6 +1420,10 @@ function ConfirmesTab({ dispatches, loading }: { dispatches: any[]; loading: boo
 }
 
 function CaTab({ data, myName, myId, loading }: { data: { rows: any[]; totalCA: number; myCA: number }; myName: string; myId: string | null; loading: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+ const {t}=useLanguage()
+
   const [mineOnly, setMineOnly] = useState(false)
   // Tri du plus gros CA au plus petit
   const rows = useMemo(() => {
@@ -1405,30 +1436,27 @@ function CaTab({ data, myName, myId, loading }: { data: { rows: any[]; totalCA: 
       {/* KPIs CA */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 180, border: '1px solid var(--bd-1)', borderRadius: 8, padding: '10px 14px' }}>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: .4 }}>CA total réalisé</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: .4 }}>{t("CA total réalisé")}</div>
           <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--neon)', fontFamily: 'var(--font-mono)' }}>{fmt(data.totalCA)} MAD</div>
-          <div style={{ fontSize: 11, color: 'var(--text-sub)' }}>{data.rows.length} lot(s) confirmé(s)</div>
+          <div style={{ fontSize: 11, color: 'var(--text-sub)' }}>{data.rows.length} {" "}{_ui("lot(s) confirmé(s)")}</div>
         </div>
         <div style={{ flex: 1, minWidth: 180, border: '1px solid rgba(34,197,94,.4)', borderRadius: 8, padding: '10px 14px', background: 'rgba(34,197,94,.05)' }}>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: .4 }}>Mon CA ({myName})</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: .4 }}>{_ui("Mon CA (")}{myName})</div>
           <div style={{ fontSize: 20, fontWeight: 800, color: '#16a34a', fontFamily: 'var(--font-mono)' }}>{fmt(data.myCA)} MAD</div>
           <div style={{ fontSize: 11, color: 'var(--text-sub)' }}>
-            {data.totalCA > 0 ? ((data.myCA / data.totalCA) * 100).toFixed(1) : '0'}% du total
-          </div>
+            {data.totalCA > 0 ? ((data.myCA / data.totalCA) * 100).toFixed(1) : '0'}{_ui("% du total")}{" "}</div>
         </div>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 12.5, color: 'var(--text-sub)' }}>
-          CA par lot. Attribution au récolteur au <strong>prorata</strong> des quantités contribuées.
-        </div>
+          {" "}{_ui("CA par lot. Attribution au récolteur au")}{" "}<strong>{_ui("prorata")}</strong> {" "}{_ui("des quantités contribuées.")}{" "}</div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, cursor: 'pointer' }}>
           <input type="checkbox" checked={mineOnly} onChange={(e) => setMineOnly(e.target.checked)} disabled={!myId} />
-          Mon CA seulement
-        </label>
+          {t("Mon CA seulement")}</label>
       </div>
 
-      <Table headers={['Lot', 'Date', 'Marché', 'Variété', 'Acceptée', 'Prix /kg', 'CA lot', 'Ma part', 'Récolteur(s)']} loading={loading} empty="Aucun CA réalisé pour l'instant." rows={rows}>
+      <Table headers={['Lot', 'Date', 'Marché', 'Variété', 'Acceptée', 'Prix /kg', 'CA lot', 'Ma part', 'Récolteur(s)']} loading={loading} empty={_ui("Aucun CA réalisé pour l'instant.")} rows={rows}>
         {(r: any) => (
           <tr key={r.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
             <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{r.lot}</td>
@@ -1450,10 +1478,14 @@ function CaTab({ data, myName, myId, loading }: { data: { rows: any[]; totalCA: 
 }
 
 function StockRetourTab({ lots, onReload, loading }: { lots: any[]; onReload: () => void; loading: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+ const {t}=useLanguage()
+
   const [acting, setActing] = useState<string>('')
 
   const markConsumed = async (lotId: string, lotNumber: string) => {
-    if (!confirm(`Marquer le lot ${lotNumber} comme consommé (envoyé vers un autre marché) ?`)) return
+    if (!confirm(_ui("Marquer le lot {v0} comme consommé (envoyé vers un autre marché) ?",{v0:String(lotNumber)}))) return
     setActing(lotId)
     try {
       const { error } = await supabase.from('harvest_lots').update({
@@ -1463,13 +1495,13 @@ function StockRetourTab({ lots, onReload, loading }: { lots: any[]; onReload: ()
       if (error) throw error
       onReload()
     } catch (e: any) {
-      alert('Erreur : ' + e.message)
+      alert(_ui("Erreur :") + e.message)
     }
     setActing('')
   }
 
   const markDestroyed = async (lotId: string, lotNumber: string) => {
-    if (!confirm(`Marquer le lot ${lotNumber} comme finalement détruit (perte) ?`)) return
+    if (!confirm(_ui("Marquer le lot {v0} comme finalement détruit (perte) ?",{v0:String(lotNumber)}))) return
     setActing(lotId)
     try {
       const { error } = await supabase.from('harvest_lots').update({
@@ -1479,7 +1511,7 @@ function StockRetourTab({ lots, onReload, loading }: { lots: any[]; onReload: ()
       if (error) throw error
       onReload()
     } catch (e: any) {
-      alert('Erreur : ' + e.message)
+      alert(_ui("Erreur :") + e.message)
     }
     setActing('')
   }
@@ -1489,18 +1521,13 @@ function StockRetourTab({ lots, onReload, loading }: { lots: any[]; onReload: ()
   return (
     <div>
       <div style={{ marginBottom: 10, padding: 12, background: 'color-mix(in srgb, var(--neon) 6%, transparent)', border: '1px solid color-mix(in srgb, var(--neon) 30%, transparent)', borderRadius: 7, fontSize: 12.5, color: 'var(--text-main)' }}>
-        🔄 <strong>Stock de retour</strong> — lots créés à partir des rejets de tri (destination = "retour stock"),
-        disponibles pour <strong>ré-envoi vers un autre marché</strong> (souk local, industrie, etc.).
-        <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-sub)' }}>
-          💡 V1 : marque les lots comme consommés (envoyés vers un autre canal) ou détruits si finalement perdus.
-          V2 (à venir) : composition directe d'un nouvel envoi station depuis ces lots.
-        </div>
+        🔄 <strong>{t("Stock de retour")}</strong> {" "}{_ui("— lots créés à partir des rejets de tri (destination = \"retour stock\"), disponibles pour")}{" "}<strong>{_ui("ré-envoi vers un autre marché")}</strong> {" "}{_ui("(souk local, industrie, etc.).")}{" "}<div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-sub)' }}>
+          {" "}{_ui("💡 V1 : marque les lots comme consommés (envoyés vers un autre canal) ou détruits si finalement perdus. V2 (à venir) : composition directe d'un nouvel envoi station depuis ces lots.")}{" "}</div>
         <div style={{ marginTop: 6, fontSize: 12, color: 'var(--neon)', fontWeight: 600 }}>
-          Total disponible : {fmt(total)} kg sur {lots.length} lot(s)
-        </div>
+          {t("Total disponible :")}{fmt(total)} {" "}{_ui("kg sur")}{" "}{lots.length} {" "}{_ui("lot(s)")}{" "}</div>
       </div>
 
-      <Table headers={['Lot retour', 'Date', 'Variété', 'Qté (kg)', 'Origine', 'Actions']} loading={loading} empty="Aucun stock de retour en attente ✨" rows={lots}>
+      <Table headers={['Lot retour', 'Date', 'Variété', 'Qté (kg)', 'Origine', 'Actions']} loading={loading} empty={_ui("Aucun stock de retour en attente ✨")} rows={lots}>
         {(l: any) => (
           <tr key={l.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
             <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{l.lot_number}</td>
@@ -1523,8 +1550,7 @@ function StockRetourTab({ lots, onReload, loading }: { lots: any[]; onReload: ()
                     border: '1px solid color-mix(in srgb, var(--neon) 40%, transparent)',
                     borderRadius: 5, cursor: acting === l.id ? 'wait' : 'pointer',
                   }}>
-                  ✅ Renvoyé
-                </button>
+                  {t("✅ Renvoyé")}</button>
                 <button
                   onClick={() => markDestroyed(l.id, l.lot_number)}
                   disabled={acting === l.id}
@@ -1534,8 +1560,7 @@ function StockRetourTab({ lots, onReload, loading }: { lots: any[]; onReload: ()
                     border: '1px solid color-mix(in srgb, var(--red) 40%, transparent)',
                     borderRadius: 5, cursor: acting === l.id ? 'wait' : 'pointer',
                   }}>
-                  🗑️ Détruit
-                </button>
+                  {t("🗑️ Détruit")}</button>
               </div>
             </td>
           </tr>
@@ -1546,15 +1571,17 @@ function StockRetourTab({ lots, onReload, loading }: { lots: any[]; onReload: ()
 }
 
 function AlertesTab({ alertes, onResolve, loading }: { alertes: any[]; onResolve: (id: string) => void; loading: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
-    <Table headers={['Date', 'Titre', 'Message', 'Actions']} loading={loading} empty="Aucune alerte active ✓" rows={alertes}>
+    <Table headers={['Date', 'Titre', 'Message', 'Actions']} loading={loading} empty={_ui("Aucune alerte active ✓")} rows={alertes}>
       {(a: any) => (
         <tr key={a.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
           <td style={{ ...td, fontSize: 11 }}>{a.created_at?.slice(0, 10)}</td>
           <td style={{ ...td, fontWeight: 600 }}>{a.title}</td>
-          <td style={{ ...td, fontSize: 11, color: 'var(--text-sub)' }}>{a.message}</td>
+          <td style={{ ...td, fontSize: 11, color: 'var(--text-sub)' }}>{_uiNode(a.message)}</td>
           <td style={td}>
-            <button onClick={() => onResolve(a.id)} className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px' }}>✓ Résoudre</button>
+            <button onClick={() => onResolve(a.id)} className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px' }}>{_ui("✓ Résoudre")}</button>
           </td>
         </tr>
       )}
@@ -1567,6 +1594,10 @@ function AlertesTab({ alertes, onResolve, loading }: { alertes: any[]; onResolve
 // ============================================================
 
 function NewHarvestModal({ form, setForm, plantings, trayTypes, estimate, emptyTrayLine, window: win, saving, done, error, onClose, onSave }: any) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+ const {t}=useLanguage()
+
   const f = (k: string) => (e: any) => setForm((s: any) => ({ ...s, [k]: e.target.value }))
 
   const setLine = (i: number, key: string, val: string) =>
@@ -1579,12 +1610,12 @@ function NewHarvestModal({ form, setForm, plantings, trayTypes, estimate, emptyT
   const noTrayTypes = trayTypes.length === 0
 
   return (
-    <Modal title="🌿 Saisir une récolte" onClose={onClose}>
-      {done ? <SuccessMessage message="Récolte créée" /> : (
+    <Modal title={t("🌿 Saisir une récolte")} onClose={onClose}>
+      {done ? <SuccessMessage message={_ui("Récolte créée")} /> : (
         <>
-          <FormGroup label="Plantation (serre · variété) *">
+          <FormGroup label={t("Plantation (serre · variété) *")}>
             <Select value={form.campaign_planting_id} onChange={f('campaign_planting_id')}>
-              <option value="">— sélectionner —</option>
+              <option value="">{t("— sélectionner —")}</option>
               {plantings.map((p: any) => (
                 <option key={p.id} value={p.id}>
                   {p.greenhouses?.code} · {p.varieties?.commercial_name} ({p.campaigns?.name ?? '?'})
@@ -1592,21 +1623,21 @@ function NewHarvestModal({ form, setForm, plantings, trayTypes, estimate, emptyT
               ))}
             </Select>
           </FormGroup>
-          <FormGroup label="Date récolte *">
+          <FormGroup label={t("Date récolte *")}>
             <Input type="date" value={form.harvest_date} onChange={f('harvest_date')} min={win?.start ?? undefined} max={win?.end ?? undefined} />
             {form.campaign_planting_id && (win?.start || win?.end) && (
               <div className="text-[11px] text-gray-500 mt-1">
-                Plage de récolte : {win?.start ?? '—'} → {win?.end ?? '—'}
+                {" "}{_ui("Plage de récolte :")}{" "}{win?.start ?? '—'} → {win?.end ?? '—'}
               </div>
             )}
           </FormGroup>
           <HarvestDarNotice plantingId={form.campaign_planting_id} date={form.harvest_date} />
 
           {/* Saisie en plateaux */}
-          <FormGroup label="Plateaux récoltés *">
+          <FormGroup label={t("Plateaux récoltés *")}>
             {noTrayTypes ? (
               <div className="text-[13px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-                Aucun type de plateau défini. Ajoute-les dans <strong>Admin → Référentiels → Types de plateaux</strong>.
+                {" "}{_ui("Aucun type de plateau défini. Ajoute-les dans")}{" "}<strong>{_ui("Admin → Référentiels → Types de plateaux")}</strong>.
               </div>
             ) : (
               <div className="space-y-2">
@@ -1615,39 +1646,38 @@ function NewHarvestModal({ form, setForm, plantings, trayTypes, estimate, emptyT
                   return (
                     <div key={i} className="flex items-center gap-2">
                       <Select value={l.tray_type_code} onChange={(e: any) => setLine(i, 'tray_type_code', e.target.value)}>
-                        <option value="">— type de plateau —</option>
+                        <option value="">{t("— type de plateau —")}</option>
                         {trayTypes.map((t: any) => (
-                          <option key={t.code} value={t.code}>{t.label} ({poidsOf(t.code)} kg)</option>
+                          <option key={t.code} value={t.code}>{_uiNode(t.label)} ({poidsOf(t.code)} {" "}{_ui("kg)")}</option>
                         ))}
                       </Select>
                       <div style={{ width: 90, flexShrink: 0 }}>
-                        <Input type="number" value={l.nb} onChange={(e: any) => setLine(i, 'nb', e.target.value)} placeholder="Nb" />
+                        <Input type="number" value={l.nb} onChange={(e: any) => setLine(i, 'nb', e.target.value)} placeholder={_ui("Nb")} />
                       </div>
                       <span className="text-[12px] text-gray-500 font-mono whitespace-nowrap" style={{ minWidth: 70, textAlign: 'right' }}>
-                        {lineKg > 0 ? `${fmt(lineKg)} kg` : '—'}
+                        {lineKg > 0 ? _ui("{v0} kg",{v0:String(fmt(lineKg))}) : '—'}
                       </span>
-                      <button type="button" onClick={() => removeLine(i)} className="text-gray-400 hover:text-red-500 px-1" title="Retirer">✕</button>
+                      <button type="button" onClick={() => removeLine(i)} className="text-gray-400 hover:text-red-500 px-1" title={t("Retirer")}>✕</button>
                     </div>
                   )
                 })}
                 <button type="button" onClick={addLine} className="text-[13px] text-emerald-600 hover:text-emerald-700 font-medium">
-                  + Ajouter un type de plateau
-                </button>
+                  {t("+ Ajouter un type de plateau")}</button>
               </div>
             )}
           </FormGroup>
 
           {/* Estimation */}
           <div className="flex items-center justify-between rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2 my-1">
-            <span className="text-[13px] text-emerald-800 font-medium">Poids estimé</span>
+            <span className="text-[13px] text-emerald-800 font-medium">{t("Poids estimé")}</span>
             <span className="text-[15px] font-bold text-emerald-700 font-mono">{fmt(estimate)} kg</span>
           </div>
-          <div className="text-[11px] text-gray-500 -mt-1 mb-1">Estimation au champ. Le poids réel sera confirmé à la pesée station.</div>
+          <div className="text-[11px] text-gray-500 -mt-1 mb-1">{_ui("Estimation au champ. Le poids réel sera confirmé à la pesée station.")}</div>
 
           <HarvestPeopleFields form={form} setForm={setForm} kg={estimate}/>
-          <FormGroup label="Notes"><Textarea value={form.notes} onChange={f('notes')} placeholder="Optionnel" /></FormGroup>
+          <FormGroup label={t("Notes")}><Textarea value={form.notes} onChange={f('notes')} placeholder={t("Optionnel")} /></FormGroup>
           {error && <ErrorBox msg={error} />}
-          <ModalFooter onCancel={onClose} onSave={onSave} loading={saving} saveLabel="CRÉER" disabled={!form.campaign_planting_id || !form.harvest_date || !hasValidLine} />
+          <ModalFooter onCancel={onClose} onSave={onSave} loading={saving} saveLabel={_ui("CRÉER")} disabled={!form.campaign_planting_id || !form.harvest_date || !hasValidLine} />
         </>
       )}
     </Modal>
@@ -1655,12 +1685,16 @@ function NewHarvestModal({ form, setForm, plantings, trayTypes, estimate, emptyT
 }
 
 function EditHarvestModal({ harvest, form, setForm, plantings, saving, done, error, onClose, onSave }: any) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+ const {t}=useLanguage()
+
   const f = (k: string) => (e: any) => setForm((s: any) => ({ ...s, [k]: e.target.value }))
   return (
-    <Modal title={`Éditer — ${harvest.lot_number}`} onClose={onClose}>
-      {done ? <SuccessMessage message="Récolte modifiée" /> : (
+    <Modal title={_ui("Éditer — {v0}",{v0:String(harvest.lot_number)})} onClose={onClose}>
+      {done ? <SuccessMessage message={_ui("Récolte modifiée")} /> : (
         <>
-          <FormGroup label="Plantation">
+          <FormGroup label={t("Plantation")}>
             <Select value={form.campaign_planting_id} onChange={f('campaign_planting_id')}>
               {plantings.map((p: any) => (
                 <option key={p.id} value={p.id}>{p.greenhouses?.code} · {p.varieties?.commercial_name}</option>
@@ -1668,14 +1702,14 @@ function EditHarvestModal({ harvest, form, setForm, plantings, saving, done, err
             </Select>
           </FormGroup>
           <FormRow>
-            <FormGroup label="Date récolte"><Input type="date" value={form.harvest_date} onChange={f('harvest_date')} /></FormGroup>
-            <FormGroup label="Quantité (kg)"><Input type="number" value={form.total_qty} onChange={f('total_qty')} /></FormGroup>
+            <FormGroup label={t("Date récolte")}><Input type="date" value={form.harvest_date} onChange={f('harvest_date')} /></FormGroup>
+            <FormGroup label={t("Quantité (kg)")}><Input type="number" value={form.total_qty} onChange={f('total_qty')} /></FormGroup>
           </FormRow>
           <HarvestDarNotice plantingId={form.campaign_planting_id} date={form.harvest_date} />
           <HarvestPeopleFields form={form} setForm={setForm} kg={Number(form.total_qty)||0}/>
-          <FormGroup label="Notes"><Textarea value={form.notes} onChange={f('notes')} /></FormGroup>
+          <FormGroup label={t("Notes")}><Textarea value={form.notes} onChange={f('notes')} /></FormGroup>
           {error && <ErrorBox msg={error} />}
-          <ModalFooter onCancel={onClose} onSave={onSave} loading={saving} saveLabel="ENREGISTRER" />
+          <ModalFooter onCancel={onClose} onSave={onSave} loading={saving} saveLabel={_ui("ENREGISTRER")} />
         </>
       )}
     </Modal>
@@ -1683,6 +1717,10 @@ function EditHarvestModal({ harvest, form, setForm, plantings, saving, done, err
 }
 
 function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[]; markets: any[]; onClose: () => void; onDone: () => void }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+ const {t}=useLanguage()
+
   // La collecte a été saisie en PLATEAUX → on réutilise le métrage plateaux
   // de CHAQUE récolte (harvest_tray_lines). Poids moyen/plateau = kg total ÷
   // nb plateaux enregistrés. Repli sur le type par défaut si une récolte n'a
@@ -1824,23 +1862,21 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
   }
 
   return (
-    <Modal title="📦 Composer un envoi station" onClose={onClose} size="lg">
+    <Modal title={t("📦 Composer un envoi station")} onClose={onClose} size="lg">
       <div style={{ marginBottom: 12, fontSize: 12.5, color: 'var(--text-sub)' }}>
-        Choisis le marché, puis saisis le nombre de plateaux à envoyer par récolte (le poids kg est estimé d'après les plateaux enregistrés à la collecte).
-      </div>
-      <FormGroup label="Marché *">
+        {" "}{_ui("Choisis le marché, puis saisis le nombre de plateaux à envoyer par récolte (le poids kg est estimé d'après les plateaux enregistrés à la collecte).")}{" "}</div>
+      <FormGroup label={t("Marché *")}>
         <Select value={marketId} onChange={e => setMarketId(e.target.value)}>
-          <option value="">— sélectionner —</option>
+          <option value="">{t("— sélectionner —")}</option>
           {markets.map((m: any) => <option key={m.id} value={m.id}>🌍 {m.name}{m.code ? ` (${m.code})` : ''}</option>)}
         </Select>
       </FormGroup>
       <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginTop: 12, marginBottom: 4 }}>
-        Récoltes disponibles
-      </div>
+        {t("Récoltes disponibles")}</div>
       <div style={{ border: '1px solid var(--bd-1)', borderRadius: 6, maxHeight: 360, overflow: 'auto' }}>
         <table style={{ width: '100%', fontSize: 12 }}>
           <thead style={{ background: 'var(--bg-2)', position: 'sticky', top: 0 }}>
-            <tr>{['Lot', 'Date', 'Serre/Var', 'Dispo', 'Plateaux à envoyer', ''].map(h => <th key={h} style={th}>{h}</th>)}</tr>
+            <tr>{[_ui("Lot"), _ui("Date"), _ui("Serre/Var"), _ui("Dispo"), _ui("Plateaux à envoyer"), ''].map(h => <th key={h} style={th}>{h}</th>)}</tr>
           </thead>
           <tbody>
             {harvests.map(h => (
@@ -1851,8 +1887,7 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
                 <td style={tdNum}>
                   {fmt(h.remaining_kg)} kg
                   <div style={{ fontSize: 10, color: 'var(--text-sub)', fontWeight: 400 }}>
-                    {trayOf(h).collected} plateaux collectés · <b style={{ color: 'var(--neon)' }}>{trayOf(h).max}</b> dispo
-                  </div>
+                    {trayOf(h).collected} {" "}{_ui("plateaux collectés ·")}{" "}<b style={{ color: 'var(--neon)' }}>{trayOf(h).max}</b> {" "}{_ui("dispo")}{" "}</div>
                 </td>
                 <td style={td}>
                   <input type="number" placeholder="0" min={0} max={trayOf(h).max}
@@ -1864,7 +1899,7 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
                   )}
                 </td>
                 <td style={td}>
-                  <button onClick={() => fillAll(h)} className="btn-ghost" style={{ fontSize: 10.5, padding: '2px 6px' }}>↪ Tout</button>
+                  <button onClick={() => fillAll(h)} className="btn-ghost" style={{ fontSize: 10.5, padding: '2px 6px' }}>{_ui("↪ Tout")}</button>
                 </td>
               </tr>
             ))}
@@ -1879,23 +1914,25 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
         return (
           <>
             <div style={{ marginTop: 10, padding: 10, background: 'var(--neon-dim)', borderRadius: 6, fontSize: 12, color: 'var(--text-main)' }}>
-              Total envoi : <strong style={{ color: 'var(--neon)', fontSize: 14 }}>{totalTrays} plateaux ≈ {fmt(total)} kg</strong> sur {Object.keys(picks).length} récolte(s)
-            </div>
+              {t("Total envoi :")}<strong style={{ color: 'var(--neon)', fontSize: 14 }}>{totalTrays} {" "}{_ui("plateaux ≈")}{" "}{fmt(total)} kg</strong> {" "}{_ui("sur")}{" "}{Object.keys(picks).length} {" "}{_ui("récolte(s)")}{" "}</div>
             {multiVar && (
               <div style={{ marginTop: 8, padding: 8, background: 'var(--amber-dim)', border: '1px solid var(--amber)', borderRadius: 6, fontSize: 11.5, color: 'var(--text-main)' }}>
-                ℹ {varieties.size} variétés sélectionnées ({varietyCodes.join(', ')}) → <strong>{varieties.size} envois distincts</strong> seront créés (1 par variété), tous dirigés vers le même marché.
-              </div>
+                ℹ {varieties.size} {" "}{_ui("variétés sélectionnées (")}{varietyCodes.join(', ')}) → <strong>{varieties.size} {" "}{_ui("envois distincts")}</strong> {" "}{_ui("seront créés (1 par variété), tous dirigés vers le même marché.")}{" "}</div>
             )}
           </>
         )
       })()}
       {err && <ErrorBox msg={err} />}
-      <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel="CRÉER L'ENVOI" disabled={total <= 0 || !marketId} />
+      <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel={_ui("CRÉER L'ENVOI")} disabled={total <= 0 || !marketId} />
     </Modal>
   )
 }
 
 function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () => void; onDone: () => void }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+ const {t}=useLanguage()
+
   // Destinations d'écart paramétrables (référentiel no-code 'destination_rejet')
   const { values: destValues, defaultCode: destDefault } = useReferenceList('destination_rejet')
   const [freinte, setFreinte] = useState(String(dispatch.freinte_pct ?? '0'))
@@ -1968,14 +2005,14 @@ function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () =>
           // Si la RPC n'est pas deployee ou config manque -> on log mais on continue
           if (/PGRST202|does not exist/i.test(ecartErr.message ?? '')) {
             const { toast } = await import('sonner')
-            toast.warning('RPC create_ecart_dispatch non deployee (migration 048 a appliquer). Tri sauve sans creation dispatch ecart.', { duration: 8000 })
+            toast.warning(_ui("RPC create_ecart_dispatch non deployee (migration 048 a appliquer). Tri sauve sans creation dispatch ecart."), { duration: 8000 })
           } else {
             const { toast } = await import('sonner')
-            toast.error('Dispatch ecart non cree : ' + ecartErr.message, { duration: 8000 })
+            toast.error(_ui("Dispatch ecart non cree :") + ecartErr.message, { duration: 8000 })
           }
         } else {
           const { toast } = await import('sonner')
-          toast.success(`Dispatch ecart cree (${fmt(qtyEcart)} kg) vers le marche ecart`, { duration: 5000 })
+          toast.success(_ui("Dispatch ecart cree ({v0} kg) vers le marche ecart",{v0:String(fmt(qtyEcart))}), { duration: 5000 })
         }
       }
 
@@ -2007,22 +2044,22 @@ function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () =>
   }
 
   return (
-    <Modal title={`🔬 Tri — ${dispatch.lot_number}`} onClose={onClose}>
+    <Modal title={_ui("🔬 Tri — {v0}",{v0:String(dispatch.lot_number)})} onClose={onClose}>
       <div style={{ marginBottom: 12, padding: 10, background: 'var(--bg-2)', borderRadius: 6, fontSize: 12 }}>
-        Marché : <strong>{dispatch.markets?.name ?? '—'}</strong> · Variété : <strong style={{ color: '#a855f7' }}>{dispatch.varieties?.code ?? '—'}</strong> · Brute : <strong>{fmt(qtyB)} kg</strong>
+        {" "}{_ui("Marché :")}{" "}<strong>{dispatch.markets?.name ?? '—'}</strong> {" "}{_ui("· Variété :")}{" "}<strong style={{ color: '#a855f7' }}>{dispatch.varieties?.code ?? '—'}</strong> {" "}{_ui("· Brute :")}{" "}<strong>{fmt(qtyB)} kg</strong>
       </div>
       <FormRow>
-        <FormGroup label="Freinte (%) *"><Input type="number" value={freinte} onChange={e => setFreinte((e.target as any).value)} /></FormGroup>
-        <FormGroup label="Écart (%) *"><Input type="number" value={ecart} onChange={e => setEcart((e.target as any).value)} /></FormGroup>
+        <FormGroup label={t("Freinte (%) *")}><Input type="number" value={freinte} onChange={e => setFreinte((e.target as any).value)} /></FormGroup>
+        <FormGroup label={t("Écart (%) *")}><Input type="number" value={ecart} onChange={e => setEcart((e.target as any).value)} /></FormGroup>
       </FormRow>
       <div style={{ marginTop: 10, padding: 12, background: 'var(--neon-dim)', border: '1px solid var(--neon)', borderRadius: 8 }}>
-        <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 6 }}>Calcul automatique</div>
+        <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 6 }}>{t("Calcul automatique")}</div>
         <div style={{ fontSize: 12.5, color: 'var(--text-main)', lineHeight: 1.7 }}>
-          Brute = <strong>{fmt(qtyB)} kg</strong><br/>
-          ↓ Freinte {fr}% = <strong style={{ color: 'var(--red)' }}>{fmt(qtyFreinte)} kg DÉTRUITS (pertes physiques)</strong><br/>
-          Nette = <strong>{fmt(qtyN)} kg</strong><br/>
-          ↓ Écart {ec}% = <strong style={{ color: '#3b82f6' }}>{fmt(qtyEcart)} kg VENDABLES (écart commercial)</strong><br/>
-          Acceptée = <strong style={{ color: 'var(--neon)' }}>{fmt(qtyA)} kg (1ère cat → vente normale)</strong>
+          {" "}{_ui("Brute =")}{" "}<strong>{fmt(qtyB)} kg</strong><br/>
+          {" "}{_ui("↓ Freinte")}{" "}{fr}% = <strong style={{ color: 'var(--red)' }}>{fmt(qtyFreinte)} {" "}{_ui("kg DÉTRUITS (pertes physiques)")}</strong><br/>
+          {" "}{_ui("Nette =")}{" "}<strong>{fmt(qtyN)} kg</strong><br/>
+          {" "}{_ui("↓ Écart")}{" "}{ec}% = <strong style={{ color: '#3b82f6' }}>{fmt(qtyEcart)} {" "}{_ui("kg VENDABLES (écart commercial)")}</strong><br/>
+          {" "}{_ui("Acceptée =")}{" "}<strong style={{ color: 'var(--neon)' }}>{fmt(qtyA)} {" "}{_ui("kg (1ère cat → vente normale)")}</strong>
         </div>
       </div>
 
@@ -2030,12 +2067,11 @@ function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () =>
       {qtyEcart > 0 && (
         <div style={{ marginTop: 14 }}>
           <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 8, fontWeight: 700 }}>
-            🎯 Destination de l'écart ({fmt(qtyEcart)} kg)
-          </div>
+            {" "}{_ui("🎯 Destination de l'écart (")}{fmt(qtyEcart)} {" "}{_ui("kg)")}{" "}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
             {destValues.length === 0 && (
               <div style={{ gridColumn: '1 / -1', fontSize: 11.5, color: 'var(--text-sub)', padding: 8 }}>
-                Aucune destination configurée. Ajoutez-en dans <strong>Admin → Référentiels → « Destinations d'écart »</strong>.
+                {" "}{_ui("Aucune destination configurée. Ajoutez-en dans")}{" "}<strong>{_ui("Admin → Référentiels → « Destinations d'écart »")}</strong>.
               </div>
             )}
             {destValues.map(opt => {
@@ -2050,7 +2086,7 @@ function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () =>
                     color: 'var(--text-main)', cursor: 'pointer',
                   }}>
                   <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 3 }}>
-                    {opt.icon} {opt.label}
+                    {opt.icon} {_uiNode(opt.label)}
                   </div>
                   <div style={{ fontSize: 10.5, color: 'var(--text-sub)', lineHeight: 1.4 }}>
                     {opt.metadata?.desc ?? ''}
@@ -2061,19 +2097,22 @@ function TriModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () =>
           </div>
           {selectedBehavior === 'retour_stock' && (
             <div style={{ marginTop: 8, padding: 8, background: 'color-mix(in srgb, var(--neon) 8%, transparent)', borderRadius: 6, fontSize: 11, color: 'var(--text-sub)' }}>
-              💡 Un nouveau lot <code>{dispatch.lot_number}-RETOUR</code> sera créé avec <strong>{fmt(qtyRejet)} kg</strong>, disponible pour un nouvel envoi vers un autre marché.
-            </div>
+              {" "}{_ui("💡 Un nouveau lot")}{" "}<code>{dispatch.lot_number}{_ui("-RETOUR")}</code> {" "}{_ui("sera créé avec")}{" "}<strong>{fmt(qtyRejet)} kg</strong>{_ui(", disponible pour un nouvel envoi vers un autre marché.")}{" "}</div>
           )}
         </div>
       )}
 
       {err && <ErrorBox msg={err} />}
-      <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel="ENREGISTRER LE TRI" />
+      <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel={_ui("ENREGISTRER LE TRI")} />
     </Modal>
   )
 }
 
 function PriceModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () => void; onDone: () => void }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+ const {t}=useLanguage()
+
   const [price, setPrice] = useState(String(dispatch.price_per_kg ?? ''))
   const [stationRef, setStationRef] = useState(dispatch.station_ref ?? '')
   const [saving, setSaving] = useState(false)
@@ -2107,13 +2146,13 @@ function PriceModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () 
             console.warn('[recoltes] RPC admin_generate_dispatch_invoice non déployée — applique migration 047')
           } else if (/client par défaut/i.test(invErr.message ?? '')) {
             const { toast } = await import('sonner')
-            toast.warning(`Tarification OK mais facture impossible : ${invErr.message}`, { duration: 8000 })
+            toast.warning(_ui("Tarification OK mais facture impossible : {v0}",{v0:String(invErr.message)}), { duration: 8000 })
           } else {
             console.error('[recoltes] auto-facturation:', invErr)
           }
         } else if (invRes && (invRes as any).created) {
           const { toast } = await import('sonner')
-          toast.success(`Facture ${(invRes as any).invoice_number} créée — échéance ${(invRes as any).due_date}`, { duration: 6000 })
+          toast.success(_ui("Facture {v0} créée — échéance {v1}",{v0:String((invRes as any).invoice_number),v1:String((invRes as any).due_date)}), { duration: 6000 })
         }
       } catch (e) { /* silent */ }
 
@@ -2123,28 +2162,32 @@ function PriceModal({ dispatch, onClose, onDone }: { dispatch: any; onClose: () 
   }
 
   return (
-    <Modal title={`💰 Tarifer — ${dispatch.lot_number}`} onClose={onClose}>
+    <Modal title={_ui("💰 Tarifer — {v0}",{v0:String(dispatch.lot_number)})} onClose={onClose}>
       <div style={{ marginBottom: 12, padding: 10, background: 'var(--bg-2)', borderRadius: 6, fontSize: 12, color: 'var(--text-main)' }}>
-        Marché : <strong>{dispatch.markets?.name ?? '—'}</strong> · Variété : <strong style={{ color: '#a855f7' }}>{dispatch.varieties?.code ?? '—'}</strong><br/>
-        Brute {fmt(dispatch.quantity_kg)} kg → Nette {fmt(dispatch.qty_nette_kg ?? 0)} kg → <strong style={{ color: 'var(--neon)' }}>Acceptée {fmt(qtyA)} kg</strong><br/>
-        <span style={{ fontSize: 11, color: 'var(--text-sub)' }}>(freinte {dispatch.freinte_pct}% · écart {dispatch.ecart_pct}%)</span>
+        {" "}{_ui("Marché :")}{" "}<strong>{dispatch.markets?.name ?? '—'}</strong> {" "}{_ui("· Variété :")}{" "}<strong style={{ color: '#a855f7' }}>{dispatch.varieties?.code ?? '—'}</strong><br/>
+        {t("Brute")}{fmt(dispatch.quantity_kg)} {" "}{_ui("kg → Nette")}{" "}{fmt(dispatch.qty_nette_kg ?? 0)} {" "}{_ui("kg →")}{" "}<strong style={{ color: 'var(--neon)' }}>{t("Acceptée")}{fmt(qtyA)} kg</strong><br/>
+        <span style={{ fontSize: 11, color: 'var(--text-sub)' }}>{_ui("(freinte")}{" "}{dispatch.freinte_pct}{_ui("% · écart")}{" "}{dispatch.ecart_pct}%)</span>
       </div>
-      <FormGroup label={`Prix /kg (${dispatch.markets?.currency ?? 'MAD'}) *`}>
+      <FormGroup label={_ui("Prix /kg ({v0}) *",{v0:String(dispatch.markets?.currency ?? 'MAD')})}>
         <Input type="number" value={price} onChange={e => setPrice((e.target as any).value)} placeholder="8.50" autoFocus />
       </FormGroup>
-      <FormGroup label="Référence station / bordereau"><Input value={stationRef} onChange={e => setStationRef((e.target as any).value)} placeholder="STN-…" /></FormGroup>
+      <FormGroup label={t("Référence station / bordereau")}><Input value={stationRef} onChange={e => setStationRef((e.target as any).value)} placeholder="STN-…" /></FormGroup>
       {p > 0 && (
         <div style={{ marginTop: 10, padding: 12, background: 'var(--neon-dim)', border: '1px solid var(--neon)', borderRadius: 8, fontSize: 13 }}>
-          CA = {fmt(qtyA)} kg × {p.toFixed(2)} = <strong style={{ color: 'var(--neon)', fontSize: 16 }}>{fmt(ca)} MAD</strong>
+          {" "}{_ui("CA =")}{" "}{fmt(qtyA)} {" "}{_ui("kg ×")}{" "}{p.toFixed(2)} = <strong style={{ color: 'var(--neon)', fontSize: 16 }}>{fmt(ca)} MAD</strong>
         </div>
       )}
       {err && <ErrorBox msg={err} />}
-      <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel="CONFIRMER LE PRIX" />
+      <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel={_ui("CONFIRMER LE PRIX")} />
     </Modal>
   )
 }
 
 function PeriodPriceModal({ dispatches, onClose, onDone }: { dispatches: any[]; onClose: () => void; onDone: () => void }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+ const {t}=useLanguage()
+
   const today = new Date().toISOString().slice(0, 10)
   const sevenAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
   const [debut, setDebut] = useState(sevenAgo)
@@ -2250,27 +2293,24 @@ function PeriodPriceModal({ dispatches, onClose, onDone }: { dispatches: any[]; 
   }
 
   return (
-    <Modal title="📅 Tarifer par période" onClose={onClose} size="lg">
+    <Modal title={t("📅 Tarifer par période")} onClose={onClose} size="lg">
       <div style={{ marginBottom: 12, fontSize: 12.5, color: 'var(--text-sub)' }}>
-        Saisis un prix par marché pour appliquer en masse à tous les envois <strong>triés</strong> sur la période choisie.
-      </div>
+        {" "}{_ui("Saisis un prix par marché pour appliquer en masse à tous les envois")}{" "}<strong>{_ui("triés")}</strong> {" "}{_ui("sur la période choisie.")}{" "}</div>
 
       <FormRow>
-        <FormGroup label="Période début *"><Input type="date" value={debut} onChange={e => setDebut((e.target as any).value)} /></FormGroup>
-        <FormGroup label="Période fin *"><Input type="date" value={fin} onChange={e => setFin((e.target as any).value)} /></FormGroup>
-        <FormGroup label="Référence station / bordereau (optionnel)"><Input value={stationRef} onChange={e => setStationRef((e.target as any).value)} placeholder="STN-…" /></FormGroup>
+        <FormGroup label={t("Période début *")}><Input type="date" value={debut} onChange={e => setDebut((e.target as any).value)} /></FormGroup>
+        <FormGroup label={t("Période fin *")}><Input type="date" value={fin} onChange={e => setFin((e.target as any).value)} /></FormGroup>
+        <FormGroup label={_ui("Référence station / bordereau (optionnel)")}><Input value={stationRef} onChange={e => setStationRef((e.target as any).value)} placeholder="STN-…" /></FormGroup>
       </FormRow>
 
       {filtered.length === 0 ? (
         <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-2)', borderRadius: 8 }}>
-          Aucun envoi trié sur cette période.
-        </div>
+          {t("Aucun envoi trié sur cette période.")}</div>
       ) : (
         <>
           {/* Tableau prix par (marché × variété) */}
           <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginTop: 8, marginBottom: 4 }}>
-            Prix par marché × variété — {filtered.length} envoi(s) sur {byKey.length} combinaison(s)
-          </div>
+            {" "}{_ui("Prix par marché × variété —")}{" "}{filtered.length} {" "}{_ui("envoi(s) sur")}{" "}{byKey.length} {" "}{_ui("combinaison(s)")}{" "}</div>
           <div style={{ border: '1px solid var(--bd-1)', borderRadius: 6, overflow: 'auto' }}>
             <table style={{ width: '100%', fontSize: 12 }}>
               <thead style={{ background: 'var(--bg-2)' }}>
@@ -2310,8 +2350,7 @@ function PeriodPriceModal({ dispatches, onClose, onDone }: { dispatches: any[]; 
 
           {/* Détail dispatches (excludable) */}
           <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginTop: 14, marginBottom: 4 }}>
-            Détail des envois (décoche pour exclure)
-          </div>
+            {" "}{_ui("Détail des envois (décoche pour exclure)")}{" "}</div>
           <div style={{ border: '1px solid var(--bd-1)', borderRadius: 6, overflow: 'auto', maxHeight: 240 }}>
             <table style={{ width: '100%', fontSize: 11.5 }}>
               <thead style={{ background: 'var(--bg-2)', position: 'sticky', top: 0 }}>
@@ -2351,37 +2390,40 @@ function PeriodPriceModal({ dispatches, onClose, onDone }: { dispatches: any[]; 
           {/* Récap */}
           <div style={{ marginTop: 12, padding: 12, background: 'var(--neon-dim)', border: '1px solid var(--neon)', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontSize: 11.5, color: 'var(--text-main)' }}>
-              <strong>{simulation.count}</strong> envoi(s) seront tarifés · <strong>{fmt(simulation.totalKg)} kg</strong> au total
-            </div>
+              <strong>{simulation.count}</strong> {" "}{_ui("envoi(s) seront tarifés ·")}{" "}<strong>{fmt(simulation.totalKg)} kg</strong> {" "}{_ui("au total")}{" "}</div>
             <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--neon)' }}>
-              CA simulé : {fmt(simulation.totalCA)} MAD
+              {" "}{_ui("CA simulé :")}{" "}{fmt(simulation.totalCA)} MAD
             </div>
           </div>
         </>
       )}
 
       {err && <ErrorBox msg={err} />}
-      <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel="APPLIQUER LES PRIX" disabled={simulation.count === 0} />
+      <ModalFooter onCancel={onClose} onSave={save} loading={saving} saveLabel={_ui("APPLIQUER LES PRIX")} disabled={simulation.count === 0} />
     </Modal>
   )
 }
 
 function AlerteModal({ form, setForm, saving, done, error, onClose, onSave }: any) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+ const {t}=useLanguage()
+
   const f = (k: string) => (e: any) => setForm((s: any) => ({ ...s, [k]: e.target.value }))
   const { values: REASONS } = useReferenceList('no_harvest_reason')
   return (
-    <Modal title="⚠ Journée sans récolte" onClose={onClose}>
-      {done ? <SuccessMessage message="Alerte créée" /> : (
+    <Modal title={t("⚠ Journée sans récolte")} onClose={onClose}>
+      {done ? <SuccessMessage message={_ui("Alerte créée")} /> : (
         <>
-          <FormGroup label="Date *"><Input type="date" value={form.date} onChange={f('date')} /></FormGroup>
-          <FormGroup label="Motif">
+          <FormGroup label={t("Date *")}><Input type="date" value={form.date} onChange={f('date')} /></FormGroup>
+          <FormGroup label={t("Motif")}>
             <Select value={form.reason} onChange={f('reason')}>
-              {REASONS.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
+              {REASONS.map(r => <option key={r.code} value={r.code}>{_uiNode(r.label)}</option>)}
             </Select>
           </FormGroup>
-          <FormGroup label="Notes"><Textarea value={form.notes} onChange={f('notes')} /></FormGroup>
+          <FormGroup label={t("Notes")}><Textarea value={form.notes} onChange={f('notes')} /></FormGroup>
           {error && <ErrorBox msg={error} />}
-          <ModalFooter onCancel={onClose} onSave={onSave} loading={saving} saveLabel="SIGNALER" disabled={!form.date} />
+          <ModalFooter onCancel={onClose} onSave={onSave} loading={saving} saveLabel={_ui("SIGNALER")} disabled={!form.date} />
         </>
       )}
     </Modal>
@@ -2393,15 +2435,17 @@ function AlerteModal({ form, setForm, saving, done, error, onClose, onSave }: an
 // ============================================================
 
 function Table({ headers, rows, children, loading, empty }: { headers: React.ReactNode[]; rows: any[]; children: (r: any) => any; loading: boolean; empty: string }) {
+ const {t}=useLanguage()
+
   return (
-    <div style={{ border: '1px solid var(--bd-1)', borderRadius: 8, overflow: 'auto', background: 'var(--bg-1)' }}>
+    <div className="itrix-table">
       <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
         <thead style={{ background: 'var(--bg-2)' }}>
-          <tr>{headers.map((h, idx) => <th key={idx} style={th}>{h}</th>)}</tr>
+          <tr>{headers.map((h, idx) => <th key={idx} style={th}>{typeof h==='string'?t(h):h}</th>)}</tr>
         </thead>
         <tbody>
-          {loading && <tr><td colSpan={headers.length} style={{ padding: 14, textAlign: 'center', color: 'var(--text-sub)' }}>Chargement…</td></tr>}
-          {!loading && rows.length === 0 && <tr><td colSpan={headers.length} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>{empty}</td></tr>}
+          {loading && <tr><td colSpan={headers.length} style={{ padding: 14, textAlign: 'center', color: 'var(--text-sub)' }}>{t("Chargement…")}</td></tr>}
+          {!loading && rows.length === 0 && <tr><td colSpan={headers.length} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>{t(empty)}</td></tr>}
           {!loading && rows.map(children)}
         </tbody>
       </table>
@@ -2410,22 +2454,26 @@ function Table({ headers, rows, children, loading, empty }: { headers: React.Rea
 }
 
 function KPI({ icon, label, value, sub, color }: { icon: string; label: string; value: any; sub: string; color: string }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <div style={{ padding: 12, background: 'var(--bg-1)', border: '1px solid var(--bd-1)', borderRadius: 10, borderTop: `2px solid ${color}` }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ fontSize: 16 }}>{icon}</span>
-        <span style={{ fontSize: 9.5, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: 1, textTransform: 'uppercase' }}>{label}</span>
+        <span style={{ fontSize: 9.5, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: 1, textTransform: 'uppercase' }}>{_uiNode(label)}</span>
       </div>
       <div style={{ fontSize: 18, fontWeight: 800, color, fontFamily: 'var(--font-display)', marginTop: 4 }}>{value}</div>
-      <div style={{ fontSize: 10.5, color: 'var(--text-sub)', marginTop: 2 }}>{sub}</div>
+      <div style={{ fontSize: 10.5, color: 'var(--text-sub)', marginTop: 2 }}>{_uiNode(sub)}</div>
     </div>
   )
 }
 
 function ErrorBox({ msg }: { msg: string }) {
-  return <div style={{ marginTop: 8, padding: 8, background: 'var(--red-dim)', border: '1px solid var(--red)', borderRadius: 6, color: 'var(--text-main)', fontSize: 12 }}>⚠ {msg}</div>
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+  return <div role="alert" className="itrix-notice" style={{ marginTop: 8, background: 'var(--red-dim)', border: '1px solid var(--red)', color: 'var(--text-main)' }}>⚠ {_uiNode(msg)}</div>
 }
 
-const th: React.CSSProperties = { padding: '7px 10px', textAlign: 'left', fontSize: 10, color: 'var(--text-sub)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: .5, borderBottom: '1px solid var(--bd-1)' }
+const th: React.CSSProperties = { padding: '7px 10px', textAlign: 'start', fontSize: 10, color: 'var(--text-sub)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: .5, borderBottom: '1px solid var(--bd-1)' }
 const td: React.CSSProperties = { padding: '7px 10px', color: 'var(--text-main)' }
 const tdNum: React.CSSProperties = { padding: '7px 10px', color: 'var(--text-main)', fontFamily: 'var(--font-mono)', textAlign: 'right' }

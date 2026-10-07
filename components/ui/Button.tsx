@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import * as React from 'react'
 import { Slot } from '@radix-ui/react-slot'
 import { cva, type VariantProps } from 'class-variance-authority'
@@ -21,7 +23,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary: [
-          'bg-brand text-white font-bold uppercase',
+          'bg-brand text-[color:var(--on-brand)] font-bold uppercase',
           'shadow-[0_2px_10px_var(--neon-dim)]',
           'hover:brightness-110 hover:-translate-y-0.5 hover:shadow-glow',
         ],
@@ -71,6 +73,8 @@ export interface ButtonProps
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, loading = false, children, disabled, ...props }, ref) => {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
     const Comp = asChild ? Slot : 'button'
     return (
       <Comp
@@ -85,9 +89,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z" />
             </svg>
-            <span>{children}</span>
+            <span>{_uiNode(children)}</span>
           </>
-        ) : children}
+        ) : _uiNode(children)}
       </Comp>
     )
   }

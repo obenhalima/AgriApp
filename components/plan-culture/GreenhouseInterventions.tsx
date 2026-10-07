@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
@@ -9,6 +11,8 @@ const labels:Record<string,string>={brouillon:'Brouillon',soumise:'À valider',a
 const date=(d:string|null)=>d?new Date(d).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}):'—'
 
 export function GreenhouseInterventions({domainId,farmId,campaignId,greenhouseId,plantingIds}:{domainId:string;farmId:string;campaignId:string;greenhouseId:string;plantingIds:string[]}){
+ const {t:_ui,text:_uiNode}=useLanguage()
+
  const {hasPermission}=useAuth(),allowed=hasPermission('agronomie','view')
  const [rows,setRows]=useState<Intervention[]>([]),[errors,setErrors]=useState<string[]>([]),[busy,setBusy]=useState(true)
  const [filter,setFilter]=useState('all')
@@ -56,14 +60,14 @@ export function GreenhouseInterventions({domainId,farmId,campaignId,greenhouseId
  },[domainId,farmId,campaignId,greenhouseId,idsKey,allowed])
  const now=Date.now(),late=(r:Intervention)=>!r.closed&&['approved','approuvee','a_confirmer'].includes(r.status)&&!!r.planned&&new Date(r.planned).getTime()<now
  const filtered=rows.filter(r=>filter==='all'||filter==='done'&&r.done||filter==='late'&&late(r)||filter==='open'&&!r.closed)
- return <section className="space-y-3 rounded-xl border border-border p-4"><h3 className="font-semibold">Interventions de la serre · campagne sélectionnée</h3>
-  {!allowed?<p className="text-sm text-fg-secondary">Droit de consultation agronomie requis.</p>:busy?<p role="status">Chargement des interventions…</p>:<>
-   {errors.map(e=><p key={e} role="alert" className="rounded-lg bg-warning/10 p-3 text-sm">{e} Les compteurs ci-dessous ne couvrent que les données chargées.</p>)}
-   <div className="grid grid-cols-3 gap-2">{[['Réalisées / partielles',rows.filter(r=>r.done).length],['À réaliser / à valider',rows.filter(r=>!r.closed).length],['Validées en retard',rows.filter(late).length]].map(([label,n])=><div key={label} className="rounded-lg bg-surface-input p-3"><p className="text-xs text-fg-secondary">{label}</p><strong className="text-xl">{n}</strong></div>)}</div>
-   <label className="block text-sm">Afficher <select aria-label="Filtrer les interventions de la serre" className="ml-2 rounded border border-border bg-surface-input p-2" value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Toutes</option><option value="done">Réalisées / partielles</option><option value="open">En attente</option><option value="late">En retard</option></select></label>
-   <div className="max-h-80 overflow-auto"><table className="w-full text-left text-sm"><thead><tr>{['Intervention','Prévu','Réalisé','Statut','Produits du programme'].map(l=><th key={l} className="p-2">{l}</th>)}</tr></thead><tbody>{filtered.map(r=><tr key={`${r.kind}:${r.id}`} className="border-t border-border"><td className="p-2"><strong>{r.kind}</strong><p>{r.title}</p></td><td className="p-2">{date(r.planned)}</td><td className="p-2">{date(r.actual)}</td><td className="p-2">{labels[r.status]||r.status}{late(r)&&<span className="block text-warning">En retard</span>}</td><td className="p-2">{r.products||'Sans produit renseigné'}</td></tr>)}</tbody></table></div>
-   {!filtered.length&&<p className="text-sm text-fg-secondary">Aucune intervention chargée pour ce filtre.</p>}
-   <p className="text-xs text-fg-tertiary">Une intervention peut concerner plusieurs serres. La liste des produits est celle du programme, pas une quantité consommée imputable à cette seule serre. Les applications partielles sont signalées séparément dans leur statut.</p>
+ return <section className="space-y-3 rounded-xl border border-border p-4"><h3 className="font-semibold">{_ui("Interventions de la serre · campagne sélectionnée")}</h3>
+  {!allowed?<p className="text-sm text-fg-secondary">{_ui("Droit de consultation agronomie requis.")}</p>:busy?<p role="status">{_ui("Chargement des interventions…")}</p>:<>
+   {errors.map(e=><p key={e} role="alert" className="rounded-lg bg-warning/10 p-3 text-sm">{e} {" "}{_ui("Les compteurs ci-dessous ne couvrent que les données chargées.")}</p>)}
+   <div className="grid grid-cols-3 gap-2">{[[_ui("Réalisées / partielles"),rows.filter(r=>r.done).length],[_ui("À réaliser / à valider"),rows.filter(r=>!r.closed).length],[_ui("Validées en retard"),rows.filter(late).length]].map(([label,n])=><div key={label} className="rounded-lg bg-surface-input p-3"><p className="text-xs text-fg-secondary">{_uiNode(label)}</p><strong className="text-xl">{n}</strong></div>)}</div>
+   <label className="block text-sm">{_ui("Afficher")}{" "}<select aria-label={_ui("Filtrer les interventions de la serre")} className="ml-2 rounded border border-border bg-surface-input p-2" value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">{_ui("Toutes")}</option><option value="done">{_ui("Réalisées / partielles")}</option><option value="open">{_ui("En attente")}</option><option value="late">{_ui("En retard")}</option></select></label>
+   <div className="max-h-80 overflow-auto"><table className="w-full text-left text-sm"><thead><tr>{[_ui("Intervention"),_ui("Prévu"),_ui("Réalisé"),_ui("Statut"),_ui("Produits du programme")].map(l=><th key={l} className="p-2">{l}</th>)}</tr></thead><tbody>{filtered.map(r=><tr key={`${r.kind}:${r.id}`} className="border-t border-border"><td className="p-2"><strong>{r.kind}</strong><p>{r.title}</p></td><td className="p-2">{date(r.planned)}</td><td className="p-2">{date(r.actual)}</td><td className="p-2">{labels[r.status]||r.status}{late(r)&&<span className="block text-warning">{_ui("En retard")}</span>}</td><td className="p-2">{r.products||_ui("Sans produit renseigné")}</td></tr>)}</tbody></table></div>
+   {!filtered.length&&<p className="text-sm text-fg-secondary">{_ui("Aucune intervention chargée pour ce filtre.")}</p>}
+   <p className="text-xs text-fg-tertiary">{_ui("Une intervention peut concerner plusieurs serres. La liste des produits est celle du programme, pas une quantité consommée imputable à cette seule serre. Les applications partielles sont signalées séparément dans leur statut.")}</p>
   </>}
  </section>
 }

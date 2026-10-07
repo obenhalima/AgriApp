@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * Onglet VOLUMES — Pivot multi-axes (Ferme/Serre/Variété/Type) × (Total/Mensuel)
  * en kg ou MAD, par canal Export/Local/Total.
@@ -17,6 +19,8 @@ import {
 type Campaign = { id: string; name: string; preparation_start: string | null; campaign_end: string | null } | undefined
 
 export function VolumesTab(props: { rows: PlantingRow[]; campaign: Campaign; loading: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { rows, campaign, loading } = props
 
   const [axis, setAxis] = useState<PivotAxis>('variety')
@@ -130,12 +134,12 @@ export function VolumesTab(props: { rows: PlantingRow[]; campaign: Campaign; loa
     await downloadWorkbook(wb, `Volumes_${(campaign?.name ?? 'campagne').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)' }}>CHARGEMENT…</div>
+  if (loading) return <div style={{ padding: 40, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)' }}>{_ui("CHARGEMENT…")}</div>
   if (rows.length === 0) {
     return (
       <div className="empty-state" style={{ padding: 60 }}>
         <div className="empty-icon">📦</div>
-        <div className="empty-title">Pas de volumes à afficher</div>
+        <div className="empty-title">{_ui("Pas de volumes à afficher")}</div>
       </div>
     )
   }
@@ -144,24 +148,24 @@ export function VolumesTab(props: { rows: PlantingRow[]; campaign: Campaign; loa
     <div>
       {/* ─── Toolbar ─── */}
       <div className="card" style={{ padding: 12, marginBottom: 12, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Selector label="AXE" value={axis} onChange={setAxis as any} options={[
+        <Selector label={_ui("AXE")} value={axis} onChange={setAxis as any} options={[
           { v: 'farm', l: 'Ferme' },
           { v: 'greenhouse', l: 'Serre' },
           { v: 'variety', l: 'Variété' },
           { v: 'tomato_type', l: 'Type tomate' },
         ]} />
-        <Selector label="MÉTRIQUE" value={metric} onChange={setMetric as any} options={[
+        <Selector label={_ui("MÉTRIQUE")} value={metric} onChange={setMetric as any} options={[
           { v: 'volume_kg', l: 'Volume (kg)' },
           { v: 'volume_t',  l: 'Volume (t)' },
           { v: 'ca_mad',    l: 'CA (MAD)' },
           { v: 'ca_kmad',   l: 'CA (kMAD)' },
         ]} />
-        <Selector label="CANAL" value={channel} onChange={setChannel as any} options={[
+        <Selector label={_ui("CANAL")} value={channel} onChange={setChannel as any} options={[
           { v: 'all',    l: 'Total' },
           { v: 'export', l: 'Export' },
           { v: 'local',  l: 'Local' },
         ]} />
-        <Selector label="VUE" value={viewMode} onChange={setViewMode as any} options={[
+        <Selector label={_ui("VUE")} value={viewMode} onChange={setViewMode as any} options={[
           { v: 'total',   l: 'Total' },
           { v: 'monthly', l: 'Mensuel' },
         ]} />
@@ -169,8 +173,7 @@ export function VolumesTab(props: { rows: PlantingRow[]; campaign: Campaign; loa
         <div style={{ marginLeft: 'auto' }}>
           <button onClick={exportExcel}
             style={{ padding: '7px 12px', border: '1px solid var(--bd-1)', background: 'transparent', color: 'var(--tx-2)', borderRadius: 7, cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
-            📥 EXPORT XLSX
-          </button>
+            {" "}{_ui("📥 EXPORT XLSX")}{" "}</button>
         </div>
       </div>
 
@@ -179,13 +182,13 @@ export function VolumesTab(props: { rows: PlantingRow[]; campaign: Campaign; loa
         <table className="tbl" style={{ minWidth: viewMode === 'monthly' ? Math.max(800, 220 + months.length * 80) : 600 }}>
           <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
             <tr style={{ background: 'var(--bg-deep)' }}>
-              <th style={{ position: 'sticky', left: 0, background: 'var(--bg-deep)', zIndex: 6, minWidth: 220 }}>{AXIS_LABELS[axis]}</th>
+              <th style={{ position: 'sticky', left: 0, background: 'var(--bg-deep)', zIndex: 6, minWidth: 220 }}>{_uiNode(AXIS_LABELS[axis])}</th>
               {viewMode === 'monthly' && months.map(m => (
                 <th key={`${m.year}-${m.month}`} style={{ textAlign: 'right', minWidth: 80, fontSize: 10 }}>
-                  {MONTH_LABELS_FR[m.month - 1]} {String(m.year).slice(-2)}
+                  {_uiNode(MONTH_LABELS_FR[m.month - 1])} {String(m.year).slice(-2)}
                 </th>
               ))}
-              <th style={{ textAlign: 'right', minWidth: 100, background: 'var(--bg-deep)' }}>TOTAL</th>
+              <th style={{ textAlign: 'right', minWidth: 100, background: 'var(--bg-deep)' }}>{_ui("TOTAL")}</th>
             </tr>
           </thead>
           <tbody>
@@ -212,8 +215,7 @@ export function VolumesTab(props: { rows: PlantingRow[]; campaign: Campaign; loa
           <tfoot>
             <tr style={{ background: 'var(--bg-deep)' }}>
               <td style={{ position: 'sticky', left: 0, background: 'var(--bg-deep)', borderRight: '1px solid var(--bd-1)', padding: '10px 12px', fontWeight: 700, fontSize: 11, color: 'var(--tx-1)' }}>
-                TOTAL
-              </td>
+                {" "}{_ui("TOTAL")}{" "}</td>
               {viewMode === 'monthly' && months.map(m => {
                 const k = monthKey(m.year, m.month)
                 const v = monthlyTotals[k] ?? 0
@@ -232,8 +234,7 @@ export function VolumesTab(props: { rows: PlantingRow[]; campaign: Campaign; loa
       </div>
 
       <div style={{ marginTop: 8, fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)' }}>
-        Note : volumes/CA répartis linéairement sur la fenêtre de récolte (harvest_start_date → harvest_end_date)
-      </div>
+        {" "}{_ui("Note : volumes/CA répartis linéairement sur la fenêtre de récolte (harvest_start_date → harvest_end_date)")}{" "}</div>
     </div>
   )
 }
@@ -258,9 +259,11 @@ const CHANNEL_LABELS: Record<PivotChannel, string> = {
 }
 
 function Selector<T extends string>(props: { label: string; value: T; onChange: (v: T) => void; options: { v: T; l: string }[] }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-      <span style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1 }}>{props.label} :</span>
+      <span style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1 }}>{_uiNode(props.label)} :</span>
       <div style={{ display: 'flex', border: '1px solid var(--bd-1)', borderRadius: 6, overflow: 'hidden' }}>
         {props.options.map(o => (
           <button key={o.v} onClick={() => props.onChange(o.v)}

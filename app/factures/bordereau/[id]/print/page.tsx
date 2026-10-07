@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * Vue imprimable d'un bordereau station.
  *
@@ -24,6 +26,8 @@ interface PrintData {
 }
 
 export default function BordereauPrintPage() {
+ const {t:_ui,text:_uiNode,intlLocale:_uiLocale}=useLanguage()
+
   const params = useParams()
   const id = params?.id as string
 
@@ -68,7 +72,7 @@ export default function BordereauPrintPage() {
   if (error) {
     return (
       <div style={{ padding: 40, fontFamily: 'system-ui', color: '#dc2626' }}>
-        Erreur : {error}
+        {" "}{_ui("Erreur :")}{" "}{_uiNode(error)}
       </div>
     )
   }
@@ -76,94 +80,28 @@ export default function BordereauPrintPage() {
   if (!data) {
     return (
       <div style={{ padding: 40, fontFamily: 'system-ui' }}>
-        Chargement du bordereau…
-      </div>
+        {" "}{_ui("Chargement du bordereau…")}{" "}</div>
     )
   }
 
   const s = data.settlement
   const totalKg = data.lines.reduce((acc, l) => acc + Number(l.qty_kg || 0), 0)
   const totalAmount = data.lines.reduce((acc, l) => acc + Number(l.amount || 0), 0)
-  const fmt = (n: number) => Math.round(n).toLocaleString('fr-FR')
-  const fmt2 = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const fmt = (n: number) => Math.round(n).toLocaleString(_uiLocale)
+  const fmt2 = (n: number) => n.toLocaleString(_uiLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const dateFmt = (d?: string | null) =>
-    d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'
+    d ? new Date(d).toLocaleDateString(_uiLocale, { day: '2-digit', month: 'long', year: 'numeric' }) : '—'
 
   return (
     <>
-      <style>{`
-        @page { size: A4; margin: 18mm 15mm; }
-        @media print {
-          .no-print { display: none !important; }
-          body { background: white !important; }
-        }
-        body {
-          font-family: 'Helvetica Neue', Arial, sans-serif;
-          background: #f3f4f6;
-          color: #111827;
-          margin: 0;
-          padding: 0;
-        }
-        .sheet {
-          max-width: 210mm;
-          margin: 12mm auto;
-          background: white;
-          padding: 18mm 15mm;
-          box-shadow: 0 4px 20px rgba(0,0,0,.06);
-          font-size: 11pt;
-        }
-        h1 { font-size: 22pt; margin: 0; color: #111827; letter-spacing: -.5px; }
-        h2 { font-size: 11pt; text-transform: uppercase; color: #6b7280; letter-spacing: 1.5px; margin: 0 0 4px; font-weight: 600; }
-        .header {
-          display: flex; justify-content: space-between; align-items: flex-start;
-          border-bottom: 2px solid #111827; padding-bottom: 14px; margin-bottom: 22px;
-        }
-        .meta {
-          display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;
-          margin-bottom: 26px;
-        }
-        .meta div { font-size: 10pt; }
-        .meta label { display: block; text-transform: uppercase; font-size: 8pt; color: #9ca3af; letter-spacing: 1px; margin-bottom: 2px; font-weight: 600; }
-        .meta strong { font-size: 11pt; color: #111827; font-weight: 600; }
-        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-        th { text-align: left; padding: 8px 10px; font-size: 9pt; text-transform: uppercase; letter-spacing: .8px; color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb; }
-        td { padding: 9px 10px; font-size: 10.5pt; border-bottom: 1px solid #f3f4f6; }
-        td.num { text-align: right; font-variant-numeric: tabular-nums; }
-        tr.total td { border-top: 2px solid #111827; border-bottom: none; font-weight: 700; font-size: 11pt; padding-top: 12px; }
-        .pill {
-          display: inline-block; padding: 2px 8px; border-radius: 10px;
-          font-size: 9pt; font-weight: 600; letter-spacing: .5px;
-        }
-        .pill.valid { background: #dcfce7; color: #166534; }
-        .pill.draft { background: #fef3c7; color: #92400e; }
-        .footer {
-          margin-top: 40px; padding-top: 18px; border-top: 1px solid #e5e7eb;
-          font-size: 9.5pt; color: #6b7280;
-          display: flex; justify-content: space-between; gap: 20px;
-        }
-        .footer .sig { text-align: center; min-width: 180px; }
-        .footer .sig-line { border-top: 1px solid #111827; margin-top: 44px; padding-top: 6px; }
-        .print-toolbar {
-          position: sticky; top: 0; background: #111827; color: white;
-          padding: 10px 16px; display: flex; gap: 12px; align-items: center;
-          font-size: 10pt; z-index: 10;
-        }
-        .print-toolbar button {
-          background: #3b82f6; color: white; border: none; padding: 7px 14px;
-          border-radius: 5px; font-size: 10.5pt; font-weight: 600; cursor: pointer;
-        }
-        .print-toolbar button.secondary {
-          background: transparent; border: 1px solid rgba(255,255,255,.3);
-        }
-      `}</style>
+      <style>{"@page { size: A4; margin: 18mm 15mm; } @media print { .no-print { display: none !important; } body { background: white !important; } } body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f3f4f6; color: #111827; margin: 0; padding: 0; } .sheet { max-width: 210mm; margin: 12mm auto; background: white; padding: 18mm 15mm; box-shadow: 0 4px 20px rgba(0,0,0,.06); font-size: 11pt; } h1 { font-size: 22pt; margin: 0; color: #111827; letter-spacing: -.5px; } h2 { font-size: 11pt; text-transform: uppercase; color: #6b7280; letter-spacing: 1.5px; margin: 0 0 4px; font-weight: 600; } .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111827; padding-bottom: 14px; margin-bottom: 22px; } .meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 26px; } .meta div { font-size: 10pt; } .meta label { display: block; text-transform: uppercase; font-size: 8pt; color: #9ca3af; letter-spacing: 1px; margin-bottom: 2px; font-weight: 600; } .meta strong { font-size: 11pt; color: #111827; font-weight: 600; } table { width: 100%; border-collapse: collapse; margin-top: 8px; } th { text-align: left; padding: 8px 10px; font-size: 9pt; text-transform: uppercase; letter-spacing: .8px; color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb; } td { padding: 9px 10px; font-size: 10.5pt; border-bottom: 1px solid #f3f4f6; } td.num { text-align: right; font-variant-numeric: tabular-nums; } tr.total td { border-top: 2px solid #111827; border-bottom: none; font-weight: 700; font-size: 11pt; padding-top: 12px; } .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 9pt; font-weight: 600; letter-spacing: .5px; } .pill.valid { background: #dcfce7; color: #166534; } .pill.draft { background: #fef3c7; color: #92400e; } .footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid #e5e7eb; font-size: 9.5pt; color: #6b7280; display: flex; justify-content: space-between; gap: 20px; } .footer .sig { text-align: center; min-width: 180px; } .footer .sig-line { border-top: 1px solid #111827; margin-top: 44px; padding-top: 6px; } .print-toolbar { position: sticky; top: 0; background: #111827; color: white; padding: 10px 16px; display: flex; gap: 12px; align-items: center; font-size: 10pt; z-index: 10; } .print-toolbar button { background: #3b82f6; color: white; border: none; padding: 7px 14px; border-radius: 5px; font-size: 10.5pt; font-weight: 600; cursor: pointer; } .print-toolbar button.secondary { background: transparent; border: 1px solid rgba(255,255,255,.3); }"}</style>
 
       <div className="print-toolbar no-print">
-        <span>Vue imprimable bordereau {s.code}</span>
-        <button onClick={() => window.print()}>🖨️ Imprimer / PDF</button>
-        <button className="secondary" onClick={() => window.close()}>Fermer</button>
+        <span>{_ui("Vue imprimable bordereau")}{" "}{s.code}</span>
+        <button onClick={() => window.print()}>{_ui("🖨️ Imprimer / PDF")}</button>
+        <button className="secondary" onClick={() => window.close()}>{_ui("Fermer")}</button>
         <span style={{ marginLeft: 'auto', fontSize: '9pt', opacity: .7 }}>
-          Astuce : dans la boîte d'impression, choisir "Enregistrer en PDF" pour télécharger.
-        </span>
+          {" "}{_ui("Astuce : dans la boîte d'impression, choisir \"Enregistrer en PDF\" pour télécharger.")}{" "}</span>
       </div>
 
       <div className="sheet">
@@ -171,13 +109,12 @@ export default function BordereauPrintPage() {
         <div className="header">
           <div>
             <div style={{ fontSize: '8pt', textTransform: 'uppercase', letterSpacing: 1.5, color: '#9ca3af', marginBottom: 6 }}>
-              Bordereau de paiement station
-            </div>
+              {" "}{_ui("Bordereau de paiement station")}{" "}</div>
             <h1>{s.code}</h1>
             <div style={{ fontSize: '10pt', color: '#6b7280', marginTop: 4 }}>
-              Émis le {dateFmt(s.received_date)} ·{' '}
+              {" "}{_ui("Émis le")}{" "}{dateFmt(s.received_date)} ·{' '}
               <span className={`pill ${s.status === 'valide' ? 'valid' : 'draft'}`}>
-                {s.status === 'valide' ? 'VALIDÉ' : 'BROUILLON'}
+                {s.status === 'valide' ? _ui("VALIDÉ") : _ui("BROUILLON")}
               </span>
             </div>
           </div>
@@ -198,31 +135,31 @@ export default function BordereauPrintPage() {
                 {[data.org.city, data.org.country].filter(Boolean).join(', ')}
               </div>
             )}
-            {data.org.phone && <div style={{ color: '#6b7280', fontSize: '9pt' }}>Tél : {data.org.phone}</div>}
+            {data.org.phone && <div style={{ color: '#6b7280', fontSize: '9pt' }}>{_ui("Tél :")}{" "}{data.org.phone}</div>}
             {data.org.email && <div style={{ color: '#6b7280', fontSize: '9pt' }}>{data.org.email}</div>}
-            {data.org.tax_id && <div style={{ color: '#6b7280', fontSize: '9pt' }}>ICE : {data.org.tax_id}</div>}
+            {data.org.tax_id && <div style={{ color: '#6b7280', fontSize: '9pt' }}>{_ui("ICE :")}{" "}{data.org.tax_id}</div>}
           </div>
         </div>
 
         {/* Métadonnées */}
         <div className="meta">
           <div>
-            <label>Période</label>
+            <label>{_ui("Période")}</label>
             <strong>
               {dateFmt(s.period_start)}<br />
               → {dateFmt(s.period_end)}
             </strong>
           </div>
           <div>
-            <label>Reçu le</label>
+            <label>{_ui("Reçu le")}</label>
             <strong>{dateFmt(s.received_date)}</strong>
           </div>
           <div>
-            <label>Échéance prévue</label>
+            <label>{_ui("Échéance prévue")}</label>
             <strong style={{ color: '#3b82f6' }}>{dateFmt(s.expected_payment_date)}</strong>
           </div>
           <div>
-            <label>Total à encaisser</label>
+            <label>{_ui("Total à encaisser")}</label>
             <strong style={{ fontSize: '14pt', color: '#10b981' }}>
               {fmt2(totalAmount)} MAD
             </strong>
@@ -230,16 +167,16 @@ export default function BordereauPrintPage() {
         </div>
 
         {/* Tableau lignes */}
-        <h2>Détail des paiements ({data.lines.length} ligne{data.lines.length > 1 ? 's' : ''})</h2>
+        <h2>{_ui("Détail des paiements (")}{data.lines.length} {" "}{_ui("ligne")}{data.lines.length > 1 ? 's' : ''})</h2>
         <table>
           <thead>
             <tr>
-              <th>Marché</th>
-              <th>Variété</th>
-              <th>Ferme</th>
-              <th className="num">Quantité (kg)</th>
-              <th className="num">Prix / kg</th>
-              <th className="num">Montant (MAD)</th>
+              <th>{_ui("Marché")}</th>
+              <th>{_ui("Variété")}</th>
+              <th>{_ui("Ferme")}</th>
+              <th className="num">{_ui("Quantité (kg)")}</th>
+              <th className="num">{_ui("Prix / kg")}</th>
+              <th className="num">{_ui("Montant (MAD)")}</th>
             </tr>
           </thead>
           <tbody>
@@ -254,14 +191,14 @@ export default function BordereauPrintPage() {
                   )}
                   {l.varieties?.commercial_name}
                 </td>
-                <td>{l.farms?.name ?? <span style={{ color: '#9ca3af' }}>Toutes</span>}</td>
+                <td>{l.farms?.name ?? <span style={{ color: '#9ca3af' }}>{_ui("Toutes")}</span>}</td>
                 <td className="num">{fmt(Number(l.qty_kg))}</td>
                 <td className="num">{fmt2(Number(l.price_per_kg))}</td>
                 <td className="num" style={{ fontWeight: 600 }}>{fmt2(Number(l.amount))}</td>
               </tr>
             ))}
             <tr className="total">
-              <td colSpan={3}>TOTAL</td>
+              <td colSpan={3}>{_ui("TOTAL")}</td>
               <td className="num">{fmt(totalKg)} kg</td>
               <td className="num">—</td>
               <td className="num" style={{ color: '#10b981' }}>{fmt2(totalAmount)} MAD</td>
@@ -272,7 +209,7 @@ export default function BordereauPrintPage() {
         {/* Notes éventuelles */}
         {s.notes && (
           <div style={{ marginTop: 26, padding: 12, background: '#f9fafb', borderLeft: '3px solid #3b82f6', fontSize: '10pt' }}>
-            <strong style={{ color: '#6b7280', textTransform: 'uppercase', fontSize: '8.5pt', letterSpacing: 1 }}>Notes</strong>
+            <strong style={{ color: '#6b7280', textTransform: 'uppercase', fontSize: '8.5pt', letterSpacing: 1 }}>{_ui("Notes")}</strong>
             <div style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>{s.notes}</div>
           </div>
         )}
@@ -280,12 +217,11 @@ export default function BordereauPrintPage() {
         {/* Footer + signature */}
         <div className="footer">
           <div style={{ flex: 1 }}>
-            <strong style={{ display: 'block', color: '#111827', marginBottom: 4 }}>Conditions de paiement</strong>
-            Échéance prévue : <strong>{dateFmt(s.expected_payment_date)}</strong><br />
-            Pour toute question, contacter la comptabilité.
-          </div>
+            <strong style={{ display: 'block', color: '#111827', marginBottom: 4 }}>{_ui("Conditions de paiement")}</strong>
+            {" "}{_ui("Échéance prévue :")}{" "}<strong>{dateFmt(s.expected_payment_date)}</strong><br />
+            {" "}{_ui("Pour toute question, contacter la comptabilité.")}{" "}</div>
           <div className="sig">
-            <div className="sig-line">Cachet et signature station</div>
+            <div className="sig-line">{_ui("Cachet et signature station")}</div>
           </div>
           <div className="sig">
             <div className="sig-line">{data.org.name}</div>

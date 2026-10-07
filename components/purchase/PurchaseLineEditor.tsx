@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useState } from 'react'
 import { StockItemCreateModal } from '@/components/stock/StockItemCreateModal'
 
@@ -25,6 +27,8 @@ type Props = {
 }
 
 export function PurchaseLineEditor({ lines, onChange, stockItems, onStockItemsRefresh, showPriceColumn = true }: Props) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const [modalIdx, setModalIdx] = useState<number | null>(null)
 
   const patch = (i: number, p: Partial<PurchaseLineDraft>) =>
@@ -56,39 +60,38 @@ export function PurchaseLineEditor({ lines, onChange, stockItems, onStockItemsRe
           <div key={i} style={{ display: 'grid', gridTemplateColumns: cols, gap: 6, alignItems: 'end' }}>
             <div>
               <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 2, display: 'flex', justifyContent: 'space-between' }}>
-                <span>ARTICLE STOCK *</span>
+                <span>{_ui("ARTICLE STOCK *")}</span>
                 <button type="button" onClick={() => setModalIdx(i)}
                   style={{ background: 'transparent', border: '1px solid var(--neon)40', color: 'var(--neon)', borderRadius: 4, padding: '1px 6px', fontSize: 10, cursor: 'pointer' }}>
-                  + nouveau
-                </button>
+                  {" "}{_ui("+ nouveau")}{" "}</button>
               </div>
               <select value={line.stockItemId} onChange={e => selectStock(i, e.target.value)}
                 style={{ width: '100%', padding: 6, background: 'var(--bg-deep)', color: 'var(--tx-1)',
                   border: `1px solid ${line.stockItemId ? 'var(--bd-1)' : 'var(--amber)60'}`,
                   borderRadius: 5, fontSize: 11 }}>
-                <option value="">— sélectionner —</option>
+                <option value="">{_ui("— sélectionner —")}</option>
                 {stockItems.map(si => <option key={si.id} value={si.id}>{si.name}{si.unit ? ` (${si.unit})` : ''}</option>)}
               </select>
             </div>
             <div>
-              <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>UNITÉ</div>
+              <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>{_ui("UNITÉ")}</div>
               <input value={line.unit} readOnly
                 style={{ width: '100%', padding: 6, background: 'var(--bg-deep)', color: 'var(--tx-3)', border: '1px solid var(--bd-1)', borderRadius: 5, fontSize: 12 }} />
             </div>
             <div>
-              <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>QUANTITÉ *</div>
+              <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>{_ui("QUANTITÉ *")}</div>
               <input type="number" value={line.quantity} onChange={e => patch(i, { quantity: e.target.value })}
                 style={{ width: '100%', padding: 6, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 5, fontSize: 12 }} />
             </div>
             {showPriceColumn && (
               <div>
-                <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>PRIX UNIT.</div>
+                <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 2 }}>{_ui("PRIX UNIT.")}</div>
                 <input type="number" value={line.unitPrice} onChange={e => patch(i, { unitPrice: e.target.value })}
                   style={{ width: '100%', padding: 6, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 5, fontSize: 12 }} />
               </div>
             )}
             <button onClick={() => remove(i)} disabled={lines.length === 1}
-              title="Supprimer la ligne"
+              title={_ui("Supprimer la ligne")}
               style={{ border: '1px solid var(--bd-1)', background: 'transparent', color: 'var(--red)', borderRadius: 5, padding: '6px 8px', cursor: lines.length === 1 ? 'not-allowed' : 'pointer' }}>
               ✕
             </button>
@@ -96,8 +99,7 @@ export function PurchaseLineEditor({ lines, onChange, stockItems, onStockItemsRe
         ))}
         <button onClick={add} type="button"
           style={{ alignSelf: 'start', border: '1px dashed var(--bd-1)', background: 'transparent', color: 'var(--tx-2)', borderRadius: 6, padding: '6px 12px', fontSize: 12, cursor: 'pointer', marginTop: 4 }}>
-          + Ajouter une ligne
-        </button>
+          {" "}{_ui("+ Ajouter une ligne")}{" "}</button>
       </div>
 
       <StockItemCreateModal

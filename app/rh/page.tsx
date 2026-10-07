@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Users, UserSquare, Banknote, Palmtree, Building, AlertCircle, Info, ArrowRight } from 'lucide-react'
@@ -16,6 +18,8 @@ type Stats = {
 }
 
 export default function RHDashboardPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const [stats, setStats] = useState<Stats | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -52,13 +56,13 @@ export default function RHDashboardPage() {
   return (
     <div>
       <PageHeader
-        title="Ressources Humaines" subtitle="Tableau de bord" icon={Users} iconColor="#0ea5e9"
-        description="Gestion des employés, paie, congés et déclarations CNSS — conforme aux standards Maroc"
+        title={_ui("Ressources Humaines")} subtitle={_ui("Tableau de bord")} icon={Users} iconColor="#0ea5e9"
+        description={_ui("Gestion des employés, paie, congés et déclarations CNSS — conforme aux standards Maroc")}
       />
 
       {error && (
         <div className="rounded-md border border-danger/30 bg-danger/10 p-md text-danger text-body-sm flex items-center gap-2 mb-md">
-          <AlertCircle size={14} /> {error}
+          <AlertCircle size={14} /> {_uiNode(error)}
         </div>
       )}
 
@@ -69,25 +73,25 @@ export default function RHDashboardPage() {
         </div>
       ) : stats && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-md mb-md">
-          <KPICard label="Effectif total" value={String(stats.totalEmployes)} sub="actifs" icon={Users} accent="#0ea5e9" delay={0} />
-          <KPICard label="Fermiers" value={String(stats.fermiers)} sub="paie quinzaine" icon={UserSquare} accent="#10b981" delay={0.05} />
-          <KPICard label="Staff admin" value={String(stats.staff)} sub="paie mensuelle" icon={Building} accent="#8b5cf6" delay={0.1} />
-          <KPICard label="Saisonniers" value={String(stats.saisonniers)} sub="contrat CDD" icon={UserSquare} accent="#f59e0b" delay={0.15} />
-          <KPICard label="Staff à la tâche" value={String(stats.tacherons)} sub="missions ponctuelles" icon={UserSquare} accent="#ec4899" delay={0.2} />
+          <KPICard label={_ui("Effectif total")} value={String(stats.totalEmployes)} sub="actifs" icon={Users} accent="#0ea5e9" delay={0} />
+          <KPICard label={_ui("Fermiers")} value={String(stats.fermiers)} sub="paie quinzaine" icon={UserSquare} accent="#10b981" delay={0.05} />
+          <KPICard label={_ui("Staff admin")} value={String(stats.staff)} sub="paie mensuelle" icon={Building} accent="#8b5cf6" delay={0.1} />
+          <KPICard label={_ui("Saisonniers")} value={String(stats.saisonniers)} sub="contrat CDD" icon={UserSquare} accent="#f59e0b" delay={0.15} />
+          <KPICard label={_ui("Staff à la tâche")} value={String(stats.tacherons)} sub="missions ponctuelles" icon={UserSquare} accent="#ec4899" delay={0.2} />
         </div>
       )}
 
       {/* KPIs financiers */}
       {!loading && stats && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-md mb-xl">
-          <KPICard label="Masse salariale (mois)" value={fmtMAD(stats.paie_mois_actuel)} sub="coût employeur total" icon={Banknote} accent="#10b981" variant="hero" delay={0.25} />
-          <KPICard label="Congés en attente" value={String(stats.conges_en_attente)} sub="à approuver" icon={Palmtree} accent="#f59e0b" variant="hero" delay={0.3} />
-          <KPICard label="CNSS à déclarer" value={String(stats.declarations_brouillon)} sub="déclarations brouillon" icon={Building} accent="#6366f1" variant="hero" delay={0.35} />
+          <KPICard label={_ui("Masse salariale (mois)")} value={fmtMAD(stats.paie_mois_actuel)} sub="coût employeur total" icon={Banknote} accent="#10b981" variant="hero" delay={0.25} />
+          <KPICard label={_ui("Congés en attente")} value={String(stats.conges_en_attente)} sub="à approuver" icon={Palmtree} accent="#f59e0b" variant="hero" delay={0.3} />
+          <KPICard label={_ui("CNSS à déclarer")} value={String(stats.declarations_brouillon)} sub="déclarations brouillon" icon={Building} accent="#6366f1" variant="hero" delay={0.35} />
         </div>
       )}
 
       {/* Modules */}
-      <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-md">Modules</div>
+      <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-md">{_ui("Modules")}</div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-md">
         {[
           { icon: UserSquare, title: 'Employés', desc: 'Annuaire : matricule, CNSS, contrat, situation, IBAN.', href: '/rh/employes', cta: 'Gérer', color: '#0ea5e9' },
@@ -118,11 +122,8 @@ export default function RHDashboardPage() {
         <div className="flex items-start gap-sm text-body-sm text-fg-secondary">
           <Info size={14} className="text-info flex-shrink-0 mt-0.5" />
           <div>
-            <strong className="text-fg-primary">Intégration comptable :</strong> chaque bulletin validé génère automatiquement
-            une écriture dans <Link href="/couts" className="text-brand hover:underline">Coûts</Link> sous la catégorie
-            {' '}<em>Salaires &amp; charges sociales</em>, qui alimente le{' '}
-            <Link href="/admin/compte-exploitation" className="text-brand hover:underline">Compte d'exploitation</Link> en temps réel.
-          </div>
+            <strong className="text-fg-primary">{_ui("Intégration comptable :")}</strong> {" "}{_ui("chaque bulletin validé génère automatiquement une écriture dans")}{" "}<Link href="/couts" className="text-brand hover:underline">{_ui("Coûts")}</Link> {" "}{_ui("sous la catégorie")}{" "}{' '}<em>{_ui("Salaires &amp; charges sociales")}</em>{_ui(", qui alimente le")}{' '}
+            <Link href="/admin/compte-exploitation" className="text-brand hover:underline">{_ui("Compte d'exploitation")}</Link> {" "}{_ui("en temps réel.")}{" "}</div>
         </div>
       </Card>
     </div>

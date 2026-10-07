@@ -5,6 +5,7 @@
  * Juste un styling Tailwind cohérent + animations row par row + sticky header optionnel.
  */
 import * as React from 'react'
+import {useLanguage} from '@/lib/i18n'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/cn'
 
@@ -67,17 +68,18 @@ export function TR({
 export function TH({
   children, right, className, ...props
 }: React.ThHTMLAttributes<HTMLTableCellElement> & { right?: boolean }) {
+  const {text}=useLanguage()
   return (
     <th
       className={cn(
         'py-2.5 px-3 font-mono text-[9.5px] uppercase tracking-wider text-fg-tertiary font-semibold whitespace-nowrap',
         'bg-surface-sunk border-b border-border',
-        right ? 'text-right' : 'text-left',
+        right ? 'text-end' : 'text-start',
         className
       )}
       {...props}
     >
-      {children}
+      {text(children)}
     </th>
   )
 }

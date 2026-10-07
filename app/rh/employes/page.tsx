@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * /rh/employes — Refonte avec le design system.
  * Conserve toute la logique métier (paie, mission tâcherons) — refait juste le rendu.
@@ -66,6 +68,8 @@ const empty: Partial<Worker> = {
 }
 
 export default function EmployesPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { values: FAMILY_STATUS } = useReferenceList('family_status')
   const { values: PAY_METHODS } = useReferenceList('payment_method')
   const { values: CONTRACT_TYPES } = useReferenceList('contract_type')
@@ -100,7 +104,7 @@ export default function EmployesPage() {
       if (w.error) throw w.error
       setItems((w.data ?? []) as any)
       setFarms((f.data ?? []) as any)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setLoading(false)
   }
   useEffect(() => { load() }, [])
@@ -187,7 +191,7 @@ export default function EmployesPage() {
         if (error) throw error
       }
       setDone(true)
-      toast.success(editing ? 'Employé modifié' : 'Employé créé')
+      toast.success(editing ? _ui("Employé modifié") : _ui("Employé créé"))
       setTimeout(() => { setModalOpen(false); setDone(false); load() }, 1000)
     } catch (e: any) {
       setModalError(`Erreur : ${e?.message || 'inconnue'}${e?.details ? ' — ' + e.details : ''}`)
@@ -200,23 +204,22 @@ export default function EmployesPage() {
     try {
       const { error } = await supabase.from('workers').update({ is_active: !w.is_active }).eq('id', w.id)
       if (error) throw error
-      toast.success(w.is_active ? `${w.first_name} désactivé` : `${w.first_name} réactivé`)
+      toast.success(w.is_active ? _ui("{v0} désactivé",{v0:String(w.first_name)}) : _ui("{v0} réactivé",{v0:String(w.first_name)}))
       load()
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
   }
 
   return (
     <div>
       <PageHeader
-        title="Employés"
-        subtitle="Ressources humaines"
+        title={_ui("Employés")}
+        subtitle={_ui("Ressources humaines")}
         icon={UserSquare}
         iconColor="#0ea5e9"
-        description={`${filtered.length} / ${items.length} employé${items.length > 1 ? 's' : ''} affichés`}
+        description={_ui("{v0} / {v1} employé{v2} affichés",{v0:String(filtered.length),v1:String(items.length),v2:String(items.length > 1 ? 's' : '')})}
         actions={
           <Button onClick={openCreate} variant="primary">
-            <Plus size={14} strokeWidth={2.5} /> Nouvel employé
-          </Button>
+            <Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvel employé")}{" "}</Button>
         }
         stats={loading ? [] : [
           { label: 'Total',     value: String(stats.total),                                                         icon: Users,     color: '#0ea5e9' },
@@ -232,7 +235,7 @@ export default function EmployesPage() {
           <div className="flex items-center gap-sm flex-1 min-w-[220px] max-w-md">
             <Search size={14} className="text-fg-tertiary flex-shrink-0" />
             <TInput
-              placeholder="Recherche (nom, matricule, CIN, fonction…)"
+              placeholder={_ui("Recherche (nom, matricule, CIN, fonction…)")}
               value={search} onChange={(e) => setSearch(e.target.value)}
               className="border-none bg-transparent focus:ring-0 px-0"
             />
@@ -245,9 +248,9 @@ export default function EmployesPage() {
 
           <div className="flex items-center gap-sm">
             <TSelect value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as any)} className="h-8 w-auto min-w-[120px] text-body-sm">
-              <option value="active">Actifs</option>
-              <option value="inactive">Inactifs</option>
-              <option value="all">Tous</option>
+              <option value="active">{_ui("Actifs")}</option>
+              <option value="inactive">{_ui("Inactifs")}</option>
+              <option value="all">{_ui("Tous")}</option>
             </TSelect>
           </div>
         </div>
@@ -263,7 +266,7 @@ export default function EmployesPage() {
                 : 'bg-surface-sunk text-fg-secondary border border-border hover:border-border-strong'
             )}
           >
-            Toutes ({stats.active})
+            {" "}{_ui("Toutes (")}{stats.active})
           </button>
           {stats.byCategory.map(c => (
             <button
@@ -282,7 +285,7 @@ export default function EmployesPage() {
               } : undefined}
             >
               <span className="text-[12px]">{c.icon}</span>
-              {c.label}
+              {_uiNode(c.label)}
               <span className="opacity-70">({c.count})</span>
             </button>
           ))}
@@ -299,33 +302,33 @@ export default function EmployesPage() {
           items.length === 0 ? (
             <EmptyState
               icon={UserSquare}
-              title="Aucun employé"
-              description="Crée ton premier employé pour commencer la gestion RH."
-              action={<Button onClick={openCreate}><Plus size={14} strokeWidth={2.5} /> Nouvel employé</Button>}
+              title={_ui("Aucun employé")}
+              description={_ui("Crée ton premier employé pour commencer la gestion RH.")}
+              action={<Button onClick={openCreate}><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvel employé")}</Button>}
             />
           ) : (
             <EmptyState
               icon={Search}
-              title="Aucun résultat"
-              description="Aucun employé ne correspond à tes filtres."
-              action={<Button variant="ghost" onClick={() => { setSearch(''); setFilterCategory(''); setFilterStatus('active') }}>Réinitialiser</Button>}
+              title={_ui("Aucun résultat")}
+              description={_ui("Aucun employé ne correspond à tes filtres.")}
+              action={<Button variant="ghost" onClick={() => { setSearch(''); setFilterCategory(''); setFilterStatus('active') }}>{_ui("Réinitialiser")}</Button>}
             />
           )
         ) : (
           <DataTable minWidth={1200}>
             <THead>
               <TR>
-                <TH>Matricule</TH>
-                <TH>Nom complet</TH>
-                <TH>Catégorie</TH>
-                <TH>Fonction</TH>
-                <TH>Contrat</TH>
-                <TH>Fréq.</TH>
-                <TH right>Brut mensuel</TH>
+                <TH>{_ui("Matricule")}</TH>
+                <TH>{_ui("Nom complet")}</TH>
+                <TH>{_ui("Catégorie")}</TH>
+                <TH>{_ui("Fonction")}</TH>
+                <TH>{_ui("Contrat")}</TH>
+                <TH>{_ui("Fréq.")}</TH>
+                <TH right>{_ui("Brut mensuel")}</TH>
                 <TH>CNSS</TH>
-                <TH right>Net estimé</TH>
-                <TH>Statut</TH>
-                <TH right>Actions</TH>
+                <TH right>{_ui("Net estimé")}</TH>
+                <TH>{_ui("Statut")}</TH>
+                <TH right>{_ui("Actions")}</TH>
               </TR>
             </THead>
             <tbody>
@@ -347,7 +350,7 @@ export default function EmployesPage() {
                           className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-caption font-semibold"
                           style={{ background: `color-mix(in srgb, ${cat.color} 14%, transparent)`, color: cat.color }}
                         >
-                          <span>{cat.icon}</span> {cat.label}
+                          <span>{cat.icon}</span> {_uiNode(cat.label)}
                         </span>
                       ) : '—'}
                     </TD>
@@ -361,15 +364,15 @@ export default function EmployesPage() {
                     </TD>
                     <TD>
                       {w.is_active
-                        ? <Badge variant="success" size="sm" dot>Actif</Badge>
-                        : <Badge variant="default" size="sm">Inactif</Badge>}
+                        ? <Badge variant="success" size="sm" dot>{_ui("Actif")}</Badge>
+                        : <Badge variant="default" size="sm">{_ui("Inactif")}</Badge>}
                     </TD>
                     <TD right>
                       <div className="flex items-center justify-end gap-1">
-                        <Button onClick={() => openEdit(w)} variant="ghost" size="icon-sm" title="Éditer">
+                        <Button onClick={() => openEdit(w)} variant="ghost" size="icon-sm" title={_ui("Éditer")}>
                           <Pencil size={12} strokeWidth={2.2} />
                         </Button>
-                        <Button onClick={() => toggleActive(w)} variant="ghost" size="icon-sm" title={w.is_active ? 'Désactiver' : 'Réactiver'}>
+                        <Button onClick={() => toggleActive(w)} variant="ghost" size="icon-sm" title={w.is_active ? _ui("Désactiver") : _ui("Réactiver")}>
                           {w.is_active ? <UserX size={12} strokeWidth={2.2} /> : <UserCheck size={12} strokeWidth={2.2} />}
                         </Button>
                       </div>
@@ -385,15 +388,15 @@ export default function EmployesPage() {
       {/* Modal */}
       {modalOpen && (
         <Modal
-          title={editing ? `Éditer — ${editing.first_name} ${editing.last_name}` : 'Nouvel employé'}
+          title={editing ? _ui("Éditer — {v0} {v1}",{v0:String(editing.first_name),v1:String(editing.last_name)}) : _ui("Nouvel employé")}
           onClose={() => setModalOpen(false)} size="lg"
         >
           {done ? (
-            <SuccessMessage message={editing ? 'Employé modifié' : 'Employé créé'} />
+            <SuccessMessage message={editing ? _ui("Employé modifié") : _ui("Employé créé")} />
           ) : (
             <div className="space-y-md">
               <FormRow>
-                <FormGroup label={editing ? 'Matricule' : 'Matricule (auto-généré)'}>
+                <FormGroup label={editing ? _ui("Matricule") : _ui("Matricule (auto-généré)")}>
                   <TInput
                     type="text"
                     value={editing ? (form.matricule ?? '') : '— auto à la création —'}
@@ -404,100 +407,99 @@ export default function EmployesPage() {
                     )}
                   />
                 </FormGroup>
-                <FormGroup label="CIN"><TInput value={form.cin ?? ''} onChange={f('cin')} placeholder="XX123456" /></FormGroup>
-                <FormGroup label="N° CNSS"><TInput value={form.cnss_number ?? ''} onChange={f('cnss_number')} placeholder="123456789" /></FormGroup>
+                <FormGroup label={_ui("CIN")}><TInput value={form.cin ?? ''} onChange={f('cin')} placeholder={_ui("XX123456")} /></FormGroup>
+                <FormGroup label={_ui("N° CNSS")}><TInput value={form.cnss_number ?? ''} onChange={f('cnss_number')} placeholder="123456789" /></FormGroup>
               </FormRow>
               <FormRow>
-                <FormGroup label="Prénom *"><TInput value={form.first_name ?? ''} onChange={f('first_name')} autoFocus /></FormGroup>
-                <FormGroup label="Nom *"><TInput value={form.last_name ?? ''} onChange={f('last_name')} /></FormGroup>
-                <FormGroup label="Date naissance"><TInput type="date" value={form.date_birth ?? ''} onChange={f('date_birth')} /></FormGroup>
+                <FormGroup label={_ui("Prénom *")}><TInput value={form.first_name ?? ''} onChange={f('first_name')} autoFocus /></FormGroup>
+                <FormGroup label={_ui("Nom *")}><TInput value={form.last_name ?? ''} onChange={f('last_name')} /></FormGroup>
+                <FormGroup label={_ui("Date naissance")}><TInput type="date" value={form.date_birth ?? ''} onChange={f('date_birth')} /></FormGroup>
               </FormRow>
 
               <FormRow>
-                <FormGroup label="Catégorie *">
+                <FormGroup label={_ui("Catégorie *")}>
                   <TSelect value={form.category ?? 'fermier'} onChange={onChangeCategory}>
-                    {CATEGORIES.map(c => <option key={c.code} value={c.code}>{c.icon} {c.label}</option>)}
+                    {CATEGORIES.map(c => <option key={c.code} value={c.code}>{c.icon} {_uiNode(c.label)}</option>)}
                   </TSelect>
                 </FormGroup>
-                <FormGroup label="Fonction"><TInput value={form.function ?? ''} onChange={f('function')} placeholder="Ouvrier, Responsable serres…" /></FormGroup>
-                <FormGroup label="Ferme">
+                <FormGroup label={_ui("Fonction")}><TInput value={form.function ?? ''} onChange={f('function')} placeholder={_ui("Ouvrier, Responsable serres…")} /></FormGroup>
+                <FormGroup label={_ui("Ferme")}>
                   <TSelect value={form.farm_id ?? ''} onChange={f('farm_id')}>
-                    <option value="">— aucune —</option>
+                    <option value="">{_ui("— aucune —")}</option>
                     {farms.map(fm => <option key={fm.id} value={fm.id}>{fm.code} — {fm.name}</option>)}
                   </TSelect>
                 </FormGroup>
               </FormRow>
 
               <FormRow>
-                <FormGroup label="Type de contrat">
+                <FormGroup label={_ui("Type de contrat")}>
                   <TSelect value={form.contract_type ?? 'CDI'} onChange={f('contract_type')}>
-                    {CONTRACT_TYPES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
+                    {CONTRACT_TYPES.map(c => <option key={c.code} value={c.code}>{_uiNode(c.label)}</option>)}
                   </TSelect>
                 </FormGroup>
-                <FormGroup label="Date d'embauche"><TInput type="date" value={form.start_date ?? ''} onChange={f('start_date')} /></FormGroup>
-                <FormGroup label="Fréquence paie *">
+                <FormGroup label={_ui("Date d'embauche")}><TInput type="date" value={form.start_date ?? ''} onChange={f('start_date')} /></FormGroup>
+                <FormGroup label={_ui("Fréquence paie *")}>
                   <TSelect value={form.pay_frequency ?? 'mensuel'} onChange={f('pay_frequency')}>
-                    {PAY_FREQS.map(fq => <option key={fq.code} value={fq.code}>{fq.label}</option>)}
+                    {PAY_FREQS.map(fq => <option key={fq.code} value={fq.code}>{_uiNode(fq.label)}</option>)}
                   </TSelect>
                 </FormGroup>
               </FormRow>
 
               {/* Bloc rémunération */}
               <div className="rounded-md border border-border bg-surface-sunk px-md py-sm flex items-center gap-2 text-body-sm text-fg-secondary">
-                <Banknote size={14} className="text-success" /> <strong className="text-fg-primary">Rémunération</strong>
+                <Banknote size={14} className="text-success" /> <strong className="text-fg-primary">{_ui("Rémunération")}</strong>
               </div>
               <FormRow>
-                <FormGroup label="Salaire brut mensuel (MAD)"><TInput type="number" value={String(form.base_salary ?? 0)} onChange={f('base_salary')} /></FormGroup>
-                <FormGroup label="Tarif journalier (MAD)"><TInput type="number" value={String(form.daily_rate ?? 0)} onChange={f('daily_rate')} /></FormGroup>
-                <FormGroup label="Méthode paiement">
+                <FormGroup label={_ui("Salaire brut mensuel (MAD)")}><TInput type="number" value={String(form.base_salary ?? 0)} onChange={f('base_salary')} /></FormGroup>
+                <FormGroup label={_ui("Tarif journalier (MAD)")}><TInput type="number" value={String(form.daily_rate ?? 0)} onChange={f('daily_rate')} /></FormGroup>
+                <FormGroup label={_ui("Méthode paiement")}>
                   <TSelect value={form.payment_method ?? 'virement'} onChange={f('payment_method')}>
-                    {PAY_METHODS.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
+                    {PAY_METHODS.map(p => <option key={p.code} value={p.code}>{_uiNode(p.label)}</option>)}
                   </TSelect>
                 </FormGroup>
               </FormRow>
               <FormRow>
-                <FormGroup label="Statut familial">
+                <FormGroup label={_ui("Statut familial")}>
                   <TSelect value={form.family_status ?? 'celibataire'} onChange={f('family_status')}>
-                    {FAMILY_STATUS.map(s => <option key={s.code} value={s.code}>{s.label}</option>)}
+                    {FAMILY_STATUS.map(s => <option key={s.code} value={s.code}>{_uiNode(s.label)}</option>)}
                   </TSelect>
                 </FormGroup>
-                <FormGroup label="Personnes à charge (max 6)">
+                <FormGroup label={_ui("Personnes à charge (max 6)")}>
                   <TInput type="number" value={String(form.dependents ?? 0)} onChange={f('dependents')} />
                 </FormGroup>
-                <FormGroup label="IBAN">
-                  <TInput value={form.bank_iban ?? ''} onChange={f('bank_iban')} placeholder="MA64 011 …" />
+                <FormGroup label={_ui("IBAN")}>
+                  <TInput value={form.bank_iban ?? ''} onChange={f('bank_iban')} placeholder={_ui("MA64 011 …")} />
                 </FormGroup>
               </FormRow>
 
               <FormRow>
-                <FormGroup label="Téléphone"><TInput value={form.phone ?? ''} onChange={f('phone')} placeholder="+212 6 XX XX XX XX" /></FormGroup>
-                <FormGroup label="Email"><TInput type="email" value={form.email ?? ''} onChange={f('email')} /></FormGroup>
+                <FormGroup label={_ui("Téléphone")}><TInput value={form.phone ?? ''} onChange={f('phone')} placeholder={_ui("+212 6 XX XX XX XX")} /></FormGroup>
+                <FormGroup label={_ui("Email")}><TInput type="email" value={form.email ?? ''} onChange={f('email')} /></FormGroup>
               </FormRow>
-              <FormGroup label="Adresse"><Textarea value={form.address ?? ''} onChange={f('address')} rows={2} /></FormGroup>
+              <FormGroup label={_ui("Adresse")}><Textarea value={form.address ?? ''} onChange={f('address')} rows={2} /></FormGroup>
 
               {/* Bloc mission tâcherons */}
               {form.category === 'tacheron' && (
                 <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-md">
                   <div className="rounded-md border border-pink-500/30 bg-pink-500/5 px-md py-sm flex items-center gap-2 text-body-sm font-semibold" style={{ color: '#ec4899' }}>
-                    <Wrench size={14} /> Mission de dépannage — détails
-                  </div>
-                  <FormGroup label="Libellé mission *">
-                    <TInput value={form.mission_label ?? ''} onChange={f('mission_label')} placeholder="Ex: Dépannage récolte serre 3, renfort plantation, etc." />
+                    <Wrench size={14} /> {" "}{_ui("Mission de dépannage — détails")}{" "}</div>
+                  <FormGroup label={_ui("Libellé mission *")}>
+                    <TInput value={form.mission_label ?? ''} onChange={f('mission_label')} placeholder={_ui("Ex: Dépannage récolte serre 3, renfort plantation, etc.")} />
                   </FormGroup>
                   <FormRow>
-                    <FormGroup label="Jours planifiés *"><TInput type="number" value={String(form.mission_days_planned ?? 0)} onChange={f('mission_days_planned')} placeholder="7" /></FormGroup>
-                    <FormGroup label="Jours réalisés"><TInput type="number" value={String(form.mission_days_done ?? 0)} onChange={f('mission_days_done')} /></FormGroup>
-                    <FormGroup label="Date début"><TInput type="date" value={form.mission_start_date ?? ''} onChange={f('mission_start_date')} /></FormGroup>
-                    <FormGroup label="Date fin prévue"><TInput type="date" value={form.mission_end_date ?? ''} onChange={f('mission_end_date')} /></FormGroup>
+                    <FormGroup label={_ui("Jours planifiés *")}><TInput type="number" value={String(form.mission_days_planned ?? 0)} onChange={f('mission_days_planned')} placeholder="7" /></FormGroup>
+                    <FormGroup label={_ui("Jours réalisés")}><TInput type="number" value={String(form.mission_days_done ?? 0)} onChange={f('mission_days_done')} /></FormGroup>
+                    <FormGroup label={_ui("Date début")}><TInput type="date" value={form.mission_start_date ?? ''} onChange={f('mission_start_date')} /></FormGroup>
+                    <FormGroup label={_ui("Date fin prévue")}><TInput type="date" value={form.mission_end_date ?? ''} onChange={f('mission_end_date')} /></FormGroup>
                   </FormRow>
                   {Number(form.daily_rate) > 0 && Number(form.mission_days_planned) > 0 && (
                     <div className="rounded-md bg-surface-sunk border border-border px-md py-sm text-body-sm text-fg-secondary flex items-center gap-2">
                       <Wallet size={14} className="text-warning" />
-                      Coût total prévu :{' '}
+                      {" "}{_ui("Coût total prévu :")}{' '}
                       <strong className="text-fg-primary">
                         <MoneyDisplay value={Number(form.daily_rate) * Number(form.mission_days_planned)} />
                       </strong>{' '}
-                      <span className="text-caption text-fg-tertiary">({Number(form.daily_rate)} × {Number(form.mission_days_planned)} jours)</span>
+                      <span className="text-caption text-fg-tertiary">({Number(form.daily_rate)} × {Number(form.mission_days_planned)} {" "}{_ui("jours)")}</span>
                     </div>
                   )}
                 </motion.div>
@@ -519,13 +521,13 @@ export default function EmployesPage() {
                   >
                     <div className="flex items-center gap-2 mb-sm">
                       <BadgeInfo size={14} className="text-brand" />
-                      <span className="font-display text-body font-bold text-brand">Simulation bulletin (1 période)</span>
+                      <span className="font-display text-body font-bold text-brand">{_ui("Simulation bulletin (1 période)")}</span>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-sm">
-                      <SimStat label="Brut période"      value={fmtMAD(r.gross_salary)} />
-                      <SimStat label="CNSS + AMO + IR"   value={fmtMAD(r.cnss_employee + r.amo_employee + r.ir_amount)} />
-                      <SimStat label="Net à payer"       value={fmtMAD(r.net_salary)} highlight />
-                      <SimStat label="Coût employeur"    value={fmtMAD(r.total_employer_cost)} />
+                      <SimStat label={_ui("Brut période")}      value={fmtMAD(r.gross_salary)} />
+                      <SimStat label={_ui("CNSS + AMO + IR")}   value={fmtMAD(r.cnss_employee + r.amo_employee + r.ir_amount)} />
+                      <SimStat label={_ui("Net à payer")}       value={fmtMAD(r.net_salary)} highlight />
+                      <SimStat label={_ui("Coût employeur")}    value={fmtMAD(r.total_employer_cost)} />
                     </div>
                   </motion.div>
                 )
@@ -536,7 +538,7 @@ export default function EmployesPage() {
                   ⚠ {modalError}
                   {modalError.includes('column') && (
                     <div className="mt-2 text-caption text-warning">
-                      💡 Si l'erreur mentionne une colonne manquante, exécute les migrations <strong>018_hr_module.sql</strong> et <strong>019_hr_task_workers.sql</strong>.
+                      {" "}{_ui("💡 Si l'erreur mentionne une colonne manquante, exécute les migrations")}{" "}<strong>{_ui("018_hr_module.sql")}</strong> {" "}{_ui("et")}{" "}<strong>{_ui("019_hr_task_workers.sql")}</strong>.
                     </div>
                   )}
                 </div>
@@ -545,7 +547,7 @@ export default function EmployesPage() {
                 onCancel={() => setModalOpen(false)}
                 onSave={save}
                 loading={saving}
-                saveLabel={editing ? 'ENREGISTRER' : 'CRÉER'}
+                saveLabel={editing ? _ui("ENREGISTRER") : _ui("CRÉER")}
               />
             </div>
           )}
@@ -556,9 +558,11 @@ export default function EmployesPage() {
 }
 
 function SimStat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <div>
-      <div className="font-mono text-[9px] uppercase tracking-wider text-fg-tertiary">{label}</div>
+      <div className="font-mono text-[9px] uppercase tracking-wider text-fg-tertiary">{_uiNode(label)}</div>
       <div className={cn('font-mono text-body font-semibold mt-1', highlight ? 'text-brand font-bold' : 'text-fg-primary')}>{value}</div>
     </div>
   )

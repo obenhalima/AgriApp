@@ -1,4 +1,7 @@
 'use client'
+import { useLanguage } from "@/lib/i18n"
+
+import '@/components/ui/workspace.css'
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -19,6 +22,10 @@ import { useReferenceList } from '@/lib/useReferenceList'
 import { useAuth } from '@/lib/auth'
 
 export default function StocksPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+ const {t}=useLanguage()
+
   const { activeDomain, user, hasPermission, isAdmin, isPlatformAdmin } = useAuth()
   const { values: CATS } = useReferenceList('stock_category')
   const { values: UNITS } = useReferenceList('unit')
@@ -95,9 +102,9 @@ export default function StocksPage() {
       if (!activeDomain) throw new Error('Aucun domaine actif')
       const n = await createStockItem({ ...formA, plant_protection_product_id: formA.category==='phytosanitaires'&&formA.plant_protection_product_id?formA.plant_protection_product_id:undefined, domain_id: activeDomain.domain_id, min_qty: Number(formA.min_qty) || 0, unit_cost: formA.unit_cost ? Number(formA.unit_cost) : undefined } as any)
       setItems(p => [n, ...p]); setDone(true)
-      toast.success(`Article "${n.name}" créé`)
+      toast.success(_ui("Article \"{v0}\" créé",{v0:String(n.name)}))
       setTimeout(() => { setModalArticle(false); setDone(false) }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSaving(false)
   }
 
@@ -114,9 +121,9 @@ export default function StocksPage() {
       }).eq('id', modalEditArt.id)
       if (error) throw error
       setDone(true)
-      toast.success('Article modifié')
+      toast.success(_ui("Article modifié"))
       setTimeout(() => { setModalEditArt(null); setDone(false); load() }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSaving(false)
   }
 
@@ -135,9 +142,9 @@ export default function StocksPage() {
         await createMouvement({ ...formM, quantity: Number(formM.quantity) })
       }
       await load(); setDone(true)
-      toast.success(formM.movement_type === 'sortie' ? 'Demande de sortie envoyée au responsable' : 'Mouvement enregistré')
+      toast.success(formM.movement_type === 'sortie' ? _ui("Demande de sortie envoyée au responsable") : _ui("Mouvement enregistré"))
       setTimeout(() => { setModalMvt(null); setDone(false) }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSaving(false)
   }
 
@@ -150,91 +157,91 @@ export default function StocksPage() {
   }
 
   const reviewExit = async (id: string, approve: boolean) => {
-    const reason = approve ? null : prompt('Motif obligatoire du rejet :')
+    const reason = approve ? null : prompt(_ui("Motif obligatoire du rejet :"))
     if (!approve && !reason) return
     const { error } = await supabase.rpc('review_stock_exit_request', { p_request_id: id, p_approve: approve, p_reason: reason })
-    if (error) toast.error(error.message); else { toast.success(approve ? 'Sortie approuvée' : 'Sortie rejetée'); load() }
+    if (error) toast.error(error.message); else { toast.success(approve ? _ui("Sortie approuvée") : _ui("Sortie rejetée")); load() }
   }
   const executeExit = async (id: string) => {
-    if (!confirm('Exécuter cette sortie et diminuer le stock ?')) return
+    if (!confirm(_ui("Exécuter cette sortie et diminuer le stock ?"))) return
     const { error } = await supabase.rpc('execute_stock_exit_request', { p_request_id: id })
-    if (error) toast.error(error.message); else { toast.success('Sortie exécutée'); load() }
+    if (error) toast.error(error.message); else { toast.success(_ui("Sortie exécutée")); load() }
   }
 
   // Render as a helper: a nested component type would remount every input on
   // each keystroke and reapply the Name field's autofocus.
   const renderArticleForm = ({ vals, onChange }: any) => (
     <div className="space-y-md">
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Code"><TInput value={vals.code} onChange={onChange('code')} /></Field>
-        <Field label="Nom" required><TInput value={vals.name} onChange={onChange('name')} placeholder="NPK 20-20-20" autoFocus /></Field>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+        <Field label={t("Code")}><TInput value={vals.code} onChange={onChange('code')} /></Field>
+        <Field label={t("Nom")} required><TInput value={vals.name} onChange={onChange('name')} placeholder="NPK 20-20-20" autoFocus /></Field>
       </div>
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Catégorie"><TSelect value={vals.category} onChange={onChange('category')}>{CATS.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}</TSelect></Field>
-        <Field label="Unité"><TSelect value={vals.unit} onChange={onChange('unit')}>{UNITS.map(u => <option key={u.code} value={u.code}>{u.label}</option>)}</TSelect></Field>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+        <Field label={t("Catégorie")}><TSelect value={vals.category} onChange={onChange('category')}>{CATS.map(c => <option key={c.code} value={c.code}>{_uiNode(c.label)}</option>)}</TSelect></Field>
+        <Field label={t("Unité")}><TSelect value={vals.unit} onChange={onChange('unit')}>{UNITS.map(u => <option key={u.code} value={u.code}>{_uiNode(u.label)}</option>)}</TSelect></Field>
       </div>
-      <div className="grid grid-cols-2 gap-md">
-        <Field label="Stock min. (alerte)"><TInput type="number" value={vals.min_qty} onChange={onChange('min_qty')} placeholder="100" /></Field>
-        <Field label="Coût unitaire (MAD)"><TInput type="number" value={vals.unit_cost} onChange={onChange('unit_cost')} placeholder="12.50" /></Field>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+        <Field label={t("Stock min. (alerte)")}><TInput type="number" value={vals.min_qty} onChange={onChange('min_qty')} placeholder="100" /></Field>
+        <Field label={t("Coût unitaire (MAD)")}><TInput type="number" value={vals.unit_cost} onChange={onChange('unit_cost')} placeholder="12.50" /></Field>
       </div>
-      <Field label="Emplacement"><TInput value={vals.location} onChange={onChange('location')} placeholder="Entrepôt A / Rayon 3" /></Field>
-      {vals.category === 'phytosanitaires' && <Field label="Produit phytosanitaire homologué" hint="L’unité est proposée depuis l’usage autorisé et contrôlée à l’enregistrement."><TSelect value={vals.plant_protection_product_id||''} onChange={changePhytoProduct(vals===formA?setFormA:setFormAE)}><option value="">— Non lié —</option>{phytoProducts.map(p=><option key={p.id} value={p.id}>{p.commercial_name} · AMM {p.authorization_number}</option>)}</TSelect></Field>}
+      <Field label={t("Emplacement")}><TInput value={vals.location} onChange={onChange('location')} placeholder={_ui("Entrepôt A / Rayon 3")} /></Field>
+      {vals.category === 'phytosanitaires' && <Field label={t("Produit phytosanitaire homologué")} hint="L’unité est proposée depuis l’usage autorisé et contrôlée à l’enregistrement."><TSelect value={vals.plant_protection_product_id||''} onChange={changePhytoProduct(vals===formA?setFormA:setFormAE)}><option value="">{t("— Non lié —")}</option>{phytoProducts.map(p=><option key={p.id} value={p.id}>{p.commercial_name} {" "}{_ui("· AMM")}{" "}{p.authorization_number}</option>)}</TSelect></Field>}
     </div>
   )
 
   return (
-    <div>
+    <div className="itrix-workspace">
       {modalArticle && (
-        <Modal title="NOUVEL ARTICLE" onClose={() => { setModalArticle(false); setDone(false) }}>
-          {done ? <SuccessMessage message="Article créé !" /> : (<>{renderArticleForm({ vals: formA, onChange: sa })}<ModalFooter onCancel={() => setModalArticle(false)} onSave={saveArticle} loading={saving} disabled={!formA.name} saveLabel="CRÉER L'ARTICLE" /></>)}
+        <Modal title={t("NOUVEL ARTICLE")} onClose={() => { setModalArticle(false); setDone(false) }}>
+          {done ? <SuccessMessage message={_ui("Article créé !")} /> : (<>{renderArticleForm({ vals: formA, onChange: sa })}<ModalFooter onCancel={() => setModalArticle(false)} onSave={saveArticle} loading={saving} disabled={!formA.name} saveLabel={_ui("CRÉER L'ARTICLE")} /></>)}
         </Modal>
       )}
       {modalEditArt && (
-        <Modal title={`MODIFIER — ${modalEditArt.name}`} onClose={() => { setModalEditArt(null); setDone(false) }}>
-          {done ? <SuccessMessage message="Article modifié !" /> : (<>{renderArticleForm({ vals: formAE, onChange: sae })}<ModalFooter onCancel={() => setModalEditArt(null)} onSave={saveEditArt} loading={saving} disabled={!formAE.name} saveLabel="ENREGISTRER" /></>)}
+        <Modal title={_ui("MODIFIER — {v0}",{v0:String(modalEditArt.name)})} onClose={() => { setModalEditArt(null); setDone(false) }}>
+          {done ? <SuccessMessage message={_ui("Article modifié !")} /> : (<>{renderArticleForm({ vals: formAE, onChange: sae })}<ModalFooter onCancel={() => setModalEditArt(null)} onSave={saveEditArt} loading={saving} disabled={!formAE.name} saveLabel={_ui("ENREGISTRER")} /></>)}
         </Modal>
       )}
       {modalMvt && (
-        <Modal title={`MOUVEMENT — ${modalMvt.name}`} onClose={() => { setModalMvt(null); setDone(false) }}>
-          {done ? <SuccessMessage message="Mouvement enregistré !" /> : (
+        <Modal title={_ui("MOUVEMENT — {v0}",{v0:String(modalMvt.name)})} onClose={() => { setModalMvt(null); setDone(false) }}>
+          {done ? <SuccessMessage message={_ui("Mouvement enregistré !")} /> : (
             <div className="space-y-md">
               <div className="rounded-md border border-border bg-surface-sunk p-md text-body-sm">
-                Stock de l’entrepôt : <strong className="text-success font-mono">{balances.find(b=>b.warehouse_id===formM.warehouse_id&&b.stock_item_id===modalMvt.id)?.current_qty||0} {modalMvt.unit}</strong>
-                <span className="text-fg-tertiary ml-md">Min : {modalMvt.min_qty} {modalMvt.unit}</span>
+                {" "}{_ui("Stock de l’entrepôt :")}{" "}<strong className="text-success font-mono">{balances.find(b=>b.warehouse_id===formM.warehouse_id&&b.stock_item_id===modalMvt.id)?.current_qty||0} {modalMvt.unit}</strong>
+                <span className="text-fg-tertiary ml-md">{_ui("Min :")}{" "}{modalMvt.min_qty} {modalMvt.unit}</span>
               </div>
               <FormRow>
-                <FormGroup label="Entrepôt *"><TSelect value={formM.warehouse_id} onChange={sm('warehouse_id')}><option value="">Sélectionner</option>{warehouses.filter(w=>w.is_active).map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</TSelect></FormGroup>
-                <FormGroup label="Type">
+                <FormGroup label={t("Entrepôt *")}><TSelect value={formM.warehouse_id} onChange={sm('warehouse_id')}><option value="">{t("Sélectionner")}</option>{warehouses.filter(w=>w.is_active).map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</TSelect></FormGroup>
+                <FormGroup label={t("Type")}>
                   <TSelect value={formM.movement_type} onChange={sm('movement_type')}>
-                    <option value="entree">Entrée (réception)</option>
-                    <option value="sortie">Sortie (consommation)</option>
+                    <option value="entree">{t("Entrée (réception)")}</option>
+                    <option value="sortie">{t("Sortie (consommation)")}</option>
                   </TSelect>
                 </FormGroup>
-                <FormGroup label="Quantité *"><TInput type="number" value={formM.quantity} onChange={sm('quantity')} autoFocus /></FormGroup>
+                <FormGroup label={t("Quantité *")}><TInput type="number" value={formM.quantity} onChange={sm('quantity')} autoFocus /></FormGroup>
               </FormRow>
               <FormRow>
-                <FormGroup label="Date *"><TInput type="date" value={formM.movement_date} onChange={sm('movement_date')} /></FormGroup>
-                <FormGroup label="Référence"><TInput value={formM.reference} onChange={sm('reference')} placeholder="BL-2026-001" /></FormGroup>
+                <FormGroup label={t("Date *")}><TInput type="date" value={formM.movement_date} onChange={sm('movement_date')} /></FormGroup>
+                <FormGroup label={t("Référence")}><TInput value={formM.reference} onChange={sm('reference')} placeholder="BL-2026-001" /></FormGroup>
               </FormRow>
-              <FormGroup label="Notes"><Textarea rows={2} value={formM.notes} onChange={sm('notes')} /></FormGroup>
-              {formM.movement_type === 'sortie' && <div className="rounded-md border border-warning/30 bg-warning/10 p-sm text-body-sm text-warning">La sortie sera soumise au responsable. Le stock ne changera qu’après validation puis exécution.</div>}
-              <ModalFooter onCancel={() => setModalMvt(null)} onSave={saveMvt} loading={saving} disabled={!formM.quantity || !formM.movement_date || (formM.movement_type === 'sortie' && !formM.notes.trim())} saveLabel={formM.movement_type === 'sortie' ? 'SOUMETTRE LA DEMANDE' : 'ENREGISTRER'} />
+              <FormGroup label={t("Notes")}><Textarea rows={2} value={formM.notes} onChange={sm('notes')} /></FormGroup>
+              {formM.movement_type === 'sortie' && <div className="rounded-md border border-warning/30 bg-warning/10 p-sm text-body-sm text-warning">{t("La sortie sera soumise au responsable. Le stock ne changera qu’après validation puis exécution.")}</div>}
+              <ModalFooter onCancel={() => setModalMvt(null)} onSave={saveMvt} loading={saving} disabled={!formM.quantity || !formM.movement_date || (formM.movement_type === 'sortie' && !formM.notes.trim())} saveLabel={formM.movement_type === 'sortie' ? _ui("SOUMETTRE LA DEMANDE") : _ui("ENREGISTRER")} />
             </div>
           )}
         </Modal>
       )}
 
       <PageHeader
-        title="Stocks" subtitle="Inventaire" icon={Package} iconColor="#14b8a6"
-        description={`${items.length} article${items.length > 1 ? 's' : ''} · ${stats.alerts} alerte${stats.alerts > 1 ? 's' : ''}`}
+        title={t("Stocks")} subtitle={t("Inventaire")} icon={Package} iconColor="#14b8a6"
+        description={_ui("{v0} article{v1} · {v2} alerte{v3}",{v0:String(items.length),v1:String(items.length > 1 ? 's' : ''),v2:String(stats.alerts),v3:String(stats.alerts > 1 ? 's' : '')})}
         actions={
-          <div className="flex gap-xs">
+          <div className="itrix-actions">
             <Link href="/stocks/mouvements">
-              <Button variant="ghost"><BarChart3 size={14} strokeWidth={2.2} /> Mouvements</Button>
+              <Button variant="ghost"><BarChart3 size={14} strokeWidth={2.2} /> {t("Mouvements")}</Button>
             </Link>
-            <Link href="/stocks/preparation-phyto"><Button variant="secondary">Préparer les articles phyto</Button></Link>
-            <Link href="/stocks/transferts"><Button variant="ghost">Transferts</Button></Link>
-            <Button onClick={openNewArt} variant="primary"><Plus size={14} strokeWidth={2.5} /> Nouvel article</Button>
+            <Link href="/stocks/preparation-phyto"><Button variant="secondary">{t("Préparer les articles phyto")}</Button></Link>
+            <Link href="/stocks/transferts"><Button variant="ghost">{t("Transferts")}</Button></Link>
+            <Button onClick={openNewArt} variant="primary"><Plus size={14} strokeWidth={2.5} /> {t("Nouvel article")}</Button>
           </div>
         }
         stats={loading ? [] : [
@@ -253,19 +260,19 @@ export default function StocksPage() {
               <div key={i.id} className="flex items-center gap-sm text-body-sm">
                 <AlertTriangle size={14} className="text-warning flex-shrink-0" />
                 <strong className="text-fg-primary">{i.name}</strong>
-                <span className="text-fg-tertiary">— Stock : <span className="text-warning font-mono">{i.current_qty} {i.unit}</span> · Seuil : {i.min_qty} {i.unit}</span>
+                <span className="text-fg-tertiary">{_ui("— Stock :")}{" "}<span className="text-warning font-mono">{i.current_qty} {i.unit}</span> {" "}{_ui("· Seuil :")}{" "}{i.min_qty} {i.unit}</span>
               </div>
             ))}
-            {stats.alerts > 3 && <div className="text-caption text-fg-tertiary">+{stats.alerts - 3} autre{stats.alerts - 3 > 1 ? 's' : ''} alerte{stats.alerts - 3 > 1 ? 's' : ''}</div>}
+            {stats.alerts > 3 && <div className="text-caption text-fg-tertiary">+{stats.alerts - 3} {" "}{_ui("autre")}{stats.alerts - 3 > 1 ? 's' : ''} {" "}{_ui("alerte")}{stats.alerts - 3 > 1 ? 's' : ''}</div>}
           </div>
         </Card>
       )}
 
       {!loading && exitRequests.length > 0 && (
         <Card className="mb-md" padding="none">
-          <div className="p-md border-b border-border flex items-center gap-sm"><ShieldCheck size={15} className="text-warning"/><strong>Demandes de sortie</strong></div>
-          <DataTable minWidth={850}><THead><TR><TH>Article</TH><TH right>Quantité</TH><TH>Motif</TH><TH>Statut</TH><TH>Demandeur</TH><TH right>Actions</TH></TR></THead>
-            <tbody>{exitRequests.map(r => <TR key={r.id}><TD>{r.stock_items?.name}</TD><TD right mono>{r.quantity} {r.stock_items?.unit}</TD><TD>{r.reason}</TD><TD><Badge variant={r.status==='soumise'?'warning':r.status==='approuvee'?'success':r.status==='executee'?'info':'danger'}>{r.status}</Badge></TD><TD mono className="text-caption">{r.requested_by===user?.id?'Moi':r.requested_by.slice(0,8)}</TD><TD right><div className="flex justify-end gap-xs">{r.status==='soumise'&&responsible&&r.requested_by!==user?.id&&<><Button size="xs" variant="secondary" onClick={()=>reviewExit(r.id,true)}><Check size={12}/> Valider</Button><Button size="xs" variant="ghost" onClick={()=>reviewExit(r.id,false)}><X size={12}/> Rejeter</Button></>}{r.status==='approuvee'&&hasPermission('stocks','edit')&&<Button size="xs" onClick={()=>executeExit(r.id)}><Play size={12}/> Exécuter</Button>}</div></TD></TR>)}</tbody>
+          <div className="p-md border-b border-border flex items-center gap-sm"><ShieldCheck size={15} className="text-warning"/><strong>{t("Demandes de sortie")}</strong></div>
+          <DataTable minWidth={850}><THead><TR><TH>{t("Article")}</TH><TH right>{t("Quantité")}</TH><TH>{t("Motif")}</TH><TH>{t("Statut")}</TH><TH>{t("Demandeur")}</TH><TH right>{t("Actions")}</TH></TR></THead>
+            <tbody>{exitRequests.map(r => <TR key={r.id}><TD>{r.stock_items?.name}</TD><TD right mono>{r.quantity} {r.stock_items?.unit}</TD><TD>{r.reason}</TD><TD><Badge variant={r.status==='soumise'?'warning':r.status==='approuvee'?'success':r.status==='executee'?'info':'danger'}>{r.status}</Badge></TD><TD mono className="text-caption">{r.requested_by===user?.id?_ui("Moi"):r.requested_by.slice(0,8)}</TD><TD right><div className="flex justify-end gap-xs">{r.status==='soumise'&&responsible&&r.requested_by!==user?.id&&<><Button size="xs" variant="secondary" onClick={()=>reviewExit(r.id,true)}><Check size={12}/> {t("Valider")}</Button><Button size="xs" variant="ghost" onClick={()=>reviewExit(r.id,false)}><X size={12}/> {t("Rejeter")}</Button></>}{r.status==='approuvee'&&hasPermission('stocks','edit')&&<Button size="xs" onClick={()=>executeExit(r.id)}><Play size={12}/> {t("Exécuter")}</Button>}</div></TD></TR>)}</tbody>
           </DataTable>
         </Card>
       )}
@@ -275,27 +282,27 @@ export default function StocksPage() {
           <div className="flex items-center gap-md flex-wrap">
             <div className="flex items-center gap-sm flex-1 min-w-[200px] max-w-md">
               <Search size={14} className="text-fg-tertiary" />
-              <TInput placeholder="Rechercher code, nom, emplacement…" value={search} onChange={(e) => setSearch(e.target.value)} className="border-none bg-transparent focus:ring-0 px-0" />
+              <TInput placeholder={t("Rechercher code, nom, emplacement…")} value={search} onChange={(e) => setSearch(e.target.value)} className="border-none bg-transparent focus:ring-0 px-0" />
               {search && <button onClick={() => setSearch('')} className="text-fg-tertiary hover:text-fg-primary"><X size={14} /></button>}
             </div>
             <TSelect value={catFilter} onChange={(e) => setCatFilter(e.target.value)} className="h-8 w-auto min-w-[160px] text-body-sm">
-              <option value="all">Toutes catégories</option>
-              {CATS.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
+              <option value="all">{t("Toutes catégories")}</option>
+              {CATS.map(c => <option key={c.code} value={c.code}>{_uiNode(c.label)}</option>)}
             </TSelect>
-            <TSelect value={warehouseId} onChange={e=>setWarehouseId(e.target.value)} className="w-auto"><option value="">Tous les entrepôts — total client</option>{warehouses.map(w=><option key={w.id} value={w.id}>{w.name}{w.is_active?'':' (inactif)'}</option>)}</TSelect>
+            <TSelect value={warehouseId} onChange={e=>setWarehouseId(e.target.value)} className="w-auto"><option value="">{t("Tous les entrepôts — total client")}</option>{warehouses.map(w=><option key={w.id} value={w.id}>{w.name}{w.is_active?'':_ui("(inactif)")}</option>)}</TSelect>
           </div>
         </Card>
       )}
 
-      <Card animate delay={0.25} padding="none" className="overflow-hidden">
+      <Card animate delay={0.25} padding="none" className="itrix-table">
         {loading ? (
           <div className="p-md space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
         ) : filtered.length === 0 ? (
-          <EmptyState icon={Package} title="Stock vide" description="Crée un article pour commencer." action={<Button onClick={openNewArt}><Plus size={14} /> Article</Button>} />
+          <EmptyState icon={Package} title={t("Stock vide")} description={t("Crée un article pour commencer.")} action={<Button onClick={openNewArt}><Plus size={14} /> {t("Article")}</Button>} />
         ) : (
           <DataTable minWidth={1200}>
             <THead>
-              <TR><TH>Code</TH><TH>Article</TH><TH>Catégorie</TH><TH right>Stock</TH><TH right>Seuil</TH><TH right>Coût unit.</TH><TH right>Valeur</TH><TH>Alerte</TH><TH right>Actions</TH></TR>
+              <TR><TH>{t("Code")}</TH><TH>{t("Article")}</TH><TH>{t("Catégorie")}</TH><TH right>{t("Stock")}</TH><TH right>{t("Seuil")}</TH><TH right>{t("Coût unit.")}</TH><TH right>{t("Valeur")}</TH><TH>{t("Alerte")}</TH><TH right>{t("Actions")}</TH></TR>
             </THead>
             <tbody>
               {filtered.map((i, idx) => {
@@ -306,14 +313,14 @@ export default function StocksPage() {
                     <TD className="font-display font-semibold text-fg-primary">{i.name}</TD>
                     <TD><Badge variant="info" size="sm">{i.category}</Badge></TD>
                     <TD right mono className={alerte ? 'text-danger font-bold' : 'text-success font-bold'}>{i.current_qty} {i.unit}</TD>
-                    <TD right mono className="text-caption text-fg-tertiary">{i.min_qty} {i.unit}{warehouseId&&hasPermission('stocks','edit')&&<Button size="xs" variant="ghost" onClick={async()=>{const value=prompt('Seuil d’alerte pour cet entrepôt',String(i.min_qty));if(value===null)return;const n=Number(value.replace(',','.'));if(!Number.isFinite(n)||n<0){toast.error('Seuil invalide');return}const {error}=await supabase.rpc('set_warehouse_stock_threshold',{p_warehouse:warehouseId,p_item:i.id,p_min:n});if(error)toast.error(error.message);else{toast.success('Seuil enregistré');load()}}}>Modifier</Button>}</TD>
-                    <TD right mono className="text-caption">{i.unit_cost ? `${i.unit_cost.toFixed(2)} MAD` : '—'}</TD>
+                    <TD right mono className="text-caption text-fg-tertiary">{i.min_qty} {i.unit}{warehouseId&&hasPermission('stocks','edit')&&<Button size="xs" variant="ghost" onClick={async()=>{const value=prompt(_ui("Seuil d’alerte pour cet entrepôt"),String(i.min_qty));if(value===null)return;const n=Number(value.replace(',','.'));if(!Number.isFinite(n)||n<0){toast.error(_ui("Seuil invalide"));return}const {error}=await supabase.rpc('set_warehouse_stock_threshold',{p_warehouse:warehouseId,p_item:i.id,p_min:n});if(error)toast.error(error.message);else{toast.success(_ui("Seuil enregistré"));load()}}}>{t("Modifier")}</Button>}</TD>
+                    <TD right mono className="text-caption">{i.unit_cost ? _ui("{v0} MAD",{v0:String(i.unit_cost.toFixed(2))}) : '—'}</TD>
                     <TD right mono className="font-semibold"><MoneyDisplay value={(i.current_qty || 0) * (i.unit_cost || 0)} compact="auto" showCurrency={false} /></TD>
-                    <TD>{alerte ? <Badge variant="danger" size="sm">⚠ Alerte</Badge> : <Badge variant="success" size="sm" dot>OK</Badge>}</TD>
+                    <TD>{alerte ? <Badge variant="danger" size="sm">{t("⚠ Alerte")}</Badge> : <Badge variant="success" size="sm" dot>OK</Badge>}</TD>
                     <TD right>
                       <div className="flex items-center justify-end gap-1">
-                        <Button onClick={() => openMvt(i, 'entree')} variant="secondary" size="xs" title="Entrée"><ArrowUpCircle size={12} /></Button>
-                        <Button onClick={() => openMvt(i, 'sortie')} variant="ghost" size="xs" title="Sortie"><ArrowDownCircle size={12} /></Button>
+                        <Button onClick={() => openMvt(i, 'entree')} variant="secondary" size="xs" title={t("Entrée")}><ArrowUpCircle size={12} /></Button>
+                        <Button onClick={() => openMvt(i, 'sortie')} variant="ghost" size="xs" title={t("Sortie")}><ArrowDownCircle size={12} /></Button>
                         <Button onClick={() => openEditArt(i)} variant="ghost" size="icon-sm"><Pencil size={12} strokeWidth={2.2} /></Button>
                       </div>
                     </TD>

@@ -1,5 +1,5 @@
 /**
- * FarmPilot — Helpers de formatage unifiés.
+ * ItriX Farm — Helpers de formatage unifiés.
  *
  * Une seule source de vérité pour afficher tous les chiffres dans l'app.
  * Locale FR avec espaces fines insécables, modes compact (auto/always/never),

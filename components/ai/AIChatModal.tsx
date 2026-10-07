@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useRef, useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { sendChatMessage, ChatMessage, AIChatInput } from '@/lib/aiChat'
@@ -89,6 +91,8 @@ export function AIChatModal(props: {
   baseInput: Omit<AIChatInput, 'messages'>
   onClose: () => void
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { baseInput, onClose } = props
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
@@ -120,14 +124,14 @@ export function AIChatModal(props: {
   }
 
   return (
-    <Modal title="🤖 ASSISTANT IA — COMPTE D'EXPLOITATION" onClose={onClose} size="lg">
+    <Modal title={_ui("🤖 ASSISTANT IA — COMPTE D'EXPLOITATION")} onClose={onClose} size="lg">
       {/* Bandeau contexte */}
       <div style={{ padding: 8, marginBottom: 10, background: 'var(--bg-deep)', border: '1px solid var(--bd-1)', borderRadius: 6, fontSize: 11, color: 'var(--tx-3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
         <div>
-          <strong>Campagne :</strong> {baseInput.context.campaignName} · <strong>Version :</strong> {baseInput.context.versionName} · <strong>Périmètre :</strong> {
-            baseInput.context.scope === 'domain' ? 'Domaine' :
-            baseInput.context.scope === 'farm' ? `Ferme ${baseInput.context.farmName ?? ''}` :
-            `Serre ${baseInput.context.greenhouseCode ?? ''}`
+          <strong>{_ui("Campagne :")}</strong> {baseInput.context.campaignName} · <strong>{_ui("Version :")}</strong> {baseInput.context.versionName} · <strong>{_ui("Périmètre :")}</strong> {
+            baseInput.context.scope === 'domain' ? _ui("Domaine") :
+            baseInput.context.scope === 'farm' ? _ui("Ferme {v0}",{v0:String(baseInput.context.farmName ?? '')}) :
+            _ui("Serre {v0}",{v0:String(baseInput.context.greenhouseCode ?? '')})
           }
         </div>
         {model && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--tx-3)' }}>{model}</span>}
@@ -137,8 +141,7 @@ export function AIChatModal(props: {
       {messages.length === 0 && (
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 11, color: 'var(--tx-3)', marginBottom: 8 }}>
-            Pose une question ou clique une question rapide pour démarrer.
-          </div>
+            {" "}{_ui("Pose une question ou clique une question rapide pour démarrer.")}{" "}</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {SUGGESTED.map((s, i) => (
               <button key={i} onClick={() => send(s.q)} disabled={loading}
@@ -152,7 +155,7 @@ export function AIChatModal(props: {
                   fontSize: 11,
                   fontFamily: 'var(--font-mono)',
                 }}>
-                {s.label}
+                {_uiNode(s.label)}
               </button>
             ))}
           </div>
@@ -183,7 +186,7 @@ export function AIChatModal(props: {
             fontSize: 12.5,
           }}>
             <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 4 }}>
-              {m.role === 'user' ? 'VOUS' : '🤖 ASSISTANT'}
+              {m.role === 'user' ? _ui("VOUS") : _ui("🤖 ASSISTANT")}
             </div>
             {m.role === 'user' ? (
               <div style={{ whiteSpace: 'pre-wrap', color: 'var(--tx-1)' }}>{m.content}</div>
@@ -199,8 +202,7 @@ export function AIChatModal(props: {
             border: '1px solid var(--bd-1)', fontSize: 12, color: 'var(--tx-3)',
           }}>
             <span style={{ display: 'inline-block', width: 12, height: 12, border: '2px solid var(--bd-1)', borderTopColor: 'var(--neon)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginRight: 8, verticalAlign: 'middle' }} />
-            L'assistant réfléchit…
-            <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+            {" "}{_ui("L'assistant réfléchit…")}{" "}<style>{"@keyframes spin { to { transform: rotate(360deg) } }"}</style>
           </div>
         )}
         {error && (
@@ -209,7 +211,7 @@ export function AIChatModal(props: {
             border: '1px solid color-mix(in srgb, var(--red) 30%, transparent)', borderRadius: 8,
             color: 'var(--red)', fontSize: 11,
           }}>
-            ⚠ {error}
+            ⚠ {_uiNode(error)}
           </div>
         )}
       </div>
@@ -222,7 +224,7 @@ export function AIChatModal(props: {
           onKeyDown={e => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input) }
           }}
-          placeholder="Pose une question… (Entrée pour envoyer, Shift+Entrée pour nouvelle ligne)"
+          placeholder={_ui("Pose une question… (Entrée pour envoyer, Shift+Entrée pour nouvelle ligne)")}
           rows={2}
           disabled={loading}
           style={{
@@ -244,8 +246,7 @@ export function AIChatModal(props: {
             fontWeight: 700,
             letterSpacing: 1,
           }}>
-          ENVOYER
-        </button>
+          {" "}{_ui("ENVOYER")}{" "}</button>
       </div>
     </Modal>
   )

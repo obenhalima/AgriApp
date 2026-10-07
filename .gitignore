@@ -10,6 +10,8 @@
 /.next/
 /.next-costing-check/
 /.next-mobile-check/
+/.next-*/
+/outputs/
 /out/
 
 # production

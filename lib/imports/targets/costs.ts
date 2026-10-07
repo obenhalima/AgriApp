@@ -254,8 +254,8 @@ export const costsTarget: ImportTarget = {
     ]] : []
 
     return await buildTemplate({
-      title: 'Template Import Coûts — FarmPilot',
-      author: 'FarmPilot',
+      title: 'Template Import Coûts — ItriX Farm',
+      author: 'ItriX Farm',
       instructions: {
         title: '📥 Import des coûts — Guide rapide',
         lines: [

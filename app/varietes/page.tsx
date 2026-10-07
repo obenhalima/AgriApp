@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * /varietes — Refonte avec design system.
  */
@@ -28,6 +30,8 @@ import { type Crop, listCrops } from '@/lib/crops'
 
 // ─── Formulaire partagé (HORS du composant parent pour éviter remount/focus loss) ───
 function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e: any) => void }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { values: refTypes } = useReferenceList('variety_type')
   const { values: destinations } = useReferenceList('variety_destination')
   const [crops, setCrops] = useState<Crop[]>([])
@@ -46,42 +50,42 @@ function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e:
   return (
     <div className="space-y-md">
       <div className="grid grid-cols-2 gap-md">
-        <Field label="Code"><TInput value={vals.code} onChange={onChange('code')} /></Field>
-        <Field label="Nom commercial" required><TInput value={vals.commercial_name} onChange={onChange('commercial_name')} placeholder="Vitalia" autoFocus /></Field>
+        <Field label={_ui("Code")}><TInput value={vals.code} onChange={onChange('code')} /></Field>
+        <Field label={_ui("Nom commercial")} required><TInput value={vals.commercial_name} onChange={onChange('commercial_name')} placeholder={_ui("Vitalia")} autoFocus /></Field>
       </div>
       <div className="grid grid-cols-2 gap-md">
-        <Field label="Culture">
+        <Field label={_ui("Culture")}>
           <TSelect value={vals.crop_id ?? ''} onChange={onChange('crop_id')}>
-            <option value="">— choisir —</option>
+            <option value="">{_ui("— choisir —")}</option>
             {crops.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
           </TSelect>
         </Field>
-        <Field label="Type">
+        <Field label={_ui("Type")}>
           <TSelect value={vals.type} onChange={onChange('type')}>
-            {typeOptions.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
+            {typeOptions.map(t => <option key={t.code} value={t.code}>{_uiNode(t.label)}</option>)}
           </TSelect>
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-md">
-        <Field label="Destination">
+        <Field label={_ui("Destination")}>
           <TSelect value={vals.destination} onChange={onChange('destination')}>
-            {destinations.map(d => <option key={d.code} value={d.code}>{d.label}</option>)}
+            {destinations.map(d => <option key={d.code} value={d.code}>{_uiNode(d.label)}</option>)}
           </TSelect>
         </Field>
         <div />
       </div>
       <div className="grid grid-cols-2 gap-md">
-        <Field label="Rendement th. (kg/m²)"><TInput type="number" value={vals.theoretical_yield_per_m2} onChange={onChange('theoretical_yield_per_m2')} placeholder="45" /></Field>
-        <Field label="Coût th. (MAD/m²)"><TInput type="number" value={vals.theoretical_cost_per_m2} onChange={onChange('theoretical_cost_per_m2')} placeholder="120" /></Field>
+        <Field label={_ui("Rendement th. (kg/m²)")}><TInput type="number" value={vals.theoretical_yield_per_m2} onChange={onChange('theoretical_yield_per_m2')} placeholder="45" /></Field>
+        <Field label={_ui("Coût th. (MAD/m²)")}><TInput type="number" value={vals.theoretical_cost_per_m2} onChange={onChange('theoretical_cost_per_m2')} placeholder="120" /></Field>
       </div>
       <div className="grid grid-cols-2 gap-md">
-        <Field label="Prix local (MAD/kg)"><TInput type="number" value={vals.avg_price_local} onChange={onChange('avg_price_local')} placeholder="3.50" /></Field>
-        <Field label="Prix export (MAD/kg)" hint="Saisir en MAD. Pour utiliser EUR/USD, configure la devise sur le marché concerné."><TInput type="number" value={vals.avg_price_export} onChange={onChange('avg_price_export')} placeholder="7.00" /></Field>
+        <Field label={_ui("Prix local (MAD/kg)")}><TInput type="number" value={vals.avg_price_local} onChange={onChange('avg_price_local')} placeholder="3.50" /></Field>
+        <Field label={_ui("Prix export (MAD/kg)")} hint="Saisir en MAD. Pour utiliser EUR/USD, configure la devise sur le marché concerné."><TInput type="number" value={vals.avg_price_export} onChange={onChange('avg_price_export')} placeholder="7.00" /></Field>
       </div>
-      <Field label="Cycle estimé (jours)" hint="Plantation → fin récolte">
+      <Field label={_ui("Cycle estimé (jours)")} hint="Plantation → fin récolte">
         <TInput type="number" value={vals.estimated_cycle_days} onChange={onChange('estimated_cycle_days')} placeholder="200" />
       </Field>
-      <Field label="Notes techniques"><Textarea rows={2} value={vals.technical_notes} onChange={onChange('technical_notes')} /></Field>
+      <Field label={_ui("Notes techniques")}><Textarea rows={2} value={vals.technical_notes} onChange={onChange('technical_notes')} /></Field>
     </div>
   )
 }
@@ -102,6 +106,8 @@ const blank = {
 }
 
 export default function VarietesPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { values: TYPES } = useReferenceList('variety_type')
   const { values: DESTINATIONS } = useReferenceList('variety_destination')
   const [items, setItems] = useState<any[]>([])
@@ -169,9 +175,9 @@ export default function VarietesPage() {
         estimated_cycle_days: form.estimated_cycle_days ? Number(form.estimated_cycle_days) : undefined,
       })
       setItems(p => [n, ...p]); setDone(true)
-      toast.success(`Variété "${n.commercial_name}" créée`)
+      toast.success(_ui("Variété \"{v0}\" créée",{v0:String(n.commercial_name)}))
       setTimeout(() => { setModalNew(false); setDone(false) }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSaving(false)
   }
 
@@ -190,54 +196,53 @@ export default function VarietesPage() {
       }).eq('id', modalEdit.id)
       if (error) throw error
       setDone(true)
-      toast.success('Variété modifiée')
+      toast.success(_ui("Variété modifiée"))
       setTimeout(() => { setModalEdit(null); setDone(false); load() }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSaving(false)
   }
 
   const del = async (v: any) => {
-    if (!confirm(`Archiver "${v.commercial_name}" ?`)) return
+    if (!confirm(_ui("Archiver \"{v0}\" ?",{v0:String(v.commercial_name)}))) return
     try {
       await deleteVariete(v.id)
       setItems(p => p.filter(i => i.id !== v.id))
-      toast.success(`Variété archivée`)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+      toast.success(_ui("Variété archivée"))
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
   }
 
   return (
     <div>
       {modalNew && (
-        <Modal title="NOUVELLE VARIÉTÉ" onClose={() => { setModalNew(false); setDone(false) }}>
-          {done ? <SuccessMessage message="Variété créée !" /> : (
+        <Modal title={_ui("NOUVELLE VARIÉTÉ")} onClose={() => { setModalNew(false); setDone(false) }}>
+          {done ? <SuccessMessage message={_ui("Variété créée !")} /> : (
             <>
               <FormBlock vals={form} onChange={upd} />
-              <ModalFooter onCancel={() => setModalNew(false)} onSave={save} loading={saving} disabled={!form.commercial_name} saveLabel="CRÉER" />
+              <ModalFooter onCancel={() => setModalNew(false)} onSave={save} loading={saving} disabled={!form.commercial_name} saveLabel={_ui("CRÉER")} />
             </>
           )}
         </Modal>
       )}
       {modalEdit && (
-        <Modal title={`MODIFIER — ${modalEdit.commercial_name}`} onClose={() => { setModalEdit(null); setDone(false) }}>
-          {done ? <SuccessMessage message="Variété modifiée !" /> : (
+        <Modal title={_ui("MODIFIER — {v0}",{v0:String(modalEdit.commercial_name)})} onClose={() => { setModalEdit(null); setDone(false) }}>
+          {done ? <SuccessMessage message={_ui("Variété modifiée !")} /> : (
             <>
               <FormBlock vals={formE} onChange={updE} />
-              <ModalFooter onCancel={() => setModalEdit(null)} onSave={saveEdit} loading={saving} disabled={!formE.commercial_name} saveLabel="ENREGISTRER" />
+              <ModalFooter onCancel={() => setModalEdit(null)} onSave={saveEdit} loading={saving} disabled={!formE.commercial_name} saveLabel={_ui("ENREGISTRER")} />
             </>
           )}
         </Modal>
       )}
 
       <PageHeader
-        title="Variétés"
-        subtitle="Référentiel"
+        title={_ui("Variétés")}
+        subtitle={_ui("Référentiel")}
         icon={Dna}
         iconColor="#a855f7"
-        description={`${items.length} variété${items.length > 1 ? 's' : ''} de tomates`}
+        description={_ui("{v0} variété{v1} de tomates",{v0:String(items.length),v1:String(items.length > 1 ? 's' : '')})}
         actions={
           <Button onClick={openNew} variant="primary">
-            <Plus size={14} strokeWidth={2.5} /> Nouvelle variété
-          </Button>
+            <Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle variété")}{" "}</Button>
         }
         stats={loading ? [] : [
           { label: 'Total',        value: String(stats.count),                                                     icon: Dna,         color: '#a855f7' },
@@ -254,19 +259,19 @@ export default function VarietesPage() {
             <div className="flex items-center gap-sm flex-1 min-w-[200px] max-w-md">
               <Search size={14} className="text-fg-tertiary flex-shrink-0" />
               <TInput
-                placeholder="Rechercher code, nom…"
+                placeholder={_ui("Rechercher code, nom…")}
                 value={search} onChange={(e) => setSearch(e.target.value)}
                 className="border-none bg-transparent focus:ring-0 px-0"
               />
               {search && <button onClick={() => setSearch('')} className="text-fg-tertiary hover:text-fg-primary"><X size={14} /></button>}
             </div>
             <TSelect value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="h-8 w-auto min-w-[130px] text-body-sm">
-              <option value="all">Tous types</option>
-              {TYPES.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
+              <option value="all">{_ui("Tous types")}</option>
+              {TYPES.map(t => <option key={t.code} value={t.code}>{_uiNode(t.label)}</option>)}
             </TSelect>
             <TSelect value={destFilter} onChange={(e) => setDestFilter(e.target.value)} className="h-8 w-auto min-w-[150px] text-body-sm">
-              <option value="all">Toutes destinations</option>
-              {DESTINATIONS.map(d => <option key={d.code} value={d.code}>{d.label}</option>)}
+              <option value="all">{_ui("Toutes destinations")}</option>
+              {DESTINATIONS.map(d => <option key={d.code} value={d.code}>{_uiNode(d.label)}</option>)}
             </TSelect>
             <div className="ml-auto text-caption font-mono text-fg-tertiary">{filtered.length}/{items.length}</div>
           </div>
@@ -281,31 +286,31 @@ export default function VarietesPage() {
         ) : items.length === 0 ? (
           <EmptyState
             icon={Dna}
-            title="Aucune variété"
-            description="Crée tes variétés pour commencer la planification."
-            action={<Button onClick={openNew}><Plus size={14} strokeWidth={2.5} /> Nouvelle variété</Button>}
+            title={_ui("Aucune variété")}
+            description={_ui("Crée tes variétés pour commencer la planification.")}
+            action={<Button onClick={openNew}><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle variété")}</Button>}
           />
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={Search}
-            title="Aucun résultat"
-            description="Aucune variété ne correspond à tes filtres."
-            action={<Button variant="ghost" onClick={() => { setSearch(''); setTypeFilter('all'); setDestFilter('all') }}>Réinitialiser</Button>}
+            title={_ui("Aucun résultat")}
+            description={_ui("Aucune variété ne correspond à tes filtres.")}
+            action={<Button variant="ghost" onClick={() => { setSearch(''); setTypeFilter('all'); setDestFilter('all') }}>{_ui("Réinitialiser")}</Button>}
           />
         ) : (
           <DataTable minWidth={1100}>
             <THead>
               <TR>
-                <TH>Code</TH>
-                <TH>Nom commercial</TH>
-                <TH>Type</TH>
-                <TH>Destination</TH>
-                <TH right>Rdt th.</TH>
-                <TH right>Coût/m²</TH>
-                <TH right>Prix Local (MAD)</TH>
-                <TH right>Prix Export (MAD)</TH>
-                <TH right>Cycle</TH>
-                <TH right>Actions</TH>
+                <TH>{_ui("Code")}</TH>
+                <TH>{_ui("Nom commercial")}</TH>
+                <TH>{_ui("Type")}</TH>
+                <TH>{_ui("Destination")}</TH>
+                <TH right>{_ui("Rdt th.")}</TH>
+                <TH right>{_ui("Coût/m²")}</TH>
+                <TH right>{_ui("Prix Local (MAD)")}</TH>
+                <TH right>{_ui("Prix Export (MAD)")}</TH>
+                <TH right>{_ui("Cycle")}</TH>
+                <TH right>{_ui("Actions")}</TH>
               </TR>
             </THead>
             <tbody>
@@ -332,10 +337,10 @@ export default function VarietesPage() {
                   </TD>
                   <TD right>
                     <div className="flex items-center justify-end gap-1">
-                      <Button onClick={() => openEdit(v)} variant="ghost" size="icon-sm" title="Modifier">
+                      <Button onClick={() => openEdit(v)} variant="ghost" size="icon-sm" title={_ui("Modifier")}>
                         <Pencil size={12} strokeWidth={2.2} />
                       </Button>
-                      <Button onClick={() => del(v)} variant="ghost" size="icon-sm" title="Archiver" className="hover:text-danger">
+                      <Button onClick={() => del(v)} variant="ghost" size="icon-sm" title={_ui("Archiver")} className="hover:text-danger">
                         <Trash2 size={12} strokeWidth={2.2} />
                       </Button>
                     </div>

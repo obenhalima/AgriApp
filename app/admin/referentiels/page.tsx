@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * /admin/referentiels — Gestion no-code des listes déroulantes.
  *
@@ -27,6 +29,8 @@ import { Field, Input as TInput } from '@/components/ui/Input'
 import { Modal, ModalFooter } from '@/components/ui/Modal'
 
 export default function ReferentielsPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { isAdmin, loading: authLoading } = useAuth()
 
   const [lists, setLists] = useState<ReferenceList[]>([])
@@ -61,11 +65,11 @@ export default function ReferentielsPage() {
       setLists(l)
       if (l.length > 0 && !selectedKey) setSelectedKey(l[0].key)
     } catch (e: any) {
-      toast.error(`Chargement listes : ${e.message ?? e}`)
+      toast.error(_ui("Chargement listes : {v0}",{v0:String(e.message ?? e)}))
     } finally {
       setLoadingLists(false)
     }
-  }, [selectedKey])
+  }, [selectedKey,_ui])
 
   const loadValues = useCallback(async (key: string) => {
     if (!key) return
@@ -73,11 +77,11 @@ export default function ReferentielsPage() {
     try {
       setValues(await listReferenceValues(key))
     } catch (e: any) {
-      toast.error(`Chargement valeurs : ${e.message ?? e}`)
+      toast.error(_ui("Chargement valeurs : {v0}",{v0:String(e.message ?? e)}))
     } finally {
       setLoadingValues(false)
     }
-  }, [])
+  }, [_ui])
 
   useEffect(() => { loadLists() }, [loadLists])
   useEffect(() => { if (selectedKey) loadValues(selectedKey) }, [selectedKey, loadValues])
@@ -86,7 +90,7 @@ export default function ReferentielsPage() {
 
   // ─── Actions valeurs ───
   const handleAdd = async () => {
-    if (!addForm.code.trim() || !addForm.label.trim()) { toast.error('Code et libellé requis'); return }
+    if (!addForm.code.trim() || !addForm.label.trim()) { toast.error(_ui("Code et libellé requis")); return }
     setSaving(true)
     try {
       const maxOrder = values.reduce((m, v) => Math.max(m, v.order_idx), 0)
@@ -98,13 +102,13 @@ export default function ReferentielsPage() {
         order_idx: maxOrder + 1,
         metadata: hasWeight ? { poids_kg: Number(addForm.poids_kg) || 0 } : undefined,
       })
-      toast.success('Valeur ajoutée')
+      toast.success(_ui("Valeur ajoutée"))
       setAddOpen(false)
       setAddForm({ code: '', label: '', color: '', poids_kg: '' })
       await Promise.all([loadValues(selectedKey), loadLists()])
     } catch (e: any) {
-      if (/duplicate key|unique/i.test(e.message ?? '')) toast.error('Ce code existe déjà dans cette liste')
-      else toast.error(`Ajout échoué : ${e.message ?? e}`)
+      if (/duplicate key|unique/i.test(e.message ?? '')) toast.error(_ui("Ce code existe déjà dans cette liste"))
+      else toast.error(_ui("Ajout échoué : {v0}",{v0:String(e.message ?? e)}))
     } finally {
       setSaving(false)
     }
@@ -115,7 +119,7 @@ export default function ReferentielsPage() {
     try {
       await updateReferenceValue(v.id, { label })
       setValues(prev => prev.map(x => x.id === v.id ? { ...x, label } : x))
-    } catch (e: any) { toast.error(`MAJ échouée : ${e.message ?? e}`) }
+    } catch (e: any) { toast.error(_ui("MAJ échouée : {v0}",{v0:String(e.message ?? e)})) }
   }
 
   // Édition du poids unitaire (metadata.poids_kg) — listes pondérées (plateaux)
@@ -126,23 +130,23 @@ export default function ReferentielsPage() {
     try {
       await updateReferenceValue(v.id, { metadata })
       setValues(prev => prev.map(x => x.id === v.id ? { ...x, metadata } : x))
-    } catch (e: any) { toast.error(`MAJ échouée : ${e.message ?? e}`) }
+    } catch (e: any) { toast.error(_ui("MAJ échouée : {v0}",{v0:String(e.message ?? e)})) }
   }
 
   const handleSetDefault = async (v: ReferenceValue) => {
     try {
       await updateReferenceValue(v.id, { is_default: true })
       setValues(prev => prev.map(x => ({ ...x, is_default: x.id === v.id })))
-      toast.success(`"${v.label}" est la valeur par défaut`)
-    } catch (e: any) { toast.error(`MAJ échouée : ${e.message ?? e}`) }
+      toast.success(_ui("\"{v0}\" est la valeur par défaut",{v0:String(v.label)}))
+    } catch (e: any) { toast.error(_ui("MAJ échouée : {v0}",{v0:String(e.message ?? e)})) }
   }
 
   const applyToggle = async (v: ReferenceValue) => {
     try {
       await updateReferenceValue(v.id, { is_active: !v.is_active })
       setValues(prev => prev.map(x => x.id === v.id ? { ...x, is_active: !x.is_active } : x))
-      toast.success(v.is_active ? 'Valeur désactivée' : 'Valeur réactivée')
-    } catch (e: any) { toast.error(`MAJ échouée : ${e.message ?? e}`) }
+      toast.success(v.is_active ? _ui("Valeur désactivée") : _ui("Valeur réactivée"))
+    } catch (e: any) { toast.error(_ui("MAJ échouée : {v0}",{v0:String(e.message ?? e)})) }
   }
 
   const handleToggleActive = async (v: ReferenceValue) => {
@@ -153,10 +157,10 @@ export default function ReferentielsPage() {
     try { used = await countUsage(selectedKey, v.code) } catch { used = -1 }
     if (used > 0) {
       const ok = window.confirm(
-        `⚠️ "${v.label}" est utilisé par ${used} enregistrement(s).\n\n` +
-        `La désactiver l'empêchera d'être choisi dans les nouveaux formulaires, ` +
-        `mais les ${used} enregistrement(s) existant(s) la conserveront.\n\n` +
-        `Désactiver quand même ?`
+        _ui("⚠️ \"{v0}\" est utilisé par {v1} enregistrement(s).",{v0:String(v.label),v1:String(used)}) +
+        _ui("La désactiver l'empêchera d'être choisi dans les nouveaux formulaires,") +
+        _ui("mais les {v0} enregistrement(s) existant(s) la conserveront.",{v0:String(used)}) +
+        _ui("Désactiver quand même ?")
       )
       if (!ok) return
     }
@@ -170,8 +174,8 @@ export default function ReferentielsPage() {
     try { used = await countUsage(selectedKey, v.code) } catch { used = -1 }
     if (used > 0) {
       toast.error(
-        `« ${v.label} » est utilisé par ${used} enregistrement(s) — impossible de supprimer. ` +
-        `Désactive-la (👁) à la place : elle disparaît des listes mais l'historique est préservé.`,
+        _ui("« {v0} » est utilisé par {v1} enregistrement(s) — impossible de supprimer.",{v0:String(v.label),v1:String(used)}) +
+        _ui("Désactive-la (👁) à la place : elle disparaît des listes mais l'historique est préservé."),
         { duration: 8000 },
       )
       return
@@ -179,14 +183,14 @@ export default function ReferentielsPage() {
     const note = used === 0
       ? 'Cette valeur n\'est utilisée nulle part.'
       : 'L\'usage de cette liste n\'est pas tracé — vérifie qu\'elle n\'est pas référencée ailleurs.'
-    if (!window.confirm(`Supprimer définitivement « ${v.label} » ?\n\n${note}\nSuppression irréversible.`)) return
+    if (!window.confirm(_ui("Supprimer définitivement « {v0} » ? {v1} Suppression irréversible.",{v0:String(v.label),v1:String(note)}))) return
     try {
       await hardDeleteReferenceValue(v.id)
       setValues(prev => prev.filter(x => x.id !== v.id))
       await loadLists()  // rafraîchit le compteur de la liste
-      toast.success('Valeur supprimée')
+      toast.success(_ui("Valeur supprimée"))
     } catch (e: any) {
-      toast.error(`Suppression échouée : ${e.message ?? e}`)
+      toast.error(_ui("Suppression échouée : {v0}",{v0:String(e.message ?? e)}))
     }
   }
 
@@ -204,7 +208,7 @@ export default function ReferentielsPage() {
     try {
       await Promise.all(withIdx.map(v => updateReferenceValue(v.id, { order_idx: v.order_idx })))
     } catch (e: any) {
-      toast.error(`Réordonnancement échoué : ${e.message ?? e}`)
+      toast.error(_ui("Réordonnancement échoué : {v0}",{v0:String(e.message ?? e)}))
       loadValues(selectedKey)
     }
   }
@@ -221,8 +225,8 @@ export default function ReferentielsPage() {
       a.download = `referentiels-${stamp}.xlsx`
       a.click()
       URL.revokeObjectURL(url)
-      toast.success('Export Excel téléchargé')
-    } catch (e: any) { toast.error(`Export échoué : ${e.message ?? e}`) }
+      toast.success(_ui("Export Excel téléchargé"))
+    } catch (e: any) { toast.error(_ui("Export échoué : {v0}",{v0:String(e.message ?? e)})) }
   }
 
   // P4 — import : lit un fichier Excel (.xlsx) et upsert
@@ -230,31 +234,31 @@ export default function ReferentielsPage() {
     try {
       const res = await importReferentielsXlsx(file)
       toast.success(
-        `Import : ${res.values} valeur(s) dans ${res.lists} liste(s)` +
-        (res.skipped > 0 ? ` — ${res.skipped} ligne(s) ignorée(s)` : '')
+        _ui("Import : {v0} valeur(s) dans {v1} liste(s)",{v0:String(res.values),v1:String(res.lists)}) +
+        (res.skipped > 0 ? _ui("— {v0} ligne(s) ignorée(s)",{v0:String(res.skipped)}) : '')
       )
       await loadLists()
       if (selectedKey) await loadValues(selectedKey)
     } catch (e: any) {
-      toast.error(`Import échoué : ${e.message ?? e}`)
+      toast.error(_ui("Import échoué : {v0}",{v0:String(e.message ?? e)}))
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
   const handleNewList = async () => {
-    if (!newListForm.key.trim() || !newListForm.label.trim()) { toast.error('Clé et libellé requis'); return }
+    if (!newListForm.key.trim() || !newListForm.label.trim()) { toast.error(_ui("Clé et libellé requis")); return }
     setSaving(true)
     try {
       const created = await createReferenceList(newListForm)
-      toast.success('Liste créée')
+      toast.success(_ui("Liste créée"))
       setNewListOpen(false)
       setNewListForm({ key: '', label: '', description: '' })
       await loadLists()
       setSelectedKey(created.key)
     } catch (e: any) {
-      if (/duplicate key|unique/i.test(e.message ?? '')) toast.error('Cette clé existe déjà')
-      else toast.error(`Création échouée : ${e.message ?? e}`)
+      if (/duplicate key|unique/i.test(e.message ?? '')) toast.error(_ui("Cette clé existe déjà"))
+      else toast.error(_ui("Création échouée : {v0}",{v0:String(e.message ?? e)}))
     } finally {
       setSaving(false)
     }
@@ -263,8 +267,8 @@ export default function ReferentielsPage() {
   if (authLoading) return <div className="p-md"><Skeleton className="h-12 w-64" /></div>
   if (!isAdmin) return (
     <div className="p-md"><Card><div className="p-md text-center">
-      <h2 className="text-heading-sm font-bold text-fg-primary mb-sm">Accès réservé</h2>
-      <p className="text-body-sm text-fg-secondary">Cette page est réservée aux administrateurs.</p>
+      <h2 className="text-heading-sm font-bold text-fg-primary mb-sm">{_ui("Accès réservé")}</h2>
+      <p className="text-body-sm text-fg-secondary">{_ui("Cette page est réservée aux administrateurs.")}</p>
     </div></Card></div>
   )
 
@@ -272,8 +276,8 @@ export default function ReferentielsPage() {
     <div className="p-md">
       <PageHeader
         icon={List}
-        title="Référentiels"
-        description="Gérez les listes déroulantes de l'application sans code (types, catégories, unités…)"
+        title={_ui("Référentiels")}
+        description={_ui("Gérez les listes déroulantes de l'application sans code (types, catégories, unités…)")}
         actions={
           <div className="flex items-center gap-2">
             <input
@@ -283,15 +287,12 @@ export default function ReferentielsPage() {
               className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportFile(f) }}
             />
-            <Button variant="ghost" size="sm" onClick={handleExport} title="Télécharger toutes les listes en Excel">
-              <Download size={14} strokeWidth={2.5} /> Exporter Excel
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} title="Importer un fichier Excel (édité)">
-              <Upload size={14} strokeWidth={2.5} /> Importer Excel
-            </Button>
+            <Button variant="ghost" size="sm" onClick={handleExport} title={_ui("Télécharger toutes les listes en Excel")}>
+              <Download size={14} strokeWidth={2.5} /> {" "}{_ui("Exporter Excel")}{" "}</Button>
+            <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} title={_ui("Importer un fichier Excel (édité)")}>
+              <Upload size={14} strokeWidth={2.5} /> {" "}{_ui("Importer Excel")}{" "}</Button>
             <Button variant="ghost" size="sm" onClick={() => setNewListOpen(true)}>
-              <Plus size={14} strokeWidth={2.5} /> Nouvelle liste
-            </Button>
+              <Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle liste")}{" "}</Button>
           </div>
         }
       />
@@ -300,7 +301,7 @@ export default function ReferentielsPage() {
         {/* ─── Colonne gauche : listes ─── */}
         <Card padding="none" className="overflow-hidden h-fit">
           <div className="px-md py-sm border-b border-border flex items-center justify-between">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-semibold">Listes</span>
+            <span className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary font-semibold">{_ui("Listes")}</span>
             <button onClick={loadLists} className="text-fg-tertiary hover:text-fg-primary"><RefreshCw size={12} /></button>
           </div>
           {loadingLists ? (
@@ -316,7 +317,7 @@ export default function ReferentielsPage() {
                   }`}
                 >
                   <div className="min-w-0">
-                    <div className={`text-body-sm font-semibold truncate ${selectedKey === l.key ? 'text-primary' : 'text-fg-primary'}`}>{l.label}</div>
+                    <div className={`text-body-sm font-semibold truncate ${selectedKey === l.key ? 'text-primary' : 'text-fg-primary'}`}>{_uiNode(l.label)}</div>
                     <div className="font-mono text-[10px] text-fg-tertiary truncate">{l.key}</div>
                   </div>
                   <Badge variant="default" size="xs">{l.value_count}</Badge>
@@ -329,23 +330,22 @@ export default function ReferentielsPage() {
         {/* ─── Colonne droite : valeurs ─── */}
         <Card padding="none" className="overflow-hidden">
           {!selectedList ? (
-            <EmptyState icon={List} title="Sélectionne une liste" description="Choisis un référentiel à gauche pour éditer ses valeurs." />
+            <EmptyState icon={List} title={_ui("Sélectionne une liste")} description={_ui("Choisis un référentiel à gauche pour éditer ses valeurs.")} />
           ) : (
             <>
               <div className="px-md py-sm border-b border-border flex items-center justify-between gap-md flex-wrap">
                 <div>
-                  <div className="font-display text-heading-sm font-bold text-fg-primary">{selectedList.label}</div>
-                  {selectedList.description && <div className="text-body-sm text-fg-secondary">{selectedList.description}</div>}
+                  <div className="font-display text-heading-sm font-bold text-fg-primary">{_uiNode(selectedList.label)}</div>
+                  {selectedList.description && <div className="text-body-sm text-fg-secondary">{_uiNode(selectedList.description)}</div>}
                 </div>
                 <Button variant="primary" size="sm" onClick={() => setAddOpen(true)}>
-                  <Plus size={13} strokeWidth={2.5} /> Ajouter une valeur
-                </Button>
+                  <Plus size={13} strokeWidth={2.5} /> {" "}{_ui("Ajouter une valeur")}{" "}</Button>
               </div>
 
               {loadingValues ? (
                 <div className="p-md space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
               ) : values.length === 0 ? (
-                <EmptyState icon={Plus} title="Aucune valeur" description="Ajoute la première valeur de cette liste." />
+                <EmptyState icon={Plus} title={_ui("Aucune valeur")} description={_ui("Ajoute la première valeur de cette liste.")} />
               ) : (
                 <div className="divide-y divide-border">
                   {values.map((v, i) => (
@@ -392,7 +392,7 @@ export default function ReferentielsPage() {
                       {/* Default */}
                       <button
                         onClick={() => handleSetDefault(v)}
-                        title={v.is_default ? 'Valeur par défaut' : 'Définir par défaut'}
+                        title={v.is_default ? _ui("Valeur par défaut") : _ui("Définir par défaut")}
                         className={v.is_default ? 'text-warning' : 'text-fg-tertiary hover:text-warning'}
                       >
                         <Star size={16} fill={v.is_default ? 'currentColor' : 'none'} />
@@ -401,7 +401,7 @@ export default function ReferentielsPage() {
                       {/* Actif */}
                       <button
                         onClick={() => handleToggleActive(v)}
-                        title={v.is_active ? 'Désactiver (masque la valeur, garde l\'historique)' : 'Réactiver'}
+                        title={v.is_active ? _ui("Désactiver (masque la valeur, garde l'historique)") : _ui("Réactiver")}
                         className="text-fg-tertiary hover:text-fg-primary"
                       >
                         {v.is_active ? <Eye size={16} /> : <EyeOff size={16} />}
@@ -410,7 +410,7 @@ export default function ReferentielsPage() {
                       {/* Supprimer définitivement (si non utilisée) */}
                       <button
                         onClick={() => handleDelete(v)}
-                        title="Supprimer définitivement (uniquement si non utilisée)"
+                        title={_ui("Supprimer définitivement (uniquement si non utilisée)")}
                         className="text-fg-tertiary hover:text-danger"
                       >
                         <Trash2 size={16} />
@@ -421,11 +421,7 @@ export default function ReferentielsPage() {
               )}
 
               <div className="px-md py-sm border-t border-border text-caption text-fg-tertiary">
-                💡 Le <strong>code</strong> est immuable (utilisé en base). Modifie seulement le <strong>libellé affiché</strong>.
-                Glisse les lignes <GripVertical size={11} className="inline -mt-0.5" /> pour réordonner.
-                <strong>Désactiver</strong> <Eye size={11} className="inline -mt-0.5" /> masque la valeur mais garde l'historique (recommandé si elle a déjà servi).
-                <strong>Supprimer</strong> <Trash2 size={11} className="inline -mt-0.5" /> l'efface définitivement — possible seulement si elle n'est utilisée nulle part.
-                Pour éditer en masse : <strong>Exporter Excel</strong> → modifier dans Excel → <strong>Importer Excel</strong>.
+                {" "}{_ui("💡 Le")}{" "}<strong>{_ui("code")}</strong> {" "}{_ui("est immuable (utilisé en base). Modifie seulement le")}{" "}<strong>{_ui("libellé affiché")}</strong>{_ui(". Glisse les lignes")}{" "}<GripVertical size={11} className="inline -mt-0.5" /> {" "}{_ui("pour réordonner.")}{" "}<strong>{_ui("Désactiver")}</strong> <Eye size={11} className="inline -mt-0.5" /> {" "}{_ui("masque la valeur mais garde l'historique (recommandé si elle a déjà servi).")}{" "}<strong>{_ui("Supprimer")}</strong> <Trash2 size={11} className="inline -mt-0.5" /> {" "}{_ui("l'efface définitivement — possible seulement si elle n'est utilisée nulle part. Pour éditer en masse :")}{" "}<strong>{_ui("Exporter Excel")}</strong> {" "}{_ui("→ modifier dans Excel →")}{" "}<strong>{_ui("Importer Excel")}</strong>.
               </div>
             </>
           )}
@@ -434,74 +430,74 @@ export default function ReferentielsPage() {
 
       {/* ─── Modal ajout valeur ─── */}
       {addOpen && (
-        <Modal title={`Ajouter à « ${selectedList?.label} »`} onClose={() => setAddOpen(false)}>
+        <Modal title={_ui("Ajouter à « {v0} »",{v0:String(selectedList?.label)})} onClose={() => setAddOpen(false)}>
           <div className="space-y-md">
-            <Field label="Code (technique, sans espaces)" required>
+            <Field label={_ui("Code (technique, sans espaces)")} required>
               <TInput
                 value={addForm.code}
                 onChange={(e) => setAddForm(f => ({ ...f, code: e.target.value }))}
-                placeholder="ex: nouveau_type"
+                placeholder={_ui("ex: nouveau_type")}
                 autoFocus
               />
-              <div className="text-caption text-fg-tertiary mt-1">Sera normalisé en minuscules + underscores.</div>
+              <div className="text-caption text-fg-tertiary mt-1">{_ui("Sera normalisé en minuscules + underscores.")}</div>
             </Field>
-            <Field label="Libellé affiché" required>
+            <Field label={_ui("Libellé affiché")} required>
               <TInput
                 value={addForm.label}
                 onChange={(e) => setAddForm(f => ({ ...f, label: e.target.value }))}
-                placeholder="ex: Nouveau type"
+                placeholder={_ui("ex: Nouveau type")}
               />
             </Field>
             {hasWeight && (
-              <Field label="Poids unitaire (kg)" required>
+              <Field label={_ui("Poids unitaire (kg)")} required>
                 <TInput
                   type="number"
                   value={addForm.poids_kg}
                   onChange={(e) => setAddForm(f => ({ ...f, poids_kg: e.target.value }))}
-                  placeholder="ex: 10"
+                  placeholder={_ui("ex: 10")}
                 />
-                <div className="text-caption text-fg-tertiary mt-1">Poids théorique d'un plateau de ce type — sert à estimer le tonnage.</div>
+                <div className="text-caption text-fg-tertiary mt-1">{_ui("Poids théorique d'un plateau de ce type — sert à estimer le tonnage.")}</div>
               </Field>
             )}
-            <Field label="Couleur (optionnel, hex)">
+            <Field label={_ui("Couleur (optionnel, hex)")}>
               <TInput
                 value={addForm.color}
                 onChange={(e) => setAddForm(f => ({ ...f, color: e.target.value }))}
                 placeholder="#10b981"
               />
             </Field>
-            <ModalFooter onCancel={() => setAddOpen(false)} onSave={handleAdd} loading={saving} disabled={!addForm.code || !addForm.label || (hasWeight && !addForm.poids_kg)} saveLabel="AJOUTER" />
+            <ModalFooter onCancel={() => setAddOpen(false)} onSave={handleAdd} loading={saving} disabled={!addForm.code || !addForm.label || (hasWeight && !addForm.poids_kg)} saveLabel={_ui("AJOUTER")} />
           </div>
         </Modal>
       )}
 
       {/* ─── Modal nouvelle liste ─── */}
       {newListOpen && (
-        <Modal title="Nouvelle liste de référence" onClose={() => setNewListOpen(false)}>
+        <Modal title={_ui("Nouvelle liste de référence")} onClose={() => setNewListOpen(false)}>
           <div className="space-y-md">
-            <Field label="Clé technique (unique)" required>
+            <Field label={_ui("Clé technique (unique)")} required>
               <TInput
                 value={newListForm.key}
                 onChange={(e) => setNewListForm(f => ({ ...f, key: e.target.value }))}
-                placeholder="ex: payment_method"
+                placeholder={_ui("ex: payment_method")}
                 autoFocus
               />
             </Field>
-            <Field label="Libellé" required>
+            <Field label={_ui("Libellé")} required>
               <TInput
                 value={newListForm.label}
                 onChange={(e) => setNewListForm(f => ({ ...f, label: e.target.value }))}
-                placeholder="ex: Modes de paiement"
+                placeholder={_ui("ex: Modes de paiement")}
               />
             </Field>
-            <Field label="Description (optionnel)">
+            <Field label={_ui("Description (optionnel)")}>
               <TInput
                 value={newListForm.description}
                 onChange={(e) => setNewListForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="À quoi sert cette liste"
+                placeholder={_ui("À quoi sert cette liste")}
               />
             </Field>
-            <ModalFooter onCancel={() => setNewListOpen(false)} onSave={handleNewList} loading={saving} disabled={!newListForm.key || !newListForm.label} saveLabel="CRÉER" />
+            <ModalFooter onCancel={() => setNewListOpen(false)} onSave={handleNewList} loading={saving} disabled={!newListForm.key || !newListForm.label} saveLabel={_ui("CRÉER")} />
           </div>
         </Modal>
       )}

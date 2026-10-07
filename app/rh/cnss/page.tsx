@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Building, Settings2, CheckCircle2, Info, AlertCircle } from 'lucide-react'
@@ -24,6 +26,8 @@ type Declaration = {
 const MONTHS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
 export default function CNSSPage() {
+ const {t:_ui,text:_uiNode,intlLocale:_uiLocale}=useLanguage()
+
   const [declarations, setDeclarations] = useState<Declaration[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
@@ -49,7 +53,7 @@ export default function CNSSPage() {
       if (pe) throw pe
       const periodIds = (periods ?? []).map((p: any) => p.id)
       if (periodIds.length === 0) {
-        toast.error(`Aucune période de paie trouvée pour ${MONTHS[month - 1]} ${year}`)
+        toast.error(_ui("Aucune période de paie trouvée pour {v0} {v1}",{v0:String(MONTHS[month - 1]),v1:String(year)}))
         setGenerating(false); return
       }
       const { data: payslips, error: pse } = await supabase.from('payslips')
@@ -73,44 +77,42 @@ export default function CNSSPage() {
         nb_workers: distinctWorkers, ...agg, total_due,
       }, { onConflict: 'declaration_year,declaration_month' })
       if (ue) throw ue
-      toast.success(`Déclaration ${MONTHS[month - 1]} ${year} générée`)
+      toast.success(_ui("Déclaration {v0} {v1} générée",{v0:String(MONTHS[month - 1]),v1:String(year)}))
       load()
     } catch (e: any) { toast.error(e.message) }
     setGenerating(false)
   }
 
   const markDeclared = async (id: string) => {
-    const num = prompt('Numéro DAMANCOM (optionnel) :')
+    const num = prompt(_ui("Numéro DAMANCOM (optionnel) :"))
     try {
       const { error } = await supabase.from('cnss_declarations').update({
         status: 'declaree', declaration_number: num || null, declared_at: new Date().toISOString(),
       }).eq('id', id)
       if (error) throw error
-      toast.success('Déclaration marquée déclarée')
+      toast.success(_ui("Déclaration marquée déclarée"))
       load()
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
   }
 
   return (
     <div>
       <PageHeader
-        title="Déclarations CNSS" subtitle="Ressources humaines" icon={Building} iconColor="#6366f1"
-        description="Récap mensuel des cotisations CNSS — agrégé depuis les bulletins de paie validés"
+        title={_ui("Déclarations CNSS")} subtitle={_ui("Ressources humaines")} icon={Building} iconColor="#6366f1"
+        description={_ui("Récap mensuel des cotisations CNSS — agrégé depuis les bulletins de paie validés")}
       />
 
       {/* Génération */}
       <Card animate delay={0.1} className="mb-md">
         <div className="flex items-center gap-md flex-wrap">
           <span className="font-display text-body font-semibold text-fg-primary flex items-center gap-2">
-            <Settings2 size={14} className="text-info" /> Générer / mettre à jour :
-          </span>
+            <Settings2 size={14} className="text-info" /> {" "}{_ui("Générer / mettre à jour :")}{" "}</span>
           <TSelect value={month} onChange={(e) => setMonth(Number(e.target.value))} className="h-9 w-auto min-w-[140px]">
             {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
           </TSelect>
           <TInput type="number" value={year} onChange={(e) => setYear(Number(e.target.value))} className="w-24" />
           <Button onClick={generateDeclaration} loading={generating} variant="primary" size="sm">
-            <Settings2 size={12} strokeWidth={2.2} /> Calculer
-          </Button>
+            <Settings2 size={12} strokeWidth={2.2} /> {" "}{_ui("Calculer")}{" "}</Button>
         </div>
       </Card>
 
@@ -118,15 +120,15 @@ export default function CNSSPage() {
         {loading ? (
           <div className="p-md space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
         ) : declarations.length === 0 ? (
-          <EmptyState icon={Building} title="Aucune déclaration" description="Génère ta première déclaration CNSS." />
+          <EmptyState icon={Building} title={_ui("Aucune déclaration")} description={_ui("Génère ta première déclaration CNSS.")} />
         ) : (
           <DataTable minWidth={1400}>
             <THead>
               <TR>
-                <TH>Période</TH><TH>Statut</TH><TH right>Salariés</TH><TH right>Brut total</TH>
-                <TH right>CNSS sal.</TH><TH right>CNSS pat.</TH><TH right>AMO sal.</TH><TH right>AMO pat.</TH>
-                <TH right>Alloc. fam.</TH><TH right>Form. pro.</TH><TH right>Total dû</TH>
-                <TH>N° DAMANCOM</TH><TH right>Actions</TH>
+                <TH>{_ui("Période")}</TH><TH>{_ui("Statut")}</TH><TH right>{_ui("Salariés")}</TH><TH right>{_ui("Brut total")}</TH>
+                <TH right>{_ui("CNSS sal.")}</TH><TH right>{_ui("CNSS pat.")}</TH><TH right>{_ui("AMO sal.")}</TH><TH right>{_ui("AMO pat.")}</TH>
+                <TH right>{_ui("Alloc. fam.")}</TH><TH right>{_ui("Form. pro.")}</TH><TH right>{_ui("Total dû")}</TH>
+                <TH>{_ui("N° DAMANCOM")}</TH><TH right>{_ui("Actions")}</TH>
               </TR>
             </THead>
             <tbody>
@@ -135,18 +137,18 @@ export default function CNSSPage() {
                   <TD className="font-display font-semibold text-fg-primary">{MONTHS[d.declaration_month - 1]} {d.declaration_year}</TD>
                   <TD><Badge variant={d.status === 'declaree' ? 'success' : 'warning'} size="sm">{d.status}</Badge></TD>
                   <TD right mono>{d.nb_workers}</TD>
-                  <TD right mono>{Math.round(d.total_gross).toLocaleString('fr-FR')}</TD>
-                  <TD right mono>{Math.round(d.total_cnss_employee).toLocaleString('fr-FR')}</TD>
-                  <TD right mono>{Math.round(d.total_cnss_employer).toLocaleString('fr-FR')}</TD>
-                  <TD right mono>{Math.round(d.total_amo_employee).toLocaleString('fr-FR')}</TD>
-                  <TD right mono>{Math.round(d.total_amo_employer).toLocaleString('fr-FR')}</TD>
-                  <TD right mono>{Math.round(d.total_family_allowance).toLocaleString('fr-FR')}</TD>
-                  <TD right mono>{Math.round(d.total_prof_training).toLocaleString('fr-FR')}</TD>
-                  <TD right mono className="text-success font-bold">{Math.round(d.total_due).toLocaleString('fr-FR')}</TD>
+                  <TD right mono>{Math.round(d.total_gross).toLocaleString(_uiLocale)}</TD>
+                  <TD right mono>{Math.round(d.total_cnss_employee).toLocaleString(_uiLocale)}</TD>
+                  <TD right mono>{Math.round(d.total_cnss_employer).toLocaleString(_uiLocale)}</TD>
+                  <TD right mono>{Math.round(d.total_amo_employee).toLocaleString(_uiLocale)}</TD>
+                  <TD right mono>{Math.round(d.total_amo_employer).toLocaleString(_uiLocale)}</TD>
+                  <TD right mono>{Math.round(d.total_family_allowance).toLocaleString(_uiLocale)}</TD>
+                  <TD right mono>{Math.round(d.total_prof_training).toLocaleString(_uiLocale)}</TD>
+                  <TD right mono className="text-success font-bold">{Math.round(d.total_due).toLocaleString(_uiLocale)}</TD>
                   <TD mono className="text-caption text-fg-tertiary">{d.declaration_number ?? '—'}</TD>
                   <TD right>
                     {d.status === 'brouillon' && (
-                      <Button onClick={() => markDeclared(d.id)} variant="primary" size="xs"><CheckCircle2 size={11} /> Déclarer</Button>
+                      <Button onClick={() => markDeclared(d.id)} variant="primary" size="xs"><CheckCircle2 size={11} /> {" "}{_ui("Déclarer")}</Button>
                     )}
                   </TD>
                 </TR>
@@ -160,13 +162,13 @@ export default function CNSSPage() {
         <div className="flex items-start gap-sm text-body-sm text-fg-secondary">
           <Info size={14} className="text-info flex-shrink-0 mt-0.5" />
           <div>
-            <strong className="text-fg-primary">Taux appliqués (Maroc, en vigueur)</strong>
+            <strong className="text-fg-primary">{_ui("Taux appliqués (Maroc, en vigueur)")}</strong>
             <ul className="mt-2 space-y-1 list-disc list-inside text-caption">
-              <li>CNSS salarié <strong>4,48 %</strong> (plafonné à 6 000 MAD/mois) — patronale <strong>8,98 %</strong></li>
-              <li>AMO salarié <strong>2,26 %</strong> — patronale <strong>4,11 %</strong> (non plafonnées)</li>
-              <li>Allocations familiales <strong>6,4 %</strong> (patronal, plafonné CNSS)</li>
-              <li>Taxe formation professionnelle <strong>1,6 %</strong> (patronal, non plafonnée)</li>
-              <li>Export PDF DAMANCOM en V2</li>
+              <li>{_ui("CNSS salarié")}{" "}<strong>4,48 %</strong> {" "}{_ui("(plafonné à 6 000 MAD/mois) — patronale")}{" "}<strong>8,98 %</strong></li>
+              <li>{_ui("AMO salarié")}{" "}<strong>2,26 %</strong> {" "}{_ui("— patronale")}{" "}<strong>4,11 %</strong> {" "}{_ui("(non plafonnées)")}</li>
+              <li>{_ui("Allocations familiales")}{" "}<strong>6,4 %</strong> {" "}{_ui("(patronal, plafonné CNSS)")}</li>
+              <li>{_ui("Taxe formation professionnelle")}{" "}<strong>1,6 %</strong> {" "}{_ui("(patronal, non plafonnée)")}</li>
+              <li>{_ui("Export PDF DAMANCOM en V2")}</li>
             </ul>
           </div>
         </div>

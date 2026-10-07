@@ -1,11 +1,15 @@
 'use client'
 import { useEffect, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import { useLanguage } from '@/lib/i18n'
 import { ArrowLeft } from 'lucide-react'
 
 // Mark only entries reached while this app shell is mounted. A direct entry
 // must never send the user back to an unrelated external website.
 export function BackButton() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
+ const { t, locale } = useLanguage()
  const pathname=usePathname(),router=useRouter(),previous=useRef<string|null>(null)
  useEffect(()=>{
   const state=window.history.state||{}
@@ -26,5 +30,5 @@ export function BackButton() {
   if(window.history.state?.farmPilotCanGoBack)router.back()
   else router.push('/')
  }
- return <button type="button" onClick={goBack} aria-label="Revenir à la page précédente" title="Page précédente — accueil si aucune page précédente dans l’application" className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-border bg-surface-raised px-2 text-xs font-semibold text-fg-secondary hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"><ArrowLeft size={15}/><span className="hidden sm:inline">Retour</span></button>
+ return <button type="button" onClick={goBack} aria-label={_ui("Revenir à la page précédente")} title={_ui("Page précédente — accueil si aucune page précédente dans l’application")} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-border bg-surface-raised px-2 text-xs font-semibold text-fg-secondary hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"><ArrowLeft size={15} className={locale === 'ar' ? 'rotate-180' : undefined}/><span className="hidden sm:inline">{t('Retour')}</span></button>
 }

@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 
 import { FormEvent, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -10,6 +12,8 @@ import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 
 export default function ForcedPasswordChangePage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const router = useRouter()
   const { user, profile, refresh } = useAuth()
   const [password,setPassword]=useState('')
@@ -30,5 +34,5 @@ export default function ForcedPasswordChangePage() {
     router.replace('/')
   }
 
-  return <div className="min-h-screen bg-surface-sunk flex items-center justify-center p-lg"><Card variant="elevated" className="p-2xl w-full max-w-[440px]"><div className="w-14 h-14 rounded-2xl bg-warning/15 border border-warning/30 flex items-center justify-center mx-auto"><KeyRound className="text-warning"/></div><h1 className="font-display text-heading font-bold text-center mt-md">Changement obligatoire</h1><p className="text-body-sm text-fg-tertiary text-center mt-sm">Le mot de passe transmis par votre administrateur est temporaire. Choisissez votre mot de passe personnel pour continuer.</p>{!user||!profile?<div className="mt-lg text-center text-body-sm">Initialisation…</div>:<form onSubmit={submit} className="space-y-md mt-lg"><Field label="Nouveau mot de passe"><Input type="password" minLength={8} value={password} onChange={e=>setPassword(e.target.value)} required autoFocus/></Field><Field label="Confirmer le mot de passe"><Input type="password" minLength={8} value={confirm} onChange={e=>setConfirm(e.target.value)} required/></Field>{error&&<div className="rounded-md border border-danger/30 bg-danger/10 p-md text-body-sm text-danger">{error}</div>}<Button type="submit" loading={loading} disabled={!password||!confirm} className="w-full">ENREGISTRER ET CONTINUER</Button></form>}</Card></div>
+  return <div className="min-h-screen bg-surface-sunk flex items-center justify-center p-lg"><Card variant="elevated" className="p-2xl w-full max-w-[440px]"><div className="w-14 h-14 rounded-2xl bg-warning/15 border border-warning/30 flex items-center justify-center mx-auto"><KeyRound className="text-warning"/></div><h1 className="font-display text-heading font-bold text-center mt-md">{_ui("Changement obligatoire")}</h1><p className="text-body-sm text-fg-tertiary text-center mt-sm">{_ui("Le mot de passe transmis par votre administrateur est temporaire. Choisissez votre mot de passe personnel pour continuer.")}</p>{!user||!profile?<div className="mt-lg text-center text-body-sm">{_ui("Initialisation…")}</div>:<form onSubmit={submit} className="space-y-md mt-lg"><Field label={_ui("Nouveau mot de passe")}><Input type="password" minLength={8} value={password} onChange={e=>setPassword(e.target.value)} required autoFocus/></Field><Field label={_ui("Confirmer le mot de passe")}><Input type="password" minLength={8} value={confirm} onChange={e=>setConfirm(e.target.value)} required/></Field>{error&&<div className="rounded-md border border-danger/30 bg-danger/10 p-md text-body-sm text-danger">{_uiNode(error)}</div>}<Button type="submit" loading={loading} disabled={!password||!confirm} className="w-full">{_ui("ENREGISTRER ET CONTINUER")}</Button></form>}</Card></div>
 }

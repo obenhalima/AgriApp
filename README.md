@@ -1,4 +1,4 @@
-# 🍅 TomatoPilot
+# 🍅 ItriX Farm
 
 Application de gestion intégrée pour ferme de tomates sous serre.
 

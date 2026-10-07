@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * /fermes — Refonte avec design system.
  */
@@ -25,6 +27,8 @@ import { AreaDisplay } from '@/components/display'
 import { useAuth } from '@/lib/auth'
 
 export default function FermesPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { activeDomain } = useAuth()
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -88,48 +92,47 @@ export default function FermesPage() {
       if (error) throw error
       setItems(p => [data, ...p])
       setDone(true)
-      toast.success(`Ferme "${data.name}" créée`)
+      toast.success(_ui("Ferme \"{v0}\" créée",{v0:String(data.name)}))
       setTimeout(() => { setModal(false); setDone(false) }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSaving(false)
   }
 
   return (
     <div>
       {modal && (
-        <Modal title="NOUVELLE FERME" onClose={() => { setModal(false); setDone(false) }}>
-          {done ? <SuccessMessage message="Ferme créée avec succès !" /> : (
+        <Modal title={_ui("NOUVELLE FERME")} onClose={() => { setModal(false); setDone(false) }}>
+          {done ? <SuccessMessage message={_ui("Ferme créée avec succès !")} /> : (
             <div className="space-y-md">
               <div className="grid grid-cols-2 gap-md">
-                <Field label="Code (auto-généré)"><TInput value={form.code} onChange={upd('code')} placeholder="F01" /></Field>
-                <Field label="Nom de la ferme" required><TInput value={form.name} onChange={upd('name')} placeholder="Domaine Souss Agri" autoFocus /></Field>
+                <Field label={_ui("Code (auto-généré)")}><TInput value={form.code} onChange={upd('code')} placeholder="F01" /></Field>
+                <Field label={_ui("Nom de la ferme")} required><TInput value={form.name} onChange={upd('name')} placeholder={_ui("Domaine Souss Agri")} autoFocus /></Field>
               </div>
-              <Field label="Adresse"><TInput value={form.address} onChange={upd('address')} placeholder="Route d'Agadir Km 15" /></Field>
+              <Field label={_ui("Adresse")}><TInput value={form.address} onChange={upd('address')} placeholder={_ui("Route d'Agadir Km 15")} /></Field>
               <div className="grid grid-cols-2 gap-md">
-                <Field label="Ville"><TInput value={form.city} onChange={upd('city')} placeholder="Aït Melloul" /></Field>
-                <Field label="Région"><TInput value={form.region} onChange={upd('region')} placeholder="Souss-Massa" /></Field>
+                <Field label={_ui("Ville")}><TInput value={form.city} onChange={upd('city')} placeholder={_ui("Aït Melloul")} /></Field>
+                <Field label={_ui("Région")}><TInput value={form.region} onChange={upd('region')} placeholder={_ui("Souss-Massa")} /></Field>
               </div>
               <div className="grid grid-cols-2 gap-md">
-                <Field label="Pays"><TInput value={form.country} onChange={upd('country')} /></Field>
-                <Field label="Superficie totale (ha)"><TInput type="number" value={form.total_area} onChange={upd('total_area')} placeholder="5.2" /></Field>
+                <Field label={_ui("Pays")}><TInput value={form.country} onChange={upd('country')} /></Field>
+                <Field label={_ui("Superficie totale (ha)")}><TInput type="number" value={form.total_area} onChange={upd('total_area')} placeholder="5.2" /></Field>
               </div>
-              <Field label="Notes"><Textarea rows={2} value={form.notes} onChange={upd('notes')} /></Field>
-              <ModalFooter onCancel={() => setModal(false)} onSave={save} loading={saving} disabled={!form.name} saveLabel="CRÉER LA FERME" />
+              <Field label={_ui("Notes")}><Textarea rows={2} value={form.notes} onChange={upd('notes')} /></Field>
+              <ModalFooter onCancel={() => setModal(false)} onSave={save} loading={saving} disabled={!form.name} saveLabel={_ui("CRÉER LA FERME")} />
             </div>
           )}
         </Modal>
       )}
 
       <PageHeader
-        title="Fermes"
-        subtitle="Exploitation"
+        title={_ui("Fermes")}
+        subtitle={_ui("Exploitation")}
         icon={Building2}
         iconColor="#64748b"
-        description={`${items.length} ferme${items.length > 1 ? 's' : ''} enregistrée${items.length > 1 ? 's' : ''}`}
+        description={_ui("{v0} ferme{v1} enregistrée{v2}",{v0:String(items.length),v1:String(items.length > 1 ? 's' : ''),v2:String(items.length > 1 ? 's' : '')})}
         actions={
           <Button onClick={openNew} variant="primary">
-            <Plus size={14} strokeWidth={2.5} /> Nouvelle ferme
-          </Button>
+            <Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle ferme")}{" "}</Button>
         }
         stats={loading ? [] : [
           { label: 'Total',     value: String(stats.count),                                               icon: Building2, color: '#64748b' },
@@ -144,7 +147,7 @@ export default function FermesPage() {
           <div className="flex items-center gap-sm">
             <Search size={14} className="text-fg-tertiary flex-shrink-0" />
             <TInput
-              placeholder="Rechercher nom, code, ville, région…"
+              placeholder={_ui("Rechercher nom, code, ville, région…")}
               value={search} onChange={(e) => setSearch(e.target.value)}
               className="border-none bg-transparent focus:ring-0 px-0"
             />
@@ -165,16 +168,16 @@ export default function FermesPage() {
       ) : items.length === 0 ? (
         <EmptyState
           icon={Building2}
-          title="Aucune ferme enregistrée"
-          description="Commence par créer ta première ferme pour piloter ton exploitation."
-          action={<Button onClick={openNew}><Plus size={14} strokeWidth={2.5} /> Nouvelle ferme</Button>}
+          title={_ui("Aucune ferme enregistrée")}
+          description={_ui("Commence par créer ta première ferme pour piloter ton exploitation.")}
+          action={<Button onClick={openNew}><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle ferme")}</Button>}
         />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Search}
-          title="Aucun résultat"
-          description="Aucune ferme ne correspond à ta recherche."
-          action={<Button variant="ghost" onClick={() => setSearch('')}>Réinitialiser</Button>}
+          title={_ui("Aucun résultat")}
+          description={_ui("Aucune ferme ne correspond à ta recherche.")}
+          action={<Button variant="ghost" onClick={() => setSearch('')}>{_ui("Réinitialiser")}</Button>}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
@@ -205,7 +208,7 @@ export default function FermesPage() {
                     </div>
                   </div>
                   <Badge variant={f.is_active ? 'success' : 'default'} size="sm" dot={f.is_active}>
-                    {f.is_active ? 'Active' : 'Inactive'}
+                    {f.is_active ? _ui("Active") : _ui("Inactive")}
                   </Badge>
                 </div>
 
@@ -218,7 +221,7 @@ export default function FermesPage() {
                   ].map((item, idx) => (
                     <div key={idx} className="rounded-md bg-surface-sunk border border-border px-md py-sm">
                       <div className="font-mono text-[9px] uppercase tracking-wider text-fg-tertiary mb-0.5">
-                        {item.label}
+                        {_uiNode(item.label)}
                       </div>
                       <div className="font-semibold text-body-sm text-fg-primary truncate">{item.value}</div>
                     </div>

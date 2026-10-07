@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * DASHBOARD CEO — Synthèse exécutive « comprendre en 5 secondes ».
  *
@@ -114,17 +116,21 @@ const healthColor = (h: Health) => h === 'good' ? '#10b981' : h === 'warning' ? 
 // COMPOSANT PRINCIPAL
 // ════════════════════════════════════════════════════════════════════════════
 export default function DashboardPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { user, profile, loading, activeDomain, hasPermission } = useAuth()
   const router = useRouter()
   const {home,nav,loading:menuLoading}=useProfileNavigation()
   const destination=home||(hasPermission('agronomie','view')&&nav.some(g=>g.items.some(i=>i.href==='/agronomie/dashboard'))?'/agronomie/dashboard':'/')
   const redirect=!!user&&!profile?.must_change_password&&!!activeDomain&&destination!=='/'
   useEffect(() => { if (!loading&&!menuLoading&&redirect) router.replace(destination) }, [loading,menuLoading,redirect,destination,router])
-  if (loading || menuLoading || redirect) return <p role="status" className="p-5 text-fg-secondary">Ouverture de votre tableau de bord…</p>
+  if (loading || menuLoading || redirect) return <p role="status" className="p-5 text-fg-secondary">{_ui("Ouverture de votre tableau de bord…")}</p>
   return <GeneralDashboard />
 }
 
 function GeneralDashboard() {
+ const {t:_ui,text:_uiNode,intlLocale:_uiLocale}=useLanguage()
+
   const [data, setData] = useState<DashboardData>(EMPTY_DATA)
   const [loading, setLoading] = useState(true)
   const [time, setTime] = useState(new Date())
@@ -530,7 +536,7 @@ function GeneralDashboard() {
       const dt = daysAgo(29 - i)
       const key = dt.slice(5)  // "MM-DD"
       trendMap.set(dt, {
-        label: new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short' }).format(new Date(dt + 'T00:00:00')),
+        label: new Intl.DateTimeFormat(_uiLocale, { day: '2-digit', month: 'short' }).format(new Date(dt + 'T00:00:00')),
         sortKey: dt, production: 0, ca: 0, couts: 0,
       })
     }
@@ -679,7 +685,7 @@ function GeneralDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-md">
         <KPIWithInsight insight={insightMargeBrute(aiMetrics)}>
           <KPICard
-            label="Marge brute"
+            label={_ui("Marge brute")}
             icon={metrics.margeBrute >= 0 ? TrendingUp : TrendingDown}
             accent={metrics.margeBrute >= 0 ? '#10b981' : '#ef4444'}
             value={<MoneyDisplay value={metrics.margeBrute} compact="auto" showCurrency={false} className="!text-current font-display !text-display-lg" />}
@@ -690,7 +696,7 @@ function GeneralDashboard() {
         </KPIWithInsight>
         <KPIWithInsight insight={insightCash(aiMetrics)}>
           <KPICard
-            label="Trésorerie nette"
+            label={_ui("Trésorerie nette")}
             icon={Wallet}
             accent={metrics.cashPosition >= 0 ? '#3b82f6' : '#ef4444'}
             value={<MoneyDisplay value={metrics.cashPosition} compact="auto" showCurrency={false} className="!text-current font-display !text-display-lg" />}
@@ -701,7 +707,7 @@ function GeneralDashboard() {
         </KPIWithInsight>
         <KPIWithInsight insight={insightReceivables(aiMetrics)}>
           <KPICard
-            label="Créances clients"
+            label={_ui("Créances clients")}
             icon={Receipt}
             accent={metrics.overdueAmount > 0 ? '#f59e0b' : '#10b981'}
             value={<MoneyDisplay value={metrics.totalReceivable} compact="auto" showCurrency={false} className="!text-current font-display !text-display-lg" />}
@@ -712,7 +718,7 @@ function GeneralDashboard() {
         </KPIWithInsight>
         <KPIWithInsight insight={insightCostsBudget(aiMetrics)}>
           <KPICard
-            label="Coûts vs Budget"
+            label={_ui("Coûts vs Budget")}
             icon={metrics.costsVsBudgetPct > 5 ? TrendingUp : metrics.costsVsBudgetPct < -5 ? TrendingDown : Activity}
             accent={Math.abs(metrics.costsVsBudgetPct) <= 5 ? '#10b981' : metrics.costsVsBudgetPct > 10 ? '#ef4444' : '#f59e0b'}
             value={<span className="font-display !text-display-lg">{metrics.costsVsBudgetPct > 0 ? '+' : ''}{metrics.costsVsBudgetPct.toFixed(1)}%</span>}
@@ -731,7 +737,7 @@ function GeneralDashboard() {
 
       {/* ═══════════ TENDANCE 30 JOURS ═══════════ */}
       <Card animate delay={0.25}>
-        <SectionLabel icon={LineIcon} color="#6366f1">Tendance 30 jours · Production / CA / Coûts</SectionLabel>
+        <SectionLabel icon={LineIcon} color="#6366f1">{_ui("Tendance 30 jours · Production / CA / Coûts")}</SectionLabel>
         <div className="h-72 mt-md -mx-2">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={metrics.trendData}>
@@ -800,6 +806,8 @@ function HealthBanner({ health, message, synthesis, time, campaign, budgetProgre
   health: Health; message: string; synthesis: string[]; time: Date
   campaign: any; budgetProgressPct: number
 }) {
+ const {t:_ui,text:_uiNode,intlLocale:_uiLocale}=useLanguage()
+
   const color = healthColor(health)
   const Icon = health === 'good' ? CheckCircle2 : health === 'warning' ? AlertCircle : XCircle
   return (
@@ -824,9 +832,9 @@ function HealthBanner({ health, message, synthesis, time, campaign, budgetProgre
                 <Icon size={20} strokeWidth={2.4} />
               </div>
               <div className="flex-1">
-                <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-0.5">SANTÉ DU DOMAINE</div>
+                <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-0.5">{_ui("SANTÉ DU DOMAINE")}</div>
                 <h1 className="font-display text-display-sm sm:text-display text-fg-primary tracking-tight" style={{ color }}>
-                  {message}
+                  {_uiNode(message)}
                 </h1>
               </div>
             </div>
@@ -848,12 +856,12 @@ function HealthBanner({ health, message, synthesis, time, campaign, budgetProgre
                 <span className="font-mono text-caption text-fg-tertiary uppercase tracking-wider">Live</span>
               </div>
               <div className="font-mono text-body-sm text-fg-primary tabular-nums">
-                {time.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long' })} · {time.toLocaleTimeString('fr-FR')}
+                {time.toLocaleDateString(_uiLocale, { weekday: 'long', day: '2-digit', month: 'long' })} · {time.toLocaleTimeString(_uiLocale)}
               </div>
             </div>
             {campaign && (
               <div className="rounded-md border border-border bg-surface-sunk/60 px-md py-sm">
-                <div className="font-mono text-caption text-fg-tertiary uppercase tracking-wider mb-1">Campagne en cours</div>
+                <div className="font-mono text-caption text-fg-tertiary uppercase tracking-wider mb-1">{_ui("Campagne en cours")}</div>
                 <div className="text-body-sm font-semibold text-fg-primary truncate">{campaign.name}</div>
                 <div className="mt-1 flex items-center gap-2">
                   <div className="flex-1 h-1.5 rounded-full bg-surface-base overflow-hidden">
@@ -873,26 +881,28 @@ function HealthBanner({ health, message, synthesis, time, campaign, budgetProgre
 
 // ─── Carte Actions prioritaires ─────────────────────────────────────────
 function ActionsCard({ actions }: { actions: any[] }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <Card animate delay={0.15} padding="none" className="overflow-hidden">
       <div className="px-md py-sm border-b border-border flex items-center gap-sm">
         <Target size={14} className="text-danger" strokeWidth={2.4} />
-        <span className="font-display text-heading-sm font-bold text-fg-primary">Actions prioritaires</span>
+        <span className="font-display text-heading-sm font-bold text-fg-primary">{_ui("Actions prioritaires")}</span>
         <Badge variant={actions.length > 0 ? 'danger' : 'success'} size="sm" className="ml-auto">
-          {actions.length === 0 ? 'Aucune action requise' : `${actions.length} action${actions.length > 1 ? 's' : ''}`}
+          {actions.length === 0 ? _ui("Aucune action requise") : _ui("{v0} action{v1}",{v0:String(actions.length),v1:String(actions.length > 1 ? 's' : '')})}
         </Badge>
       </div>
       {actions.length === 0 ? (
         <div className="p-xl text-center">
           <CheckCircle2 size={32} className="text-success mx-auto mb-sm" />
-          <div className="font-display text-body font-semibold text-fg-primary">Tout est sous contrôle</div>
-          <div className="text-caption text-fg-tertiary mt-1">Aucune action urgente à traiter</div>
+          <div className="font-display text-body font-semibold text-fg-primary">{_ui("Tout est sous contrôle")}</div>
+          <div className="text-caption text-fg-tertiary mt-1">{_ui("Aucune action urgente à traiter")}</div>
         </div>
       ) : (
         <div className="divide-y divide-border">
           {actions.slice(0, 6).map((a, i) => {
             const Icon = a.icon
-            const priorityLabel = a.priority === 1 ? 'URGENT' : a.priority === 2 ? 'IMPORTANT' : 'À SUIVRE'
+            const priorityLabel = a.priority === 1 ? _ui("URGENT") : a.priority === 2 ? _ui("IMPORTANT") : _ui("À SUIVRE")
             return (
               <motion.div
                 key={i}
@@ -913,7 +923,7 @@ function ActionsCard({ actions }: { actions: any[] }) {
                       </span>
                       <div className="font-display text-body-sm font-bold text-fg-primary truncate">{a.title}</div>
                     </div>
-                    <div className="text-caption text-fg-tertiary truncate">{a.subtitle}</div>
+                    <div className="text-caption text-fg-tertiary truncate">{_uiNode(a.subtitle)}</div>
                   </div>
                   <ChevronRight size={14} className="text-fg-tertiary group-hover:text-fg-primary group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-2" />
                 </Link>
@@ -928,11 +938,13 @@ function ActionsCard({ actions }: { actions: any[] }) {
 
 // ─── Carte Santé Production ─────────────────────────────────────────────
 function ProductionHealthCard({ metrics }: { metrics: any }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <Card animate delay={0.2} padding="none" className="overflow-hidden">
       <div className="px-md py-sm border-b border-border flex items-center gap-sm">
         <Sprout size={14} className="text-success" strokeWidth={2.4} />
-        <span className="font-display text-heading-sm font-bold text-fg-primary">Santé production</span>
+        <span className="font-display text-heading-sm font-bold text-fg-primary">{_ui("Santé production")}</span>
       </div>
 
       <div className="p-md space-y-md">
@@ -940,11 +952,11 @@ function ProductionHealthCard({ metrics }: { metrics: any }) {
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <div>
-              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary">Yield (kg/m²)</div>
+              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary">{_ui("Yield (kg/m²)")}</div>
               <div className="font-display text-display-sm font-extrabold mt-0.5"
                 style={{ color: metrics.yieldRatio >= 95 ? '#10b981' : metrics.yieldRatio >= 80 ? '#f59e0b' : '#ef4444' }}>
                 {metrics.yieldKgM2.toFixed(1)}
-                <span className="text-body text-fg-tertiary font-normal ml-1">/ {metrics.targetYield.toFixed(1)} cible</span>
+                <span className="text-body text-fg-tertiary font-normal ml-1">/ {metrics.targetYield.toFixed(1)} {" "}{_ui("cible")}</span>
               </div>
             </div>
             <Badge
@@ -966,7 +978,7 @@ function ProductionHealthCard({ metrics }: { metrics: any }) {
 
         {/* Mix qualité */}
         <div>
-          <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-2">Mix qualité (mois)</div>
+          <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-2">{_ui("Mix qualité (mois)")}</div>
           <div className="flex h-5 rounded-md overflow-hidden border border-border">
             {[
               { v: metrics.cat1, c: '#10b981', l: 'Cat 1' },
@@ -979,18 +991,18 @@ function ProductionHealthCard({ metrics }: { metrics: any }) {
             })}
           </div>
           <div className="grid grid-cols-4 gap-xs mt-2">
-            <QualityCell label="Cat 1" value={metrics.cat1} pct={metrics.totalQ > 0 ? (metrics.cat1 / metrics.totalQ) * 100 : 0} color="#10b981" highlight={metrics.premiumRate >= 60} />
-            <QualityCell label="Cat 2" value={metrics.cat2} pct={metrics.totalQ > 0 ? (metrics.cat2 / metrics.totalQ) * 100 : 0} color="#3b82f6" />
-            <QualityCell label="Cat 3" value={metrics.cat3} pct={metrics.totalQ > 0 ? (metrics.cat3 / metrics.totalQ) * 100 : 0} color="#f59e0b" />
-            <QualityCell label="Déchets" value={metrics.waste} pct={metrics.totalQ > 0 ? (metrics.waste / metrics.totalQ) * 100 : 0} color="#ef4444" warn={metrics.wasteRate > 8} />
+            <QualityCell label={_ui("Cat 1")} value={metrics.cat1} pct={metrics.totalQ > 0 ? (metrics.cat1 / metrics.totalQ) * 100 : 0} color="#10b981" highlight={metrics.premiumRate >= 60} />
+            <QualityCell label={_ui("Cat 2")} value={metrics.cat2} pct={metrics.totalQ > 0 ? (metrics.cat2 / metrics.totalQ) * 100 : 0} color="#3b82f6" />
+            <QualityCell label={_ui("Cat 3")} value={metrics.cat3} pct={metrics.totalQ > 0 ? (metrics.cat3 / metrics.totalQ) * 100 : 0} color="#f59e0b" />
+            <QualityCell label={_ui("Déchets")} value={metrics.waste} pct={metrics.totalQ > 0 ? (metrics.waste / metrics.totalQ) * 100 : 0} color="#ef4444" warn={metrics.wasteRate > 8} />
           </div>
         </div>
 
         {/* Stats opérationnelles */}
         <div className="grid grid-cols-3 gap-sm pt-sm border-t border-border">
-          <MiniStat label="Production 30j" value={formatWeight(metrics.prod30)} trend={metrics.prodTrend} />
-          <MiniStat label="Surface plantée" value={`${(metrics.totalPlantedArea / 10000).toFixed(2)} ha`} />
-          <MiniStat label="Effectif" value={String(metrics.workersCount)} />
+          <MiniStat label={_ui("Production 30j")} value={formatWeight(metrics.prod30)} trend={metrics.prodTrend} />
+          <MiniStat label={_ui("Surface plantée")} value={`${(metrics.totalPlantedArea / 10000).toFixed(2)} ha`} />
+          <MiniStat label={_ui("Effectif")} value={String(metrics.workersCount)} />
         </div>
       </div>
     </Card>
@@ -998,10 +1010,12 @@ function ProductionHealthCard({ metrics }: { metrics: any }) {
 }
 
 function QualityCell({ label, value, pct, color, highlight, warn }: { label: string; value: number; pct: number; color: string; highlight?: boolean; warn?: boolean }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <div className={cn('rounded-md px-sm py-1.5 border', highlight ? 'border-success/40 bg-success/5' : warn ? 'border-danger/30 bg-danger/5' : 'border-border bg-surface-sunk/40')}>
       <div className="font-mono text-[9px] uppercase tracking-wider text-fg-tertiary leading-tight" style={{ color: highlight ? '#10b981' : warn ? '#ef4444' : undefined }}>
-        {label}
+        {_uiNode(label)}
       </div>
       <div className="font-display text-body-sm font-bold text-fg-primary leading-tight mt-0.5">
         {pct.toFixed(0)}%
@@ -1012,9 +1026,11 @@ function QualityCell({ label, value, pct, color, highlight, warn }: { label: str
 }
 
 function MiniStat({ label, value, trend }: { label: string; value: string; trend?: number }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <div>
-      <div className="font-mono text-[9px] uppercase tracking-wider text-fg-tertiary leading-tight">{label}</div>
+      <div className="font-mono text-[9px] uppercase tracking-wider text-fg-tertiary leading-tight">{_uiNode(label)}</div>
       <div className="font-display text-body font-bold text-fg-primary leading-tight mt-0.5">{value}</div>
       {trend !== undefined && trend !== 0 && (
         <div className={cn('text-[10px] font-mono mt-0.5', trend > 0 ? 'text-success' : 'text-danger')}>
@@ -1027,17 +1043,19 @@ function MiniStat({ label, value, trend }: { label: string; value: string; trend
 
 // ─── Top/Flop performers ─────────────────────────────────────────────
 function PerformersCard({ kind, items }: { kind: 'top' | 'flop'; items: any[] }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const isTop = kind === 'top'
   return (
     <Card animate delay={isTop ? 0.3 : 0.32} padding="none" className="overflow-hidden">
       <div className="px-md py-sm border-b border-border flex items-center gap-sm">
         {isTop ? <Award size={14} className="text-success" strokeWidth={2.4} /> : <AlertTriangle size={14} className="text-warning" strokeWidth={2.4} />}
         <span className="font-display text-heading-sm font-bold text-fg-primary">
-          {isTop ? '🏆 Top serres' : '⚠ Sous-performance'}
+          {isTop ? _ui("🏆 Top serres") : _ui("⚠ Sous-performance")}
         </span>
       </div>
       {items.length === 0 ? (
-        <div className="p-lg text-center text-caption text-fg-tertiary">Pas assez de données pour comparer.</div>
+        <div className="p-lg text-center text-caption text-fg-tertiary">{_ui("Pas assez de données pour comparer.")}</div>
       ) : (
         <div className="divide-y divide-border">
           {items.map((g, i) => {
@@ -1050,8 +1068,7 @@ function PerformersCard({ kind, items }: { kind: 'top' | 'flop'; items: any[] })
                 <div className="flex-1 min-w-0">
                   <div className="font-display text-body-sm font-bold text-fg-primary truncate">{g.ghCode}</div>
                   <div className="text-caption text-fg-tertiary truncate">
-                    {formatWeight(g.production)} / {formatWeight(g.targetProd)} cible
-                  </div>
+                    {formatWeight(g.production)} / {formatWeight(g.targetProd)} {" "}{_ui("cible")}{" "}</div>
                 </div>
                 <div className="text-right">
                   <div className="font-mono text-body font-bold tabular-nums" style={{ color: ratioColor }}>
@@ -1069,6 +1086,8 @@ function PerformersCard({ kind, items }: { kind: 'top' | 'flop'; items: any[] })
 
 // ─── Structure du CA ─────────────────────────────────────────────────
 function RevenueStructureCard({ exportCA, localCA, margeBrute, totalCostsAll }: any) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const ca = exportCA + localCA
   const data = ca > 0 ? [
     { name: 'CA Export',  value: exportCA, color: '#10b981' },
@@ -1079,11 +1098,11 @@ function RevenueStructureCard({ exportCA, localCA, margeBrute, totalCostsAll }: 
     <Card animate delay={0.34} padding="none" className="overflow-hidden">
       <div className="px-md py-sm border-b border-border flex items-center gap-sm">
         <Banknote size={14} className="text-info" strokeWidth={2.4} />
-        <span className="font-display text-heading-sm font-bold text-fg-primary">Structure du CA</span>
+        <span className="font-display text-heading-sm font-bold text-fg-primary">{_ui("Structure du CA")}</span>
       </div>
       <div className="p-md">
         <div className="text-center mb-md">
-          <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-1">CA total YTD</div>
+          <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-1">{_ui("CA total YTD")}</div>
           <div className="font-display text-display font-extrabold text-info">
             <MoneyDisplay value={ca} compact="auto" showCurrency={false} className="!text-current" />
           </div>
@@ -1104,7 +1123,7 @@ function RevenueStructureCard({ exportCA, localCA, margeBrute, totalCostsAll }: 
             </ResponsiveContainer>
           </div>
         ) : (
-          <div className="h-24 flex items-center justify-center text-caption text-fg-tertiary">Aucune donnée</div>
+          <div className="h-24 flex items-center justify-center text-caption text-fg-tertiary">{_ui("Aucune donnée")}</div>
         )}
 
         <div className="space-y-1 mt-md">
@@ -1123,11 +1142,11 @@ function RevenueStructureCard({ exportCA, localCA, margeBrute, totalCostsAll }: 
 
         <div className="mt-md pt-sm border-t border-border space-y-1">
           <div className="flex items-center justify-between text-caption">
-            <span className="text-fg-secondary">Coûts engagés</span>
+            <span className="text-fg-secondary">{_ui("Coûts engagés")}</span>
             <span className="font-mono text-warning"><MoneyDisplay value={-totalCostsAll} compact="auto" showCurrency={false} /></span>
           </div>
           <div className="flex items-center justify-between text-body-sm font-semibold">
-            <span className="text-fg-primary">= Marge brute</span>
+            <span className="text-fg-primary">{_ui("= Marge brute")}</span>
             <span className={cn('font-mono', margeBrute >= 0 ? 'text-success' : 'text-danger')}>
               <MoneyDisplay value={margeBrute} compact="auto" showCurrency={false} />
             </span>
@@ -1140,6 +1159,8 @@ function RevenueStructureCard({ exportCA, localCA, margeBrute, totalCostsAll }: 
 
 // ─── P&L Compact ─────────────────────────────────────────────────────
 function PLCompactCard({ metrics }: { metrics: any }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const ca = metrics.caTotal
   const chargesVar = toNumber(metrics.costsByType['charge_variable'])
   const chargesFix = toNumber(metrics.costsByType['charge_fixe'])
@@ -1162,10 +1183,10 @@ function PLCompactCard({ metrics }: { metrics: any }) {
       <div className="px-md py-sm border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-sm">
           <LineIcon size={14} className="text-success" strokeWidth={2.4} />
-          <span className="font-display text-heading-sm font-bold text-fg-primary">P&L exécutif YTD</span>
+          <span className="font-display text-heading-sm font-bold text-fg-primary">{_ui("P&L exécutif YTD")}</span>
         </div>
         <Link href="/admin/compte-exploitation" className="text-caption text-brand hover:underline flex items-center gap-1">
-          Détail complet <ArrowRight size={11} />
+          {" "}{_ui("Détail complet")}{" "}<ArrowRight size={11} />
         </Link>
       </div>
       <div className="p-md space-y-2">
@@ -1185,7 +1206,7 @@ function PLCompactCard({ metrics }: { metrics: any }) {
             >
               <div className={cn('flex-1 min-w-0', l.strong ? 'font-display text-body font-bold' : 'text-body-sm')}
                 style={{ color: l.strong ? l.color : 'var(--tx-1)' }}>
-                {l.label}
+                {_uiNode(l.label)}
               </div>
               <div className="flex-1 max-w-[200px] h-1.5 rounded-full bg-surface-sunk overflow-hidden">
                 <motion.div
@@ -1253,6 +1274,8 @@ const INSIGHT_ICON: Record<InsightLevel, any> = {
 }
 
 function KPIWithInsight({ insight, children }: { insight: Insight; children: React.ReactNode }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const color = INSIGHT_COLOR[insight.level]
   const Icon = INSIGHT_ICON[insight.level]
   return (
@@ -1269,7 +1292,7 @@ function KPIWithInsight({ insight, children }: { insight: Insight; children: Rea
           <Icon size={12} style={{ color }} strokeWidth={2.4} className="flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <div className="text-[11px] leading-snug font-semibold text-fg-primary">
-              {insight.headline}
+              {_uiNode(insight.headline)}
             </div>
             {insight.recommendation && (
               <div className="text-[10px] leading-snug text-fg-tertiary mt-0.5 flex items-start gap-1">
@@ -1286,6 +1309,8 @@ function KPIWithInsight({ insight, children }: { insight: Insight; children: Rea
 
 // ─── AISynthesisCard : synthèse exécutive globale par l'IA ────────────
 function AISynthesisCard({ global }: { global: ReturnType<typeof buildGlobalInsight> }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const color = global.health === 'good' ? '#10b981' : global.health === 'warning' ? '#f59e0b' : '#ef4444'
   return (
     <motion.div
@@ -1308,10 +1333,9 @@ function AISynthesisCard({ global }: { global: ReturnType<typeof buildGlobalInsi
               <Sparkles size={15} strokeWidth={2.4} color="white" />
             </div>
             <div>
-              <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary">Synthèse exécutive</div>
+              <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary">{_ui("Synthèse exécutive")}</div>
               <div className="font-display font-bold text-body text-fg-primary leading-tight">
-                Analyse intelligente
-              </div>
+                {" "}{_ui("Analyse intelligente")}{" "}</div>
             </div>
             <div className="ml-auto">
               <Badge
@@ -1319,14 +1343,14 @@ function AISynthesisCard({ global }: { global: ReturnType<typeof buildGlobalInsi
                 size="sm"
                 dot
               >
-                {global.health === 'good' ? 'Sain' : global.health === 'warning' ? 'À surveiller' : 'Action urgente'}
+                {global.health === 'good' ? _ui("Sain") : global.health === 'warning' ? _ui("À surveiller") : _ui("Action urgente")}
               </Badge>
             </div>
           </div>
 
           {/* One-liner */}
           <div className="font-display text-heading text-fg-primary leading-snug mb-md">
-            {global.oneLiner}
+            {_uiNode(global.oneLiner)}
           </div>
 
           {/* Bullets + actions */}
@@ -1334,8 +1358,7 @@ function AISynthesisCard({ global }: { global: ReturnType<typeof buildGlobalInsi
             {global.bullets.length > 0 && (
               <div>
                 <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary mb-sm">
-                  Points clés
-                </div>
+                  {" "}{_ui("Points clés")}{" "}</div>
                 <ul className="space-y-1.5">
                   {global.bullets.map((b, i) => (
                     <li key={i} className="text-body-sm text-fg-secondary leading-relaxed">
@@ -1349,8 +1372,7 @@ function AISynthesisCard({ global }: { global: ReturnType<typeof buildGlobalInsi
             {global.topActions.length > 0 && (
               <div>
                 <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary mb-sm">
-                  Actions à fort impact
-                </div>
+                  {" "}{_ui("Actions à fort impact")}{" "}</div>
                 <div className="space-y-1.5">
                   {global.topActions.slice(0, 4).map((a, i) => (
                     <Link
@@ -1360,7 +1382,7 @@ function AISynthesisCard({ global }: { global: ReturnType<typeof buildGlobalInsi
                     >
                       <Lightbulb size={13} className="text-warning flex-shrink-0" strokeWidth={2.4} />
                       <div className="flex-1 min-w-0">
-                        <div className="text-body-sm font-semibold text-fg-primary truncate">{a.label}</div>
+                        <div className="text-body-sm font-semibold text-fg-primary truncate">{_uiNode(a.label)}</div>
                         {a.impact && <div className="text-caption font-mono text-fg-tertiary">{a.impact}</div>}
                       </div>
                       <ChevronRight size={12} className="text-fg-tertiary group-hover:text-fg-primary group-hover:translate-x-0.5 transition-all" />

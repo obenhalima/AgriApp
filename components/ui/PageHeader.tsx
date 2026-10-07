@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * PageHeader — bandeau supérieur uniformisé pour les pages.
  *   - Titre + sous-titre + icône
@@ -28,6 +30,8 @@ export function PageHeader({
   title, subtitle, description, icon: Icon, iconColor = 'var(--neon)',
   actions, stats, className,
 }: PageHeaderProps) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -6 }}
@@ -53,20 +57,20 @@ export function PageHeader({
           <div className="min-w-0">
             {subtitle && (
               <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mb-1">
-                {subtitle}
+                {_uiNode(subtitle)}
               </div>
             )}
             <h1 className="font-display text-display-sm sm:text-display text-fg-primary tracking-tight truncate">
-              {title}
+              {_ui(title)}
             </h1>
             {description && (
-              <div className="text-body-sm text-fg-secondary mt-1">{description}</div>
+              <div className="text-body-sm text-fg-secondary mt-1">{_uiNode(description)}</div>
             )}
           </div>
         </div>
 
         {actions && (
-          <div className="flex items-center gap-xs flex-shrink-0 flex-wrap">
+          <div className="flex items-center gap-xs flex-shrink-0 flex-wrap max-w-full min-w-0">
             {actions}
           </div>
         )}
@@ -95,7 +99,7 @@ export function PageHeader({
                 )}
                 <div className="min-w-0">
                   <div className="font-mono text-[9px] uppercase tracking-wider text-fg-tertiary leading-tight">
-                    {s.label}
+                    {_uiNode(s.label)}
                   </div>
                   <div className="font-mono tabular-nums text-body font-bold text-fg-primary leading-tight" style={{ color }}>
                     {s.value}

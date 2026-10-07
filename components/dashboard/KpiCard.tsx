@@ -1,3 +1,5 @@
+'use client'
+import {useLanguage} from '@/lib/i18n'
 type KpiCardProps = {
   label: string
   value: string
@@ -14,13 +16,15 @@ const COLOR_MAP: Record<string, string> = {
 }
 
 export function KpiCard({ label, value, sub, color = 'neutral', icon, progress }: KpiCardProps) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const c = COLOR_MAP[color] || '#9b8a6e'
   const cssClass = color === 'red' ? 'rust' : color === 'purple' ? 'amber' : color
   return (
     <div className={`kpi-card kpi-${cssClass}`}>
       {icon && <div className="absolute right-4 top-4 text-3xl opacity-15">{icon}</div>}
       <div className="text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>
-        {label}
+        {_uiNode(label)}
       </div>
       <div className="mb-1.5 leading-none" style={{
         fontFamily: "'Playfair Display', serif",
@@ -32,7 +36,7 @@ export function KpiCard({ label, value, sub, color = 'neutral', icon, progress }
         <div className="text-xs" style={{
           color: sub.startsWith('▲') ? 'var(--leaf)' : sub.startsWith('⚠') ? 'var(--rust)' : 'var(--text-sub)'
         }}>
-          {sub}
+          {_uiNode(sub)}
         </div>
       )}
       {progress !== undefined && (

@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * AIAssistantFAB — Bouton flottant d'assistant IA, accessible partout.
  *
@@ -229,6 +231,8 @@ function useGlobalMetrics(triggerLoad: boolean) {
 // COMPOSANT PRINCIPAL
 // ════════════════════════════════════════════════════════════════════════════
 export function AIAssistantFAB() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const [open, setOpen] = useState(false)
   const [view, setView] = useState<'home' | 'answer'>('home')
   const [activeQ, setActiveQ] = useState<typeof QUICK_QUESTIONS[number] | null>(null)
@@ -273,7 +277,7 @@ export function AIAssistantFAB() {
               border: '2px solid color-mix(in srgb, var(--neon) 50%, white)',
               cursor: 'pointer',
             }}
-            title="Assistant IA — Synthèse instantanée"
+            title={_ui("Assistant IA — Synthèse instantanée")}
           >
             <Sparkles size={22} strokeWidth={2.4} color="white" />
             {/* Pulse halo */}
@@ -285,14 +289,8 @@ export function AIAssistantFAB() {
             {/* Tooltip */}
             <span className="hidden md:block absolute right-full mr-3 px-3 py-1.5 rounded-md bg-fg-primary text-bg-base text-caption font-semibold whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
               style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.18)' }}>
-              IA · Comment ça va ?
-            </span>
-            <style>{`
-              @keyframes ai-pulse {
-                0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--neon) 60%, transparent); }
-                50% { box-shadow: 0 0 0 14px color-mix(in srgb, var(--neon) 0%, transparent); }
-              }
-            `}</style>
+              {" "}{_ui("IA · Comment ça va ?")}{" "}</span>
+            <style>{"@keyframes ai-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--neon) 60%, transparent); } 50% { box-shadow: 0 0 0 14px color-mix(in srgb, var(--neon) 0%, transparent); } }"}</style>
           </motion.button>
         )}
       </AnimatePresence>
@@ -338,13 +336,13 @@ export function AIAssistantFAB() {
                   <Sparkles size={16} strokeWidth={2.4} color="white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-display font-bold text-body text-fg-primary leading-tight">Assistant IA</div>
-                  <div className="text-caption text-fg-tertiary leading-tight">Synthèse instantanée</div>
+                  <div className="font-display font-bold text-body text-fg-primary leading-tight">{_ui("Assistant IA")}</div>
+                  <div className="text-caption text-fg-tertiary leading-tight">{_ui("Synthèse instantanée")}</div>
                 </div>
                 <button
                   onClick={() => setOpen(false)}
                   className="w-8 h-8 rounded-md flex items-center justify-center text-fg-tertiary hover:text-fg-primary hover:bg-surface-hover transition-colors"
-                  title="Fermer (Échap)"
+                  title={_ui("Fermer (Échap)")}
                 >
                   <X size={16} strokeWidth={2.2} />
                 </button>
@@ -355,7 +353,7 @@ export function AIAssistantFAB() {
                 {loading || !metrics || !global ? (
                   <div className="flex flex-col items-center justify-center py-12 text-fg-tertiary">
                     <Loader2 size={28} className="animate-spin mb-sm" />
-                    <div className="text-body-sm">Analyse des données…</div>
+                    <div className="text-body-sm">{_ui("Analyse des données…")}</div>
                   </div>
                 ) : view === 'home' ? (
                   <HomeView
@@ -374,14 +372,13 @@ export function AIAssistantFAB() {
               {/* Footer */}
               <div className="px-md py-2 border-t border-border bg-surface-sunk/40 flex items-center justify-between gap-sm">
                 <div className="text-[10px] font-mono text-fg-tertiary uppercase tracking-wider">
-                  Analyse locale · Pas d'effort
-                </div>
+                  {" "}{_ui("Analyse locale · Pas d'effort")}{" "}</div>
                 <Link
                   href="/admin/compte-exploitation"
                   onClick={() => setOpen(false)}
                   className="inline-flex items-center gap-1 text-caption font-semibold text-brand hover:underline"
                 >
-                  Chat IA approfondi <ArrowRight size={11} />
+                  {" "}{_ui("Chat IA approfondi")}{" "}<ArrowRight size={11} />
                 </Link>
               </div>
             </motion.div>
@@ -400,6 +397,8 @@ function HomeView({ global, metrics, onPickQuestion }: {
   metrics: DashboardMetrics
   onPickQuestion: (q: typeof QUICK_QUESTIONS[number]) => void
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const color = LEVEL_COLOR[global.health === 'good' ? 'good' : global.health]
   const Icon = LEVEL_ICON[global.health === 'good' ? 'good' : global.health]
 
@@ -423,7 +422,7 @@ function HomeView({ global, metrics, onPickQuestion }: {
           </div>
           <div className="flex-1 min-w-0">
             <div className="font-display font-bold text-body-sm text-fg-primary leading-snug">
-              {global.oneLiner}
+              {_uiNode(global.oneLiner)}
             </div>
           </div>
         </div>
@@ -443,8 +442,7 @@ function HomeView({ global, metrics, onPickQuestion }: {
       {global.topActions.length > 0 && (
         <div>
           <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary mb-2 px-1">
-            🎯 Actions à fort impact
-          </div>
+            {" "}{_ui("🎯 Actions à fort impact")}{" "}</div>
           <div className="space-y-1.5">
             {global.topActions.slice(0, 4).map((a, i) => (
               <Link
@@ -454,7 +452,7 @@ function HomeView({ global, metrics, onPickQuestion }: {
               >
                 <Lightbulb size={14} className="text-warning flex-shrink-0" strokeWidth={2.2} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-body-sm font-semibold text-fg-primary truncate">{a.label}</div>
+                  <div className="text-body-sm font-semibold text-fg-primary truncate">{_uiNode(a.label)}</div>
                   {a.impact && <div className="text-caption font-mono text-fg-tertiary">{a.impact}</div>}
                 </div>
                 <ChevronRight size={13} className="text-fg-tertiary group-hover:text-fg-primary group-hover:translate-x-0.5 transition-all" />
@@ -467,8 +465,7 @@ function HomeView({ global, metrics, onPickQuestion }: {
       {/* Questions rapides */}
       <div>
         <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary mb-2 px-1">
-          💬 Questions fréquentes
-        </div>
+          {" "}{_ui("💬 Questions fréquentes")}{" "}</div>
         <div className="grid grid-cols-2 gap-1.5">
           {QUICK_QUESTIONS.map((q) => (
             <button
@@ -478,7 +475,7 @@ function HomeView({ global, metrics, onPickQuestion }: {
             >
               <div className="text-base mb-0.5">{q.emoji}</div>
               <div className="text-caption font-semibold text-fg-secondary group-hover:text-fg-primary leading-tight">
-                {q.label}
+                {_uiNode(q.label)}
               </div>
             </button>
           ))}
@@ -495,6 +492,8 @@ function AnswerView({ answer, onBack }: {
   answer: ReturnType<typeof answerQuestion>
   onBack: () => void
 }) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const color = LEVEL_COLOR[answer.level]
   const Icon = LEVEL_ICON[answer.level]
   return (
@@ -510,11 +509,11 @@ function AnswerView({ answer, onBack }: {
         className="inline-flex items-center gap-1.5 text-caption text-fg-tertiary hover:text-fg-primary transition-colors"
       >
         <ChevronRight size={11} className="rotate-180" />
-        <span>Retour</span>
+        <span>{_ui("Retour")}</span>
       </button>
 
       <div>
-        <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary mb-1">Vous demandez</div>
+        <div className="font-mono text-[10px] uppercase tracking-wider text-fg-tertiary mb-1">{_ui("Vous demandez")}</div>
         <div className="font-display font-bold text-heading text-fg-primary leading-snug">
           {answer.question}
         </div>
@@ -544,7 +543,7 @@ function AnswerView({ answer, onBack }: {
           className="inline-flex items-center gap-1.5 px-md py-2 rounded-md text-white font-semibold text-caption uppercase tracking-wider transition-all hover:-translate-y-0.5 hover:brightness-110"
           style={{ background: 'var(--neon)', boxShadow: '0 4px 14px var(--neon-dim)' }}
         >
-          {answer.cta.label}
+          {_uiNode(answer.cta.label)}
           <ArrowRight size={12} strokeWidth={2.4} />
         </Link>
       )}

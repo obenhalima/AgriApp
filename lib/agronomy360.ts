@@ -19,7 +19,9 @@ export function production360(plantings:AgroPlanting[],harvests:AgroHarvest[],gr
  const target=targets.length&&targets.every(x=>x!=null)?targets.reduce<number>((s,x)=>s+(x||0),0):null
  const months=new Map<string,number>();for(const h of hs){const m=h.harvest_date.slice(0,7);months.set(m,(months.get(m)||0)+Number(h.total_qty||0))}
  const timeline=Array.from(months).sort(([a],[b])=>a.localeCompare(b)).map(([month,quantity])=>({month,quantity}))
- const comparison=gs.map(g=>{const gp=ps.filter(p=>p.greenhouse_id===g.id),pi=new Set(gp.map(p=>p.id)),a=gp.reduce((s,p)=>s+Number(p.planted_area),0),q=hs.filter(h=>pi.has(h.campaign_planting_id)).reduce((s,h)=>s+Number(h.total_qty||0),0);return {id:g.id,name:g.code,area:a,kg:q,yield:a>0?q/a:null}}).filter(g=>g.area>0).sort((a,b)=>(b.yield||0)-(a.yield||0))
+ const terrain=gs.map(g=>{const gp=ps.filter(p=>p.greenhouse_id===g.id),pi=new Set(gp.map(p=>p.id)),a=gp.reduce((s,p)=>s+Number(p.planted_area||0),0),q=hs.filter(h=>pi.has(h.campaign_planting_id)).reduce((s,h)=>s+Number(h.total_qty||0),0);return {id:g.id,farm_id:g.farm_id,name:g.code,area:a,kg:q,plantings:gp.length,totalArea:Number(g.total_area||0),yield:a>0?q/a:null}}).sort((a,b)=>a.name.localeCompare(b.name,'fr',{numeric:true}))
+ // A yield ranking needs planted area; the terrain inventory must include every greenhouse.
+ const comparison=terrain.filter(g=>g.area>0).sort((a,b)=>(b.yield||0)-(a.yield||0))
  const missingHarvest=ps.filter(p=>{
   if(['termine','terminee','cloture','cloturee','annule','annulee'].includes(p.status))return false
   const start=p.harvest_start_date||p.first_harvest_date,end=p.harvest_end_date||p.last_harvest_date
@@ -28,7 +30,7 @@ export function production360(plantings:AgroPlanting[],harvests:AgroHarvest[],gr
   const last=dates[dates.length-1]||start
   return (Date.parse(now+'T12:00:00Z')-Date.parse(last+'T12:00:00Z'))/86400000>=absenceDays
  })
- return {gs,ps,hs,area,kg,target,yield:area>0?kg/area:null,progress:target!=null&&target>0?kg/target*100:null,timeline,comparison,missingHarvest}
+ return {gs,ps,hs,area,kg,target,yield:area>0?kg/area:null,progress:target!=null&&target>0?kg/target*100:null,timeline,comparison,terrain,missingHarvest}
 }
 export function activity360(rows:AgroActivity[],farm:string,now:number,days:number){
  const scoped=rows.filter(r=>!farm||r.farms.includes(farm))

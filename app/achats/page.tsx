@@ -1,4 +1,7 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
+import '@/components/ui/workspace.css'
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { useRealtimeReload } from '@/lib/useRealtimeReload'
 import Link from 'next/link'
@@ -37,6 +40,8 @@ const formatPurchaseQuantity = (value: unknown) => {
 }
 
 export default function AchatsPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const directRequestId = useRef('')
   const { activeDomain, user, isAdmin, isPlatformAdmin } = useAuth()
   const { values: CURRENCIES } = useReferenceList('currency')
@@ -99,7 +104,7 @@ export default function AchatsPage() {
       supabase.from('approval_requests').select('*').eq('domain_id',activeDomain.domain_id).eq('process_code','purchase_order'),
       supabase.from('approval_policies').select('*').eq('domain_id',activeDomain.domain_id).in('process_code',['purchase_order','direct_purchase']).eq('is_active',true),
     ])
-    if (o.error) toast.error(`Chargement des bons et articles : ${o.error.message}`)
+    if (o.error) toast.error(_ui("Chargement des bons et articles : {v0}",{v0:String(o.error.message)}))
     else setItems(o.data || [])
     setSuppliers(sup.data || []); setCampagnes(c.data || []); setSerres(ser.data || [])
     setApprovals(approvalsRes.data||[]);setApprovalPolicies(policiesRes.data||[])
@@ -113,7 +118,7 @@ export default function AchatsPage() {
       setAllTrans((tr.data ?? []) as WorkflowTransition[])
     }
     setLoading(false)
-  }, [activeDomain?.domain_id])
+  }, [activeDomain?.domain_id,_ui])
   useEffect(() => { load() }, [load])
 
   // Realtime : statuts achats + factures fournisseur changent en cascade
@@ -158,14 +163,14 @@ export default function AchatsPage() {
     try {
       await applyTransition({ entityType: ENTITY_TYPE, entityId: po.id, transitionId: t.id })
       setItems(prev => prev.map(o => o.id === po.id ? { ...o, status: target.code } : o))
-      toast.success(`Statut : ${target.label || target.code}`)
-    } catch (e: any) { toast.error('Transition refusée : ' + (e?.message ?? 'erreur')) }
+      toast.success(_ui("Statut : {v0}",{v0:String(target.label || target.code)}))
+    } catch (e: any) { toast.error(_ui("Transition refusée :") + (e?.message ?? 'erreur')) }
     finally { setTransitingId(null) }
   }
 
   const approvalFor=(poId:string)=>approvals.find(a=>a.entity_id===poId)
-  const submitForApproval=async(po:any)=>{const {error}=await supabase.rpc('submit_approval_request',{p_process:'purchase_order',p_type:po.purchase_type||'standard',p_entity:po.id,p_reference:po.po_number,p_amount:Number(po.total_amount||0),p_comment:po.notes||null});if(error)toast.error(error.message);else{toast.success('Bon soumis au responsable');load()}}
-  const reviewApproval=async(requestId:string,approve:boolean)=>{const comment=approve?null:prompt('Motif obligatoire du rejet :');if(!approve&&!comment)return;const {error}=await supabase.rpc('review_approval_request',{p_request:requestId,p_approve:approve,p_comment:comment});if(error)toast.error(error.message);else{toast.success(approve?'Bon approuvé':'Bon rejeté');load()}}
+  const submitForApproval=async(po:any)=>{const {error}=await supabase.rpc('submit_approval_request',{p_process:'purchase_order',p_type:po.purchase_type||'standard',p_entity:po.id,p_reference:po.po_number,p_amount:Number(po.total_amount||0),p_comment:po.notes||null});if(error)toast.error(error.message);else{toast.success(_ui("Bon soumis au responsable"));load()}}
+  const reviewApproval=async(requestId:string,approve:boolean)=>{const comment=approve?null:prompt(_ui("Motif obligatoire du rejet :"));if(!approve&&!comment)return;const {error}=await supabase.rpc('review_approval_request',{p_request:requestId,p_approve:approve,p_comment:comment});if(error)toast.error(error.message);else{toast.success(approve?_ui("Bon approuvé"):_ui("Bon rejeté"));load()}}
 
   const onInvoiceCreated = async () => {
     if (!invoicePo) return
@@ -174,22 +179,22 @@ export default function AchatsPage() {
       await applyTransition({ entityType: ENTITY_TYPE, entityId: po.id, transitionId: transition.id })
       const target = toStateOf(transition)
       if (target) setItems(prev => prev.map(o => o.id === po.id ? { ...o, status: target.code } : o))
-      toast.success('Facture créée')
-    } catch (e: any) { toast.error('Facture créée mais transition refusée : ' + e.message) }
+      toast.success(_ui("Facture créée"))
+    } catch (e: any) { toast.error(_ui("Facture créée mais transition refusée :") + e.message) }
     setInvoicePo(null)
   }
 
   const openHistory = async (poId: string) => {
     setHistPoId(poId); setHistLoading(true)
     try { setHistEntries(await getEntityHistory(ENTITY_TYPE, poId)) }
-    catch (e: any) { toast.error('Erreur : ' + e.message) }
+    catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     finally { setHistLoading(false) }
   }
 
   const savePO = async () => {
-    if (!form.supplier_id || !form.order_date) { toast.error('Fournisseur et date requis'); return }
+    if (!form.supplier_id || !form.order_date) { toast.error(_ui("Fournisseur et date requis")); return }
     const validLines = poLines.filter(l => l.stockItemId && Number(l.quantity) > 0)
-    if (validLines.length === 0) { toast.error('Au moins une ligne avec article + quantité requise'); return }
+    if (validLines.length === 0) { toast.error(_ui("Au moins une ligne avec article + quantité requise")); return }
     setSavingPO(true)
     try {
       const num = `BC-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`
@@ -212,23 +217,23 @@ export default function AchatsPage() {
       const { error: le } = await supabase.from('purchase_order_lines').insert(lineInserts)
       if (le) throw le
       setItems(p => [{ ...po, purchase_order_lines: lineInserts }, ...p.filter(existing => existing.id !== po.id)]); setDonePO(true)
-      toast.success(`Bon ${num} créé`)
+      toast.success(_ui("Bon {v0} créé",{v0:String(num)}))
       setTimeout(() => {
         setModalPO(false); setDonePO(false)
         setForm({ supplier_id: '', campaign_id: '', greenhouse_id: '', cost_category: 'semences', order_date: '', expected_delivery: '', currency: 'MAD', notes: '' })
         setPoLines([{ ...EMPTY_PURCHASE_LINE }])
       }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSavingPO(false)
   }
 
   const saveDirect = async () => {
-    if (!direct.supplier_id || !direct.order_date) { toast.error('Fournisseur et date requis'); return }
+    if (!direct.supplier_id || !direct.order_date) { toast.error(_ui("Fournisseur et date requis")); return }
     const lines = directLines.filter(l => l.stockItemId && Number(l.quantity) > 0).map(l => ({
       itemDescription: l.itemDescription || (stockItems.find(s => s.id === l.stockItemId)?.name ?? ''),
       unit: l.unit || undefined, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice || 0), stockItemId: l.stockItemId,
     }))
-    if (lines.length === 0) { toast.error('Au moins une ligne requise'); return }
+    if (lines.length === 0) { toast.error(_ui("Au moins une ligne requise")); return }
     setSavingDirect(true)
     if (!directRequestId.current) directRequestId.current = crypto.randomUUID()
     try {
@@ -238,8 +243,8 @@ export default function AchatsPage() {
         campaignId: direct.campaign_id || undefined, greenhouseId: direct.greenhouse_id || undefined,
         currency: direct.currency, reference: direct.reference || undefined, notes: direct.notes || undefined, lines,
       })
-      if (res.warnings?.length) toast.warning(`Achat ${res.po_number} créé — ${res.warnings.join(', ')}`)
-      else toast.success(`Achat ${res.po_number} créé · stock mis à jour`)
+      if (res.warnings?.length) toast.warning(_ui("Achat {v0} créé — {v1}",{v0:String(res.po_number),v1:String(res.warnings.join(', '))}))
+      else toast.success(_ui("Achat {v0} créé · stock mis à jour",{v0:String(res.po_number)}))
       setDoneDirect(true)
       directRequestId.current = ''
       setTimeout(async () => {
@@ -248,7 +253,7 @@ export default function AchatsPage() {
         setDirectLines([{ ...EMPTY_PURCHASE_LINE }])
         await load()
       }, 1200)
-    } catch (e: any) { toast.error('Erreur : ' + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setSavingDirect(false)
   }
 
@@ -256,43 +261,43 @@ export default function AchatsPage() {
   const directTotal = useMemo(() => directLines.reduce((s, l) => s + (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0), 0), [directLines])
 
   return (
-    <div>
+    <div className="itrix-workspace">
       {/* Modal BO formel */}
       {modalPO && (
-        <Modal title="NOUVEAU BON D'ACHAT" onClose={() => { setModalPO(false); setDonePO(false) }} size="lg">
-          {donePO ? <SuccessMessage message="Bon d'achat créé !" /> : (
+        <Modal title={_ui("NOUVEAU BON D'ACHAT")} onClose={() => { setModalPO(false); setDonePO(false) }} size="lg">
+          {donePO ? <SuccessMessage message={_ui("Bon d'achat créé !")} /> : (
             <div className="space-y-md">
-              <FormGroup label="Fournisseur *">
+              <FormGroup label={_ui("Fournisseur *")}>
                 <div className="flex gap-1.5">
                   <div className="flex-1">
                     <TSelect value={form.supplier_id} onChange={s('supplier_id')}>
-                      <option value="">— Sélectionner —</option>
+                      <option value="">{_ui("— Sélectionner —")}</option>
                       {suppliers.map(f => <option key={f.id} value={f.id}>{f.name} ({f.category})</option>)}
                     </TSelect>
                   </div>
-                  <Button onClick={() => setSupplierModalTarget('po')} variant="secondary" size="sm">+ Nouveau</Button>
+                  <Button onClick={() => setSupplierModalTarget('po')} variant="secondary" size="sm">{_ui("+ Nouveau")}</Button>
                 </div>
               </FormGroup>
               <FormRow>
-                <FormGroup label="Catégorie"><TSelect value={form.cost_category} onChange={s('cost_category')}>{CATS.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}</TSelect></FormGroup>
-                <FormGroup label="Devise"><TSelect value={form.currency} onChange={s('currency')}>{CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</TSelect></FormGroup>
+                <FormGroup label={_ui("Catégorie")}><TSelect value={form.cost_category} onChange={s('cost_category')}>{CATS.map(c => <option key={c.code} value={c.code}>{_uiNode(c.label)}</option>)}</TSelect></FormGroup>
+                <FormGroup label={_ui("Devise")}><TSelect value={form.currency} onChange={s('currency')}>{CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</TSelect></FormGroup>
               </FormRow>
               <FormRow>
-                <FormGroup label="Date commande *"><TInput type="date" value={form.order_date} onChange={s('order_date')} /></FormGroup>
-                <FormGroup label="Livraison prévue"><TInput type="date" value={form.expected_delivery} onChange={s('expected_delivery')} /></FormGroup>
+                <FormGroup label={_ui("Date commande *")}><TInput type="date" value={form.order_date} onChange={s('order_date')} /></FormGroup>
+                <FormGroup label={_ui("Livraison prévue")}><TInput type="date" value={form.expected_delivery} onChange={s('expected_delivery')} /></FormGroup>
               </FormRow>
               <FormRow>
-                <FormGroup label="Campagne"><TSelect value={form.campaign_id} onChange={s('campaign_id')}><option value="">— Optionnel —</option>{campagnes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</TSelect></FormGroup>
-                <FormGroup label="Serre"><TSelect value={form.greenhouse_id} onChange={s('greenhouse_id')}><option value="">— Optionnel —</option>{serres.map(sr => <option key={sr.id} value={sr.id}>{sr.code} — {sr.name}</option>)}</TSelect></FormGroup>
+                <FormGroup label={_ui("Campagne")}><TSelect value={form.campaign_id} onChange={s('campaign_id')}><option value="">{_ui("— Optionnel —")}</option>{campagnes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</TSelect></FormGroup>
+                <FormGroup label={_ui("Serre")}><TSelect value={form.greenhouse_id} onChange={s('greenhouse_id')}><option value="">{_ui("— Optionnel —")}</option>{serres.map(sr => <option key={sr.id} value={sr.id}>{sr.code} — {sr.name}</option>)}</TSelect></FormGroup>
               </FormRow>
-              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mt-md">Lignes du bon</div>
+              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mt-md">{_ui("Lignes du bon")}</div>
               <PurchaseLineEditor lines={poLines} onChange={setPoLines} stockItems={stockItems} onStockItemsRefresh={refreshStockItems} />
               <div className="rounded-md border border-border bg-surface-sunk p-md flex items-center justify-between">
-                <span className="font-mono text-caption text-fg-tertiary">TOTAL PRÉVU</span>
+                <span className="font-mono text-caption text-fg-tertiary">{_ui("TOTAL PRÉVU")}</span>
                 <span className="font-display text-heading font-bold text-success"><MoneyDisplay value={poTotal} compact="auto" showCurrency={false} /> {form.currency}</span>
               </div>
-              <FormGroup label="Notes"><Textarea rows={2} value={form.notes} onChange={s('notes')} /></FormGroup>
-              <ModalFooter onCancel={() => setModalPO(false)} onSave={savePO} loading={savingPO} disabled={!form.supplier_id || !form.order_date} saveLabel="CRÉER LE BON" />
+              <FormGroup label={_ui("Notes")}><Textarea rows={2} value={form.notes} onChange={s('notes')} /></FormGroup>
+              <ModalFooter onCancel={() => setModalPO(false)} onSave={savePO} loading={savingPO} disabled={!form.supplier_id || !form.order_date} saveLabel={_ui("CRÉER LE BON")} />
             </div>
           )}
         </Modal>
@@ -300,43 +305,42 @@ export default function AchatsPage() {
 
       {/* Modal achat direct */}
       {modalDirect && (
-        <Modal title="ACHAT DIRECT (RÉCEPTION IMMÉDIATE)" onClose={() => { setModalDirect(false); setDoneDirect(false) }} size="lg">
-          {doneDirect ? <SuccessMessage message="Achat enregistré et stock mis à jour !" /> : (
+        <Modal title={_ui("ACHAT DIRECT (RÉCEPTION IMMÉDIATE)")} onClose={() => { setModalDirect(false); setDoneDirect(false) }} size="lg">
+          {doneDirect ? <SuccessMessage message={_ui("Achat enregistré et stock mis à jour !")} /> : (
             <div className="space-y-md">
               <div className="rounded-md border border-success/30 bg-success/5 p-md text-success text-body-sm flex items-center gap-2">
-                <Zap size={14} /> Crée le bon en état <strong>reçu</strong> directement et met à jour le stock.
-              </div>
+                <Zap size={14} /> {" "}{_ui("Crée le bon en état")}{" "}<strong>{_ui("reçu")}</strong> {" "}{_ui("directement et met à jour le stock.")}{" "}</div>
               <FormRow>
-                <FormGroup label="Fournisseur *">
+                <FormGroup label={_ui("Fournisseur *")}>
                   <div className="flex gap-1.5">
                     <div className="flex-1">
                       <TSelect value={direct.supplier_id} onChange={d('supplier_id')}>
-                        <option value="">— Sélectionner —</option>
+                        <option value="">{_ui("— Sélectionner —")}</option>
                         {suppliers.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                       </TSelect>
                     </div>
                     <Button onClick={() => setSupplierModalTarget('direct')} variant="secondary" size="sm">+</Button>
                   </div>
                 </FormGroup>
-                <FormGroup label="Date *"><TInput type="date" value={direct.order_date} onChange={d('order_date')} /></FormGroup>
+                <FormGroup label={_ui("Date *")}><TInput type="date" value={direct.order_date} onChange={d('order_date')} /></FormGroup>
               </FormRow>
               <FormRow>
-                <FormGroup label="Catégorie"><TSelect value={direct.cost_category} onChange={d('cost_category')}>{CATS.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}</TSelect></FormGroup>
-                <FormGroup label="Devise"><TSelect value={direct.currency} onChange={d('currency')}>{CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</TSelect></FormGroup>
-                <FormGroup label="Référence"><TInput value={direct.reference} onChange={d('reference')} placeholder="Ticket, BL..." /></FormGroup>
+                <FormGroup label={_ui("Catégorie")}><TSelect value={direct.cost_category} onChange={d('cost_category')}>{CATS.map(c => <option key={c.code} value={c.code}>{_uiNode(c.label)}</option>)}</TSelect></FormGroup>
+                <FormGroup label={_ui("Devise")}><TSelect value={direct.currency} onChange={d('currency')}>{CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</TSelect></FormGroup>
+                <FormGroup label={_ui("Référence")}><TInput value={direct.reference} onChange={d('reference')} placeholder={_ui("Ticket, BL...")} /></FormGroup>
               </FormRow>
               <FormRow>
-                <FormGroup label="Campagne"><TSelect value={direct.campaign_id} onChange={d('campaign_id')}><option value="">— Optionnel —</option>{campagnes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</TSelect></FormGroup>
-                <FormGroup label="Serre"><TSelect value={direct.greenhouse_id} onChange={d('greenhouse_id')}><option value="">— Optionnel —</option>{serres.map(sr => <option key={sr.id} value={sr.id}>{sr.code} — {sr.name}</option>)}</TSelect></FormGroup>
+                <FormGroup label={_ui("Campagne")}><TSelect value={direct.campaign_id} onChange={d('campaign_id')}><option value="">{_ui("— Optionnel —")}</option>{campagnes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</TSelect></FormGroup>
+                <FormGroup label={_ui("Serre")}><TSelect value={direct.greenhouse_id} onChange={d('greenhouse_id')}><option value="">{_ui("— Optionnel —")}</option>{serres.map(sr => <option key={sr.id} value={sr.id}>{sr.code} — {sr.name}</option>)}</TSelect></FormGroup>
               </FormRow>
-              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mt-md">Lignes</div>
+              <div className="font-mono text-caption uppercase tracking-wider text-fg-tertiary mt-md">{_ui("Lignes")}</div>
               <PurchaseLineEditor lines={directLines} onChange={setDirectLines} stockItems={stockItems} onStockItemsRefresh={refreshStockItems} />
               <div className="rounded-md border border-border bg-surface-sunk p-md flex items-center justify-between">
-                <span className="font-mono text-caption text-fg-tertiary">TOTAL</span>
+                <span className="font-mono text-caption text-fg-tertiary">{_ui("TOTAL")}</span>
                 <span className="font-display text-heading font-bold text-success"><MoneyDisplay value={directTotal} compact="auto" showCurrency={false} /> {direct.currency}</span>
               </div>
-              <FormGroup label="Notes"><Textarea rows={2} value={direct.notes} onChange={d('notes')} /></FormGroup>
-              <ModalFooter onCancel={() => setModalDirect(false)} onSave={saveDirect} loading={savingDirect} disabled={!direct.supplier_id || !direct.order_date} saveLabel="ENREGISTRER L'ACHAT" />
+              <FormGroup label={_ui("Notes")}><Textarea rows={2} value={direct.notes} onChange={d('notes')} /></FormGroup>
+              <ModalFooter onCancel={() => setModalDirect(false)} onSave={saveDirect} loading={savingDirect} disabled={!direct.supplier_id || !direct.order_date} saveLabel={_ui("ENREGISTRER L'ACHAT")} />
             </div>
           )}
         </Modal>
@@ -356,11 +360,11 @@ export default function AchatsPage() {
       {invoicePo && <SupplierInvoiceModal po={invoicePo.po} onClose={() => setInvoicePo(null)} onCreated={onInvoiceCreated} />}
 
       {histPoId && (
-        <Modal title="HISTORIQUE DES TRANSITIONS" onClose={() => { setHistPoId(null); setHistEntries([]) }} size="md">
+        <Modal title={_ui("HISTORIQUE DES TRANSITIONS")} onClose={() => { setHistPoId(null); setHistEntries([]) }} size="md">
           {histLoading ? (
             <div className="space-y-2 p-md">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
           ) : histEntries.length === 0 ? (
-            <EmptyState icon={History} title="Aucune transition" />
+            <EmptyState icon={History} title={_ui("Aucune transition")} />
           ) : (
             <div className="space-y-sm">
               {histEntries.map(h => (
@@ -380,12 +384,12 @@ export default function AchatsPage() {
       )}
 
       <PageHeader
-        title="Bons d'achat" subtitle="Approvisionnement" icon={ShoppingCart} iconColor="#eab308"
-        description={`${items.length} bon${items.length > 1 ? 's' : ''}`}
+        title={_ui("Bons d'achat")} subtitle={_ui("Approvisionnement")} icon={ShoppingCart} iconColor="#eab308"
+        description={_ui("{v0} bon{v1}",{v0:String(items.length),v1:String(items.length > 1 ? 's' : '')})}
         actions={
-          <div className="flex gap-xs">
-            <Button onClick={() => setModalDirect(true)} variant="secondary" disabled={approvalPolicies.some(p=>p.process_code==='direct_purchase'&&p.validation_enabled)} title={approvalPolicies.some(p=>p.process_code==='direct_purchase'&&p.validation_enabled)?'Désactivez la validation Achat direct ou utilisez un bon standard':''}><Zap size={14} strokeWidth={2.5} /> Achat direct</Button>
-            <Button onClick={() => setModalPO(true)} variant="primary"><Plus size={14} strokeWidth={2.5} /> Bon d'achat</Button>
+          <div className="itrix-actions">
+            <Button onClick={() => setModalDirect(true)} variant="secondary" disabled={approvalPolicies.some(p=>p.process_code==='direct_purchase'&&p.validation_enabled)} title={approvalPolicies.some(p=>p.process_code==='direct_purchase'&&p.validation_enabled)?_ui("Désactivez la validation Achat direct ou utilisez un bon standard"):''}><Zap size={14} strokeWidth={2.5} /> {" "}{_ui("Achat direct")}</Button>
+            <Button onClick={() => setModalPO(true)} variant="primary"><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Bon d'achat")}</Button>
           </div>
         }
         stats={loading ? [] : [
@@ -401,35 +405,35 @@ export default function AchatsPage() {
           <div className="flex items-center gap-md flex-wrap">
             <div className="flex items-center gap-sm flex-1 min-w-[200px] max-w-md">
               <Search size={14} className="text-fg-tertiary" />
-              <TInput placeholder="Rechercher numéro, fournisseur, catégorie…" value={search} onChange={(e) => setSearch(e.target.value)} className="border-none bg-transparent focus:ring-0 px-0" />
+              <TInput placeholder={_ui("Rechercher numéro, fournisseur, catégorie…")} value={search} onChange={(e) => setSearch(e.target.value)} className="border-none bg-transparent focus:ring-0 px-0" />
               {search && <button onClick={() => setSearch('')} className="text-fg-tertiary hover:text-fg-primary"><X size={14} /></button>}
             </div>
             <TSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-8 w-auto min-w-[150px] text-body-sm">
-              <option value="all">Tous statuts</option>
-              {states.map(st => <option key={st.code} value={st.code}>{st.label}</option>)}
+              <option value="all">{_ui("Tous statuts")}</option>
+              {states.map(st => <option key={st.code} value={st.code}>{_uiNode(st.label)}</option>)}
             </TSelect>
             <div className="ml-auto text-caption font-mono text-fg-tertiary">{filtered.length}/{items.length}</div>
           </div>
         </Card>
       )}
 
-      <Card animate delay={0.25} padding="none" className="overflow-hidden">
+      <Card animate delay={0.25} padding="none" className="itrix-table">
         {loading ? (
           <div className="p-md space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
         ) : items.length === 0 ? (
           <EmptyState
-            icon={ShoppingCart} title="Aucun bon d'achat"
+            icon={ShoppingCart} title={_ui("Aucun bon d'achat")}
             action={
-              <div className="flex gap-xs">
-                <Button onClick={() => setModalDirect(true)} variant="secondary" disabled={approvalPolicies.some(p=>p.process_code==='direct_purchase'&&p.validation_enabled)}><Zap size={14} /> Achat direct</Button>
-                <Button onClick={() => setModalPO(true)}><Plus size={14} /> Bon d'achat</Button>
+              <div className="itrix-actions">
+                <Button onClick={() => setModalDirect(true)} variant="secondary" disabled={approvalPolicies.some(p=>p.process_code==='direct_purchase'&&p.validation_enabled)}><Zap size={14} /> {" "}{_ui("Achat direct")}</Button>
+                <Button onClick={() => setModalPO(true)}><Plus size={14} /> {" "}{_ui("Bon d'achat")}</Button>
               </div>
             }
           />
         ) : (
           <DataTable minWidth={1300}>
             <THead>
-              <TR><TH>N° BA</TH><TH>Fournisseur</TH><TH>Articles</TH><TH>Catégorie</TH><TH>Date</TH><TH>Livraison</TH><TH right>Total</TH><TH>Statut</TH><TH>Actions workflow</TH><TH right>Détails</TH></TR>
+              <TR><TH>{_ui("N° BA")}</TH><TH>{_ui("Fournisseur")}</TH><TH>{_ui("Articles")}</TH><TH>{_ui("Catégorie")}</TH><TH>{_ui("Date")}</TH><TH>{_ui("Livraison")}</TH><TH right>{_ui("Total")}</TH><TH>{_ui("Statut")}</TH><TH>{_ui("Actions workflow")}</TH><TH right>{_ui("Détails")}</TH></TR>
             </THead>
             <tbody>
               {filtered.map((o, i) => {
@@ -450,11 +454,11 @@ export default function AchatsPage() {
                       <div className="min-w-[200px] space-y-1">
                         {(o.purchase_order_lines || []).map((line: any, index: number) => (
                           <div key={line.id || `${o.id}-${index}`} className="text-caption">
-                            <div className="font-semibold">{line.item_description || stockItems.find(article=>article.id===line.stock_item_id)?.name || 'Article non renseigné'}</div>
+                            <div className="font-semibold">{line.item_description || stockItems.find(article=>article.id===line.stock_item_id)?.name || _ui("Article non renseigné")}</div>
                             <div className="font-mono whitespace-nowrap text-fg-secondary">{formatPurchaseQuantity(line.quantity)} {line.unit || stockItems.find(article=>article.id===line.stock_item_id)?.unit || '—'}</div>
                           </div>
                         ))}
-                        {!o.purchase_order_lines?.length && <span className="text-caption text-fg-tertiary">Aucune ligne disponible</span>}
+                        {!o.purchase_order_lines?.length && <span className="text-caption text-fg-tertiary">{_ui("Aucune ligne disponible")}</span>}
                       </div>
                     </TD>
                     <TD><Badge variant="warning" size="sm">{o.cost_category || '—'}</Badge></TD>
@@ -464,11 +468,11 @@ export default function AchatsPage() {
                     <TD>
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-caption font-mono uppercase tracking-wider font-semibold border"
                         style={{ background: `color-mix(in srgb, ${color} 12%, transparent)`, color, borderColor: `color-mix(in srgb, ${color} 30%, transparent)` }}>
-                        {label}
+                        {_uiNode(label)}
                       </span>
                     </TD>
                     <TD>
-                      {approvalRequired&&!approval ? <Button size="xs" variant="secondary" onClick={()=>submitForApproval(o)}><ShieldCheck size={12}/> Soumettre</Button> : approval?.status==='soumise' ? <div className="flex gap-1"><Badge variant="warning">À valider</Badge>{responsible&&approval.requested_by!==user?.id&&<><Button size="xs" onClick={()=>reviewApproval(approval.id,true)}><Check size={12}/> Valider</Button><Button size="xs" variant="ghost" onClick={()=>reviewApproval(approval.id,false)}><X size={12}/></Button></>}</div> : approval?.status==='rejetee' ? <Badge variant="danger">Rejeté</Badge> : !workflowAvailable ? <Badge variant="warning">Validation requise</Badge> : available.length === 0 ? <span className="text-caption text-fg-tertiary font-mono">—</span> : (
+                      {approvalRequired&&!approval ? <Button size="xs" variant="secondary" onClick={()=>submitForApproval(o)}><ShieldCheck size={12}/> {" "}{_ui("Soumettre")}</Button> : approval?.status==='soumise' ? <div className="flex gap-1"><Badge variant="warning">{_ui("À valider")}</Badge>{responsible&&approval.requested_by!==user?.id&&<><Button size="xs" onClick={()=>reviewApproval(approval.id,true)}><Check size={12}/> {" "}{_ui("Valider")}</Button><Button size="xs" variant="ghost" onClick={()=>reviewApproval(approval.id,false)}><X size={12}/></Button></>}</div> : approval?.status==='rejetee' ? <Badge variant="danger">{_ui("Rejeté")}</Badge> : !workflowAvailable ? <Badge variant="warning">{_ui("Validation requise")}</Badge> : available.length === 0 ? <span className="text-caption text-fg-tertiary font-mono">—</span> : (
                         <div className="flex flex-wrap gap-1">
                           {available.map(t => {
                             const tgt = toStateOf(t)
@@ -477,7 +481,7 @@ export default function AchatsPage() {
                               <button key={t.id} onClick={() => triggerTransition(o, t)} disabled={isLoading}
                                 className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded text-caption font-mono font-semibold border transition-colors', isLoading ? 'opacity-50 cursor-wait' : 'hover:opacity-80')}
                                 style={{ background: `color-mix(in srgb, ${tgtColor} 12%, transparent)`, color: tgtColor, borderColor: `color-mix(in srgb, ${tgtColor} 30%, transparent)` }}>
-                                {isLoading ? '…' : <>{t.label} <ArrowRight size={9} /></>}
+                                {isLoading ? '…' : <>{_uiNode(t.label)} <ArrowRight size={9} /></>}
                               </button>
                             )
                           })}
@@ -486,8 +490,8 @@ export default function AchatsPage() {
                     </TD>
                     <TD right>
                       <div className="flex items-center justify-end gap-1">
-                        <Link href={`/achats/${o.id}`}><Button variant="ghost" size="icon-sm" title="Détail & réception"><Package size={12} strokeWidth={2.2} /></Button></Link>
-                        <Button onClick={() => openHistory(o.id)} variant="ghost" size="icon-sm" title="Historique"><History size={12} strokeWidth={2.2} /></Button>
+                        <Link href={`/achats/${o.id}`}><Button variant="ghost" size="icon-sm" title={_ui("Détail & réception")}><Package size={12} strokeWidth={2.2} /></Button></Link>
+                        <Button onClick={() => openHistory(o.id)} variant="ghost" size="icon-sm" title={_ui("Historique")}><History size={12} strokeWidth={2.2} /></Button>
                       </div>
                     </TD>
                   </TR>

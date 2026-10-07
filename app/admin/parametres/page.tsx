@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 /**
  * /admin/parametres — Paramètres globaux de l'application.
  *
@@ -51,6 +53,8 @@ interface CampaignLite {
 }
 
 export default function ParametresPage() {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const { isAdmin, loading: authLoading, activeDomain } = useAuth()
 
   const [loading, setLoading] = useState(true)
@@ -95,25 +99,25 @@ export default function ParametresPage() {
         setDefaultSprayVolume(Number(phyto.data?.default_spray_volume_l_ha) || 1000)
       }
     } catch (e: any) {
-      toast.error(`Chargement : ${e.message ?? e}`)
+      toast.error(_ui("Chargement : {v0}",{v0:String(e.message ?? e)}))
     } finally {
       setLoading(false)
     }
-  }, [activeDomain?.domain_id])
+  }, [activeDomain?.domain_id,_ui])
 
   useEffect(() => { load() }, [load])
 
   const handleSaveOrg = async () => {
     if (!org.name.trim()) {
-      toast.error('Le nom du domaine est obligatoire')
+      toast.error(_ui("Le nom du domaine est obligatoire"))
       return
     }
     setSaving(true)
     try {
       await updateOrganization(org)
-      toast.success('Identité du domaine enregistrée — visible dans les factures et le Topbar')
+      toast.success(_ui("Identité du domaine enregistrée — visible dans les factures et le Topbar"))
     } catch (e: any) {
-      toast.error(`Enregistrement : ${e.message ?? e}`)
+      toast.error(_ui("Enregistrement : {v0}",{v0:String(e.message ?? e)}))
     } finally {
       setSaving(false)
     }
@@ -125,11 +129,11 @@ export default function ParametresPage() {
       await setCurrentCampaignId(currentCampaignId || null)
       toast.success(
         currentCampaignId
-          ? 'Campagne live définie'
-          : 'Mode auto activé : la campagne avec status=en_cours sera utilisée'
+          ? _ui("Campagne live définie")
+          : _ui("Mode auto activé : la campagne avec status=en_cours sera utilisée")
       )
     } catch (e: any) {
-      toast.error(`Enregistrement : ${e.message ?? e}`)
+      toast.error(_ui("Enregistrement : {v0}",{v0:String(e.message ?? e)}))
     } finally {
       setSaving(false)
     }
@@ -140,9 +144,9 @@ export default function ParametresPage() {
     setSaving(true)
     try {
       await updateDefaults(defaults)
-      toast.success('Valeurs par défaut enregistrées')
+      toast.success(_ui("Valeurs par défaut enregistrées"))
     } catch (e: any) {
-      toast.error(`Enregistrement : ${e.message ?? e}`)
+      toast.error(_ui("Enregistrement : {v0}",{v0:String(e.message ?? e)}))
     } finally {
       setSaving(false)
     }
@@ -152,18 +156,18 @@ export default function ParametresPage() {
     const raw = rateEdits[fromCurrency]
     const val = Number(raw)
     if (!raw || !Number.isFinite(val) || val <= 0) {
-      toast.error('Taux invalide (doit être > 0)')
+      toast.error(_ui("Taux invalide (doit être > 0)"))
       return
     }
     setSaving(true)
     try {
       await setRate({ from_currency: fromCurrency, rate: val })
-      toast.success(`Taux ${fromCurrency} → MAD mis à jour : ${val}`)
+      toast.success(_ui("Taux {v0} → MAD mis à jour : {v1}",{v0:String(fromCurrency),v1:String(val)}))
       setRateEdits(prev => { const n = { ...prev }; delete n[fromCurrency]; return n })
       const rts = await listCurrentRates()
       setRates(rts)
     } catch (e: any) {
-      toast.error(`Enregistrement : ${e.message ?? e}`)
+      toast.error(_ui("Enregistrement : {v0}",{v0:String(e.message ?? e)}))
     } finally {
       setSaving(false)
     }
@@ -174,9 +178,9 @@ export default function ParametresPage() {
     setSaving(true)
     try {
       await updateBusinessParams(biz)
-      toast.success('Paramètres métier enregistrés')
+      toast.success(_ui("Paramètres métier enregistrés"))
     } catch (e: any) {
-      toast.error(`Enregistrement : ${e.message ?? e}`)
+      toast.error(_ui("Enregistrement : {v0}",{v0:String(e.message ?? e)}))
     } finally {
       setSaving(false)
     }
@@ -184,7 +188,7 @@ export default function ParametresPage() {
 
   const handleSaveSprayVolume = async () => {
     if (!activeDomain || !Number.isFinite(defaultSprayVolume) || defaultSprayVolume <= 0) {
-      toast.error('Le volume de bouillie doit être supérieur à zéro')
+      toast.error(_ui("Le volume de bouillie doit être supérieur à zéro"))
       return
     }
     setSaving(true)
@@ -196,8 +200,8 @@ export default function ParametresPage() {
       updated_at: new Date().toISOString(),
     }, { onConflict: 'domain_id' })
     if (error) throw error
-    toast.success('Paramètres phytosanitaires enregistrés')
-    } catch (error: any) { toast.error(`Enregistrement : ${error.message}`) }
+    toast.success(_ui("Paramètres phytosanitaires enregistrés"))
+    } catch (error: any) { toast.error(_ui("Enregistrement : {v0}",{v0:String(error.message)})) }
     finally { setSaving(false) }
   }
 
@@ -210,8 +214,8 @@ export default function ParametresPage() {
       <div className="p-md">
         <Card>
           <div className="p-md text-center">
-            <h2 className="text-heading-sm font-bold text-fg-primary mb-sm">Accès réservé</h2>
-            <p className="text-body-sm text-fg-secondary">Cette page est réservée aux administrateurs.</p>
+            <h2 className="text-heading-sm font-bold text-fg-primary mb-sm">{_ui("Accès réservé")}</h2>
+            <p className="text-body-sm text-fg-secondary">{_ui("Cette page est réservée aux administrateurs.")}</p>
           </div>
         </Card>
       </div>
@@ -222,8 +226,8 @@ export default function ParametresPage() {
     <div className="p-md space-y-md max-w-4xl">
       <PageHeader
         icon={Settings}
-        title="Paramètres globaux"
-        description="Identité du domaine, campagne live et options d'affichage de l'application"
+        title={_ui("Paramètres globaux")}
+        description={_ui("Identité du domaine, campagne live et options d'affichage de l'application")}
       />
 
       {/* ─── Identité du domaine ─── */}
@@ -231,10 +235,9 @@ export default function ParametresPage() {
         <div className="flex items-center gap-sm mb-md pb-sm border-b border-border">
           <Building2 size={18} className="text-primary" strokeWidth={2.5} />
           <div>
-            <h2 className="font-display text-heading-sm font-bold text-fg-primary">Identité du domaine</h2>
+            <h2 className="font-display text-heading-sm font-bold text-fg-primary">{_ui("Identité du domaine")}</h2>
             <p className="text-body-sm text-fg-secondary">
-              Affichée dans l'en-tête des factures, bordereaux imprimables et le Topbar.
-            </p>
+              {" "}{_ui("Affichée dans l'en-tête des factures, bordereaux imprimables et le Topbar.")}{" "}</p>
           </div>
         </div>
 
@@ -243,69 +246,69 @@ export default function ParametresPage() {
         ) : (
           <div className="space-y-md">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
-              <Field label="Nom du domaine *" required>
+              <Field label={_ui("Nom du domaine *")} required>
                 <TInput
                   value={org.name}
                   onChange={(e) => setOrg({ ...org, name: e.target.value })}
-                  placeholder="Domaine BENHALIMA"
+                  placeholder={_ui("Domaine BENHALIMA")}
                 />
               </Field>
-              <Field label="Tagline / Sous-titre">
+              <Field label={_ui("Tagline / Sous-titre")}>
                 <TInput
                   value={org.tagline ?? ''}
                   onChange={(e) => setOrg({ ...org, tagline: e.target.value })}
-                  placeholder="Production maraîchère"
+                  placeholder={_ui("Production maraîchère")}
                 />
               </Field>
-              <Field label="Adresse">
+              <Field label={_ui("Adresse")}>
                 <TInput
                   value={org.address ?? ''}
                   onChange={(e) => setOrg({ ...org, address: e.target.value })}
-                  placeholder="Adresse complète"
+                  placeholder={_ui("Adresse complète")}
                 />
               </Field>
-              <Field label="Ville">
+              <Field label={_ui("Ville")}>
                 <TInput
                   value={org.city ?? ''}
                   onChange={(e) => setOrg({ ...org, city: e.target.value })}
                 />
               </Field>
-              <Field label="Pays">
+              <Field label={_ui("Pays")}>
                 <TInput
                   value={org.country ?? ''}
                   onChange={(e) => setOrg({ ...org, country: e.target.value })}
-                  placeholder="Maroc"
+                  placeholder={_ui("Maroc")}
                 />
               </Field>
-              <Field label="Téléphone">
+              <Field label={_ui("Téléphone")}>
                 <TInput
                   value={org.phone ?? ''}
                   onChange={(e) => setOrg({ ...org, phone: e.target.value })}
                   placeholder="+212..."
                 />
               </Field>
-              <Field label="Email">
+              <Field label={_ui("Email")}>
                 <TInput
                   type="email"
                   value={org.email ?? ''}
                   onChange={(e) => setOrg({ ...org, email: e.target.value })}
                 />
               </Field>
-              <Field label="Site web">
+              <Field label={_ui("Site web")}>
                 <TInput
                   value={org.website ?? ''}
                   onChange={(e) => setOrg({ ...org, website: e.target.value })}
                   placeholder="https://..."
                 />
               </Field>
-              <Field label="ICE / Identifiant fiscal">
+              <Field label={_ui("ICE / Identifiant fiscal")}>
                 <TInput
                   value={org.tax_id ?? ''}
                   onChange={(e) => setOrg({ ...org, tax_id: e.target.value })}
-                  placeholder="Identifiant Commun Entreprise"
+                  placeholder={_ui("Identifiant Commun Entreprise")}
                 />
               </Field>
-              <Field label="URL du logo (optionnel)">
+              <Field label={_ui("URL du logo (optionnel)")}>
                 <TInput
                   value={org.logo_url ?? ''}
                   onChange={(e) => setOrg({ ...org, logo_url: e.target.value })}
@@ -316,11 +319,10 @@ export default function ParametresPage() {
 
             <div className="flex justify-end gap-sm pt-sm border-t border-border">
               <Button variant="ghost" onClick={load}>
-                <RefreshCw size={14} /> Recharger
-              </Button>
+                <RefreshCw size={14} /> {" "}{_ui("Recharger")}{" "}</Button>
               <Button variant="primary" onClick={handleSaveOrg} disabled={saving}>
                 <Save size={14} strokeWidth={2.5} />
-                {saving ? 'Enregistrement…' : 'Enregistrer'}
+                {saving ? _ui("Enregistrement…") : _ui("Enregistrer")}
               </Button>
             </div>
           </div>
@@ -332,10 +334,9 @@ export default function ParametresPage() {
         <div className="flex items-center gap-sm mb-md pb-sm border-b border-border">
           <CalendarRange size={18} className="text-warning" strokeWidth={2.5} />
           <div>
-            <h2 className="font-display text-heading-sm font-bold text-fg-primary">Campagne « Live »</h2>
+            <h2 className="font-display text-heading-sm font-bold text-fg-primary">{_ui("Campagne « Live »")}</h2>
             <p className="text-body-sm text-fg-secondary">
-              Campagne mise en avant dans le Topbar et utilisée comme filtre par défaut sur les listings.
-            </p>
+              {" "}{_ui("Campagne mise en avant dans le Topbar et utilisée comme filtre par défaut sur les listings.")}{" "}</p>
           </div>
         </div>
 
@@ -343,12 +344,12 @@ export default function ParametresPage() {
           <Skeleton className="h-24 w-full" />
         ) : (
           <div className="space-y-md">
-            <Field label="Campagne en avant">
+            <Field label={_ui("Campagne en avant")}>
               <TSelect
                 value={currentCampaignId}
                 onChange={(e) => setCurrentCampId(e.target.value)}
               >
-                <option value="">— Auto (campagne avec status=en_cours) —</option>
+                <option value="">{_ui("— Auto (campagne avec status=en_cours) —")}</option>
                 {campaigns.map((c) => (
                   <option key={c.id} value={c.id}>
                     [{c.code}] {c.name} — {c.status}
@@ -362,14 +363,12 @@ export default function ParametresPage() {
               <div className="text-body-sm text-fg-secondary">
                 {currentCampaignId ? (
                   <>
-                    <strong>Mode manuel</strong> : la campagne sélectionnée s'affichera dans le Topbar
-                    même si elle n'est pas marquée <code>status=en_cours</code>.
+                    <strong>{_ui("Mode manuel")}</strong> {" "}{_ui(": la campagne sélectionnée s'affichera dans le Topbar même si elle n'est pas marquée")}{" "}<code>{_ui("status=en_cours")}</code>.
                   </>
                 ) : (
                   <>
-                    <strong>Mode auto</strong> : la première campagne avec <code>status=en_cours</code>{' '}
-                    sera utilisée. Si aucune, le badge Live sera masqué.
-                  </>
+                    <strong>{_ui("Mode auto")}</strong> {" "}{_ui(": la première campagne avec")}{" "}<code>{_ui("status=en_cours")}</code>{' '}
+                    {" "}{_ui("sera utilisée. Si aucune, le badge Live sera masqué.")}{" "}</>
                 )}
               </div>
             </div>
@@ -377,7 +376,7 @@ export default function ParametresPage() {
             <div className="flex justify-end pt-sm border-t border-border">
               <Button variant="primary" onClick={handleSaveCampaign} disabled={saving}>
                 <Save size={14} strokeWidth={2.5} />
-                {saving ? 'Enregistrement…' : 'Enregistrer'}
+                {saving ? _ui("Enregistrement…") : _ui("Enregistrer")}
               </Button>
             </div>
           </div>
@@ -389,10 +388,9 @@ export default function ParametresPage() {
         <div className="flex items-center gap-sm mb-md pb-sm border-b border-border">
           <Globe2 size={18} className="text-success" strokeWidth={2.5} />
           <div>
-            <h2 className="font-display text-heading-sm font-bold text-fg-primary">Valeurs par défaut</h2>
+            <h2 className="font-display text-heading-sm font-bold text-fg-primary">{_ui("Valeurs par défaut")}</h2>
             <p className="text-body-sm text-fg-secondary">
-              Pré-remplies dans les formulaires (devise, pays, TVA, délai de paiement, début de campagne).
-            </p>
+              {" "}{_ui("Pré-remplies dans les formulaires (devise, pays, TVA, délai de paiement, début de campagne).")}{" "}</p>
           </div>
         </div>
 
@@ -401,27 +399,27 @@ export default function ParametresPage() {
         ) : (
           <div className="space-y-md">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
-              <Field label="Devise par défaut">
+              <Field label={_ui("Devise par défaut")}>
                 <TInput value={defaults.default_currency} onChange={(e) => setDefaults({ ...defaults, default_currency: e.target.value.toUpperCase() })} placeholder="MAD" />
               </Field>
-              <Field label="Pays par défaut">
-                <TInput value={defaults.default_country} onChange={(e) => setDefaults({ ...defaults, default_country: e.target.value })} placeholder="Maroc" />
+              <Field label={_ui("Pays par défaut")}>
+                <TInput value={defaults.default_country} onChange={(e) => setDefaults({ ...defaults, default_country: e.target.value })} placeholder={_ui("Maroc")} />
               </Field>
-              <Field label="Mois de début de campagne">
+              <Field label={_ui("Mois de début de campagne")}>
                 <TSelect value={String(defaults.campaign_start_month)} onChange={(e) => setDefaults({ ...defaults, campaign_start_month: Number(e.target.value) })}>
                   {MONTHS.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
                 </TSelect>
               </Field>
-              <Field label="Taux de TVA (%)">
+              <Field label={_ui("Taux de TVA (%)")}>
                 <TInput type="number" value={String(Math.round(defaults.vat_rate * 100))} onChange={(e) => setDefaults({ ...defaults, vat_rate: (Number(e.target.value) || 0) / 100 })} placeholder="20" />
               </Field>
-              <Field label="Délai de paiement par défaut (jours)">
+              <Field label={_ui("Délai de paiement par défaut (jours)")}>
                 <TInput type="number" value={String(defaults.default_payment_terms_days)} onChange={(e) => setDefaults({ ...defaults, default_payment_terms_days: Number(e.target.value) || 0 })} placeholder="30" />
               </Field>
             </div>
             <div className="flex justify-end pt-sm border-t border-border">
               <Button variant="primary" onClick={handleSaveDefaults} disabled={saving}>
-                <Save size={14} strokeWidth={2.5} /> {saving ? 'Enregistrement…' : 'Enregistrer'}
+                <Save size={14} strokeWidth={2.5} /> {saving ? _ui("Enregistrement…") : _ui("Enregistrer")}
               </Button>
             </div>
           </div>
@@ -433,18 +431,18 @@ export default function ParametresPage() {
         <div className="flex items-center gap-sm mb-md pb-sm border-b border-border">
           <Droplets size={18} className="text-info" strokeWidth={2.5} />
           <div>
-            <h2 className="font-display text-heading-sm font-bold text-fg-primary">Paramètres phytosanitaires</h2>
-            <p className="text-body-sm text-fg-secondary">Valeur utilisée lorsqu’aucun volume spécifique n’est défini sur l’usage du produit.</p>
+            <h2 className="font-display text-heading-sm font-bold text-fg-primary">{_ui("Paramètres phytosanitaires")}</h2>
+            <p className="text-body-sm text-fg-secondary">{_ui("Valeur utilisée lorsqu’aucun volume spécifique n’est défini sur l’usage du produit.")}</p>
           </div>
         </div>
         <div className="space-y-md">
-          <label className="flex items-center gap-sm"><input type="checkbox" checked={requireReentryDelay} onChange={e=>setRequireReentryDelay(e.target.checked)}/> Bloquer l’application si le délai de rentrée est absent</label>
-          {!requireReentryDelay&&<p className="text-warning">La confirmation sera autorisée avec un avertissement conservé dans l’historique. Un délai inconnu n’est pas égal à zéro et n’autorise pas la rentrée dans la serre.</p>}
-          <Field label="Volume de bouillie par défaut (L/ha)" hint="Valeur initiale : 1 000 L/ha. Elle reste modifiable lors de l’application réelle.">
+          <label className="flex items-center gap-sm"><input type="checkbox" checked={requireReentryDelay} onChange={e=>setRequireReentryDelay(e.target.checked)}/> {" "}{_ui("Bloquer l’application si le délai de rentrée est absent")}</label>
+          {!requireReentryDelay&&<p className="text-warning">{_ui("La confirmation sera autorisée avec un avertissement conservé dans l’historique. Un délai inconnu n’est pas égal à zéro et n’autorise pas la rentrée dans la serre.")}</p>}
+          <Field label={_ui("Volume de bouillie par défaut (L/ha)")} hint="Valeur initiale : 1 000 L/ha. Elle reste modifiable lors de l’application réelle.">
             <TInput type="number" min="1" step="1" value={String(defaultSprayVolume)} onChange={(e) => setDefaultSprayVolume(Number(e.target.value))} />
           </Field>
           <div className="flex justify-end pt-sm border-t border-border">
-            <Button variant="primary" onClick={handleSaveSprayVolume} disabled={saving}><Save size={14} /> Enregistrer</Button>
+            <Button variant="primary" onClick={handleSaveSprayVolume} disabled={saving}><Save size={14} /> {" "}{_ui("Enregistrer")}</Button>
           </div>
         </div>
       </Card>
@@ -454,10 +452,9 @@ export default function ParametresPage() {
         <div className="flex items-center gap-sm mb-md pb-sm border-b border-border">
           <DollarSign size={18} className="text-warning" strokeWidth={2.5} />
           <div>
-            <h2 className="font-display text-heading-sm font-bold text-fg-primary">Taux de change → MAD</h2>
+            <h2 className="font-display text-heading-sm font-bold text-fg-primary">{_ui("Taux de change → MAD")}</h2>
             <p className="text-body-sm text-fg-secondary">
-              Utilisés pour convertir les prix des marchés en devise étrangère. Modifie le taux courant ; l'historique est conservé.
-            </p>
+              {" "}{_ui("Utilisés pour convertir les prix des marchés en devise étrangère. Modifie le taux courant ; l'historique est conservé.")}{" "}</p>
           </div>
         </div>
 
@@ -465,8 +462,7 @@ export default function ParametresPage() {
           <Skeleton className="h-32 w-full" />
         ) : rates.filter(r => r.from_currency !== 'MAD').length === 0 ? (
           <div className="text-body-sm text-fg-secondary py-md text-center">
-            Aucun taux configuré. Applique la migration 051 sur Supabase.
-          </div>
+            {" "}{_ui("Aucun taux configuré. Applique la migration 051 sur Supabase.")}{" "}</div>
         ) : (
           <div className="space-y-sm">
             {rates.filter(r => r.from_currency !== 'MAD').map((r) => (
@@ -480,11 +476,10 @@ export default function ParametresPage() {
                   className="w-32"
                 />
                 <div className="font-mono text-body-sm font-semibold">MAD</div>
-                <div className="text-caption text-fg-tertiary flex-1">depuis le {r.valid_from}</div>
+                <div className="text-caption text-fg-tertiary flex-1">{_ui("depuis le")}{" "}{r.valid_from}</div>
                 {rateEdits[r.from_currency] !== undefined && rateEdits[r.from_currency] !== String(r.rate) && (
                   <Button variant="primary" size="sm" onClick={() => handleSaveRate(r.from_currency)} disabled={saving}>
-                    <Save size={13} /> Mettre à jour
-                  </Button>
+                    <Save size={13} /> {" "}{_ui("Mettre à jour")}{" "}</Button>
                 )}
               </div>
             ))}
@@ -497,10 +492,9 @@ export default function ParametresPage() {
         <div className="flex items-center gap-sm mb-md pb-sm border-b border-border">
           <Percent size={18} className="text-purple" strokeWidth={2.5} />
           <div>
-            <h2 className="font-display text-heading-sm font-bold text-fg-primary">Paramètres de tri</h2>
+            <h2 className="font-display text-heading-sm font-bold text-fg-primary">{_ui("Paramètres de tri")}</h2>
             <p className="text-body-sm text-fg-secondary">
-              Freinte et écart par défaut, pré-remplis lors du tri d'un dispatch (modifiables au cas par cas).
-            </p>
+              {" "}{_ui("Freinte et écart par défaut, pré-remplis lors du tri d'un dispatch (modifiables au cas par cas).")}{" "}</p>
           </div>
         </div>
 
@@ -509,23 +503,23 @@ export default function ParametresPage() {
         ) : (
           <div className="space-y-md">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-md">
-              <Field label="Freinte Export (%)">
+              <Field label={_ui("Freinte Export (%)")}>
                 <TInput type="number" value={String(biz.default_freinte_export)} onChange={(e) => setBiz({ ...biz, default_freinte_export: Number(e.target.value) || 0 })} />
               </Field>
-              <Field label="Écart Export (%)">
+              <Field label={_ui("Écart Export (%)")}>
                 <TInput type="number" value={String(biz.default_ecart_export)} onChange={(e) => setBiz({ ...biz, default_ecart_export: Number(e.target.value) || 0 })} />
               </Field>
-              <Field label="Freinte Local (%)">
+              <Field label={_ui("Freinte Local (%)")}>
                 <TInput type="number" value={String(biz.default_freinte_local)} onChange={(e) => setBiz({ ...biz, default_freinte_local: Number(e.target.value) || 0 })} />
               </Field>
-              <Field label="Écart Local (%)">
+              <Field label={_ui("Écart Local (%)")}>
                 <TInput type="number" value={String(biz.default_ecart_local)} onChange={(e) => setBiz({ ...biz, default_ecart_local: Number(e.target.value) || 0 })} />
               </Field>
             </div>
 
             <div className="flex justify-end pt-sm border-t border-border">
               <Button variant="primary" onClick={handleSaveBiz} disabled={saving}>
-                <Save size={14} strokeWidth={2.5} /> {saving ? 'Enregistrement…' : 'Enregistrer'}
+                <Save size={14} strokeWidth={2.5} /> {saving ? _ui("Enregistrement…") : _ui("Enregistrer")}
               </Button>
             </div>
           </div>

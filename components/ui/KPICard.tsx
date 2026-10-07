@@ -1,4 +1,6 @@
 'use client'
+import {useLanguage} from '@/lib/i18n'
+
 import * as React from 'react'
 import { motion } from 'framer-motion'
 import { LucideIcon } from 'lucide-react'
@@ -38,6 +40,8 @@ export function KPICard({
   label, value, sub, icon: Icon, trend, accent = 'var(--neon)',
   sparkline, variant = 'default', onClick, delay = 0, className,
 }: KPICardProps) {
+ const {t:_ui,text:_uiNode}=useLanguage()
+
   const isHero = variant === 'hero'
   const isCompact = variant === 'compact'
 
@@ -73,7 +77,7 @@ export function KPICard({
             isCompact ? 'text-[9px]' : 'text-[10px]'
           )}
         >
-          {label}
+          {_uiNode(label)}
         </div>
         {Icon && (
           <div
@@ -106,7 +110,7 @@ export function KPICard({
         <div className="flex items-center justify-between mt-2 gap-2 flex-wrap">
           {sub && (
             <div className={cn('font-mono text-fg-tertiary', isCompact ? 'text-[10px]' : 'text-[11px]')}>
-              {sub}
+              {_uiNode(sub)}
             </div>
           )}
           {trend && <TrendIndicator trend={trend} size={isCompact ? 'xs' : 'sm'} />}
