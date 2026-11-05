@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { clientReferenceIsolationEnabled } from './clientReferenceScope'
 import { INIT_SECTIONS, type InitCatalog, type InitRow } from './initialization'
 
 /** Explicit tenant predicates for domain-owned tables. Shared catalogs follow their existing modules. No writes. */
@@ -7,25 +8,27 @@ export async function loadInitializationCatalog(domain: string): Promise<InitCat
     const rows: any[] = []
     for (let start = 0; ; start += 500) {
       let query = supabase.from(table).select(select).order(table === 'domain_memberships' ? 'user_id' : 'id').range(start, start + 499)
-      if (scope) query = query.eq(scope, domain)
+      if (scope && (!['crops', 'varieties'].includes(table) || clientReferenceIsolationEnabled())) query = query.eq(scope, domain)
       const { data, error } = await query
       if (error) throw new Error(`${table} : ${error.message}`)
-      rows.push(...(data || []).filter((r: any) => r.is_active !== false))
+      rows.push(...(data || []).filter((r: any) => ['farms','greenhouses','campaigns','campaign_plantings','varieties'].includes(table) || r.is_active !== false))
       if (!data || data.length < 500) return rows
     }
   }
   const [crops, varieties, farms, houses, warehouses, campaigns, products, suppliers, clients, workers, plantings, categories, referenceValues, phyto, roles, teams, members, markets] = await Promise.all([
-    all('crops'), all('varieties'), all('farms', 'domain_id'), all('greenhouses', 'farms.domain_id', '*,farms!inner(domain_id)'),
+    all('crops', 'domain_id'), all('varieties', 'domain_id'), all('farms', 'domain_id'), all('greenhouses', 'farms.domain_id', '*,farms!inner(domain_id)'),
     all('warehouses', 'domain_id'), all('campaigns', 'domain_id'), all('stock_items', 'domain_id'), all('suppliers', 'domain_id'),
     all('clients'), all('workers', 'farms.domain_id', '*,farms!inner(domain_id)'), all('campaign_plantings', 'domain_id'), all('account_categories'),
     all('reference_values'), all('plant_protection_products', 'domain_id'),
-    all('roles'), all('teams', 'farms.domain_id', '*,farms!inner(domain_id)'), all('domain_memberships', 'domain_id', 'user_id,is_active,profiles:user_id(full_name,email)'), all('markets'),
+    all('roles'), all('teams', 'farms.domain_id', '*,farms!teams_farm_id_fkey!inner(domain_id)'), all('domain_memberships', 'domain_id', 'user_id,is_active,profiles:user_id(full_name,email)'), all('markets'),
   ])
   const s = (v: unknown) => v == null ? '' : String(v)
   const keys = new Set(INIT_SECTIONS.flatMap(section => section.fields.map(f => f.key)))
   const base = (r: any, extra: Record<string, unknown>): InitRow => Object.fromEntries(Object.entries({ ...Object.fromEntries(Object.entries(r).filter(([key]) => keys.has(key))), existing_id: r.id, code: r.code, ...extra }).map(([k, v]) => [k, typeof v === 'boolean' ? v ? 'oui' : 'non' : s(v)]))
   const farmCode = (id: string) => farms.find(r => r.id === id)?.code || ''
   const referenceKeys = new Set(INIT_SECTIONS.flatMap(section => section.fields.flatMap(f => f.ref ? [f.ref] : [])))
+  const usedVarietyIds = new Set(plantings.map(row=>row.variety_id))
+  const varietyRows = varieties.filter(r=>clientReferenceIsolationEnabled() || r.is_active!==false || usedVarietyIds.has(r.id)).map(r => base(r, { name: r.commercial_name, crop: crops.find(c => c.id === r.crop_id)?.code || '' }))
   return {
     ...Object.fromEntries(Array.from(new Set(referenceValues.map(r => r.list_key))).filter(key => referenceKeys.has(key)).map(key => [key, referenceValues.filter(r => r.list_key === key).map(r => base(r, { name: r.label }))])),
     roles: roles.map(r => base(r, { name: r.name })),
@@ -34,7 +37,8 @@ export async function loadInitializationCatalog(domain: string): Promise<InitCat
     markets: markets.map(r => base(r, { code: r.code || r.id, name: r.name })),
     commercial_customers: clients.map(r => base(r, { name: r.name })),
     crops: crops.map(r => base(r, { name: r.name, id: r.id })),
-    varieties: varieties.map(r => base(r, { name: r.commercial_name, crop: crops.find(c => c.id === r.crop_id)?.code || '' })),
+    varieties: varietyRows,
+    client_varieties: varietyRows.filter(row=>clientReferenceIsolationEnabled() || usedVarietyIds.has(row.existing_id)),
     farms: farms.map(r => base(r, { name: r.name, address: r.address || r.city })),
     greenhouses: houses.map(r => base(r, { code: `${farmCode(r.farm_id)}/${r.code}`, name: `${r.name || r.code} — ${farms.find(f => f.id === r.farm_id)?.name || ''}`, farm: farmCode(r.farm_id), type: r.type, area: r.total_area, usable_area: r.exploitable_area })),
     warehouses: warehouses.map(r => base(r, { name: r.name, farm: farmCode(r.farm_id), manager: r.manager_id })),

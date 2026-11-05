@@ -215,6 +215,10 @@ export function DemoSetupWizard({ onClose, onComplete }: {
 
   // ─── Génération finale ──────────────────────────────────────────────────
   const generateAll = async () => {
+    // Legacy generator upserts global variety codes and has no client context.
+    // Do not let earlier operational writes run before its inevitable failure.
+    toast.error('Générateur partagé désactivé. Utilisez le dossier d’initialisation du client.')
+    return
     setGenerating(true)
     setProgress({ step: 'Création des fermes', done: 0, total: 0 })
 

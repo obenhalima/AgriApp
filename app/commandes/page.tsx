@@ -5,7 +5,9 @@ import '@/components/ui/workspace.css'
 /**
  * /commandes — Refonte avec design system + workflow.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
+import {useAuth} from '@/lib/auth'
+import {createClientSalesOrder} from '@/lib/salesOrderScope'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import {
@@ -36,6 +38,14 @@ import {
 const ENTITY_TYPE = 'sales_order'
 
 export default function CommandesPage() {
+ const {activeDomain}=useAuth()
+ return <CommandesContent key={activeDomain?.domain_id || 'none'} />
+}
+function CommandesContent() {
+ const {activeDomain}=useAuth()
+ const domain=activeDomain?.domain_id
+ const mounted=useRef(true)
+ useEffect(()=>{mounted.current=true;return()=>{mounted.current=false}},[])
  const {t:_ui,text:_uiNode}=useLanguage()
 
   const [items, setItems] = useState<any[]>([])
@@ -43,6 +53,7 @@ export default function CommandesPage() {
   const [marches, setMarches] = useState<any[]>([])
   const [campagnes, setCampagnes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError,setLoadError]=useState('')
   const [modal, setModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
@@ -64,13 +75,18 @@ export default function CommandesPage() {
   const [histLoading, setHistLoading] = useState(false)
 
   const load = async () => {
+    if(!domain){setItems([]);setClients([]);setMarches([]);setCampagnes([]);setLoading(false);return}
+    setLoading(true);setLoadError('')
+    try {
     const [o, c, m, camp, def] = await Promise.all([
-      supabase.from('sales_orders').select('*, clients(name), markets(name)').order('order_date', { ascending: false }).limit(100),
-      supabase.from('clients').select('id,name,code').eq('is_active', true).order('name'),
-      supabase.from('markets').select('id,name,currency').eq('is_active', true).order('name'),
-      supabase.from('campaigns').select('id,name').order('name'),
+      supabase.from('sales_orders').select('*, clients!sales_orders_client_id_fkey(name), markets!sales_orders_market_id_fkey(name)').eq('domain_id',domain).order('order_date', { ascending: false }).limit(100),
+      supabase.from('clients').select('id,name,code').eq('domain_id',domain).eq('is_active', true).order('name'),
+      supabase.from('markets').select('id,name,currency').eq('domain_id',domain).eq('is_active', true).order('name'),
+      supabase.from('campaigns').select('id,name').eq('domain_id',domain).order('name'),
       getDefaultDefinition(ENTITY_TYPE),
     ])
+    if(!mounted.current)return
+    for(const result of [o,c,m,camp])if(result.error)throw result.error
     setItems(o.data || []); setClients(c.data || []); setMarches(m.data || []); setCampagnes(camp.data || [])
 
     if (def) {
@@ -78,10 +94,13 @@ export default function CommandesPage() {
         getStates(def.id),
         supabase.from('workflow_transitions').select('*').eq('definition_id', def.id).eq('is_active', true).order('order_idx'),
       ])
+      if(!mounted.current)return
+      if(tr.error)throw tr.error
       setStates(st)
       setAllTrans((tr.data ?? []) as WorkflowTransition[])
     }
-    setLoading(false)
+    }catch(e:any){if(mounted.current){setItems([]);setClients([]);setMarches([]);setCampagnes([]);setLoadError(`Chargement impossible : ${e.message}`)}}
+    finally{if(mounted.current)setLoading(false)}
   }
   useEffect(() => { load() }, [])
 
@@ -118,6 +137,7 @@ export default function CommandesPage() {
   const toStateOf = (t: WorkflowTransition) => states.find(s => s.id === t.to_state_id)
 
   const triggerTransition = async (order: any, t: WorkflowTransition) => {
+    if(!domain || !mounted.current || order.domain_id!==domain)return
     const target = toStateOf(t)
     if (!target) return
     setTransitingId(order.id)
@@ -130,6 +150,7 @@ export default function CommandesPage() {
   }
 
   const openHistory = async (orderId: string) => {
+    if(!domain || !mounted.current || !items.some(o=>o.id===orderId && o.domain_id===domain))return
     setHistOrderId(orderId); setHistLoading(true)
     try { setHistEntries(await getEntityHistory(ENTITY_TYPE, orderId)) }
     catch (e: any) { toast.error(_ui("Erreur historique :") + e.message) }
@@ -142,18 +163,18 @@ export default function CommandesPage() {
   }
 
   const save = async () => {
-    if (!form.client_id || !form.order_date) return
+    if (!domain || !mounted.current || saving || !form.client_id || !form.order_date) return
     setSaving(true)
     try {
       const num = `CMD-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`
-      const { data, error } = await supabase.from('sales_orders').insert({
+      const data = await createClientSalesOrder(domain,{
         order_number: num, client_id: form.client_id,
         market_id: form.market_id || null, campaign_id: form.campaign_id || null,
         order_date: form.order_date, delivery_date: form.delivery_date || null,
         status: 'brouillon', currency: form.currency || 'MAD',
         exchange_rate: 1, subtotal: 0, total_amount: 0, notes: form.notes || null,
-      }).select('*, clients(name), markets(name)').single()
-      if (error) throw error
+      },()=>mounted.current)
+      if(!mounted.current)return
       setItems(p => [data, ...p]); setDone(true)
       toast.success(_ui("Commande {v0} créée",{v0:String(num)}))
       setTimeout(() => {
@@ -252,7 +273,7 @@ export default function CommandesPage() {
         iconColor="#ec4899"
         description={_ui("{v0} commande{v1}",{v0:String(items.length),v1:String(items.length > 1 ? 's' : '')})}
         actions={
-          <Button onClick={() => setModal(true)} variant="primary">
+          <Button disabled={!domain || loading || !!loadError} onClick={() => setModal(true)} variant="primary">
             <Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle commande")}{" "}</Button>
         }
         stats={loading ? [] : [
@@ -264,6 +285,7 @@ export default function CommandesPage() {
         ]}
       />
 
+      {loadError && <div role="alert" className="text-red-700 p-4">{loadError} <Button onClick={load}>Réessayer</Button></div>}
       {!loading && items.length > 0 && (
         <Card animate delay={0.15} className="mb-md">
           <div className="flex items-center gap-md flex-wrap">
@@ -295,7 +317,7 @@ export default function CommandesPage() {
             icon={ClipboardList}
             title={_ui("Aucune commande")}
             description={_ui("Crée ta première commande client.")}
-            action={<Button onClick={() => setModal(true)}><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle commande")}</Button>}
+            action={<Button disabled={!domain || !!loadError} onClick={() => setModal(true)}><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle commande")}</Button>}
           />
         ) : filtered.length === 0 ? (
           <EmptyState

@@ -25,7 +25,8 @@ async function allRows(table: string, select: string, domain: string, signal: Ab
 export default function AlertesPage() {
  const {t:_ui,text:_uiNode,intlLocale:_uiLocale}=useLanguage()
 
-  const { activeDomain, isAdmin, isPlatformAdmin } = useAuth(), domain = activeDomain?.domain_id
+  const { activeDomain, isAdmin, isPlatformAdmin, hasPermission } = useAuth(), domain = activeDomain?.domain_id
+  const canReadCultural = hasPermission('agronomie', 'view')
   const [settings, setSettings] = useState<AlertSettings>(alertDefaults), [draft, setDraft] = useState<AlertSettings>(alertDefaults)
   const [data, setData] = useState<any>(null), [errors, setErrors] = useState<string[]>([]), [loading, setLoading] = useState(false)
   const [reload, setReload] = useState(0), [category, setCategory] = useState(''), [farm, setFarm] = useState(''), [wh, setWh] = useState('')
@@ -52,7 +53,7 @@ export default function AlertesPage() {
         ['balances', 'warehouse_stocks', '*'],
         ['warehouses', 'warehouses', 'id,name,farm_id,is_active,farms(name)'],
         ['requests', 'treatment_requests', 'id,status,planned_at,target_name,warehouse_id,occurrence_number'],
-        ['plantings', 'campaign_plantings', 'id,status,first_harvest_date,last_harvest_date,greenhouses(code,name,farm_id,farms(name)),varieties(commercial_name),campaigns(status,harvest_start,harvest_end)'],
+        ['plantings', 'campaign_plantings', 'id,status,first_harvest_date,last_harvest_date,greenhouses(code,name,farm_id,farms(name)),varieties!campaign_plantings_variety_id_fkey(commercial_name),campaigns(status,harvest_start,harvest_end)'],
         ['harvests', 'harvests', 'id,campaign_planting_id,harvest_date,total_qty,estimated_kg,actual_kg'],
       ].map(async ([key, table, select]) => { try { result[key] = await allRows(table, select, domain, controller.signal) } catch (e: any) { result[key] = []; warnings.push(e.message) } }))
       const forecastRows: any[] = []
@@ -63,9 +64,14 @@ export default function AlertesPage() {
       }
       const config = await supabase.from('operational_alert_settings').select('*').eq('domain_id', domain).abortSignal(controller.signal).maybeSingle()
       result.forecast = forecastRows
-      const cultural = await supabase.rpc('cultural_workspace',{p_domain:domain}).abortSignal(controller.signal)
-      if(cultural.error) warnings.push(`Interventions culturales indisponibles : ${cultural.error.message}`)
-      else result.cultural=cultural.data
+      if (!canReadCultural) result.culturalUnavailableReason = 'Les alertes des interventions culturales ne sont pas évaluées : votre compte ne dispose pas du droit de consultation Agronomie pour ce client.'
+      else {
+        const cultural = await supabase.rpc('cultural_workspace',{p_domain:domain}).abortSignal(controller.signal)
+        if (cultural.error) {
+          result.culturalUnavailableReason = 'Les alertes des interventions culturales ne sont pas évaluées. Vérifiez votre affectation active à ce client et le droit de consultation Agronomie auprès de son administrateur.'
+          if (!/Accès agronomie requis/i.test(cultural.error.message)) warnings.push(`Interventions culturales indisponibles : ${cultural.error.message}`)
+        } else result.cultural=cultural.data
+      }
       if (config.error) warnings.push(`Paramétrage indisponible : valeurs par défaut utilisées. ${config.error.message}`)
       // Ne pas générer de fausses alertes à partir de sources non chargées.
       if (warnings.some(w => w.startsWith('harvests :'))) result.plantings = []
@@ -77,7 +83,7 @@ export default function AlertesPage() {
     }
     load().catch(e => { if (!cancelled) { setErrors([String(e.message)]); setData(null); setLoading(false) } }).finally(() => clearTimeout(timeout))
     return () => { cancelled = true; clearTimeout(timeout); controller.abort() }
-  }, [domain, reload])
+  }, [domain, reload, canReadCultural])
   const alerts: OperationalAlert[] = data && loadedDomain === domain ? [...buildOperationalAlerts(data, settings, now),...(data.cultural?culturalAlerts(data.cultural,now):[])] : []
   const visible = alerts.filter(a => (!category || a.type === category) && (!farm || a.farmId === farm) && (!wh || a.warehouseId === wh))
   const farms = Array.from(new Map(alerts.filter(a => a.farmId).map(a => [a.farmId, a.location.split(' · ')[0]])).entries())
@@ -101,10 +107,11 @@ export default function AlertesPage() {
       {([['treatment_horizon_days', 'Anticipation du stock des traitements (jours)', 1, 365], ['treatment_delay_hours', 'Tolérance de retard traitement (heures)', 0, 720], ['no_harvest_days', 'Alerte après absence de récolte (jours)', 1, 365]] as const).map(([key, label, min, max]) => <label className="flex flex-wrap items-center gap-3" key={key}>{_uiNode(label)}<input className="border rounded p-2 w-24 bg-surface" type="number" min={min} max={max} step={1} value={draft[key]} onChange={e => setDraft({ ...draft, [key]: Number(e.target.value) })} /></label>)}
       <p className="text-sm">{_ui("Récoltes : uniquement pendant la période prévue de la plantation (ou de sa campagne). L’alerte signale une absence de saisie, pas nécessairement une absence de production.")}</p><button disabled={saving} className="border rounded px-4 py-2" onClick={save}>{saving ? _ui("Enregistrement…") : _ui("Enregistrer")}</button><p role="status">{_uiNode(message)}</p></section>}
     {errors.length > 0 && <div role="alert" className="border border-amber-500 rounded p-3"><strong>{_ui("Résultat partiel — certaines données ne sont pas disponibles.")}</strong>{errors.map((e, i) => <p key={i} className="text-sm">{e}</p>)}</div>}
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{Object.entries(alertLabels).map(([key, label]) => <button key={key} className={`border rounded-lg p-4 text-left ${category === key ? 'ring-2 ring-violet-500' : ''}`} onClick={() => setCategory(category === key ? '' : key)}><div className="text-sm">{_uiNode(label)}</div><strong className="text-2xl">{alerts.filter(a => a.type === key).length}</strong></button>)}</div>
+    {loadedDomain === domain && data?.culturalUnavailableReason && <p role="status" className="border border-border bg-surface-sunk rounded p-3 text-sm">{_uiNode(data.culturalUnavailableReason)}</p>}
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{Object.entries(alertLabels).map(([key, label]) => <button key={key} className={`border rounded-lg p-4 text-left ${category === key ? 'ring-2 ring-violet-500' : ''}`} onClick={() => setCategory(category === key ? '' : key)}><div className="text-sm">{_uiNode(label)}</div><strong className="text-2xl">{loadedDomain === domain && data?.culturalUnavailableReason && key.startsWith('cultural_') ? _ui('Non évalué') : alerts.filter(a => a.type === key).length}</strong></button>)}</div>
     <div className="flex flex-wrap gap-3"><select aria-label={_ui("Type d’alerte")} className="border rounded p-2 bg-surface" value={category} onChange={e => setCategory(e.target.value)}><option value="">{_ui("Tous les types")}</option>{Object.entries(alertLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select><select aria-label={_ui("Ferme")} className="border rounded p-2 bg-surface" value={farm} onChange={e => { setFarm(e.target.value); setWh('') }}><option value="">{_ui("Toutes les fermes / total client")}</option>{farms.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select><select aria-label={_ui("Entrepôt")} className="border rounded p-2 bg-surface" value={wh} onChange={e => setWh(e.target.value)}><option value="">{_ui("Tous les entrepôts")}</option>{(loadedDomain === domain ? data?.warehouses || [] : []).filter((w: any) => w.is_active && (!farm || w.farm_id === farm)).map((w: any) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
     <p className="text-sm">{visible.length} {" "}{_ui("alerte(s) affichée(s)")}{updated && _ui("· Dernier calcul : {v0}",{v0:String(updated)})} {" "}{_ui("· Actualisation automatique chaque minute.")}</p>
-    {!loading && domain && !visible.length && <p className="border rounded p-5">{errors.length ? _ui("Aucune alerte dans les données chargées ; le contrôle reste incomplet.") : _ui("Aucune alerte détectée pour ces filtres et les règles activées.")}</p>}
+    {!loading && domain && !visible.length && <p className="border rounded p-5">{errors.length ? _ui("Aucune alerte dans les données chargées ; le contrôle reste incomplet.") : data?.culturalUnavailableReason ? _ui('Aucune alerte détectée dans les données accessibles. Les interventions culturales restent non évaluées.') : _ui("Aucune alerte détectée pour ces filtres et les règles activées.")}</p>}
     {visible.map(a => <article key={a.id} className={`border rounded-lg p-4 ${a.urgent ? 'border-red-300' : 'border-amber-300'}`}><div className="flex justify-between gap-3"><div><p className="text-xs uppercase">{_uiNode(alertLabels[a.type])} · {a.urgent ? _ui("À traiter") : _ui("À surveiller")}</p><h2 className="font-bold mt-1">{a.title}</h2><p className="text-sm">{a.location}</p></div><Link className="underline shrink-0" href={a.href}>{_ui("Ouvrir le module")}</Link></div><p className="mt-2 text-sm">{_uiNode(a.detail)}</p></article>)}
     <p className="text-sm text-fg-tertiary">{_ui("Ces alertes disparaissent lorsque leur cause est corrigée. Les manques de stock des traitements sont cumulés par occurrence et entrepôt. Ce centre n’envoie pas, à lui seul, de notifications push.")}</p>
   </main>

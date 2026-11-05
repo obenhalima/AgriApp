@@ -118,7 +118,7 @@ async function getActualRevenuesMonthly(params: {
       campaign_plantings!inner(
         id, campaign_id, greenhouse_id,
         price_per_kg_export, price_per_kg_local,
-        varieties(avg_price_export, avg_price_local),
+        varieties!campaign_plantings_variety_id_fkey(avg_price_export, avg_price_local),
         greenhouses(farm_id)
       )
     `)
@@ -178,7 +178,8 @@ export async function buildComparison(params: {
   const cutoffMonth = cutoff.getMonth() + 1
 
   // Charge les catégories pour identifier les codes CA
-  const { data: allCats } = await supabase.from('account_categories').select('*').eq('is_active', true)
+  const { data: allCats, error: categoriesError } = await supabase.from('account_categories').select('*').eq('is_active', true)
+  if (categoriesError) throw categoriesError
   const categories = (allCats ?? []) as any[]
   const caExportCatId = categories.find(c => c.code === 'CA_EXPORT')?.id ?? null
   const caLocalCatId  = categories.find(c => c.code === 'CA_LOCAL')?.id  ?? null

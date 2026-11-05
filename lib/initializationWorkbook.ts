@@ -29,6 +29,10 @@ export async function initializationWorkbook(domain: string, draft?: InitDraft, 
     'Les feuilles Ref_ sont informatives : références existantes et données déjà saisies dans le dossier. Elles ne sont jamais importées.',
   ]
   instructions.forEach(t => guide.addRow([t]))
+  if (sectionKey === 'opening_stock') {
+    guide.addRow(['Inventaire : quantité vide = inconnue, zéro = stock nul confirmé. Prix inconnu : laisser vide. Ne pas assimiler le stock d’ouverture à une dépense.'])
+    guide.addRow(['Les colonnes article_name, article_category et article_unit sont informatives et recalculées depuis Ref_products. Ne pas modifier les unités pour convertir des quantités.'])
+  }
   guide.eachRow(r => { r.height = 35; r.alignment = { wrapText: true, vertical: 'middle' } })
   const meta = wb.addWorksheet('_farmpilot')
   meta.addRow(['schema', 1]); meta.addRow(['domain', domain]); meta.state = 'hidden'
@@ -70,6 +74,23 @@ export async function initializationWorkbook(domain: string, draft?: InitDraft, 
         if (r > 1 && refSheet && refSheet.rowCount > 1) cell.dataValidation = { type: 'list', allowBlank: !field.required, formulae: [`'${refSheet.name}'!$A$2:$A$${refSheet.rowCount}`], showErrorMessage: true, errorStyle: 'stop', error: 'Choisir une référence de la liste.' }
       }
     })
+    if (section.key === 'opening_stock') {
+      const productIndex = section.fields.findIndex(field => field.key === 'product') + 1
+      const ref = wb.getWorksheet(referenceNames('products'))
+      const productFields = INIT_SECTIONS.find(s => s.key === 'products')!.fields
+      for (const [offset, key] of ['name', 'category', 'unit'].entries()) {
+        const columnIndex = section.fields.length + offset + 1
+        const column = sheet.getColumn(columnIndex)
+        column.width = key === 'name' ? 40 : 24
+        sheet.getCell(1, columnIndex).value = `article_${key}`
+        sheet.getCell(1, columnIndex).font = { bold: true }
+        if (ref && ref.rowCount > 1) for (let r = 2; r <= Math.max(101, sheet.rowCount); r++) {
+          const productCell = sheet.getCell(r, productIndex).address
+          sheet.getCell(r, columnIndex).value = { formula: `IF(${productCell}="","",IFERROR(VLOOKUP(${productCell},'${ref.name}'!$A$2:$${ref.getColumn(productFields.length).letter}$${ref.rowCount},${productFields.findIndex(f => f.key === key) + 1},FALSE),"Référence inconnue"))` }
+          sheet.getCell(r, columnIndex).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }
+        }
+      }
+    }
   }
   const buffer = await wb.xlsx.writeBuffer()
   return new Blob([buffer as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })

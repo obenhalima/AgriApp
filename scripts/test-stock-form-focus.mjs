@@ -26,7 +26,7 @@ try {
   const page=await context.newPage(),errors=[]
   page.on('pageerror',e=>errors.push(e.message))
   page.setDefaultTimeout(20000)
-  await page.goto('http://localhost:3001/stocks',{waitUntil:'domcontentloaded',timeout:120000})
+  await page.goto((process.env.TEST_BASE_URL||'http://localhost:3001')+'/stocks',{waitUntil:'domcontentloaded',timeout:120000})
   await page.getByRole('button',{name:/NOUVEL ARTICLE/i}).first().click()
   async function checkFields() {
     const modal=page.locator('.modal-box')
@@ -40,7 +40,24 @@ try {
     await expect(modal.locator('input[placeholder="NPK 20-20-20"]')).toHaveValue('Engrais test')
   }
   await checkFields()
-  await page.getByRole('button',{name:'ANNULER',exact:true}).click()
+  // Focus must stay inside the dialog, in both tab directions.
+  for (const key of ['Tab', 'Shift+Tab']) {
+    for (let i=0;i<16;i++) {
+      await page.keyboard.press(key)
+      if (!await page.locator('.modal-box').evaluate(el=>el.contains(document.activeElement))) throw Error('Focus escaped stock dialog')
+    }
+  }
+  page.once('dialog',dialog=>dialog.dismiss())
+  await page.mouse.click(5,5)
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.locator('.modal-box input[placeholder="NPK 20-20-20"]')).toHaveValue('Engrais test')
+  page.once('dialog',dialog=>dialog.dismiss())
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toBeVisible()
+  page.once('dialog',dialog=>dialog.accept())
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByRole('button',{name:/NOUVEL ARTICLE/i}).first()).toBeFocused()
   await page.locator('tr').filter({hasText:'Article QA'}).getByRole('button').last().click()
   await checkFields()
   await page.setViewportSize({width:390,height:844})
@@ -49,7 +66,11 @@ try {
   fs.mkdirSync('outputs',{recursive:true})
   await page.screenshot({path:'outputs/stocks-form-mobile.png'})
   if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1)) throw Error('Stock modal mobile overflow: '+JSON.stringify(await page.evaluate(()=>[...document.querySelectorAll('main *')].filter(e=>e.getBoundingClientRect().width>innerWidth).slice(0,10).map(e=>({tag:e.tagName,cls:e.className,width:e.getBoundingClientRect().width})))) )
+  page.once('dialog',dialog=>dialog.dismiss())
   await page.getByRole('button',{name:'ANNULER',exact:true}).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  page.once('dialog',dialog=>dialog.accept())
+  await page.getByRole('button',{name:'Fermer la fenêtre',exact:true}).click()
   await page.screenshot({path:'outputs/stocks-mobile.png',fullPage:true})
   if(errors.length) throw Error(errors.join('\n'))
   console.log('PASS stock form: creation and edit retain focus and complete values during typing. Mocked HTTP only.')

@@ -6,6 +6,8 @@
 // ============================================================
 
 import { supabase } from './supabase'
+import { requireReferenceDomain, requireClientReferenceWrite, clientReferenceIsolationEnabled } from './clientReferenceScope'
+import { assertClientReferenceIsolation } from './clientReferenceReadiness'
 
 export interface Crop {
   id: string
@@ -36,29 +38,38 @@ export interface CatalogVariety {
   order_idx: number
 }
 
-export async function listCrops(opts?: { activeOnly?: boolean }): Promise<Crop[]> {
+export async function listCrops(domainId: string, opts?: { activeOnly?: boolean }): Promise<Crop[]> {
+  const domain = requireReferenceDomain(domainId)
   let q = supabase.from('crops').select('*').order('order_idx')
+  if (clientReferenceIsolationEnabled()) q = q.eq('domain_id', domain)
   if (opts?.activeOnly) q = q.eq('is_active', true)
   const { data, error } = await q
   if (error) throw error
   return (data ?? []) as Crop[]
 }
 
-export async function updateCrop(id: string, patch: Partial<Crop>): Promise<void> {
-  const { error } = await supabase.from('crops').update(patch).eq('id', id)
+export async function updateCrop(id: string, patch: Partial<Crop>, domainId: string): Promise<void> {
+  requireClientReferenceWrite(domainId)
+  if ('domain_id' in patch || 'id' in patch) throw new Error('Le propriétaire et l’identifiant d’une culture ne peuvent pas être modifiés.')
+  const domain = await assertClientReferenceIsolation(domainId, supabase)
+  const { data, error } = await supabase.from('crops').update(patch).eq('id', id).eq('domain_id', domain).select('id').single()
   if (error) throw error
+  if (!data) throw new Error('Culture inaccessible pour ce client.')
 }
 
-export async function toggleCropActive(id: string, isActive: boolean): Promise<void> {
-  await updateCrop(id, { is_active: isActive })
+export async function toggleCropActive(id: string, isActive: boolean, domainId: string): Promise<void> {
+  await updateCrop(id, { is_active: isActive }, domainId)
 }
 
-export async function listCatalog(cropCode: string): Promise<CatalogVariety[]> {
-  const { data, error } = await supabase
+export async function listCatalog(cropCode: string, domainId: string): Promise<CatalogVariety[]> {
+  const domain = requireReferenceDomain(domainId)
+  let query = supabase
     .from('crop_variety_catalog')
     .select('*')
     .eq('crop_code', cropCode)
     .order('order_idx')
+  if (clientReferenceIsolationEnabled()) query = query.eq('domain_id', domain)
+  const { data, error } = await query
   if (error) throw error
   return (data ?? []) as CatalogVariety[]
 }
@@ -76,9 +87,14 @@ function slugCode(cropCode: string, name: string): string {
 export async function importCatalogVarieties(
   crop: Pick<Crop, 'id' | 'code'>,
   items: CatalogVariety[],
+  domainId: string,
 ): Promise<{ created: number; skipped: number; errors: string[] }> {
+  const domain = await assertClientReferenceIsolation(domainId, supabase)
+  const { data: ownedCrop, error: cropError } = await supabase.from('crops').select('id').eq('id', crop.id).eq('domain_id', domain).single()
+  if (cropError || !ownedCrop) throw new Error('Culture inaccessible pour ce client.')
   // Codes existants pour éviter les collisions
-  const { data: existing } = await supabase.from('varieties').select('code')
+  const { data: existing, error: existingError } = await supabase.from('varieties').select('code').eq('domain_id', domain)
+  if (existingError) throw existingError
   const taken = new Set((existing ?? []).map((v: any) => v.code))
 
   let created = 0, skipped = 0
@@ -91,12 +107,13 @@ export async function importCatalogVarieties(
     let n = 1
     while (taken.has(code)) { code = `${slugCode(crop.code, it.name)}-${n++}` }
     const { error } = await supabase.from('varieties').insert({
+      domain_id: domain,
       code,
       commercial_name: it.name,
       type: it.segment ?? 'autre',
       destination: 'mixte',
       crop_id: crop.id,
-      notes: [it.breeder, it.traits].filter(Boolean).join(' — ') || null,
+      technical_notes: [it.breeder, it.traits].filter(Boolean).join(' — ') || null,
     })
     if (error) {
       if (/duplicate key|unique/i.test(error.message)) skipped++

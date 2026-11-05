@@ -6,11 +6,12 @@ import '@/components/ui/workspace.css'
  * /factures — Refonte avec design system.
  * Conserve toute la logique (calendrier, échéances, paiements) — refait l'UI.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { useRealtimeReload } from '@/lib/useRealtimeReload'
 import { useRefreshOnEvent } from '@/lib/useAuthGuard'
 import { useReferenceList } from '@/lib/useReferenceList'
 import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import {
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react'
 
 import { BordereauxSection } from './BordereauxSection'
+import { InvoiceDocumentActions } from '@/components/invoices/InvoiceDocumentActions'
 
 import {
   createFacture, createFactureFournisseur, getCampagnes, getClients, getFactures,
@@ -82,11 +84,14 @@ const STATUS_CONFIG: Record<string, { variant: 'success' | 'warning' | 'danger' 
 export default function FacturesPage() {
  const {t:_ui,text:_uiNode,intlLocale:_uiLocale}=useLanguage()
 
-  const { activeDomain } = useAuth()
+  const { activeDomain, isAdmin, isPlatformAdmin } = useAuth()
   const { values: PAY_METHODS } = useReferenceList('payment_method')
   const [tab, setTab] = useState<InvoiceTab>('clients')
   const [modal, setModal] = useState<ModalType>(null)
   const [loading, setLoading] = useState(true)
+  const [invoiceLoadError, setInvoiceLoadError] = useState('')
+  const loadVersion = useRef(0), currentDomain = useRef(activeDomain?.domain_id)
+  currentDomain.current = activeDomain?.domain_id
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
   const [paymentError, setPaymentError] = useState('')
@@ -121,12 +126,16 @@ export default function FacturesPage() {
   const searchParams = useSearchParams()
 
   const load = useCallback(() => {
-    if (!activeDomain) { setSupplierInvoices([]); setSuppliers([]); setCampagnes([]); setSerres([]); setLoading(false); return Promise.resolve() }
+    const version = ++loadVersion.current, domain = activeDomain?.domain_id
+    const isCurrent = () => version === loadVersion.current && domain === currentDomain.current
+    setLoading(true); setInvoiceLoadError('')
+    setClientInvoices([]); setSupplierInvoices([])
+    if (!activeDomain) { setClients([]); setSuppliers([]); setCampagnes([]); setSerres([]); setLoading(false); return Promise.resolve() }
     return (
     // Promise.allSettled : si une requete echoue, les autres aboutissent quand meme
     // (avant : une requete echouee effacait TOUTES les factures de l'UI)
     Promise.allSettled([
-      getFactures(), getFacturesFournisseurs(activeDomain.domain_id), getClients(), getFournisseurs(activeDomain.domain_id), getCampagnes(activeDomain.domain_id), getSerres(activeDomain.domain_id),
+      getFactures(activeDomain.domain_id), getFacturesFournisseurs(activeDomain.domain_id), getClients(activeDomain.domain_id), getFournisseurs(activeDomain.domain_id), getCampagnes(activeDomain.domain_id), getSerres(activeDomain.domain_id),
       // Charge les POs réceptionnés (entièrement ou partiellement) qui n'ont pas encore de facture
       // NOTE : la colonne est po_number, pas code (regression du schema initial)
       supabase.from('purchase_orders')
@@ -137,11 +146,17 @@ export default function FacturesPage() {
         .limit(100),
       // Charge tous les clients (y compris inactifs) pour le mapping de fallback
       // sur les jointures qui retourneraient null (ex: client Station désactivé)
-      supabase.from('clients').select('id, name, is_active').order('name'),
+      supabase.from('clients').select('id, name, is_active').eq('domain_id', activeDomain.domain_id).order('name'),
       // Bordereaux avec invoice_id : pour bouton "Imprimer PDF" sur les lignes facture
-      supabase.from('station_settlements').select('id, invoice_id').not('invoice_id', 'is', null),
+      supabase.from('station_settlements').select('id, invoice_id').eq('domain_id', activeDomain.domain_id).not('invoice_id', 'is', null),
     ])
       .then((results) => {
+        if (!isCurrent()) return
+        if (results[0].status === 'rejected') {
+          const candidate = results[0].reason?.code
+          const code = typeof candidate === 'string' && /^[A-Z0-9_]{3,20}$/.test(candidate) ? ` (code ${candidate})` : ''
+          setInvoiceLoadError(`Impossible de charger les factures clients${code}. Les factures existantes sont conservées. Réessayez ou contactez votre administrateur.`)
+        }
         // Helper : recupere la valeur si fulfilled, sinon valeur par defaut + log d'erreur
         const get = <T,>(idx: number, fallback: T, label: string): T => {
           const r = results[idx]
@@ -187,12 +202,15 @@ export default function FacturesPage() {
         setLoading(false)
       })
       .catch((e) => {
+        if (!isCurrent()) return
         console.error('[factures] load error:', e)
+        setInvoiceLoadError('Impossible de charger les factures clients. Les factures existantes sont conservées. Réessayez ou contactez votre administrateur.')
         setLoading(false)
       })
     )
   }, [activeDomain?.domain_id])
   useEffect(() => { load() }, [load])
+  useEffect(() => { setClientFilter('all'); setSupplierFilter('all'); setStatusFilter('all'); setSearch('') }, [activeDomain?.domain_id])
 
   // Realtime : synchro auto factures + paiements + bordereaux + achats
   useRealtimeReload(
@@ -207,6 +225,19 @@ export default function FacturesPage() {
 
   // Highlight de la facture ciblée par ?invoice=ID (après generation depuis bordereau)
   const focusInvoiceId = searchParams?.get('invoice') ?? null
+  const openedPayment = useRef('')
+  useEffect(() => {
+    if (loading || invoiceLoadError || !activeDomain || searchParams?.get('action') !== 'payment' || searchParams.get('domain') !== activeDomain.domain_id) return
+    const supplier = searchParams.get('tab') === 'fournisseurs'
+    const key = `${activeDomain.domain_id}:${supplier}:${focusInvoiceId}`
+    if (openedPayment.current === key) return
+    const item = (supplier ? supplierInvoices : clientInvoices).find(invoice => invoice.id === focusInvoiceId && invoice.domain_id === activeDomain.domain_id)
+    if (!item || Number(item.total_amount || 0) <= Number(item.paid_amount || 0)) return
+    openedPayment.current = key
+    setPaymentError('')
+    if (supplier) { setSelectedSupplierInvoice(item); setModal('paiement_fournisseur') }
+    else { setSelectedClientInvoice(item); setModal('paiement_client') }
+  }, [loading, invoiceLoadError, activeDomain?.domain_id, searchParams, focusInvoiceId, clientInvoices, supplierInvoices])
   useEffect(() => {
     if (!focusInvoiceId) return
     // Scroll vers la ligne après que la table soit rendue
@@ -220,16 +251,19 @@ export default function FacturesPage() {
   // Fallback : si on cherche une facture spécifique mais elle n'est pas dans la liste,
   // on la fetch directement et on l'injecte (cas RLS ou limit(100) qui l'exclurait)
   useEffect(() => {
-    if (!focusInvoiceId || loading) return
+    if (!focusInvoiceId || loading || invoiceLoadError || !activeDomain) return
     const exists = clientInvoices.some((i) => i.id === focusInvoiceId)
     if (exists) return
+    let stale = false
     console.warn(`[factures] facture ${focusInvoiceId} demandee mais absente de la liste, fetch direct…`)
     supabase
       .from('invoices')
-      .select('*, clients(name)')
+      .select('*, clients!invoices_client_id_fkey(name)')
+      .eq('domain_id', activeDomain.domain_id)
       .eq('id', focusInvoiceId)
       .maybeSingle()
       .then(({ data, error }) => {
+        if (stale) return
         if (error) { console.error('[factures] fetch direct error:', error); return }
         if (!data) { console.warn(`[factures] facture ${focusInvoiceId} introuvable en DB`); return }
         // Resoudre le client name si null
@@ -241,7 +275,8 @@ export default function FacturesPage() {
         toast.info(_ui("Facture {v0} chargée (n'apparaissait pas via la requête principale)",{v0:String(enriched.invoice_number)}))
         setClientInvoices((prev) => [enriched, ...prev])
       })
-  }, [focusInvoiceId, clientInvoices, loading, clients,_ui])
+    return () => { stale = true }
+  }, [focusInvoiceId, clientInvoices, loading, clients,_ui,invoiceLoadError,activeDomain?.domain_id])
 
   // ─── Onglet actif depuis ?tab=bordereaux|clients|fournisseurs ─────────
   useEffect(() => {
@@ -661,12 +696,20 @@ export default function FacturesPage() {
         iconColor="#f43f5e"
         description={_ui("Crédit clients · Débit fournisseurs · Échéances")}
         actions={
+          <>
+          {(isAdmin||isPlatformAdmin)&&<Link href="/factures/integrations" className="btn btn-secondary">Connecteurs ERP — simulation</Link>}
           <Button onClick={() => setModal(tab === 'clients' ? 'facture_client' : 'facture_fournisseur')} variant="primary">
             <Plus size={14} strokeWidth={2.5} /> {tab === 'clients' ? _ui("Facture client") : _ui("Facture fournisseur")}
           </Button>
+          </>
         }
       />
 
+      {invoiceLoadError && <div role="alert" className="mb-4 rounded-lg border border-red-300 bg-red-50 p-4 text-red-800">
+        <p>{_ui(invoiceLoadError)}</p>
+        <Button variant="secondary" onClick={() => void load()}>{_ui('Réessayer')}</Button>
+      </div>}
+      <div hidden={Boolean(invoiceLoadError)}>
       {/* ─── KPI Trésorerie (5 hero) ─── */}
       {loading ? (
         <div className="itrix-kpis">
@@ -1024,34 +1067,13 @@ export default function FacturesPage() {
                     <TD right mono><MoneyDisplay value={remaining} compact="auto" className={remaining > 0 ? 'text-warning font-bold' : 'text-fg-tertiary'} /></TD>
                     <TD><Badge variant={st.variant} size="sm">{_uiNode(st.label)}</Badge></TD>
                     <TD right>
-                      <div className="flex gap-1 justify-end">
-                        {/* Bouton PDF : disponible pour les factures bordereau (FB-*) */}
-                        {tab === 'clients' && settlementByInvoiceId.has(item.id) && (
-                          <Button
-                            onClick={() => window.open(`/factures/bordereau/${settlementByInvoiceId.get(item.id)}/print`, '_blank')}
-                            variant="ghost"
-                            size="xs"
-                            title={_ui("Ouvrir la vue imprimable du bordereau lié")}
-                          >
-                            <Printer size={12} /> PDF
-                          </Button>
-                        )}
-                        {item.effectiveStatus !== 'paye' && (
-                          <Button
-                            onClick={() => {
-                              setPaymentError('')
-                              if (tab === 'clients') {
-                                setSelectedClientInvoice(item); setModal('paiement_client')
-                              } else {
-                                setSelectedSupplierInvoice(item); setModal('paiement_fournisseur')
-                              }
-                            }}
-                            variant={tab === 'clients' ? 'primary' : 'secondary'}
-                            size="xs"
-                          >
-                            {tab === 'clients' ? _ui("Encaisser") : _ui("Régler")}
-                          </Button>
-                        )}
+                      <div className="flex flex-wrap gap-1 justify-end">
+                        {activeDomain&&<InvoiceDocumentActions id={item.id} kind={tab==='clients'?'client':'fournisseur'} domain={activeDomain.domain_id}/>}
+                        {item.effectiveStatus !== 'paye' && <Button size="xs" variant={tab==='clients'?'primary':'secondary'} onClick={()=>{
+                          setPaymentError('')
+                          if(tab==='clients'){setSelectedClientInvoice(item);setModal('paiement_client')}
+                          else {setSelectedSupplierInvoice(item);setModal('paiement_fournisseur')}
+                        }}>{tab==='clients'?_ui("Encaisser"):_ui("Régler")}</Button>}
                       </div>
                     </TD>
                   </TR>
@@ -1061,6 +1083,7 @@ export default function FacturesPage() {
           </DataTable>
         )}
       </Card>
+      </div>
     </div>
   )
 }

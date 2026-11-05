@@ -1,4 +1,6 @@
 'use client'
+
+import { FilterableTable } from '@/components/ui/FilterableTable'
 import {useLanguage} from '@/lib/i18n'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -217,7 +219,8 @@ export function GenerateSalesBudgetModal(props: {
                 )}
 
                 <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--bd-1)', borderRadius: 6, marginTop: 6 }}>
-                  <table className="tbl" style={{ width: '100%' }}>
+                  <FilterableTable className="tbl" style={{ width: '100%' }}>
+                    <thead><tr><th>{_ui("Niveau")}</th><th>{_ui("Message")}</th></tr></thead>
                     <tbody>
                       {salesReport.issues.map((i, idx) => (
                         <tr key={`s${idx}`}>
@@ -232,7 +235,7 @@ export function GenerateSalesBudgetModal(props: {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </FilterableTable>
                 </div>
               </details>
             )
@@ -243,7 +246,7 @@ export function GenerateSalesBudgetModal(props: {
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 6 }}>{_ui("PRODUITS (CA) —")}{" "}{salesPivot.length} {" "}{_ui("ligne(s)")}</div>
               <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid var(--bd-1)', borderRadius: 6 }}>
-                <table className="tbl" style={{ width: '100%', minWidth: 600 }}>
+                <FilterableTable className="tbl" style={{ width: '100%', minWidth: 600 }}>
                   <thead><tr><th>{_ui("Serre")}</th><th>{_ui("Variété")}</th><th>{_ui("Marché")}</th><th style={{ textAlign: 'right' }}>{_ui("Qté (kg)")}</th><th style={{ textAlign: 'right' }}>{_ui("Mois")}</th><th style={{ textAlign: 'right' }}>{_ui("Montant")}</th></tr></thead>
                   <tbody>
                     {salesPivot.map((r, i) => (
@@ -257,7 +260,7 @@ export function GenerateSalesBudgetModal(props: {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </FilterableTable>
               </div>
             </div>
           )}
@@ -267,7 +270,7 @@ export function GenerateSalesBudgetModal(props: {
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 6 }}>{_ui("CHARGES —")}{" "}{chargesPivot.length} {" "}{_ui("ligne(s)")}</div>
               <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid var(--bd-1)', borderRadius: 6 }}>
-                <table className="tbl" style={{ width: '100%', minWidth: 600 }}>
+                <FilterableTable className="tbl" style={{ width: '100%', minWidth: 600 }}>
                   <thead><tr><th>{_ui("Ferme")}</th><th>{_ui("Serre")}</th><th>{_ui("Catégorie")}</th><th>{_ui("Type")}</th><th style={{ textAlign: 'right' }}>{_ui("Mois")}</th><th style={{ textAlign: 'right' }}>{_ui("Montant")}</th></tr></thead>
                   <tbody>
                     {chargesPivot.map((r, i) => {
@@ -286,7 +289,7 @@ export function GenerateSalesBudgetModal(props: {
                       )
                     })}
                   </tbody>
-                </table>
+                </FilterableTable>
               </div>
             </div>
           )}

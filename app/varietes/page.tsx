@@ -11,7 +11,8 @@ import {
   Dna, Plus, Pencil, Trash2, Search, X, Sprout, Coins, TrendingUp,
 } from 'lucide-react'
 
-import { getVarietes, createVariete, deleteVariete, supabase } from '@/lib/supabase'
+import { getVarietes, createVariete, deleteVariete, updateVariete, supabase } from '@/lib/supabase'
+import { assertClientReferenceIsolation } from '@/lib/clientReferenceReadiness'
 import { genCode } from '@/lib/utils'
 import { cn } from '@/lib/cn'
 
@@ -27,6 +28,7 @@ import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { NumberDisplay, MoneyDisplay } from '@/components/display'
 import { useReferenceList } from '@/lib/useReferenceList'
 import { type Crop, listCrops } from '@/lib/crops'
+import { useAuth } from '@/lib/auth'
 
 // ─── Formulaire partagé (HORS du composant parent pour éviter remount/focus loss) ───
 function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e: any) => void }) {
@@ -35,7 +37,13 @@ function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e:
   const { values: refTypes } = useReferenceList('variety_type')
   const { values: destinations } = useReferenceList('variety_destination')
   const [crops, setCrops] = useState<Crop[]>([])
-  useEffect(() => { listCrops({ activeOnly: true }).then(setCrops).catch(() => {}) }, [])
+  const { activeDomain } = useAuth()
+  useEffect(() => {
+    let cancelled = false
+    setCrops([])
+    if (activeDomain) listCrops(activeDomain.domain_id, { activeOnly: true }).then(rows => { if (!cancelled) setCrops(rows) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [activeDomain?.domain_id])
 
   // Type filtré par la culture sélectionnée (segments propres), sinon le référentiel
   const selectedCrop = crops.find(c => c.id === vals.crop_id)
@@ -106,6 +114,12 @@ const blank = {
 }
 
 export default function VarietesPage() {
+  const { activeDomain } = useAuth()
+  return <VarietesContent key={activeDomain?.domain_id || 'none'} />
+}
+
+function VarietesContent() {
+ const { activeDomain, isAdmin, isPlatformAdmin } = useAuth()
  const {t:_ui,text:_uiNode}=useLanguage()
 
   const { values: TYPES } = useReferenceList('variety_type')
@@ -122,10 +136,24 @@ export default function VarietesPage() {
 
   const [form, setForm] = useState({ ...blank })
   const [formE, setFormE] = useState<Record<string, any>>({})
+  const [canWrite, setCanWrite] = useState(false)
+  useEffect(() => {
+    let cancelled=false
+    setCanWrite(false)
+    if (activeDomain && (isAdmin || isPlatformAdmin)) assertClientReferenceIsolation(activeDomain.domain_id,supabase)
+      .then(()=>{if(!cancelled)setCanWrite(true)}).catch(()=>{})
+    return ()=>{cancelled=true}
+  },[activeDomain?.domain_id,isAdmin,isPlatformAdmin])
   const upd = (k: string) => (e: any) => setForm((f: any) => ({ ...f, [k]: e.target.value }))
   const updE = (k: string) => (e: any) => setFormE(f => ({ ...f, [k]: e.target.value }))
 
-  const load = () => getVarietes().then(d => { setItems(d); setLoading(false) }).catch(() => setLoading(false))
+  const load = () => {
+    if (!activeDomain) { setItems([]); setLoading(false); return }
+    return getVarietes(activeDomain.domain_id).then(d => { setItems(d); setLoading(false) }).catch(() => {
+      setItems([]); setLoading(false)
+      toast.error(_ui('Référentiel client indisponible : migration d’isolation à valider.'))
+    })
+  }
   useEffect(() => { load() }, [])
 
   const filtered = useMemo(() => items.filter(v => {
@@ -162,11 +190,13 @@ export default function VarietesPage() {
   }
 
   const save = async () => {
+    if (!canWrite || !activeDomain) { toast.error(_ui('Modification suspendue : les variétés doivent être isolées par client.')); return }
     if (!form.commercial_name) return
     setSaving(true)
     try {
       const n = await createVariete({
         ...form,
+        domain_id: activeDomain!.domain_id,
         crop_id: form.crop_id || undefined,
         theoretical_yield_per_m2: Number(form.theoretical_yield_per_m2) || 0,
         theoretical_cost_per_m2: Number(form.theoretical_cost_per_m2) || 0,
@@ -182,10 +212,11 @@ export default function VarietesPage() {
   }
 
   const saveEdit = async () => {
+    if (!canWrite || !activeDomain) { toast.error(_ui('Modification suspendue : les variétés doivent être isolées par client.')); return }
     if (!modalEdit || !formE.commercial_name) return
     setSaving(true)
     try {
-      const { error } = await supabase.from('varieties').update({
+      await updateVariete(modalEdit.id, {
         code: formE.code, commercial_name: formE.commercial_name, crop_id: formE.crop_id || null, type: formE.type, destination: formE.destination,
         theoretical_yield_per_m2: Number(formE.theoretical_yield_per_m2) || 0,
         theoretical_cost_per_m2: Number(formE.theoretical_cost_per_m2) || 0,
@@ -193,8 +224,7 @@ export default function VarietesPage() {
         avg_price_export: Number(formE.avg_price_export) || 0,
         estimated_cycle_days: formE.estimated_cycle_days ? Number(formE.estimated_cycle_days) : null,
         technical_notes: formE.technical_notes || null,
-      }).eq('id', modalEdit.id)
-      if (error) throw error
+      }, activeDomain.domain_id)
       setDone(true)
       toast.success(_ui("Variété modifiée"))
       setTimeout(() => { setModalEdit(null); setDone(false); load() }, 1200)
@@ -203,9 +233,10 @@ export default function VarietesPage() {
   }
 
   const del = async (v: any) => {
+    if (!canWrite || !activeDomain) { toast.error(_ui('Modification suspendue : les variétés doivent être isolées par client.')); return }
     if (!confirm(_ui("Archiver \"{v0}\" ?",{v0:String(v.commercial_name)}))) return
     try {
-      await deleteVariete(v.id)
+      await deleteVariete(v.id, activeDomain!.domain_id)
       setItems(p => p.filter(i => i.id !== v.id))
       toast.success(_ui("Variété archivée"))
     } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
@@ -241,7 +272,7 @@ export default function VarietesPage() {
         iconColor="#a855f7"
         description={_ui("{v0} variété{v1} de tomates",{v0:String(items.length),v1:String(items.length > 1 ? 's' : '')})}
         actions={
-          <Button onClick={openNew} variant="primary">
+          <Button disabled={!canWrite} title={!canWrite ? _ui('Isolation par client en cours') : undefined} onClick={openNew} variant="primary">
             <Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle variété")}{" "}</Button>
         }
         stats={loading ? [] : [
@@ -253,6 +284,9 @@ export default function VarietesPage() {
         ]}
       />
 
+      {!canWrite && <div role="status" className="mb-md rounded-md border border-warning p-4 text-body-sm">
+        {_ui('Variétés temporairement en lecture seule. Les créations, modifications et archives sont suspendues pour éviter un impact sur les autres clients. Les données existantes sont conservées.')}
+      </div>}
       {!loading && items.length > 0 && (
         <Card animate delay={0.15} className="mb-md">
           <div className="flex items-center gap-md flex-wrap">
@@ -288,7 +322,7 @@ export default function VarietesPage() {
             icon={Dna}
             title={_ui("Aucune variété")}
             description={_ui("Crée tes variétés pour commencer la planification.")}
-            action={<Button onClick={openNew}><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle variété")}</Button>}
+            action={<Button disabled={!canWrite} onClick={openNew}><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle variété")}</Button>}
           />
         ) : filtered.length === 0 ? (
           <EmptyState
@@ -337,10 +371,10 @@ export default function VarietesPage() {
                   </TD>
                   <TD right>
                     <div className="flex items-center justify-end gap-1">
-                      <Button onClick={() => openEdit(v)} variant="ghost" size="icon-sm" title={_ui("Modifier")}>
+                      <Button disabled={!canWrite} onClick={() => openEdit(v)} variant="ghost" size="icon-sm" title={_ui("Modifier")}>
                         <Pencil size={12} strokeWidth={2.2} />
                       </Button>
-                      <Button onClick={() => del(v)} variant="ghost" size="icon-sm" title={_ui("Archiver")} className="hover:text-danger">
+                      <Button disabled={!canWrite} onClick={() => del(v)} variant="ghost" size="icon-sm" title={_ui("Archiver")} className="hover:text-danger">
                         <Trash2 size={12} strokeWidth={2.2} />
                       </Button>
                     </div>

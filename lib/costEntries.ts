@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 
 export type CostEntryInput = {
+  domain_id?: string
   campaign_id: string
   farm_id?: string           // pour la répartition ; non persisté directement (déduit via greenhouse ou campaign)
   greenhouse_id?: string | null
@@ -41,6 +42,7 @@ export async function createCostEntry(input: CostEntryInput): Promise<CostEntry>
   }
 
   const { data, error } = await supabase.from('cost_entries').insert({
+    ...(input.domain_id ? {domain_id:input.domain_id} : {}),
     campaign_id: input.campaign_id,
     greenhouse_id: input.greenhouse_id ?? null,
     account_category_id: input.account_category_id,

@@ -1,4 +1,6 @@
 'use client'
+
+import { FilterableTable } from '@/components/ui/FilterableTable'
 import {useLanguage} from '@/lib/i18n'
 
 /**
@@ -181,7 +183,7 @@ export function PlanTab(props: { rows: PlantingRow[]; campaign: Campaign; loadin
 
       {/* ─── Tableau ─── */}
       <div className="card" style={{ padding: 0, overflow: 'auto', maxHeight: 'calc(100vh - 320px)' }}>
-        <table className="tbl" style={{ minWidth: 1500 }}>
+        <FilterableTable className="tbl" style={{ minWidth: 1500 }}>
           <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
             <tr style={{ background: 'var(--bg-deep)' }}>
               <th style={{ position: 'sticky', left: 0, background: 'var(--bg-deep)', zIndex: 6 }}>{_ui("Ferme · Serre")}</th>
@@ -267,7 +269,7 @@ export function PlanTab(props: { rows: PlantingRow[]; campaign: Campaign; loadin
               <td></td>
             </tr>
           </tfoot>
-        </table>
+        </FilterableTable>
       </div>
     </div>
   )

@@ -1,10 +1,12 @@
 'use client'
+
+import { FilterableTable } from '@/components/ui/FilterableTable'
 import {useLanguage} from '@/lib/i18n'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { useAuth } from '@/lib/auth'
-import { IMPORT_TARGETS, getTarget } from '@/lib/imports/registry'
+import { getClientImportTargets } from '@/lib/imports/registry'
 import {
   readWorkbookSheets, readSheetRows, autoMap, parseRows,
   validateAndResolve, commitReport, downloadBlob,
@@ -16,6 +18,14 @@ import {
 type Tab = 'templates' | 'dynamic'
 
 export default function ImportsPage() {
+ const {activeDomain}=useAuth()
+ return <ImportsContent key={activeDomain?.domain_id || 'none'} />
+}
+function ImportsContent() {
+ const {activeDomain}=useAuth()
+ const live=useRef(true)
+ useEffect(()=>{live.current=true;return()=>{live.current=false}},[])
+ const targets=useMemo(()=>getClientImportTargets(activeDomain?.domain_id || '',()=>live.current),[activeDomain?.domain_id])
  const {t:_ui,text:_uiNode}=useLanguage()
 
   const { canAccessModule, hasPermission, loading: authLoading } = useAuth()
@@ -67,8 +77,8 @@ export default function ImportsPage() {
           {" "}{_ui("ℹ️ Vous avez l'accès")}{" "}<strong>{_ui("lecture seule")}</strong>{_ui(". Vous pouvez télécharger les templates mais pas commiter un import.")}{" "}</div>
       )}
 
-      {tab === 'templates' && <TemplatesTab canCreate={canCreate} />}
-      {tab === 'dynamic'   && <DynamicTab   canCreate={canCreate} />}
+      {tab === 'templates' && <TemplatesTab targets={targets} canCreate={canCreate && !!activeDomain} />}
+      {tab === 'dynamic'   && <DynamicTab targets={targets} canCreate={canCreate && !!activeDomain} />}
     </div>
   )
 }
@@ -76,12 +86,12 @@ export default function ImportsPage() {
 // ═════════════════════════════════════════════════════════════════════
 //  TAB 1 : TEMPLATES
 // ═════════════════════════════════════════════════════════════════════
-function TemplatesTab({ canCreate }: { canCreate: boolean }) {
+function TemplatesTab({ canCreate,targets }: { canCreate: boolean; targets:ImportTarget[] }) {
  const {t:_ui,text:_uiNode}=useLanguage()
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: 14 }}>
-      {IMPORT_TARGETS.map(t => (
+      {targets.map(t => (
         <TargetCard key={t.key} target={t} canCreate={canCreate} />
       ))}
       {/* Placeholder pour futur */}
@@ -164,12 +174,12 @@ function TargetCard({ target, canCreate }: { target: ImportTarget; canCreate: bo
 // ═════════════════════════════════════════════════════════════════════
 //  TAB 2 : DYNAMIC
 // ═════════════════════════════════════════════════════════════════════
-function DynamicTab({ canCreate }: { canCreate: boolean }) {
+function DynamicTab({ canCreate,targets }: { canCreate: boolean; targets:ImportTarget[] }) {
  const {t:_ui,text:_uiNode}=useLanguage()
 
   const [targetKey, setTargetKey] = useState('')
   const [flowOpen, setFlowOpen] = useState(false)
-  const target = getTarget(targetKey)
+  const target = targets.find(t=>t.key===targetKey)
 
   return (
     <div>
@@ -179,7 +189,7 @@ function DynamicTab({ canCreate }: { canCreate: boolean }) {
         <div style={{ fontSize: 12, color: 'var(--text-sub)', marginBottom: 12 }}>
           {" "}{_ui("Dans quelle table de données ces lignes vont-elles être importées ? Les contrôles appliqués seront les mêmes qu'une saisie manuelle.")}{" "}</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
-          {IMPORT_TARGETS.map(t => (
+          {targets.map(t => (
             <button key={t.key} onClick={() => setTargetKey(t.key)}
               style={{
                 padding: 14, textAlign: 'left',
@@ -409,7 +419,7 @@ function StepIndicator({ step }: { step: string }) {
 function UploadStep({ target, onFile, fileInputRef }: {
   target: ImportTarget
   onFile: (f: File) => void
-  fileInputRef: React.RefObject<HTMLInputElement>
+  fileInputRef: React.RefObject<HTMLInputElement | null>
 }) {
  const {t:_ui,text:_uiNode}=useLanguage()
 
@@ -489,7 +499,7 @@ function SheetStep({ sheets, selected, onSelect, headerRowIndex, setHeaderRowInd
           <div style={{ fontSize: 12, color: 'var(--text-main)', marginTop: 12, marginBottom: 4 }}>
             {" "}{_ui("Aperçu des 5 premières lignes :")}{" "}</div>
           <div style={{ overflow: 'auto', maxHeight: 260, border: '1px solid var(--bd-1)', borderRadius: 6 }}>
-            <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
+            <FilterableTable style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
               <thead style={{ background: 'var(--bg-2)', position: 'sticky', top: 0 }}>
                 <tr>
                   {sel.headers.map((h, i) => (
@@ -508,7 +518,7 @@ function SheetStep({ sheets, selected, onSelect, headerRowIndex, setHeaderRowInd
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </FilterableTable>
           </div>
         </>
       )}
@@ -667,7 +677,7 @@ function PreviewStep({ report, onCommit, onBack, target }: {
       </div>
 
       <div style={{ border: '1px solid var(--bd-1)', borderRadius: 6, maxHeight: 380, overflow: 'auto' }}>
-        <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
+        <FilterableTable style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
           <thead style={{ background: 'var(--bg-2)', position: 'sticky', top: 0 }}>
             <tr>
               <th style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid var(--bd-1)', color: 'var(--text-main)' }}>{_ui("Ligne")}</th>
@@ -707,7 +717,7 @@ function PreviewStep({ report, onCommit, onBack, target }: {
               )
             })}
           </tbody>
-        </table>
+        </FilterableTable>
       </div>
 
       {visible.length > 200 && (

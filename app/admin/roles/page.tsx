@@ -1,4 +1,6 @@
 'use client'
+
+import { FilterableTable } from '@/components/ui/FilterableTable'
 import {useLanguage} from '@/lib/i18n'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -195,7 +197,7 @@ export default function RolesAdminPage() {
                     {" "}{_ui("Le rôle")}{" "}<strong className="text-fg-primary">{selectedRole.name}</strong> {" "}{_ui("a accès complet à toute l'application.")}{" "}</div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-body-sm" style={{ minWidth: 800 }}>
+                    <FilterableTable className="w-full text-body-sm" style={{ minWidth: 800 }}>
                       <thead>
                         <tr className="border-b border-border bg-surface-sunk">
                           <th className="text-left py-2 px-3 font-mono text-[10px] uppercase tracking-wider text-fg-tertiary min-w-[180px]">{_ui("Module")}</th>
@@ -246,7 +248,7 @@ export default function RolesAdminPage() {
                           </>
                         ))}
                       </tbody>
-                    </table>
+                    </FilterableTable>
                   </div>
                 )}
               </>

@@ -434,6 +434,9 @@ export default function DemoResetPage() {
   // RÉPARATEUR : patche les données existantes pour rendre Générer Budget opérationnel
   // ════════════════════════════════════════════════════════════════════
   const repairDemoData = async () => {
+    // This legacy repair updates all varieties, without a selected client.
+    toast.error('Réparation globale désactivée : intervention ciblée par client requise.')
+    return
     setRepairing(true)
     const toastId = toast.loading('🔧 Réparation en cours…')
     let summary = { plantings: 0, plantingsYield: 0, varieties: 0, costs: 0, errors: 0 }

@@ -2,11 +2,10 @@
 import {useLanguage} from '@/lib/i18n'
 
 import '@/components/ui/workspace.css'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import { Globe, Plus, Trash2, Search, X, MapPin, DollarSign, ShieldCheck, Pencil, Calendar } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { genCode } from '@/lib/utils'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -16,6 +15,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Input as TInput, Select as TSelect, Textarea, Field } from '@/components/ui/Input'
 import { Modal, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { useReferenceList } from '@/lib/useReferenceList'
+import { useAuth } from '@/lib/auth'
 
 const TYPE_VARIANT: Record<string, 'success' | 'warning' | 'info' | 'brand' | 'default'> = {
   export: 'warning', local: 'success', grande_distribution: 'info', grossiste: 'brand', industrie: 'default',
@@ -23,6 +23,9 @@ const TYPE_VARIANT: Record<string, 'success' | 'warning' | 'info' | 'brand' | 'd
 
 export default function MarchesPage() {
  const {t:_ui,text:_uiNode}=useLanguage()
+  const {activeDomain,hasPermission}=useAuth()
+  const scopeRef=useRef({domain:activeDomain?.domain_id})
+  if(scopeRef.current.domain!==activeDomain?.domain_id)scopeRef.current={domain:activeDomain?.domain_id}
 
   const { values: TYPES } = useReferenceList('market_type')
   const { values: CURRENCIES } = useReferenceList('currency')
@@ -48,19 +51,24 @@ export default function MarchesPage() {
   const [loadDebug, setLoadDebug] = useState<{ activeCount: number; totalCount: number; lastError?: string } | null>(null)
 
   const load = async () => {
+    const scope=scopeRef.current
+    if(!scope.domain){setItems([]);setClients([]);setLoading(false);return}
     setLoading(true)
     try {
       let marketsAll: any[] = []
       let lastError: string | undefined
 
       // Charge TOUS les clients d'abord pour mapping local (evite PostgREST embed ambigu)
-      const clientsRes = await supabase.from('clients').select('id, name, is_active').order('name')
+      const clientsRes = await supabase.from('clients').select('id, name, is_active').eq('domain_id',scope.domain).order('name')
+      if(scopeRef.current!==scope)return
+      if(clientsRes.error)throw clientsRes.error
       const allClients = (clientsRes.data ?? []) as any[]
       const clientById = new Map(allClients.map(c => [c.id, c]))
       setClients(allClients.filter(c => c.is_active !== false))
 
       // Charge les marches SANS embed clients (evite l'erreur 'more than one relationship')
-      const res = await supabase.from('markets').select('*').order('name')
+      const res = await supabase.from('markets').select('*').eq('domain_id',scope.domain).order('name')
+      if(scopeRef.current!==scope)return
       if (res.error) {
         console.error('[marches] load failed:', res.error)
         lastError = res.error.message
@@ -80,11 +88,13 @@ export default function MarchesPage() {
         totalCount: marketsAll.length,
         lastError,
       })
-    } finally {
-      setLoading(false)
+    } catch(e:any){if(scopeRef.current===scope)toast.error(e.message)} finally {
+      if(scopeRef.current===scope)setLoading(false)
     }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    setItems([]);setClients([]);setModal(false);setEditId(null);setDone(false);setSaving(false);setSearch('');setTypeFilter('all');setLoadDebug(null);load()
+  }, [activeDomain?.domain_id])
 
   const filtered = useMemo(() => items.filter(m => {
     if (typeFilter !== 'all' && m.type !== typeFilter) return false
@@ -100,9 +110,11 @@ export default function MarchesPage() {
   }), [items])
 
   const openModal = () => {
+    if(!activeDomain||saving||!hasPermission('marches','create'))return
+    setDone(false)
     setEditId(null)
     setForm({
-      code: genCode('MKT', items.map(i => i.code)), name: '', type: 'local',
+      code: `MKT-${crypto.randomUUID().replace(/-/g,'').slice(0,12).toUpperCase()}`, name: '', type: 'local',
       country: 'Maroc', currency: 'MAD',
       avg_price_per_kg: '', avg_logistics_cost_per_kg: '', export_fees_per_kg: '',
       payment_terms: '', payment_terms_days: '30', client_id: '',
@@ -113,6 +125,8 @@ export default function MarchesPage() {
   }
 
   const openEdit = (m: any) => {
+    if(!activeDomain||m.domain_id!==activeDomain.domain_id||saving||!hasPermission('marches','edit'))return
+    setDone(false)
     setEditId(m.id)
     // Frequency par defaut selon type : export=weekly, local=monthly
     const defaultFreq = m.type === 'export' ? 'weekly' : 'monthly'
@@ -138,10 +152,15 @@ export default function MarchesPage() {
   }
 
   const save = async () => {
-    if (!form.name) return
+    if (!form.name||!activeDomain||saving||!hasPermission('marches',editId?'edit':'create')) return
+    const scope=scopeRef.current
+    if(form.client_id&&!clients.some(c=>c.id===form.client_id)){
+      toast.error(_ui('Sélectionnez un acheteur du client actif.'));return
+    }
     setSaving(true)
     try {
       const payload: any = {
+        domain_id:activeDomain.domain_id,
         code: form.code, name: form.name, type: form.type,
         country: form.country || null, currency: form.currency || 'MAD',
         avg_price_per_kg: form.avg_price_per_kg ? Number(form.avg_price_per_kg) : null,
@@ -159,19 +178,21 @@ export default function MarchesPage() {
 
       // Helper : retire les colonnes manquantes en BD pour retry (migration partielle)
       const retryWithout = async (col: string) => {
+        if(scopeRef.current!==scope)throw new Error('Contexte client modifié.')
         const fallbackPayload = { ...payload }
         delete fallbackPayload[col]
         return editId
-          ? await supabase.from('markets').update(fallbackPayload).eq('id', editId).select().single()
+          ? await supabase.from('markets').update(fallbackPayload).eq('domain_id',scope.domain!).eq('id', editId).select().single()
           : await supabase.from('markets').insert({ ...fallbackPayload, is_active: true }).select().single()
       }
 
       let resp
       if (editId) {
-        resp = await supabase.from('markets').update(payload).eq('id', editId).select().single()
+        resp = await supabase.from('markets').update(payload).eq('domain_id',scope.domain!).eq('id', editId).select().single()
       } else {
         resp = await supabase.from('markets').insert({ ...payload, is_active: true }).select().single()
       }
+      if(scopeRef.current!==scope)return
 
       // Retry sans client_id si la colonne n'existe pas (migration 047 pas appliquee)
       if (resp.error && /client_id.*schema cache|client_id.*does not exist/i.test(resp.error.message)) {
@@ -199,6 +220,7 @@ export default function MarchesPage() {
         resp = await retryWithout('week1_start_date')
       }
       if (resp.error) throw resp.error
+      if(scopeRef.current!==scope)return
 
       const data = resp.data
       if (editId) {
@@ -210,8 +232,8 @@ export default function MarchesPage() {
         setDone(true)
         toast.success(_ui("Marché \"{v0}\" créé",{v0:String(data.name)}))
       }
-      setTimeout(() => { setModal(false); setDone(false); setEditId(null) }, 1200)
     } catch (e: any) {
+      if(scopeRef.current!==scope)return
       const msg = e?.message ?? String(e)
       // Détection : colonne payment_terms_days inconnue → migration 044 pas déployée
       if (/payment_terms_days/i.test(msg) && /column/i.test(msg)) {
@@ -219,23 +241,26 @@ export default function MarchesPage() {
       } else {
         toast.error(_ui("Erreur :") + msg)
       }
-    }
-    setSaving(false)
+    }finally{if(scopeRef.current===scope)setSaving(false)}
   }
 
   const del = async (id: string, name: string) => {
+    if(!activeDomain||!hasPermission('marches','edit'))return
+    const scope=scopeRef.current
     if (!confirm(_ui("Désactiver \"{v0}\" ?",{v0:String(name)}))) return
     try {
-      await supabase.from('markets').update({ is_active: false }).eq('id', id)
+      const {error}=await supabase.from('markets').update({ is_active: false }).eq('domain_id',activeDomain.domain_id).eq('id', id).select('id').single()
+      if(error)throw error
+      if(scopeRef.current!==scope)return
       setItems(p => p.filter(i => i.id !== id))
       toast.success(_ui("Marché désactivé"))
-    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
+    } catch (e: any) { if(scopeRef.current===scope)toast.error(_ui("Erreur :") + e.message) }
   }
 
   return (
     <div className="itrix-workspace">
       {modal && (
-        <Modal title={editId ? _ui("MODIFIER LE MARCHÉ") : _ui("NOUVEAU MARCHÉ")} onClose={() => { setModal(false); setDone(false); setEditId(null) }}>
+        <Modal title={editId ? _ui("MODIFIER LE MARCHÉ") : _ui("NOUVEAU MARCHÉ")} busy={saving} dirty={done?false:undefined} onClose={() => { setModal(false); setDone(false); setEditId(null) }}>
           {done ? <SuccessMessage message={editId ? _ui("Marché mis à jour !") : _ui("Marché créé !")} /> : (
             <div className="space-y-md">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
@@ -322,7 +347,7 @@ export default function MarchesPage() {
       <PageHeader
         title={_ui("Marchés")} subtitle={_ui("Commercial")} icon={Globe} iconColor="#3b82f6"
         description={_ui("{v0} marché{v1} actif{v2}",{v0:String(items.length),v1:String(items.length > 1 ? 's' : ''),v2:String(items.length > 1 ? 's' : '')})}
-        actions={<Button onClick={openModal} variant="primary"><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouveau marché")}</Button>}
+        actions={<Button disabled={!activeDomain||!hasPermission('marches','create')} onClick={openModal} variant="primary"><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouveau marché")}</Button>}
         stats={loading ? [] : [
           { label: 'Total', value: String(stats.count), icon: Globe, color: '#3b82f6' },
           { label: 'Types', value: String(stats.types), icon: ShieldCheck, color: '#10b981' },

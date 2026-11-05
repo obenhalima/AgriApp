@@ -1,4 +1,6 @@
 'use client'
+
+import { FilterableTable } from '@/components/ui/FilterableTable'
 import {useLanguage} from '@/lib/i18n'
 
 import { useEffect, useRef, useState } from 'react'
@@ -80,7 +82,7 @@ export function GreenhouseDetailsDialog({ greenhouse, farmName, domainId, farmId
           <p className="mt-3 text-xs text-fg-tertiary">{_ui("Récolte brute, déchets inclus. Les surfaces plantées sont cumulées si plusieurs cycles sont présents. Un objectif incomplet n’est pas assimilé à zéro.")}</p>
         </section>
         <section className="rounded-xl border border-border p-4"><h3 className="font-semibold">{_ui("Historique des récoltes")}</h3><p className="my-2 text-sm text-fg-secondary">{harvests.length} {" "}{_ui("saisie(s) · Première :")}{" "}{date(dates[0]||null)} {" "}{_ui("· Dernière :")}{" "}{date(dates[dates.length-1]||null)}</p>
-          {!!harvests.length&&<div className="max-h-64 overflow-auto"><table className="w-full text-sm"><thead className="text-left text-fg-tertiary"><tr><th className="p-2">{_ui("Date")}</th><th className="p-2">{_ui("Variété")}</th><th className="p-2 text-right">{_ui("Quantité (kg)")}</th></tr></thead><tbody>{[...harvests].sort((a,b)=>b.harvest_date.localeCompare(a.harvest_date)).map(h=><tr key={h.id} className="border-t border-border"><td className="p-2">{date(h.harvest_date)}</td><td className="p-2">{varieties[plantings.find(p=>p.id===h.campaign_planting_id)?.variety_id||'']||_ui("Non renseignée")}</td><td className="p-2 text-right tabular-nums">{fmt(Number(h.total_qty))}</td></tr>)}</tbody></table></div>}
+          {!!harvests.length&&<div className="max-h-64 overflow-auto"><FilterableTable className="w-full text-sm"><thead className="text-left text-fg-tertiary"><tr><th className="p-2">{_ui("Date")}</th><th className="p-2">{_ui("Variété")}</th><th className="p-2 text-right">{_ui("Quantité (kg)")}</th></tr></thead><tbody>{[...harvests].sort((a,b)=>b.harvest_date.localeCompare(a.harvest_date)).map(h=><tr key={h.id} className="border-t border-border"><td className="p-2">{date(h.harvest_date)}</td><td className="p-2">{varieties[plantings.find(p=>p.id===h.campaign_planting_id)?.variety_id||'']||_ui("Non renseignée")}</td><td className="p-2 text-right tabular-nums">{fmt(Number(h.total_qty))}</td></tr>)}</tbody></FilterableTable></div>}
           {!harvests.length&&<p className="text-sm">{_ui("Aucune récolte enregistrée. Cela ne prouve pas l’absence de récolte réelle.")}</p>}
         </section>
       </>}

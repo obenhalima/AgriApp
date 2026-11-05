@@ -14,6 +14,8 @@
 // ============================================================
 
 import { supabase } from './supabase'
+import { assertClientReferenceIsolation } from './clientReferenceReadiness'
+import { clientReferenceIsolationEnabled, requireReferenceDomain } from './clientReferenceScope'
 
 // ───────────────────────────────────────────────────────────
 // Types
@@ -192,20 +194,24 @@ export function marketWeekLabel(monday: Date, week1Start?: string | null): strin
 // Listing & lecture
 // ───────────────────────────────────────────────────────────
 
-export async function listSettlements(limit = 50): Promise<Settlement[]> {
-  const { data, error } = await supabase
+export async function listSettlements(limit = 50, domainId?: string): Promise<Settlement[]> {
+  let query = supabase
     .from('station_settlements')
-    .select('*, markets(id, code, name, week1_start_date)')
+    .select('*, markets!station_settlements_market_id_fkey(id, code, name, week1_start_date)')
     .order('period_start', { ascending: false })
     .limit(limit)
+  if (clientReferenceIsolationEnabled()) query=query.eq('domain_id',requireReferenceDomain(domainId || ''))
+  const { data, error } = await query
   if (error) {
     // Fallback : migration 071 (market_id) pas encore appliquée → on lit sans le join
     if (/market_id|week1_start_date|relationship|schema cache|does not exist/i.test(error.message ?? '')) {
-      const { data: d2, error: e2 } = await supabase
+      let fallback = supabase
         .from('station_settlements')
         .select('*')
         .order('period_start', { ascending: false })
         .limit(limit)
+      if(clientReferenceIsolationEnabled())fallback=fallback.eq('domain_id',requireReferenceDomain(domainId || ''))
+      const { data: d2, error: e2 }=await fallback
       if (e2) throw e2
       return (d2 ?? []) as Settlement[]
     }
@@ -254,7 +260,8 @@ export async function getSettlementAllocations(settlementId: string): Promise<Se
  * Récupère le stock de lots triés non tarifés, agrégé par (market × variety × farm).
  * Utilisé pour pré-remplir la matrice de saisie du bordereau.
  */
-export async function getUnpricedLotsSummary(marketId?: string | null): Promise<UnpricedLotSummary[]> {
+export async function getUnpricedLotsSummary(marketId?: string | null, domainId = ''): Promise<UnpricedLotSummary[]> {
+  const domain = requireReferenceDomain(domainId)
   let query = supabase
     .from('harvest_lots')
     .select(`
@@ -264,12 +271,13 @@ export async function getUnpricedLotsSummary(marketId?: string | null): Promise<
       market_id,
       variety_id,
       greenhouse_id,
-      markets ( name ),
-      varieties ( commercial_name ),
-      greenhouses ( farm_id, farms ( name ) )
+      markets!harvest_lots_market_id_fkey ( name ),
+      varieties!harvest_lots_variety_id_fkey ( commercial_name ),
+      greenhouses!harvest_lots_greenhouse_id_fkey ( farm_id, farms!greenhouses_farm_id_fkey ( name ) )
     `)
     .eq('tri_status', 'tried')
     .eq('category', 'station_dispatch')
+    .eq('domain_id',domain)
   if (marketId) query = query.eq('market_id', marketId)  // B1 : stock du marché seul
   const { data, error } = await query
 
@@ -315,15 +323,23 @@ export async function getUnpricedLotsSummary(marketId?: string | null): Promise<
 // ───────────────────────────────────────────────────────────
 
 export async function createSettlement(params: {
+  domain_id: string
   period_start: string
   period_end: string
   received_date?: string
   notes?: string
   market_id?: string | null
 }): Promise<Settlement> {
+  const domain=await assertClientReferenceIsolation(params.domain_id,supabase)
+  if (params.market_id) {
+    const market = await supabase.from('markets').select('id').eq('id',params.market_id).eq('domain_id',domain).eq('is_active',true).maybeSingle()
+    if (market.error) throw market.error
+    if (!market.data) throw new Error('Le marché sélectionné est indisponible pour ce client.')
+  }
   const { data, error } = await supabase
     .from('station_settlements')
     .insert({
+      domain_id:domain,
       period_start: params.period_start,
       period_end: params.period_end,
       received_date: params.received_date ?? new Date().toISOString().slice(0, 10),
@@ -332,7 +348,7 @@ export async function createSettlement(params: {
       status: 'brouillon',
       // code laissé NULL : auto-généré par trigger trg_settlement_gen_code
     })
-    .select('*, markets(id, code, name, week1_start_date)')
+    .select('*, markets!station_settlements_market_id_fkey(id, code, name, week1_start_date)')
     .single()
   if (error) throw error
   return data as Settlement
@@ -351,7 +367,9 @@ export async function createSettlement(params: {
 export async function createSettlementForWeek(
   input: string | Date,
   marketId?: string | null,
+  domainId = '',
 ): Promise<Settlement> {
+  const domain=await assertClientReferenceIsolation(domainId,supabase)
   let monday: Date
   let sunday: Date
 
@@ -372,22 +390,24 @@ export async function createSettlementForWeek(
   // Cherche un existant pour cette semaine × marché
   let q = supabase
     .from('station_settlements')
-    .select('*, markets(id, code, name, week1_start_date)')
+    .select('*, markets!station_settlements_market_id_fkey(id, code, name, week1_start_date)')
     .eq('period_start', ps)
     .eq('period_end', pe)
+    .eq('domain_id',domain)
   q = marketId ? q.eq('market_id', marketId) : q.is('market_id', null)
-  const { data: existing } = await q.maybeSingle()
+  const { data: existing, error: existingError } = await q.maybeSingle()
+  if (existingError) throw existingError
 
   if (existing) return existing as Settlement
 
-  return createSettlement({ period_start: ps, period_end: pe, market_id: marketId ?? null })
+  return createSettlement({ domain_id:domain,period_start: ps, period_end: pe, market_id: marketId ?? null })
 }
 
 /**
  * Raccourci pour la semaine courante.
  */
-export async function createCurrentWeekSettlement(): Promise<Settlement> {
-  return createSettlementForWeek(new Date())
+export async function createCurrentWeekSettlement(domainId = ''): Promise<Settlement> {
+  return createSettlementForWeek(new Date(),undefined,domainId)
 }
 
 export interface LineInput {
@@ -410,33 +430,13 @@ export interface LineInput {
 export async function saveSettlementLines(
   settlementId: string,
   lines: LineInput[],
+  domainId: string,
 ): Promise<void> {
-  // 1. Efface tout pour repartir propre — simple et atomique côté UI
-  const { error: delErr } = await supabase
-    .from('station_settlement_lines')
-    .delete()
-    .eq('settlement_id', settlementId)
-  if (delErr) throw delErr
-
-  // 2. Insère uniquement les lignes avec qty_kg > 0
-  const toInsert = lines
-    .filter((l) => Number(l.qty_kg) > 0 && Number(l.price_per_kg) >= 0)
-    .map((l) => ({
-      settlement_id: settlementId,
-      farm_id: l.farm_id,
-      market_id: l.market_id,
-      variety_id: l.variety_id,
-      qty_kg: l.qty_kg,
-      price_per_kg: l.price_per_kg,
-      notes: l.notes ?? null,
-    }))
-
-  if (toInsert.length === 0) return
-
-  const { error: insErr } = await supabase
-    .from('station_settlement_lines')
-    .insert(toInsert)
-  if (insErr) throw insErr
+  const domain=await assertClientReferenceIsolation(domainId,supabase)
+  const {error}=await supabase.rpc('replace_client_settlement_lines',{
+    p_domain:domain,p_settlement:settlementId,p_lines:lines,
+  })
+  if(error)throw error
 }
 
 export async function deleteSettlement(id: string): Promise<void> {
@@ -531,9 +531,9 @@ export interface MatrixRow {
  *   - le stock disponible (UnpricedLotsSummary)
  *   - les lignes déjà saisies dans le bordereau (si édition)
  */
-export async function buildMatrix(settlementId: string | null, marketId?: string | null): Promise<MatrixRow[]> {
+export async function buildMatrix(settlementId: string | null, marketId?: string | null, domainId = ''): Promise<MatrixRow[]> {
   const [stock, lines] = await Promise.all([
-    getUnpricedLotsSummary(marketId),
+    getUnpricedLotsSummary(marketId,domainId),
     settlementId ? getSettlementLines(settlementId) : Promise.resolve([] as SettlementLine[]),
   ])
 
@@ -608,7 +608,7 @@ export async function computeExpectedPaymentDate(
     .from('station_settlement_lines')
     .select(`
       market_id,
-      markets ( name, payment_terms_days )
+      markets!station_settlement_lines_market_id_fkey ( name, payment_terms_days )
     `)
     .eq('settlement_id', settlementId)
   if (error) throw error

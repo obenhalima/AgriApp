@@ -751,6 +751,12 @@ export const NAV: NavSection[] = [
         description: "Comptes utilisateurs",
       },
       {
+        href: "/admin/audit", moduleCode: "users", label: "Piste d’audit",
+        icon: ShieldCheck, color: "#0f766e",
+        keywords: ["audit", "historique", "connexions", "transactions"],
+        description: "Connexions et opérations par client",
+      },
+      {
         href: "/admin/initialisation",
         moduleCode: "users",
         label: "Initialiser l’exploitation",

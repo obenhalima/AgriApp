@@ -1,4 +1,6 @@
 'use client'
+
+import { FilterableTable } from '@/components/ui/FilterableTable'
 import {useLanguage} from '@/lib/i18n'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -8,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { withDeadline } from '@/lib/withDeadline'
 import { formatPlanNumber } from '@/lib/farmLayout'
 import { PerformanceDashboard } from '@/components/costs/PerformanceDashboard'
+import { CostVarianceExplanation } from '@/components/costs/CostVarianceExplanation'
 import { ProductionExplorer } from '@/components/costs/ProductionExplorer'
 import '@/components/ui/workspace.css'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -99,12 +102,13 @@ function PerformanceReport({entry}:{entry:AnalyticalScope}){
   {data&&mode==='explore'&&<ProductionExplorer key={`${campaign}:${start}:${end}:${farm}:${variety}`} partialPeriod={!!(start||end)} data={data} farm={farm} variety={variety} client={activeDomain?.domain_name||'Client'} onFarm={setFarm}/>}
   {result&&mode==='compare'&&<>
    {data&&<PerformanceDashboard data={data} rows={rows} ranked={ranked} basis={basis} metric={metric} metricLabel={metricLabels[metric]} partialPeriod={!!(start||end)} onSelect={setSelected}/>}
-   <div className="card overflow-hidden"><div className="flex items-center justify-between p-4"><h2 className="font-semibold">{_ui("Comparatif détaillé")}</h2><span className="text-xs" style={{color:'var(--tx-3)'}}>{rows.length} {" "}{_ui("ligne(s) ·")}{" "}{ranked.length} {" "}{_ui("classée(s)")}</span></div><div className="overflow-x-auto"><table className="tbl w-full whitespace-nowrap text-right text-xs tabular-nums"><thead style={{background:'var(--bg-card2)',color:'var(--tx-3)'}}><tr>{['Rang','Périmètre','Surface m²','Récolté kg','kg/m²','Coûts réels DH','DH/kg',basis==='estimate'?'CA estimé DH':'CA station saisi DH','Marge DH','Marge DH/kg','Marge DH/m²','Budget saisi DH','Budget/kg cible','Qualité','Détail'].map(h=><th key={h} className="p-3">{h}</th>)}</tr></thead><tbody>{rows.map(r=>{
+   {data&&level==='greenhouse'&&<CostVarianceExplanation key={`${campaign}|${farm}|${variety}|${start}|${end}`} data={data} rows={rows} period={`${start||'…'} → ${end||new Date().toLocaleDateString('fr-FR')}`}/>}
+   <div className="card overflow-hidden"><div className="flex items-center justify-between p-4"><h2 className="font-semibold">{_ui("Comparatif détaillé")}</h2><span className="text-xs" style={{color:'var(--tx-3)'}}>{rows.length} {" "}{_ui("ligne(s) ·")}{" "}{ranked.length} {" "}{_ui("classée(s)")}</span></div><div className="overflow-x-auto"><FilterableTable className="tbl w-full whitespace-nowrap text-right text-xs tabular-nums"><thead style={{background:'var(--bg-card2)',color:'var(--tx-3)'}}><tr>{['Rang','Périmètre','Surface m²','Récolté kg','kg/m²','Coûts réels DH','DH/kg',basis==='estimate'?'CA estimé DH':'CA station saisi DH','Marge DH','Marge DH/kg','Marge DH/m²','Budget saisi DH','Budget/kg cible','Qualité','Détail'].map(h=><th key={h} className="p-3">{h}</th>)}</tr></thead><tbody>{rows.map(r=>{
     const rank=ranked.findIndex(x=>x.id===r.id)
     return <tr key={r.id} className="border-t border-border hover:bg-surface-hover"><td className="p-3">{rank<0?'—':rank+1}</td><th className="p-3 text-left">{r.name}</th><td className="p-3">{fmt(r.area)}</td><td className="p-3">{fmt(r.kg)}</td><td className="p-3">{fmt(performanceValue(r,'yield',basis))}</td><td className="p-3">{fmt(r.direct+r.shared)}</td><td className="p-3" title={String(performanceValue(r,"costKg",basis)??'')}>{fmt(performanceValue(r,"costKg",basis))}</td>
      <td className="p-3">{data?.revenue_available?fmt(performanceValue(r,'revenue',basis)):_ui("Accès requis")}</td><td className="p-3">{fmt(performanceValue(r,'margin',basis))}</td><td className="p-3">{fmt(performanceValue(r,"marginKg",basis))}</td><td className="p-3">{fmt(performanceValue(r,"marginArea",basis))}</td><td className="p-3">{r.budgetMissing?_ui("Incomplet"):fmt(r.budget)}</td><td className="p-3">{fmt(start||end||r.targetMissing||r.budgetMissing?null:r.budget/r.target)}</td>
      <td className="p-3 text-left text-xs">{[r.open?'Cycle en cours / non terminé':'Cycle terminé',r.costMissing?'Coûts absents sur une plantation':null,r.provisional?'Valorisation provisoire':null,basis==='station'&&r.stationMissing?'Station non tarifée / incomplète':null,basis==='estimate'&&r.estimateMissing?'Récolte ou prix manquant':null].filter(Boolean).join(' · ')}</td><td className="p-3"><button className="btn btn-secondary" onClick={()=>setSelected(r.id===selected?'':r.id)}>{_ui("Voir le détail")}</button></td></tr>
-   })}</tbody></table>{!rows.length&&<p className="p-4">{_ui("Aucune plantation dans ce périmètre.")}</p>}</div></div>
+   })}</tbody></FilterableTable>{!rows.length&&<p className="p-4">{_ui("Aucune plantation dans ce périmètre.")}</p>}</div></div>
    <p className="text-sm text-fg-tertiary">{_ui("Budget/kg cible : budget saisi ÷ objectif de production du cycle ; indisponible pour une période partielle. Coût réel/kg : charges imputées ÷ kg récoltés. Les valeurs inférieures à 0,005 DH sont signalées plutôt qu’arrondies à zéro.")}</p>
    {detail&&data&&<section ref={detailRef} tabIndex={-1} aria-label={_ui("Détail de performance")} className="performance-detail card scroll-mt-24 space-y-4 p-5">
     <h2 className="text-lg font-semibold">{_ui("Détail —")}{" "}{detail.name}</h2><p>{_ui("Charges directes :")}{" "}{fmt(detail.direct)} {" "}{_ui("DH · Charges communes affectées :")}{" "}{fmt(detail.shared)} {" "}{_ui("DH · Clé :")}{" "}{data.basis==='surface'?_ui("surface plantée"):_ui("production récoltée")}.</p>

@@ -62,6 +62,26 @@ describe('initialization preparation', () => {
   it('distinguishes blank and zero and accepts French numbers', () => {
     expect(initNumber('')).toBeNaN(); expect(initNumber('0')).toBe(0); expect(initNumber('1 500,25')).toBe(1500.25)
   })
+  it('shows the greenhouse capacity when a planting exceeds it', () => {
+    const d = emptyInitDraft()
+    d.rows.plantings = [{ code: 'P1', farm: 'F1', greenhouse: 'S1', area: '12000' }]
+    const catalog = { crops: [], varieties: [], greenhouses: [{ code: 'S1', farm: 'F1', area: '15000', usable_area: '10000' }] }
+    const issue = validateInit(d, catalog).find(i => i.field === 'area')!
+    expect(issue.warning).not.toBe(true)
+    expect(issue.message).toContain('12000 m²')
+    expect(issue.message).toContain('S1')
+    expect(issue.message).toContain((10000).toLocaleString('fr-FR'))
+  })
+  it('does not treat missing or zero legacy greenhouse capacity as a real limit', () => {
+    const d = emptyInitDraft()
+    d.rows.plantings = [{ code: 'P1', farm: 'F1', greenhouse: 'S1', area: '12000' }]
+    for (const usable_area of ['', '0']) {
+      const catalog = { crops: [], varieties: [], greenhouses: [{ code: 'S1', farm: 'F1', area: '15000', usable_area }] }
+      expect(validateInit(d, catalog).filter(i => i.field === 'area')).toEqual([])
+      catalog.greenhouses[0].area = ''
+      expect(validateInit(d, catalog).find(i => i.field === 'area')).toMatchObject({ warning: true, message: expect.stringContaining('comparaison impossible') })
+    }
+  })
   it('does not complete empty steps', () => {
     const draft = emptyInitDraft(); draft.reviewed = INIT_SECTIONS.map(s => s.key)
     expect(initProgress(draft).complete).toBe(0)

@@ -1,0 +1,11 @@
+# TEMPLATE ONLY. Do not put actual secrets in this file or Git.
+# Apply in Vercel Preview, restricted to Git branch test, not Production.
+VERCEL_ENV=preview
+VERCEL_GIT_COMMIT_REF=test
+ITRIX_TEST_SUPABASE_PROJECT_REF=REPLACE_WITH_TEST_BRANCH_REF
+NEXT_PUBLIC_SUPABASE_URL=https://REPLACE_WITH_TEST_BRANCH_REF.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=REPLACE_WITH_TEST_PUBLIC_KEY
+# Keep service role keys server-only. Never use NEXT_PUBLIC_ for privileged secrets.
+# Edge runtime receives its own branch SUPABASE_* values from Supabase.
+# Do not copy production Telegram, VAPID, Gemini, DocIndex, SMTP or webhook secrets.
+# Do not enable external schedules or webhooks until isolated test credentials are configured.

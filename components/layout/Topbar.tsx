@@ -116,16 +116,16 @@ export function Topbar() {
   return (
     <header
       className={cn(
-        'sticky top-0 z-40 h-[52px]',
+        'sticky top-0 z-40 min-h-[52px] py-2',
         'bg-surface-raised/80 backdrop-blur-xl',
         'border-b border-border',
-        'flex items-center justify-between',
+        'flex flex-wrap items-center justify-between gap-2',
         'px-md sm:px-lg',
         'transition-colors duration-300',
       )}
     >
       {/* ─── Left : hamburger (mobile) + Breadcrumbs ─── */}
-      <div className="flex items-center gap-sm min-w-0 flex-1">
+      <div className="flex items-center gap-sm min-w-0 flex-1 overflow-hidden">
         <BackButton />
         <button
           onClick={() => window.dispatchEvent(new CustomEvent('sidebar-mobile-toggle'))}
@@ -170,7 +170,7 @@ export function Topbar() {
       </div>
 
       {/* ─── Right : Actions ─── */}
-      <div className="flex items-center gap-xs sm:gap-sm flex-shrink-0">
+      <div className="flex max-w-full flex-wrap items-center gap-xs sm:gap-sm flex-shrink-0">
         <LanguageSwitcher />
 
         {/* Société active — le rôle et les permissions suivent cette sélection. */}

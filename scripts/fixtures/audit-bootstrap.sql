@@ -1,0 +1,23 @@
+-- Isolated disposable PostgreSQL fixture. NEVER run on Supabase.
+CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role;
+CREATE SCHEMA auth;
+CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
+CREATE TABLE public.domains(id uuid PRIMARY KEY,is_active boolean NOT NULL DEFAULT true);
+CREATE TABLE public.profiles(id uuid PRIMARY KEY,full_name text,is_active boolean NOT NULL DEFAULT true,is_platform_admin boolean DEFAULT false);
+CREATE TABLE public.domain_memberships(id uuid PRIMARY KEY,domain_id uuid REFERENCES domains,user_id uuid REFERENCES profiles,is_active boolean DEFAULT true,created_at timestamptz DEFAULT '2026-01-01');
+CREATE FUNCTION public.is_platform_admin(u uuid) RETURNS boolean LANGUAGE sql AS $$SELECT coalesce((SELECT is_platform_admin AND is_active FROM public.profiles WHERE id=u),false)$$;
+CREATE FUNCTION public.is_domain_admin(d uuid,u uuid) RETURNS boolean LANGUAGE sql AS $$SELECT public.is_platform_admin(u) OR EXISTS(SELECT 1 FROM public.domain_memberships WHERE domain_id=d AND user_id=u AND is_active)$$;
+CREATE TABLE public.farms(id uuid PRIMARY KEY,domain_id uuid REFERENCES domains,name text,status text,validated_by uuid,notes text,password text);
+CREATE TABLE public.farm_zones(id uuid PRIMARY KEY,domain_id uuid REFERENCES domains);
+CREATE TABLE public.greenhouses(id uuid PRIMARY KEY,farm_id uuid REFERENCES farms ON DELETE CASCADE,code text,zone_id uuid REFERENCES farm_zones);
+CREATE TABLE public.planting_parts(id uuid PRIMARY KEY,greenhouse_id uuid REFERENCES greenhouses ON DELETE CASCADE,quantity numeric);
+CREATE TABLE public.ambiguous_child(id uuid PRIMARY KEY,farm_id uuid REFERENCES farms,domain_id uuid REFERENCES domains);
+CREATE TABLE auth.audit_log_entries(id uuid PRIMARY KEY,created_at timestamptz,payload jsonb);
+INSERT INTO domains VALUES('11111111-1111-4111-8111-111111111111',true),('22222222-2222-4222-8222-222222222222',true);
+INSERT INTO profiles VALUES('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','Alice',true,false),('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','Bob',true,false),('cccccccc-cccc-4ccc-8ccc-cccccccccccc','Platform',true,true);
+INSERT INTO domain_memberships VALUES('dddddddd-dddd-4ddd-8ddd-dddddddddddd','11111111-1111-4111-8111-111111111111','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true,'2026-01-01'),('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','22222222-2222-4222-8222-222222222222','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',true,'2026-01-01');
+INSERT INTO farms VALUES('ffffffff-ffff-4fff-8fff-ffffffffffff','11111111-1111-4111-8111-111111111111','Seed','draft',NULL,'secret notes','secret password');
+INSERT INTO greenhouses VALUES('33333333-3333-4333-8333-333333333333','ffffffff-ffff-4fff-8fff-ffffffffffff','S1',NULL);
+INSERT INTO planting_parts VALUES('44444444-4444-4444-8444-444444444444','33333333-3333-4333-8333-333333333333',5);
+GRANT USAGE ON SCHEMA public,auth TO authenticated;
+GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated;

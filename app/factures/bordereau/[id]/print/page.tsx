@@ -1,4 +1,6 @@
 'use client'
+
+import { FilterableTable } from '@/components/ui/FilterableTable'
 import {useLanguage} from '@/lib/i18n'
 
 /**
@@ -168,7 +170,7 @@ export default function BordereauPrintPage() {
 
         {/* Tableau lignes */}
         <h2>{_ui("Détail des paiements (")}{data.lines.length} {" "}{_ui("ligne")}{data.lines.length > 1 ? 's' : ''})</h2>
-        <table>
+        <FilterableTable>
           <thead>
             <tr>
               <th>{_ui("Marché")}</th>
@@ -204,7 +206,7 @@ export default function BordereauPrintPage() {
               <td className="num" style={{ color: '#10b981' }}>{fmt2(totalAmount)} MAD</td>
             </tr>
           </tbody>
-        </table>
+        </FilterableTable>
 
         {/* Notes éventuelles */}
         {s.notes && (

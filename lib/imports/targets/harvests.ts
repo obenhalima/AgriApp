@@ -9,6 +9,7 @@
 import { supabase } from '@/lib/supabase'
 import { ImportTarget, FieldDef, RowIssue, ResolutionContext, CommitReport } from '../types'
 import { buildTemplate } from '../templateBuilder'
+import {requireReferenceDomain} from '../../clientReferenceScope'
 
 const FIELDS: FieldDef[] = [
   // ─── Identification de la récolte ─────────────────────
@@ -71,7 +72,12 @@ const FIELDS: FieldDef[] = [
     help: 'Notes libres sur la récolte (optionnel).' },
 ]
 
-export const harvestsTarget: ImportTarget = {
+export function createHarvestsTarget(domainId:string, isCurrent:()=>boolean = ()=>true): ImportTarget {
+ const domain = () => {
+   if(!isCurrent())throw new Error('Le client sélectionné a changé. Rechargez le fichier pour ce client.')
+   return requireReferenceDomain(domainId)
+ }
+ return {
   key: 'harvests',
   label: 'Récoltes',
   icon: '🌿',
@@ -89,7 +95,8 @@ export const harvestsTarget: ImportTarget = {
     {
       key: 'campaigns', label: 'Campagne',
       load: async () => {
-        const { data } = await supabase.from('campaigns').select('id, code, name, farm_id')
+        const { data,error } = await supabase.from('campaigns').select('id, code, name, farm_id').eq('domain_id',domain())
+        if(error)throw error
         const m = new Map<string, any>()
         ;(data ?? []).forEach((c: any) => m.set(String(c.code).toUpperCase(), c))
         return m
@@ -98,7 +105,8 @@ export const harvestsTarget: ImportTarget = {
     {
       key: 'farms', label: 'Ferme',
       load: async () => {
-        const { data } = await supabase.from('farms').select('id, code, name').eq('is_active', true)
+        const { data,error } = await supabase.from('farms').select('id, code, name').eq('domain_id',domain()).eq('is_active', true)
+        if(error)throw error
         const m = new Map<string, any>()
         ;(data ?? []).forEach((f: any) => m.set(String(f.code).toUpperCase(), f))
         return m
@@ -107,7 +115,8 @@ export const harvestsTarget: ImportTarget = {
     {
       key: 'greenhouses', label: 'Serre',
       load: async () => {
-        const { data } = await supabase.from('greenhouses').select('id, code, name, farm_id')
+        const { data,error } = await supabase.from('greenhouses').select('id, code, name, farm_id,farms!greenhouses_farm_id_fkey!inner(domain_id)').eq('farms.domain_id',domain())
+        if(error)throw error
         const m = new Map<string, any>()
         ;(data ?? []).forEach((g: any) => m.set(String(g.code).toUpperCase(), g))
         return m
@@ -116,7 +125,7 @@ export const harvestsTarget: ImportTarget = {
     {
       key: 'varieties', label: 'Variété',
       load: async () => {
-        const { data, error } = await supabase.from('varieties').select('id, code, commercial_name')
+        const { data, error } = await supabase.from('varieties').select('id, code, commercial_name').eq('domain_id',domain())
         if (error) { console.error('[varieties] error:', error); throw new Error(`varieties: ${error.message}`) }
         const m = new Map<string, any>()
         ;(data ?? []).forEach((v: any) => m.set(String(v.code).toUpperCase(), v))
@@ -126,7 +135,7 @@ export const harvestsTarget: ImportTarget = {
     {
       key: 'markets', label: 'Marché',
       load: async () => {
-        const { data, error } = await supabase.from('markets').select('id, code, name, currency, type').eq('is_active', true)
+        const { data, error } = await supabase.from('markets').select('id, code, name, currency, type').eq('domain_id',domain()).eq('is_active', true)
         if (error) { console.error('[markets] error:', error); throw new Error(`markets: ${error.message}`) }
         const m = new Map<string, any>()
         ;(data ?? []).forEach((mk: any) => m.set(String(mk.code).toUpperCase(), mk))
@@ -138,6 +147,7 @@ export const harvestsTarget: ImportTarget = {
       load: async () => {
         const { data, error } = await supabase.from('campaign_plantings')
           .select('id, campaign_id, greenhouse_id, variety_id, planted_area')
+          .eq('domain_id',domain())
         if (error) { console.error('[campaign_plantings] error:', error); throw new Error(`campaign_plantings: ${error.message}`) }
         const m = new Map<string, any>()
         ;(data ?? []).forEach((p: any) =>
@@ -148,6 +158,7 @@ export const harvestsTarget: ImportTarget = {
   ],
 
   validateRow: (raw: Record<string, any>, ctx: ResolutionContext) => {
+    const owner=domain()
     const issues: RowIssue[] = []
 
     // ─── Résolution des FK ───────────────────────────────
@@ -231,6 +242,7 @@ export const harvestsTarget: ImportTarget = {
     const hasErr = issues.some(i => i.severity === 'error')
     return {
       resolved: hasErr ? null : {
+        domain_id: owner,
         _row: 0,
         // Regroupement
         group_key: `${campaign.id}|${greenhouse.id}|${variety.id}|${raw.date_recolte}`,
@@ -275,6 +287,20 @@ export const harvestsTarget: ImportTarget = {
   },
 
   commit: async (groups: any[][]): Promise<CommitReport> => {
+    const owner=domain()
+    // Check the complete batch before the first write, not just its first row.
+    for(const group of groups)for(const row of group){
+      if(row.domain_id!==owner)throw new Error('Cet import a été préparé pour un autre client. Rechargez le fichier.')
+      const planting=await supabase.from('campaign_plantings').select('id,greenhouse_id,variety_id').eq('id',row.campaign_planting_id).eq('domain_id',owner).maybeSingle()
+      if(planting.error)throw planting.error
+      if(!planting.data || planting.data.greenhouse_id!==row.planting_greenhouse_id || planting.data.variety_id!==row.planting_variety_id)throw new Error('Plantation hors client ou références incohérentes.')
+      if(row.has_dispatch){
+        const market=await supabase.from('markets').select('id').eq('id',row.market_id).eq('domain_id',owner).eq('is_active',true).maybeSingle()
+        if(market.error)throw market.error
+        if(!market.data)throw new Error('Marché indisponible pour ce client.')
+      }
+      domain()
+    }
     let harvestsCreated = 0
     let dispatchesCreated = 0
     let confirmedCount = 0
@@ -300,10 +326,12 @@ export const harvestsTarget: ImportTarget = {
       }
 
       try {
+        domain()
         // 1. Créer la récolte
         const lotHeader = first.lot_reference
           || `LOT-${String(first.harvest_date).replace(/-/g, '')}-${String(Date.now()).slice(-4)}`
         const { data: harvest, error: hErr } = await supabase.from('harvests').insert({
+          domain_id:owner,
           campaign_planting_id: first.campaign_planting_id,
           harvest_date: first.harvest_date,
           qty_category_1: qtyR0,
@@ -320,9 +348,11 @@ export const harvestsTarget: ImportTarget = {
         const dispatchRows = group.filter(r => r.has_dispatch)
         const ts = String(Date.now())
         for (let i = 0; i < dispatchRows.length; i++) {
+          domain()
           const d = dispatchRows[i]
           const dispLot = `D${i}-${ts.slice(-8)}`.slice(0, 50)
           const { data: lot, error: dErr } = await supabase.from('harvest_lots').insert({
+            domain_id:owner,
             lot_number: dispLot,
             harvest_id: harvest!.id,
             campaign_planting_id: d.campaign_planting_id,
@@ -341,6 +371,7 @@ export const harvestsTarget: ImportTarget = {
 
           // 3. Confirmation prix le cas échéant
           if (d.has_price) {
+            domain()
             const qtyB = d.qty_dispatch_kg
             const qtyN = Math.round(qtyB * (1 - d.freinte_pct / 100) * 100) / 100
             const qtyA_calc = Math.round(qtyN * (1 - d.ecart_pct / 100) * 100) / 100
@@ -364,7 +395,7 @@ export const harvestsTarget: ImportTarget = {
             const { error: cErr } = await supabase.from('harvest_lots').update({
               certificate_number: String(qtyA),
               notes: meta,
-            }).eq('id', lot!.id)
+            }).eq('domain_id',owner).eq('id', lot!.id)
             if (cErr) throw cErr
             confirmedCount++
           }
@@ -386,17 +417,21 @@ export const harvestsTarget: ImportTarget = {
   },
 
   buildTemplate: async (): Promise<Blob> => {
+    const owner=domain()
     const [campsRes, farmsRes, ghsRes, varsRes, marketsRes, plantingsRes] = await Promise.all([
-      supabase.from('campaigns').select('code, name, planting_start, harvest_end, farms(code, name)').order('planting_start', { ascending: false }),
-      supabase.from('farms').select('code, name').eq('is_active', true).order('name'),
-      supabase.from('greenhouses').select('code, name, farms(code, name)').order('code'),
-      supabase.from('varieties').select('code, commercial_name, type').order('commercial_name'),
-      supabase.from('markets').select('code, name, type, currency').eq('is_active', true).order('name'),
+      supabase.from('campaigns').select('code, name, planting_start, harvest_end, farms(code, name)').eq('domain_id',owner).order('planting_start', { ascending: false }),
+      supabase.from('farms').select('code, name').eq('domain_id',owner).eq('is_active', true).order('name'),
+      supabase.from('greenhouses').select('code, name, farms!greenhouses_farm_id_fkey!inner(code, name,domain_id)').eq('farms.domain_id',owner).order('code'),
+      supabase.from('varieties').select('code, commercial_name, type').eq('domain_id',owner).order('commercial_name'),
+      supabase.from('markets').select('code, name, type, currency').eq('domain_id',owner).eq('is_active', true).order('name'),
       supabase.from('campaign_plantings')
-        .select('planting_date, planted_area, campaigns(code, name), greenhouses(code, name, farms(code)), varieties(code, commercial_name)')
+        .select('planting_date, planted_area, campaigns(code, name), greenhouses(code, name, farms(code)), varieties!campaign_plantings_variety_id_fkey(code, commercial_name)')
+        .eq('domain_id',owner)
         .order('planting_date', { ascending: false })
         .limit(500),
     ])
+    domain()
+    for(const result of [campsRes,farmsRes,ghsRes,varsRes,marketsRes,plantingsRes])if(result.error)throw result.error
     const camps = campsRes.data ?? []
     const farms = farmsRes.data ?? []
     const ghs = ghsRes.data ?? []
@@ -543,3 +578,6 @@ export const harvestsTarget: ImportTarget = {
     })
   },
 }
+}
+// Compatibility metadata only: operations fail closed until a client-bound target is created.
+export const harvestsTarget = createHarvestsTarget('')

@@ -1,4 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
+import { requireReferenceDomain, requireClientReferenceWrite, clientReferenceIsolationEnabled } from './clientReferenceScope'
+import { assertClientReferenceIsolation } from './clientReferenceReadiness'
+import {withDeletionFeedback,DELETION_BLOCKED_EVENT} from './deletionFeedback'
+import {withAuthRequestDeadline} from './authInitialization'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -14,6 +18,9 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 // quand plusieurs onglets/recharges HMR partagent la session). Lock noop = on
 // laisse chaque appel auth s'exécuter directement.
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  global:{fetch:withDeletionFeedback(withAuthRequestDeadline((input,init)=>fetch(input,init)),message=>{
+    if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent(DELETION_BLOCKED_EVENT,{detail:message}))
+  })},
   auth: {
     lock: async (_name, _timeout, fn) => await fn(),
   },
@@ -48,17 +55,31 @@ export const deleteSerre = async (id: string) => {
 }
 
 /* ── VARIETES ── */
-export const getVarietes = async () => {
-  const { data, error } = await supabase.from('varieties').select('*').eq('is_active', true).order('commercial_name')
+export const getVarietes = async (domainId: string) => {
+  const domain = requireReferenceDomain(domainId)
+  let query = supabase.from('varieties').select('*').eq('is_active', true).order('commercial_name')
+  if (clientReferenceIsolationEnabled()) query = query.eq('domain_id', domain)
+  const { data, error } = await query
   if (error) throw error; return data ?? []
 }
-export const createVariete = async (p: { code:string; commercial_name:string; type:string; destination:string; theoretical_yield_per_m2:number; theoretical_cost_per_m2:number; avg_price_local:number; avg_price_export:number; estimated_cycle_days?:number; technical_notes?:string; crop_id?:string }) => {
+export const createVariete = async (p: { domain_id:string; code:string; commercial_name:string; type:string; destination:string; theoretical_yield_per_m2:number; theoretical_cost_per_m2:number; avg_price_local:number; avg_price_export:number; estimated_cycle_days?:number; technical_notes?:string; crop_id?:string }) => {
+  await assertClientReferenceIsolation(p.domain_id, supabase)
   const { data, error } = await supabase.from('varieties').insert({ ...p, is_active: true }).select().single()
   if (error) throw error; return data
 }
-export const deleteVariete = async (id: string) => {
-  const { error } = await supabase.from('varieties').update({ is_active: false }).eq('id', id)
+export const deleteVariete = async (id: string, domainId: string) => {
+  const domain = await assertClientReferenceIsolation(domainId, supabase)
+  const { data, error } = await supabase.from('varieties').update({ is_active: false }).eq('id', id).eq('domain_id', domain).select('id').single()
   if (error) throw error
+  if (!data) throw new Error('Variété inaccessible pour ce client.')
+}
+export const updateVariete = async (id: string, patch: Record<string, unknown>, domainId: string) => {
+  requireClientReferenceWrite(domainId)
+  if ('domain_id' in patch || 'id' in patch) throw new Error('Le propriétaire et l’identifiant d’une variété ne peuvent pas être modifiés.')
+  const domain = await assertClientReferenceIsolation(domainId, supabase)
+  const { data, error } = await supabase.from('varieties').update(patch).eq('id', id).eq('domain_id', domain).select('id').single()
+  if (error) throw error
+  if (!data) throw new Error('Variété inaccessible pour ce client.')
 }
 
 /* ── CAMPAGNES ── */
@@ -74,26 +95,26 @@ export const createCampagne = async (p: { farm_id:string; code:string; name:stri
 }
 
 /* ── MARCHES ── */
-export const getMarches = async () => {
-  const { data, error } = await supabase.from('markets').select('*').eq('is_active', true).order('name')
+export const getMarches = async (domainId:string) => {
+  const { data, error } = await supabase.from('markets').select('*').eq('domain_id',requireReferenceDomain(domainId)).eq('is_active', true).order('name')
   if (error) throw error; return data ?? []
 }
-export const createMarche = async (p: { code:string; name:string; type:string; country?:string; currency:string; avg_price_per_kg?:number; avg_logistics_cost_per_kg?:number; notes?:string }) => {
-  const { data, error } = await supabase.from('markets').insert({ ...p, is_active: true }).select().single()
+export const createMarche = async (p: { domain_id:string; code:string; name:string; type:string; country?:string; currency:string; avg_price_per_kg?:number; avg_logistics_cost_per_kg?:number; notes?:string }) => {
+  const { data, error } = await supabase.from('markets').insert({ ...p, domain_id:requireReferenceDomain(p.domain_id), is_active: true }).select().single()
   if (error) throw error; return data
 }
 
 /* ── CLIENTS ── */
-export const getClients = async () => {
-  const { data, error } = await supabase.from('clients').select('*').eq('is_active', true).order('name')
+export const getClients = async (domainId:string) => {
+  const { data, error } = await supabase.from('clients').select('*').eq('domain_id',requireReferenceDomain(domainId)).eq('is_active', true).order('name')
   if (error) throw error; return data ?? []
 }
-export const createClient_ = async (p: { code:string; name:string; type:string; city?:string; country?:string; email?:string; phone?:string; payment_terms_days?:number; credit_limit?:number }) => {
-  const { data, error } = await supabase.from('clients').insert({ ...p, is_active: true, currency: 'MAD' }).select().single()
+export const createClient_ = async (p: { domain_id:string; code:string; name:string; type:string; city?:string; country?:string; email?:string; phone?:string; payment_terms_days?:number; credit_limit?:number;is_ecart_buyer?:boolean }) => {
+  const { data, error } = await supabase.from('clients').insert({ ...p, domain_id:requireReferenceDomain(p.domain_id), is_active: true, currency: 'MAD' }).select().single()
   if (error) throw error; return data
 }
-export const deleteClient = async (id: string) => {
-  const { error } = await supabase.from('clients').update({ is_active: false }).eq('id', id)
+export const deleteClient = async (id: string,domainId:string) => {
+  const { error } = await supabase.from('clients').update({ is_active: false }).eq('domain_id',requireReferenceDomain(domainId)).eq('id', id).select('id').single()
   if (error) throw error
 }
 
@@ -127,9 +148,18 @@ export const createMouvement = async (p: { stock_item_id:string; warehouse_id?:s
 }
 
 /* ── FACTURES ── */
-export const getFactures = async () => {
-  const { data, error } = await supabase.from('invoices').select('*, clients(name)').order('invoice_date', { ascending: false }).limit(100)
-  if (error) throw error; return data ?? []
+export const getFactures = async (domainId: string) => {
+  const domain = requireReferenceDomain(domainId)
+  const rows: any[] = []
+  for (let from = 0; ; from += 500) {
+    const { data, error } = await supabase.from('invoices')
+      .select('*, clients!invoices_client_id_fkey(name)')
+      .eq('domain_id', domain)
+      .order('invoice_date', { ascending: false }).order('id').range(from, from + 499)
+    if (error) throw error
+    rows.push(...data || [])
+    if (!data || data.length < 500) return rows
+  }
 }
 export const createFacture = async (p: { client_id:string; invoice_date:string; due_date:string; subtotal:number; total_amount:number; notes?:string }) => {
   const num = `FV-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`

@@ -1,14 +1,15 @@
 'use client'
+import {AuditHistoryButton} from '@/components/audit/AuditHistoryButton'
 import {useLanguage} from '@/lib/i18n'
 
 /**
  * /fermes — Refonte avec design system.
  */
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo,useRef } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import {
-  Building2, Plus, MapPin, Globe, Maximize, Search, X,
+  Building2, Plus, MapPin, Globe, Maximize, Search, X,Pencil,Trash2,
 } from 'lucide-react'
 
 import { supabase, getFarms } from '@/lib/supabase'
@@ -25,11 +26,16 @@ import { Input as TInput, Textarea, Field } from '@/components/ui/Input'
 import { Modal, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
 import { AreaDisplay } from '@/components/display'
 import { useAuth } from '@/lib/auth'
+import {updateClientFarm,deleteEmptyFarm,farmEditPayload} from '@/lib/farmManagement'
 
 export default function FermesPage() {
  const {t:_ui,text:_uiNode}=useLanguage()
 
-  const { activeDomain } = useAuth()
+  const { activeDomain,hasPermission } = useAuth()
+  const domainRef=useRef(activeDomain?.domain_id);domainRef.current=activeDomain?.domain_id
+  const [editingId,setEditingId]=useState<string|null>(null)
+  const [deletingId,setDeletingId]=useState<string|null>(null)
+  const [deleteError,setDeleteError]=useState<{farm:string;message:string}|null>(null)
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
@@ -44,9 +50,11 @@ export default function FermesPage() {
 
   const load = () => {
     if (!activeDomain) { setItems([]); setLoading(false); return }
-    getFarms(activeDomain.domain_id).then(d => { setItems(d); setLoading(false) }).catch(() => setLoading(false))
+    const domain=activeDomain.domain_id
+    setLoading(true)
+    getFarms(domain).then(d => { if(domainRef.current===domain){setItems(d); setLoading(false)} }).catch(()=>{if(domainRef.current===domain){setLoading(false);toast.error(_ui('Chargement des fermes impossible.'))}})
   }
-  useEffect(() => { load() }, [activeDomain?.domain_id])
+  useEffect(() => { setItems([]);setDeleteError(null);setModal(false);setDone(false);setEditingId(null);load() }, [activeDomain?.domain_id])
 
   const filtered = useMemo(() => {
     if (!search) return items
@@ -70,6 +78,8 @@ export default function FermesPage() {
   }, [items])
 
   const openNew = () => {
+    if(!hasPermission('fermes','create')||saving)return
+    setEditingId(null);setDone(false)
     setForm({
       code: genCode('F', items.map(i => i.code)),
       name: '', address: '', city: '', region: '', country: 'Maroc',
@@ -77,32 +87,50 @@ export default function FermesPage() {
     })
     setModal(true)
   }
+  const openEdit=(farm:any)=>{
+    if(!hasPermission('fermes','edit')||saving)return
+    setEditingId(farm.id);setDone(false)
+    setForm({code:farm.code||'',name:farm.name||'',address:farm.address||'',city:farm.city||'',region:farm.region||'',country:farm.country||'Maroc',total_area:farm.total_area==null?'':String(farm.total_area),notes:farm.notes||''})
+    setModal(true)
+  }
+  const remove=async(farm:any)=>{
+    if(!activeDomain||deletingId||!hasPermission('fermes','delete'))return
+    if(!window.confirm(_ui('Supprimer définitivement la ferme « {v0} » ? La suppression sera bloquée si des données lui sont liées.',{v0:String(farm.name)})))return
+    const domain=activeDomain.domain_id
+    setDeleteError(null)
+    setDeletingId(farm.id)
+    try{await deleteEmptyFarm(domain,farm.id)
+      if(domainRef.current===domain){setItems(rows=>rows.filter(r=>r.id!==farm.id));toast.success(_ui('Ferme supprimée. Aucune donnée liée supprimée.'))}
+    }catch(e:any){if(domainRef.current===domain)setDeleteError({farm:String(farm.name),message:e.message||_ui('Suppression impossible.')})}
+    finally{setDeletingId(null)}
+  }
 
   const save = async () => {
-    if (!form.name || !activeDomain) return
+    if (!form.name || !activeDomain || !hasPermission('fermes',editingId?'edit':'create')) return
+    const domain=activeDomain.domain_id
     setSaving(true)
     try {
-      const { data, error } = await supabase.from('farms').insert({
-        domain_id: activeDomain.domain_id,
-        code: form.code, name: form.name, address: form.address, city: form.city,
-        region: form.region, country: form.country || 'Maroc',
-        total_area: form.total_area ? Number(form.total_area) : null,
-        notes: form.notes, is_active: true,
-      }).select().single()
-      if (error) throw error
-      setItems(p => [data, ...p])
+      let data:any
+      if(editingId)data=await updateClientFarm(domain,editingId,form)
+      else{
+        const result=await supabase.from('farms').insert({domain_id:domain,...farmEditPayload(form),is_active:true}).select().single()
+        if(result.error)throw result.error
+        data=result.data
+      }
+      if(domainRef.current!==domain)return
+      setItems(p => editingId?p.map(f=>f.id===editingId?data:f):[data, ...p])
       setDone(true)
-      toast.success(_ui("Ferme \"{v0}\" créée",{v0:String(data.name)}))
-      setTimeout(() => { setModal(false); setDone(false) }, 1200)
-    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
-    setSaving(false)
+      toast.success(editingId?_ui('Ferme modifiée.'):_ui("Ferme \"{v0}\" créée",{v0:String(data.name)}))
+      setTimeout(() => { if(domainRef.current===domain){setModal(false);setDone(false);setEditingId(null)} }, 1200)
+    } catch (e: any) { if(domainRef.current===domain)toast.error(_ui("Erreur :") + e.message) }
+    finally{setSaving(false)}
   }
 
   return (
     <div>
       {modal && (
-        <Modal title={_ui("NOUVELLE FERME")} onClose={() => { setModal(false); setDone(false) }}>
-          {done ? <SuccessMessage message={_ui("Ferme créée avec succès !")} /> : (
+        <Modal title={editingId?_ui('Modifier la ferme'):_ui("NOUVELLE FERME")} busy={saving} dirty={done?false:undefined} onClose={() => { setModal(false); setDone(false);setEditingId(null) }}>
+          {done ? <SuccessMessage message={editingId?_ui('Ferme modifiée.'):_ui("Ferme créée avec succès !")} /> : (
             <div className="space-y-md">
               <div className="grid grid-cols-2 gap-md">
                 <Field label={_ui("Code (auto-généré)")}><TInput value={form.code} onChange={upd('code')} placeholder="F01" /></Field>
@@ -118,7 +146,7 @@ export default function FermesPage() {
                 <Field label={_ui("Superficie totale (ha)")}><TInput type="number" value={form.total_area} onChange={upd('total_area')} placeholder="5.2" /></Field>
               </div>
               <Field label={_ui("Notes")}><Textarea rows={2} value={form.notes} onChange={upd('notes')} /></Field>
-              <ModalFooter onCancel={() => setModal(false)} onSave={save} loading={saving} disabled={!form.name} saveLabel={_ui("CRÉER LA FERME")} />
+              <ModalFooter onCancel={() => setModal(false)} onSave={save} loading={saving} disabled={!form.name.trim()||!form.code.trim()} saveLabel={editingId?_ui('ENREGISTRER LES MODIFICATIONS'):_ui("CRÉER LA FERME")} />
             </div>
           )}
         </Modal>
@@ -131,7 +159,7 @@ export default function FermesPage() {
         iconColor="#64748b"
         description={_ui("{v0} ferme{v1} enregistrée{v2}",{v0:String(items.length),v1:String(items.length > 1 ? 's' : ''),v2:String(items.length > 1 ? 's' : '')})}
         actions={
-          <Button onClick={openNew} variant="primary">
+          <Button disabled={!hasPermission('fermes','create')} onClick={openNew} variant="primary">
             <Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle ferme")}{" "}</Button>
         }
         stats={loading ? [] : [
@@ -141,6 +169,18 @@ export default function FermesPage() {
           { label: 'Régions',    value: String(stats.regions),                                          icon: Globe,     color: '#a855f7' },
         ]}
       />
+
+      {deleteError && (
+        <div role="alert" className="mb-md rounded-xl border border-red-600 bg-red-50 p-4 text-red-800">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-semibold">{_ui('Suppression impossible.')} — {deleteError.farm}</p>
+              <p className="mt-2">{deleteError.message}</p>
+            </div>
+            <button type="button" aria-label={_ui('Fermer')} onClick={()=>setDeleteError(null)} className="p-1"><X size={18}/></button>
+          </div>
+        </div>
+      )}
 
       {!loading && items.length > 0 && (
         <Card animate delay={0.15} className="mb-md">
@@ -170,7 +210,7 @@ export default function FermesPage() {
           icon={Building2}
           title={_ui("Aucune ferme enregistrée")}
           description={_ui("Commence par créer ta première ferme pour piloter ton exploitation.")}
-          action={<Button onClick={openNew}><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle ferme")}</Button>}
+          action={<Button disabled={!hasPermission('fermes','create')} onClick={openNew}><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle ferme")}</Button>}
         />
       ) : filtered.length === 0 ? (
         <EmptyState
@@ -233,6 +273,11 @@ export default function FermesPage() {
                     {f.notes}
                   </div>
                 )}
+                <div className="flex flex-wrap gap-2 mt-md pt-md border-t border-border">
+                  <AuditHistoryButton table="farms" entity={f.id}/>
+                  {hasPermission('fermes','edit') && <Button variant="secondary" disabled={saving||!!deletingId} onClick={()=>openEdit(f)}><Pencil size={14}/>{_ui('Modifier')}</Button>}
+                  {hasPermission('fermes','delete') && <Button variant="ghost" disabled={saving||!!deletingId} onClick={()=>remove(f)} className="text-danger"><Trash2 size={14}/>{deletingId===f.id?_ui('Traitement en cours…'):_ui('Supprimer')}</Button>}
+                </div>
               </div>
             </Card>
           ))}

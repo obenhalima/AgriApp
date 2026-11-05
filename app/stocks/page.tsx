@@ -2,10 +2,10 @@
 import { useLanguage } from "@/lib/i18n"
 
 import '@/components/ui/workspace.css'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { Package, Plus, Pencil, ArrowUpCircle, ArrowDownCircle, AlertTriangle, BarChart3, Search, X, Check, Play, ShieldCheck } from 'lucide-react'
+import { Package, Plus, Pencil, ArrowUpCircle, ArrowDownCircle, AlertTriangle, BarChart3, Search, X, Check, ShieldCheck } from 'lucide-react'
 import { getStocks, createStockItem, createMouvement, supabase } from '@/lib/supabase'
 import { genCode } from '@/lib/utils'
 import { Card } from '@/components/ui/Card'
@@ -20,6 +20,8 @@ import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { MoneyDisplay } from '@/components/display'
 import { useReferenceList } from '@/lib/useReferenceList'
 import { useAuth } from '@/lib/auth'
+import { StockAllocationSelector } from '@/components/stock/StockAllocationSelector'
+import { allocationPreview, stockAllocationRpc, type StockAllocationPlanting } from '@/lib/stockAllocation'
 
 export default function StocksPage() {
  const {t:_ui,text:_uiNode}=useLanguage()
@@ -41,6 +43,13 @@ export default function StocksPage() {
   const [warehouses,setWarehouses]=useState<any[]>([])
   const [balances,setBalances]=useState<any[]>([])
   const [warehouseId,setWarehouseId]=useState('')
+  const [allocationRows,setAllocationRows]=useState<StockAllocationPlanting[]>([])
+  const [allocationCampaign,setAllocationCampaign]=useState('')
+  const [allocationIds,setAllocationIds]=useState<string[]>([])
+  const [allocationError,setAllocationError]=useState('')
+  const [allocationLoading,setAllocationLoading]=useState(false)
+  const allocationRequest=useRef({key:'',id:''})
+  const [cancellingRequest,setCancellingRequest]=useState('')
   const [exitRequests, setExitRequests] = useState<any[]>([])
   const [phytoProducts, setPhytoProducts] = useState<any[]>([])
   const [exitPolicy,setExitPolicy]=useState<any>(null)
@@ -49,6 +58,7 @@ export default function StocksPage() {
   const blankA = { code: '', name: '', category: 'engrais', unit: 'kg', min_qty: '', unit_cost: '', location: '', plant_protection_product_id: '' }
   const [formA, setFormA] = useState({ ...blankA })
   const [formAE, setFormAE] = useState<Record<string, any>>({})
+  const [movementError,setMovementError]=useState('')
   const [formM, setFormM] = useState({ stock_item_id: '', warehouse_id: '', movement_type: 'entree', quantity: '', movement_date: '', reference: '', notes: '' })
   const sa = (k: string) => (e: any) => setFormA(f => ({ ...f, [k]: e.target.value }))
   const sae = (k: string) => (e: any) => setFormAE(f => ({ ...f, [k]: e.target.value }))
@@ -62,7 +72,7 @@ export default function StocksPage() {
         supabase.from('stock_exit_requests').select('*,stock_items(name,unit)').eq('domain_id', activeDomain.domain_id).order('created_at', { ascending: false }).limit(50),
         supabase.from('plant_protection_products').select('id,commercial_name,authorization_number,product_authorized_uses(dose_unit,is_active)').eq('domain_id',activeDomain.domain_id).eq('is_active',true).eq('authorization_status','autorise').order('commercial_name'),
         supabase.from('approval_policies').select('*').eq('domain_id',activeDomain.domain_id).eq('process_code','stock_exit').eq('is_active',true).maybeSingle(),
-        supabase.from('warehouses').select('id,name,is_active,is_default').eq('domain_id',activeDomain.domain_id).order('name'),
+        supabase.from('warehouses').select('id,name,is_active,is_default,farm_id').eq('domain_id',activeDomain.domain_id).order('name'),
         supabase.from('warehouse_stocks').select('*').eq('domain_id',activeDomain.domain_id),
       ])
       if(wh.error||bal.error) throw new Error(wh.error?.message||bal.error?.message)
@@ -71,6 +81,19 @@ export default function StocksPage() {
     } catch(e:any) { toast.error(e.message) } finally { setLoading(false) }
   }
   useEffect(() => { setWarehouseId('');setItems([]);setBalances([]);setWarehouses([]);setModalMvt(null);load() }, [activeDomain?.domain_id])
+  useEffect(()=>{
+    let cancelled=false
+    setAllocationRows([]);setAllocationError('');setAllocationCampaign('');setAllocationIds([])
+    if(!activeDomain || !modalMvt || formM.movement_type!=='sortie'){setAllocationLoading(false);return}
+    setAllocationLoading(true)
+    stockAllocationRpc<StockAllocationPlanting[]>('get_stock_allocation_catalog',{p_domain:activeDomain.domain_id})
+      .then(rows=>{if(!cancelled)setAllocationRows(rows||[])})
+      .catch(e=>{if(!cancelled)setAllocationError(e.message)})
+      .finally(()=>{if(!cancelled)setAllocationLoading(false)})
+    return ()=>{cancelled=true}
+  },[activeDomain?.domain_id,modalMvt?.id,formM.movement_type])
+  const allocationFarm=warehouses.find(w=>w.id===formM.warehouse_id)?.farm_id||''
+  const validAllocation=allocationPreview(allocationRows.filter(p=>p.farm_id===allocationFarm&&p.campaign_id===allocationCampaign),allocationIds).length>0
 
   const scopedItems=useMemo(()=>items.filter(i=>!warehouseId||balances.some(b=>b.stock_item_id===i.id&&b.warehouse_id===warehouseId)).map(i=>{const b=balances.find(b=>b.stock_item_id===i.id&&b.warehouse_id===warehouseId);return warehouseId?{...i,current_qty:Number(b?.current_qty||0),min_qty:Number(b?.min_qty||0)}:i}),[items,balances,warehouseId])
   const filtered = useMemo(() => scopedItems.filter(i => {
@@ -91,6 +114,8 @@ export default function StocksPage() {
     setModalEditArt(i)
   }
   const openMvt = (item: any, type = 'entree') => {
+    allocationRequest.current={key:'',id:''};setAllocationCampaign('');setAllocationIds([])
+    setMovementError('')
     setFormM({ stock_item_id: item.id, warehouse_id: warehouseId||warehouses.find(w=>w.is_default&&w.is_active)?.id||'', movement_type: type, quantity: '', movement_date: new Date().toISOString().slice(0, 10), reference: '', notes: '' })
     setModalMvt(item)
   }
@@ -128,23 +153,27 @@ export default function StocksPage() {
   }
 
   const saveMvt = async () => {
-    if (!formM.stock_item_id || !formM.warehouse_id || Number(formM.quantity)<=0 || !formM.movement_date) return
+    setMovementError('')
+    if (!formM.stock_item_id || !formM.warehouse_id || !Number.isFinite(Number(formM.quantity)) || Number(formM.quantity)<=0 || !formM.movement_date) { setMovementError('Choisissez un entrepôt, une date et une quantité strictement positive.'); return }
     setSaving(true)
     try {
       if (formM.movement_type === 'sortie') {
-        if (!formM.notes.trim()) throw new Error('Le motif de la sortie est obligatoire')
-        const { error } = await supabase.rpc('submit_warehouse_stock_exit', {
+        if(allocationError || allocationLoading || !validAllocation)throw new Error('Choisissez la campagne et au moins une serre de la ferme de l’entrepôt.')
+        const payload={
           p_warehouse:formM.warehouse_id,p_item: formM.stock_item_id, p_quantity: Number(formM.quantity),
           p_date: formM.movement_date, p_reason: formM.notes, p_reference: formM.reference || null,
-        })
-        if (error) throw error
+          p_farm:allocationFarm,p_plantings:[...allocationIds].sort(),
+        }
+        const key=JSON.stringify(payload)
+        if(allocationRequest.current.key!==key)allocationRequest.current={key,id:crypto.randomUUID()}
+        await stockAllocationRpc('submit_allocated_stock_exit',{...payload,p_request:allocationRequest.current.id})
       } else {
         await createMouvement({ ...formM, quantity: Number(formM.quantity) })
       }
       await load(); setDone(true)
       toast.success(formM.movement_type === 'sortie' ? _ui("Demande de sortie envoyée au responsable") : _ui("Mouvement enregistré"))
       setTimeout(() => { setModalMvt(null); setDone(false) }, 1200)
-    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
+    } catch (e: any) { setMovementError(e.message); toast.error(_ui("Erreur :") + e.message) }
     setSaving(false)
   }
 
@@ -160,12 +189,18 @@ export default function StocksPage() {
     const reason = approve ? null : prompt(_ui("Motif obligatoire du rejet :"))
     if (!approve && !reason) return
     const { error } = await supabase.rpc('review_stock_exit_request', { p_request_id: id, p_approve: approve, p_reason: reason })
-    if (error) toast.error(error.message); else { toast.success(approve ? _ui("Sortie approuvée") : _ui("Sortie rejetée")); load() }
+    if (error) toast.error(error.message); else { toast.success(approve ? _ui("Sortie validée et stock déduit") : _ui("Sortie rejetée")); load() }
   }
-  const executeExit = async (id: string) => {
-    if (!confirm(_ui("Exécuter cette sortie et diminuer le stock ?"))) return
-    const { error } = await supabase.rpc('execute_stock_exit_request', { p_request_id: id })
-    if (error) toast.error(error.message); else { toast.success(_ui("Sortie exécutée")); load() }
+  const cancelExit = async (id: string) => {
+    if (!confirm(_ui("Annuler cette demande de sortie ?"))) return
+    setCancellingRequest(id)
+    try {
+      const {error}=await supabase.rpc('cancel_stock_exit_request',{p_request_id:id})
+      if(error) throw error
+      toast.success(_ui("Demande de sortie annulée"))
+      await load()
+    } catch(e:any) { toast.error(e.message) }
+    finally { setCancellingRequest('') }
   }
 
   // Render as a helper: a nested component type would remount every input on
@@ -210,7 +245,7 @@ export default function StocksPage() {
                 <span className="text-fg-tertiary ml-md">{_ui("Min :")}{" "}{modalMvt.min_qty} {modalMvt.unit}</span>
               </div>
               <FormRow>
-                <FormGroup label={t("Entrepôt *")}><TSelect value={formM.warehouse_id} onChange={sm('warehouse_id')}><option value="">{t("Sélectionner")}</option>{warehouses.filter(w=>w.is_active).map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</TSelect></FormGroup>
+                <FormGroup label={t("Entrepôt *")}><TSelect value={formM.warehouse_id} onChange={e=>{sm('warehouse_id')(e);setAllocationCampaign('');setAllocationIds([])}}><option value="">{t("Sélectionner")}</option>{warehouses.filter(w=>w.is_active).map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</TSelect></FormGroup>
                 <FormGroup label={t("Type")}>
                   <TSelect value={formM.movement_type} onChange={sm('movement_type')}>
                     <option value="entree">{t("Entrée (réception)")}</option>
@@ -223,9 +258,11 @@ export default function StocksPage() {
                 <FormGroup label={t("Date *")}><TInput type="date" value={formM.movement_date} onChange={sm('movement_date')} /></FormGroup>
                 <FormGroup label={t("Référence")}><TInput value={formM.reference} onChange={sm('reference')} placeholder="BL-2026-001" /></FormGroup>
               </FormRow>
-              <FormGroup label={t("Notes")}><Textarea rows={2} value={formM.notes} onChange={sm('notes')} /></FormGroup>
-              {formM.movement_type === 'sortie' && <div className="rounded-md border border-warning/30 bg-warning/10 p-sm text-body-sm text-warning">{t("La sortie sera soumise au responsable. Le stock ne changera qu’après validation puis exécution.")}</div>}
-              <ModalFooter onCancel={() => setModalMvt(null)} onSave={saveMvt} loading={saving} disabled={!formM.quantity || !formM.movement_date || (formM.movement_type === 'sortie' && !formM.notes.trim())} saveLabel={formM.movement_type === 'sortie' ? _ui("SOUMETTRE LA DEMANDE") : _ui("ENREGISTRER")} />
+              {movementError && <p role="alert" className="text-danger">{movementError}</p>}
+              <FormGroup label={t(formM.movement_type==='sortie' ? "Note de sortie (facultatif)" : "Notes")}><Textarea rows={2} value={formM.notes} onChange={sm('notes')} /></FormGroup>
+              {formM.movement_type==='sortie' && <>{allocationLoading&&<p role="status">{t('Chargement des serres…')}</p>}{allocationError&&<p role="alert" className="text-danger">{allocationError}</p>}{!allocationFarm&&<p role="alert">{t('Choisissez un entrepôt rattaché à une ferme.')}</p>}<StockAllocationSelector plantings={allocationRows} farm={allocationFarm} campaign={allocationCampaign} selected={allocationIds} onCampaign={id=>{setAllocationCampaign(id);setAllocationIds([])}} onSelected={setAllocationIds} disabled={saving||allocationLoading} quantity={Number(formM.quantity)||undefined}/><p className="text-sm text-fg-secondary">{t('À la validation, le coût CUMP sera réparti sur ces serres. Si le stock n’est pas valorisé, les affectations seront conservées pour Sorties à rapprocher.')}</p></>}
+              {formM.movement_type === 'sortie' && <div className="rounded-md border border-warning/30 bg-warning/10 p-sm text-body-sm text-warning">{t("La validation du responsable déduira le stock et générera les coûts si le prix est connu.")}</div>}
+              <ModalFooter onCancel={() => setModalMvt(null)} onSave={saveMvt} loading={saving} disabled={!formM.warehouse_id || !Number.isFinite(Number(formM.quantity)) || Number(formM.quantity)<=0 || !formM.movement_date || (formM.movement_type === 'sortie' && (!validAllocation||allocationLoading||!!allocationError))} saveLabel={formM.movement_type === 'sortie' ? _ui("SOUMETTRE LA DEMANDE") : _ui("ENREGISTRER")} />
             </div>
           )}
         </Modal>
@@ -236,6 +273,7 @@ export default function StocksPage() {
         description={_ui("{v0} article{v1} · {v2} alerte{v3}",{v0:String(items.length),v1:String(items.length > 1 ? 's' : ''),v2:String(stats.alerts),v3:String(stats.alerts > 1 ? 's' : '')})}
         actions={
           <div className="itrix-actions">
+            <Link href="/stocks/reprise"><Button variant="secondary">{t('Reprise du stock initial / Excel')}</Button></Link>
             <Link href="/stocks/mouvements">
               <Button variant="ghost"><BarChart3 size={14} strokeWidth={2.2} /> {t("Mouvements")}</Button>
             </Link>
@@ -272,7 +310,7 @@ export default function StocksPage() {
         <Card className="mb-md" padding="none">
           <div className="p-md border-b border-border flex items-center gap-sm"><ShieldCheck size={15} className="text-warning"/><strong>{t("Demandes de sortie")}</strong></div>
           <DataTable minWidth={850}><THead><TR><TH>{t("Article")}</TH><TH right>{t("Quantité")}</TH><TH>{t("Motif")}</TH><TH>{t("Statut")}</TH><TH>{t("Demandeur")}</TH><TH right>{t("Actions")}</TH></TR></THead>
-            <tbody>{exitRequests.map(r => <TR key={r.id}><TD>{r.stock_items?.name}</TD><TD right mono>{r.quantity} {r.stock_items?.unit}</TD><TD>{r.reason}</TD><TD><Badge variant={r.status==='soumise'?'warning':r.status==='approuvee'?'success':r.status==='executee'?'info':'danger'}>{r.status}</Badge></TD><TD mono className="text-caption">{r.requested_by===user?.id?_ui("Moi"):r.requested_by.slice(0,8)}</TD><TD right><div className="flex justify-end gap-xs">{r.status==='soumise'&&responsible&&r.requested_by!==user?.id&&<><Button size="xs" variant="secondary" onClick={()=>reviewExit(r.id,true)}><Check size={12}/> {t("Valider")}</Button><Button size="xs" variant="ghost" onClick={()=>reviewExit(r.id,false)}><X size={12}/> {t("Rejeter")}</Button></>}{r.status==='approuvee'&&hasPermission('stocks','edit')&&<Button size="xs" onClick={()=>executeExit(r.id)}><Play size={12}/> {t("Exécuter")}</Button>}</div></TD></TR>)}</tbody>
+            <tbody>{exitRequests.map(r => <TR key={r.id}><TD>{r.stock_items?.name}</TD><TD right mono>{r.quantity} {r.stock_items?.unit}</TD><TD>{r.reason}</TD><TD><Badge variant={r.status==='soumise'?'warning':r.status==='approuvee'?'success':r.status==='executee'?'info':'danger'}>{r.status==='annulee'?t('Annulée'):r.stock_movement_id?t('Validée et comptabilisée'):r.status==='approuvee'?t('Ancienne demande approuvée — mouvement à vérifier'):r.status}</Badge></TD><TD mono className="text-caption">{r.requested_by===user?.id?_ui("Moi"):r.requested_by.slice(0,8)}</TD><TD right><div className="flex justify-end gap-xs">{r.status==='soumise'&&!r.stock_movement_id&&responsible&&r.requested_by!==user?.id&&<><Button size="xs" variant="secondary" onClick={()=>reviewExit(r.id,true)}><Check size={12}/> {t("Valider")}</Button><Button size="xs" variant="ghost" onClick={()=>reviewExit(r.id,false)}><X size={12}/> {t("Rejeter")}</Button></>}{r.status==='soumise'&&!r.stock_movement_id&&r.requested_by===user?.id&&<Button size="xs" variant="ghost" disabled={!!cancellingRequest} onClick={()=>cancelExit(r.id)}><X size={12}/> {t("Annuler ma demande")}</Button>}</div></TD></TR>)}</tbody>
           </DataTable>
         </Card>
       )}

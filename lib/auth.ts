@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode, createElement } from 'react'
 import { supabase } from './supabase'
 import type { User } from '@supabase/supabase-js'
+import { withAuthCancellation } from './authInitialization'
 
 // ============================================================
 // Types
@@ -61,6 +62,9 @@ export type AuthState = {
 }
 
 export type AuthContextValue = AuthState & {
+  initializationError: boolean
+  initializationBusy: boolean
+  retryInitialization: () => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   hasPermission: (moduleCode: string, action?: PermissionAction) => boolean
@@ -74,7 +78,7 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 // ============================================================
 // Charge profil + rôle + permissions pour un user_id
 // ============================================================
-async function loadAuthData(userId: string, preferredDomainId?: string | null): Promise<{
+async function loadAuthData(userId: string, preferredDomainId?: string | null, signal?:AbortSignal): Promise<{
   profile: Profile | null
   role: Role | null
   permissions: Set<string>
@@ -83,21 +87,24 @@ async function loadAuthData(userId: string, preferredDomainId?: string | null): 
   domains: DomainAccess[]
   activeDomain: DomainAccess | null
 }> {
-  const { data: profile } = await supabase
-    .from('profiles').select('*').eq('id', userId).maybeSingle()
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles').select('*').eq('id', userId).abortSignal(signal||new AbortController().signal).maybeSingle()
+  if (profileError) throw profileError
 
   if (!profile?.is_active) {
     return { profile: null, role: null, permissions: new Set(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null }
   }
 
   const isPlatformAdmin = Boolean(profile.is_platform_admin)
-  const { data: membershipRows } = await supabase
+  const { data: membershipRows, error: membershipError } = await supabase
     .from('domain_memberships')
     .select('domain_id, role_id, is_default, domains!inner(code, name, is_active), roles!inner(name, is_active)')
     .eq('user_id', userId)
     .eq('is_active', true)
     .eq('domains.is_active', true)
     .eq('roles.is_active', true)
+    .abortSignal(signal||new AbortController().signal)
+  if (membershipError) throw membershipError
 
   let domains: DomainAccess[] = (membershipRows ?? []).map((row: any) => ({
     domain_id: row.domain_id,
@@ -110,7 +117,8 @@ async function loadAuthData(userId: string, preferredDomainId?: string | null): 
 
   // Le super administrateur voit également les domaines sans affectation explicite.
   if (isPlatformAdmin) {
-    const { data: allDomains } = await supabase.from('domains').select('id, code, name').eq('is_active', true).order('name')
+    const { data: allDomains, error: domainsError } = await supabase.from('domains').select('id, code, name').eq('is_active', true).order('name').abortSignal(signal||new AbortController().signal)
+    if (domainsError) throw domainsError
     const fallbackRoleId = profile.role_id ?? domains[0]?.role_id ?? ''
     for (const domain of allDomains ?? []) {
       if (!domains.some(item => item.domain_id === domain.id)) {
@@ -130,18 +138,21 @@ async function loadAuthData(userId: string, preferredDomainId?: string | null): 
 
   const effectiveRoleId = isPlatformAdmin ? profile.role_id : activeDomain?.role_id
   if (effectiveRoleId) {
-    const { data: roleData } = await supabase
-      .from('roles').select('*').eq('id', effectiveRoleId).maybeSingle()
+    const { data: roleData, error: roleError } = await supabase
+      .from('roles').select('*').eq('id', effectiveRoleId).abortSignal(signal||new AbortController().signal).maybeSingle()
+    if (roleError) throw roleError
     role = roleData as Role | null
     isAdmin = Boolean(role?.is_active && role?.is_admin)
 
     // Si pas admin, on charge les permissions du rôle
     if (!isAdmin && role?.is_active) {
-      const { data: perms } = await supabase
+      const { data: perms, error: permissionError } = await supabase
         .from('role_permissions')
         .select('granted, permissions(code)')
         .eq('role_id', effectiveRoleId)
         .eq('granted', true)
+        .abortSignal(signal||new AbortController().signal)
+      if (permissionError) throw permissionError
       permissionCodes = (perms ?? [])
         .map((r: any) => r.permissions?.code)
         .filter(Boolean)
@@ -164,6 +175,15 @@ async function loadAuthData(userId: string, preferredDomainId?: string | null): 
 // ============================================================
 export function AuthProvider({ children }: { children: ReactNode }) {
   const authVersion = useRef(0)
+  const pending = useRef(false)
+  const attemptController=useRef<AbortController|null>(null)
+  // A refresh-token operation can outlive the UI deadline inside the SDK.
+  // Retries share that identity read instead of queueing new getUser calls.
+  const identityRequest=useRef<ReturnType<typeof supabase.auth.getUser>|null>(null)
+  const failedAttempt=useRef(false)
+  const [initializationBusy,setInitializationBusy]=useState(false)
+  const initialLoginStamp = useRef(true)
+  const [initializationError, setInitializationError] = useState(false)
   const [state, setState] = useState<AuthState>({
     user: null,
     profile: null,
@@ -177,66 +197,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })
 
   const refresh = useCallback(async () => {
+    if (pending.current) return
+    pending.current = true
+    setInitializationBusy(true)
+    const controller=new AbortController();attemptController.current=controller
     const version = ++authVersion.current
-    const { data: { user } } = await supabase.auth.getUser()
-    if (version !== authVersion.current) return
-    if (!user) {
-      setState({ user: null, profile: null, role: null, permissions: new Set(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null, loading: false })
-      return
+    // Initial/retry state stays blocked; background checks do not remount pages.
+    try {
+      const result = await withAuthCancellation(async signal => {
+        if(!identityRequest.current)identityRequest.current=supabase.auth.getUser().finally(()=>{identityRequest.current=null})
+        const { data: { user }, error } = await identityRequest.current
+        signal.throwIfAborted()
+        if (error && error.name !== 'AuthSessionMissingError') throw error
+        if (!user) return { user: null, profile: null, role: null, permissions: new Set<string>(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null, loading: false }
+        const preferred = localStorage.getItem(`farmpilot_active_domain_${user.id}`)
+        const data = await loadAuthData(user.id, preferred,signal)
+        return { user, ...data, loading: false }
+      },controller)
+      if (version === authVersion.current) {
+        failedAttempt.current=false;setInitializationError(false)
+        setState(result)
+        if (initialLoginStamp.current && result.user && result.profile?.is_active) {
+          void supabase.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', result.user.id).then(() => {})
+        }
+        initialLoginStamp.current = false
+      }
+    } catch {
+      if (version === authVersion.current) {
+        setInitializationError(true)
+        failedAttempt.current=true
+        // Fail closed in memory, without signOut/localStorage.clear/removeItem.
+        setState({ user: null, profile: null, role: null, permissions: new Set(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null, loading: true })
+      }
+    } finally {
+      if (version === authVersion.current) {pending.current = false;setInitializationBusy(false)}
     }
-    const preferred = localStorage.getItem(`farmpilot_active_domain_${user.id}`)
-    const data = await loadAuthData(user.id, preferred)
-    if (version !== authVersion.current) return
-    setState({ user, ...data, loading: false })
   }, [])
 
   useEffect(() => {
     let disposed = false
-    const initialVersion = ++authVersion.current;
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (disposed || initialVersion !== authVersion.current) return
-      if (!user) {
-        setState(s => ({ ...s, loading: false }))
-        return
-      }
-      const preferred = localStorage.getItem(`farmpilot_active_domain_${user.id}`)
-      const data = await loadAuthData(user.id, preferred)
-      if (disposed || initialVersion !== authVersion.current) return
-      setState({ user, ...data, loading: false })
-      // MAJ last_login_at (best-effort)
-      if (data.profile?.is_active) supabase.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', user.id).then()
-    })().catch(() => {
-      if (disposed || initialVersion !== authVersion.current) return
-      setState({ user: null, profile: null, role: null, permissions: new Set(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null, loading: false })
-    })
+    void refresh()
 
     // Never await Supabase calls inside its auth notification. Token refresh
     // waits for subscribers; those calls in turn wait for the same refresh.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'INITIAL_SESSION') return // Initial getUser() performs server validation.
-      const version = ++authVersion.current
       if (event === 'SIGNED_OUT' || !session?.user) {
+        attemptController.current?.abort();failedAttempt.current=false;setInitializationBusy(false)
+        authVersion.current++
+        pending.current = false
+        setInitializationError(false)
         setState({ user: null, profile: null, role: null, permissions: new Set(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null, loading: false })
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         setTimeout(() => {
-          if (disposed || version !== authVersion.current) return
-          const preferred = localStorage.getItem(`farmpilot_active_domain_${session.user.id}`)
-          void loadAuthData(session.user.id, preferred).then(data => {
-            if (!disposed && version === authVersion.current) setState({ user: session.user, ...data, loading: false })
-          }).catch(() => {
-            // Fail closed: do not retain permissions after a failed identity reload.
-            if (!disposed && version === authVersion.current) setState({ user: null, profile: null, role: null, permissions: new Set(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null, loading: false })
-          })
+          if (!disposed&&!failedAttempt.current) void refresh()
         }, 0)
       }
     })
-    return () => { disposed = true; authVersion.current++; subscription.unsubscribe() }
-  }, [])
+    return () => { disposed = true; attemptController.current?.abort();authVersion.current++; pending.current = false; subscription.unsubscribe() }
+  }, [refresh])
 
   // Recheck suspension/permissions in open tabs, including when returning from background.
   useEffect(() => {
-    const check = () => { if (document.visibilityState === 'visible') void refresh().catch(() => {
+    const check = () => { if (!failedAttempt.current&&document.visibilityState === 'visible') void refresh().catch(() => {
       setState({ user: null, profile: null, role: null, permissions: new Set(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null, loading: false })
     }) }
     const timer = window.setInterval(check, 60000)
@@ -289,6 +312,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value: AuthContextValue = {
     ...state,
+    initializationError,
+    initializationBusy,
+    retryInitialization: refresh,
     signIn,
     signOut,
     hasPermission,

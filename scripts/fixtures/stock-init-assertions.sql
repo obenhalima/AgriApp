@@ -1,0 +1,67 @@
+SELECT set_config('test.uid','10000000-0000-0000-0000-000000000001',false);
+CREATE FUNCTION test_stock_row(c text,n text,q text DEFAULT '',p text DEFAULT '',e text DEFAULT '',w text DEFAULT 'D1') RETURNS jsonb LANGUAGE sql AS $$
+ SELECT jsonb_build_object('code',c,'name',n,'category','engrais','unit','kg','warehouse',w,'date','2020-01-01','quantity',q,'price',p,'evidence',e,'notes','') $$;
+DO $test$
+DECLARE d uuid:='20000000-0000-0000-0000-000000000001'; req uuid:=gen_random_uuid(); rows jsonb; result jsonb; retry jsonb; total integer;
+BEGIN
+ rows:=jsonb_build_array(test_stock_row('ENG01','Engrais test','10.00','2.00000000','FACT-1'));
+ result:=initialize_stock_inventory(d,req,rows,false);
+ PERFORM test_assert(result->>'status'='preview' AND (result->>'created')::int=1,'preview plan');
+ PERFORM test_assert((SELECT count(*)=0 FROM stock_items),'preview must not create articles');
+ PERFORM test_assert((SELECT count(*)=0 FROM stock_initialization_batches),'preview must not create batch');
+ result:=initialize_stock_inventory(d,req,rows,true);
+ PERFORM test_assert(result->>'status'='applied','apply committed');
+ PERFORM test_assert((SELECT current_qty=10 FROM stock_items WHERE code='ENG01'),'projected total');
+ PERFORM test_assert((SELECT current_qty=10 AND inventory_value=20 AND valuation_verified FROM warehouse_stocks),'actual movement costing');
+ retry:=initialize_stock_inventory(d,req,rows,true);
+ PERFORM test_assert(retry=result,'same request idempotent');
+ retry:=initialize_stock_inventory(d,gen_random_uuid(),rows,true);
+ PERFORM test_assert(retry=result,'same payload different request idempotent');
+ PERFORM test_assert((SELECT count(*)=1 FROM stock_movements),'exactly one movement');
+ PERFORM test_reject(format('SELECT initialize_stock_inventory(%L,%L,%L,true)',d,req,jsonb_build_array(test_stock_row('ENG01','Engrais test','11'))),'autre fichier');
+ PERFORM test_reject(format('SELECT initialize_stock_inventory(%L,%L,%L,true)',d,gen_random_uuid(),jsonb_build_array(test_stock_row('ENG01','Engrais test','11'))),'déjà utilisé');
+ rows:=jsonb_build_array(test_stock_row('NOVAL','Sans coût','5'));
+ result:=initialize_stock_inventory(d,gen_random_uuid(),rows,true);
+ PERFORM test_assert((result->>'unvalued')::int=1,'unknown price counted');
+ PERFORM test_assert((SELECT inventory_value IS NULL AND NOT valuation_verified FROM warehouse_stocks w JOIN stock_items s ON s.id=w.stock_item_id WHERE s.code='NOVAL'),'unknown is not zero value');
+ result:=initialize_stock_inventory(d,gen_random_uuid(),jsonb_build_array(test_stock_row('ZERO','Stock nul','0')),true);
+ PERFORM test_assert((result->>'zero')::int=1,'zero confirmed');
+ PERFORM test_assert((SELECT count(*)=0 FROM stock_movements m JOIN stock_items s ON s.id=m.stock_item_id WHERE s.code='ZERO'),'no zero quantity movement');
+ PERFORM test_reject(format('SELECT initialize_stock_inventory(%L,%L,%L,true)',d,gen_random_uuid(),jsonb_build_array(test_stock_row('ZERO','Stock nul','1'))),'déjà utilisé');
+ result:=initialize_stock_inventory(d,gen_random_uuid(),jsonb_build_array(test_stock_row('CAT','Catalogue seul')),true);
+ PERFORM test_assert((SELECT count(*)=1 FROM stock_items WHERE code='CAT'),'catalogue without quantity');
+ PERFORM test_assert((SELECT count(*)=0 FROM stock_initialization_lines l JOIN stock_items s ON s.id=l.stock_item_id WHERE s.code='CAT'),'no stock for unknown quantity');
+ rows:=jsonb_build_array(test_stock_row('MULTI','Multi entrepôts','2'),test_stock_row('MULTI','Multi entrepôts','3','','','D2'));
+ result:=initialize_stock_inventory(d,gen_random_uuid(),rows,true);
+ PERFORM test_assert((result->>'created')::int=1 AND (result->>'positive')::int=2,'one article two warehouses');
+ PERFORM test_assert((SELECT current_qty=5 FROM stock_items WHERE code='MULTI'),'multi warehouse aggregate');
+ PERFORM test_reject(format('SELECT initialize_stock_inventory(%L,%L,%L,true)',d,gen_random_uuid(),jsonb_build_array(test_stock_row('DUP','Duplicate','1'),test_stock_row('DUP','Duplicate','2'))),'répétés');
+ PERFORM test_reject(format('SELECT initialize_stock_inventory(%L,%L,%L,true)',d,gen_random_uuid(),jsonb_build_array(test_stock_row('BAD','Bad quantity','-1'))),'quantité');
+ PERFORM test_reject(format('SELECT initialize_stock_inventory(%L,%L,%L,true)',d,gen_random_uuid(),jsonb_build_array(test_stock_row('BAD','Bad quantity','1.001'))),'décimales');
+ PERFORM test_reject(format('SELECT initialize_stock_inventory(%L,%L,%L,true)',d,gen_random_uuid(),jsonb_build_array(test_stock_row('BAD','Bad price','1','2'))),'justificatif');
+ PERFORM test_reject(format('SELECT initialize_stock_inventory(%L,%L,%L,true)',d,gen_random_uuid(),jsonb_build_array(test_stock_row('BAD','Bad unit','1')||jsonb_build_object('unit','invented'))),'référentiels');
+ PERFORM test_reject(format('SELECT initialize_stock_inventory(%L,%L,%L,true)',d,gen_random_uuid(),jsonb_build_array(test_stock_row('BAD','Bad date','1')||jsonb_build_object('date',(current_date+365)::text))),'future');
+ PERFORM test_reject(format('SELECT initialize_stock_inventory(%L,%L,%L,true)',d,gen_random_uuid(),jsonb_build_array(test_stock_row('BAD','Cross tenant','1','','','OTHER'))),'entrepôt');
+ PERFORM test_reject(format('SELECT initialize_stock_inventory(%L,%L,%L,true)',d,gen_random_uuid(),jsonb_build_array(test_stock_row('ENG01','Changed name','1'))),'ne correspond');
+ PERFORM test_reject(format('SELECT initialize_stock_inventory(%L,%L,%L,true)',d,gen_random_uuid(),jsonb_build_array(test_stock_row('OTHER','Engrais test','1'))),'désignation');
+ PERFORM set_config('test.can_create','no',true);
+ PERFORM test_reject(format('SELECT initialize_stock_inventory(%L,%L,%L,true)',d,gen_random_uuid(),jsonb_build_array(test_stock_row('BAD','No permission','1'))),'création');
+ PERFORM set_config('test.can_create','yes',true);
+ PERFORM set_config('test.uid','10000000-0000-0000-0000-000000000002',true);
+ PERFORM test_reject(format('SELECT initialize_stock_inventory(%L,%L,%L,true)',d,gen_random_uuid(),rows),'interdite');
+ PERFORM set_config('test.uid','10000000-0000-0000-0000-000000000001',true);
+ PERFORM test_reject(format('SELECT initialize_stock_inventory(%L,%L,%L,true)','20000000-0000-0000-0000-000000000002',gen_random_uuid(),rows),'interdite');
+END $test$;
+CREATE FUNCTION test_late_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.code='FAIL-LATE' THEN RAISE EXCEPTION 'Intentional late failure'; END IF; RETURN NEW; END $$;
+CREATE TRIGGER late_failure BEFORE INSERT ON stock_items FOR EACH ROW EXECUTE FUNCTION test_late_failure();
+DO $test$
+DECLARE d uuid:='20000000-0000-0000-0000-000000000001'; before_batches integer;
+BEGIN
+ SELECT count(*) INTO before_batches FROM stock_initialization_batches;
+ PERFORM test_reject(format('SELECT initialize_stock_inventory(%L,%L,%L,true)',d,gen_random_uuid(),jsonb_build_array(test_stock_row('ROLLBACK','Must rollback','3'),test_stock_row('FAIL-LATE','Intentional failure','1'))),'Intentional late failure');
+ PERFORM test_assert((SELECT count(*)=0 FROM stock_items WHERE code IN('ROLLBACK','FAIL-LATE')),'atomic rollback articles');
+ PERFORM test_assert((SELECT count(*)=before_batches FROM stock_initialization_batches),'atomic rollback batch');
+END $test$;
+SELECT test_assert(NOT has_function_privilege('anon','initialize_stock_inventory(uuid,uuid,jsonb,boolean)','EXECUTE'),'anonymous invocation forbidden');
+SELECT test_assert(NOT has_table_privilege('authenticated','stock_initialization_lines','INSERT'),'no direct insert into journal');
+SELECT 'Stock initialization PostgreSQL assertions passed' AS result;

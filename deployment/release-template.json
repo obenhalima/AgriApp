@@ -1,0 +1,13 @@
+{
+  "version": null,
+  "commit": null,
+  "previousRelease": null,
+  "dependsOn": [],
+  "releaseNotes": [],
+  "databaseMigrations": [],
+  "edgeFunctions": [],
+  "testDeploymentUrl": null,
+  "verification": { "testsPassed": false, "tenantIsolationVerified": false },
+  "productionApproval": false,
+  "rollback": { "applicationCommit": null, "databaseCompatibilityVerified": false }
+}

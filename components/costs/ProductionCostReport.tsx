@@ -1,4 +1,6 @@
 'use client'
+
+import { FilterableTable } from '@/components/ui/FilterableTable'
 import {useLanguage} from '@/lib/i18n'
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -11,6 +13,8 @@ import { InventoryValuationDialog, type ValuationItem } from './InventoryValuati
 import { BarChart3, Package, ClipboardCheck, RefreshCw } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { HistoricalCostDialog } from './HistoricalCostDialog'
+import { StockAllocationSelector } from '@/components/stock/StockAllocationSelector'
+import { allocationPreview, stockAllocationRpc, type StockAllocationContext } from '@/lib/stockAllocation'
 import Link from 'next/link'
 import { analyticalHref, type AnalyticalScope } from '@/lib/analyticalNavigation'
 
@@ -32,7 +36,11 @@ export function ProductionCostReport({ fixedCampaign, fixedGreenhouse, compact =
   const [revision, setRevision] = useState(0)
   const [updating, setUpdating] = useState(false)
   const [reviewId, setReviewId] = useState('')
-  const [reviewPlanting, setReviewPlanting] = useState('')
+  const [reviewContext, setReviewContext] = useState<StockAllocationContext | null>(null)
+  const [reviewCampaign, setReviewCampaign] = useState('')
+  const [reviewIds, setReviewIds] = useState<string[]>([])
+  const [reviewError, setReviewError] = useState('')
+  const [reviewLoading, setReviewLoading] = useState(false)
   const [reviewPrice, setReviewPrice] = useState('')
   const [reviewReason, setReviewReason] = useState('')
   const [valuationItem, setValuationItem] = useState<ValuationItem|null>(null)
@@ -43,7 +51,7 @@ export function ProductionCostReport({ fixedCampaign, fixedGreenhouse, compact =
   const [historicalMovement, setHistoricalMovement] = useState('')
   useEffect(() => {
     setCampaign(initialScope?.campaign || ''); setFarm(initialScope?.farm || ''); setData(null)
-    setValuationItem(null); setValuationMessage('')
+    setValuationItem(null); setValuationMessage(''); setReviewId('')
     setStockSearch(''); setStockControl('all')
     if (!domain || compact) return
     let stop = false
@@ -62,6 +70,18 @@ export function ProductionCostReport({ fixedCampaign, fixedGreenhouse, compact =
       .finally(() => { clearTimeout(timer); if (!stop) setBusy(false) })
     return () => { stop = true; controller.abort(); clearTimeout(timer) }
   }, [domain, fixedCampaign, campaign, start, end, revision, hasPermission])
+  useEffect(() => {
+    setReviewContext(null); setReviewError(''); setReviewIds([]); setReviewCampaign('')
+    if (!reviewId || !domain) { setReviewLoading(false); return }
+    let cancelled = false
+    setReviewLoading(true)
+    stockAllocationRpc<StockAllocationContext>('stock_consumption_allocation_context', { p_movement: reviewId })
+      .then(context => { if (!cancelled && context.domain_id === domain) setReviewContext(context) })
+      .catch(e => { if (!cancelled) setReviewError(e.message) })
+      .finally(() => { if (!cancelled) setReviewLoading(false) })
+    return () => { cancelled = true }
+  }, [reviewId, domain])
+  const reviewReady = !!reviewContext && (reviewContext.fixed || reviewContext.linked || allocationPreview(reviewContext.plantings, reviewIds).length > 0)
   const result = useMemo(() => data ? buildProductionCosts(data) : null, [data])
   const rows = result ? fixedGreenhouse ? result.greenhouses.filter(g => g.id === fixedGreenhouse)
     : level === 'client' ? [result.company] : level === 'ferme' ? result.farms.filter(f => !farm || f.id === farm) : result.greenhouses.filter(g => !farm || g.farm_id === farm) : []
@@ -110,9 +130,9 @@ export function ProductionCostReport({ fixedCampaign, fixedGreenhouse, compact =
           <p><strong>{_ui("Certains prix historiques restent à confirmer.")}</strong> {provisionalCosts.length} {" "}{_ui("ligne(s) de coûts provisoires concernent le périmètre affiché. Le coût/kg reste provisoire.")}</p>
           <details className="rounded-md border border-warning/30 p-3"><summary className="cursor-pointer font-medium">{_ui("Voir les coûts concernés (")}{provisionalCosts.length})</summary>
             <p className="my-3 text-xs text-fg-secondary">{_ui("Ces montants proviennent des consommations historiques. Valoriser le stock actuel ne confirme pas ces coûts. Les montants ci-dessous correspondent à la part imputée au périmètre affiché.")}</p>
-            <div className="overflow-auto"><table className="w-full text-left text-sm"><thead><tr>{['Campagne', 'Affectation', 'Catégorie', 'Montant provisoire (DH)', 'Référence du coût'].map(label => <th key={label} className="p-2">{_uiNode(label)}</th>)}</tr></thead>
+            <div className="overflow-auto"><FilterableTable className="w-full text-left text-sm"><thead><tr>{['Campagne', 'Affectation', 'Catégorie', 'Montant provisoire (DH)', 'Référence du coût'].map(label => <th key={label} className="p-2">{_uiNode(label)}</th>)}</tr></thead>
               <tbody>{provisionalCosts.map(c => <tr key={c.id} className="border-t border-border"><td className="p-2">{campaigns.find(x => x.id === c.campaign_id)?.name || c.campaign_id}</td><td className="p-2">{c.greenhouse_id ? data.plantings.find(p => p.greenhouse_id === c.greenhouse_id)?.greenhouse_name || c.greenhouse_id : _ui("Charge commune répartie")}</td><td className="p-2">{c.category}</td><td className="p-2 whitespace-nowrap tabular-nums">{fmt(c.scopedAmount)}</td><td className="p-2 break-all text-xs">{c.id}{hasPermission('couts','edit') && (c.source ? <button className={`${field} mt-2 block`} onClick={()=>setHistoricalMovement(c.source!)}>{_ui("Vérifier et confirmer")}</button> : <p className="mt-2">{_ui("Mouvement source absent : revue manuelle nécessaire.")}</p>)}</td></tr>)}</tbody>
-            </table></div>
+            </FilterableTable></div>
           </details>
         </>}
       </div>}
@@ -122,7 +142,7 @@ export function ProductionCostReport({ fixedCampaign, fixedGreenhouse, compact =
       ].map(([label, value, unit]) => <div key={String(label)} className="rounded-lg border border-border bg-surface-input p-3"><p className="text-xs text-fg-secondary">{_uiNode(label)}</p><p className="mt-1 font-semibold tabular-nums">{fmt(value as number | null)} <span className="text-xs font-normal text-fg-tertiary">{unit}</span></p></div>)}</div>)}</>) : <>
         {tab==='production'&&<>
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{[['Coût total',totals.cost,'DH'],['Coût moyen / kg récolté',costRatio(totals.cost,totals.kg),'DH/kg'],['Budget saisi',totals.budget,'DH'],['Production récoltée',totals.kg,'kg']].map(([label,value,unit])=><div key={String(label)} className="rounded-xl border border-border bg-surface-raised p-4"><p className="text-xs text-fg-secondary">{_uiNode(label)}</p><p className="mt-2 text-2xl font-bold tabular-nums text-brand">{fmt(value as number|null)}</p><p className="text-xs text-fg-tertiary">{unit}</p></div>)}</div>
-        <div className="overflow-auto rounded-xl border border-border bg-surface-raised"><table className="w-full text-right text-sm"><thead><tr className="bg-surface-input text-fg-secondary">{['Périmètre', 'Direct DH', 'Commun DH', 'Total DH', 'Récolté kg', 'Direct/kg', 'Complet/kg', 'Hors déchets/kg', 'Budget DH', 'Budget/kg cible', 'Écart DH'].map(s => <th key={s} className="whitespace-nowrap p-3 text-xs font-medium">{s}</th>)}</tr></thead><tbody>{rows.map(r => <tr key={r.id} className="border-t border-border hover:bg-surface-input"><th className="p-3 text-left">{r.name}</th>{details(r)}</tr>)}</tbody></table>{!rows.length && <p className="p-4">{_ui("Aucune plantation dans ce périmètre.")}</p>}</div>
+        <div className="overflow-auto rounded-xl border border-border bg-surface-raised"><FilterableTable className="w-full text-right text-sm"><thead><tr className="bg-surface-input text-fg-secondary">{['Périmètre', 'Direct DH', 'Commun DH', 'Total DH', 'Récolté kg', 'Direct/kg', 'Complet/kg', 'Hors déchets/kg', 'Budget DH', 'Budget/kg cible', 'Écart DH'].map(s => <th key={s} className="whitespace-nowrap p-3 text-xs font-medium">{s}</th>)}</tr></thead><tbody>{rows.map(r => <tr key={r.id} className="border-t border-border hover:bg-surface-input"><th className="p-3 text-left">{r.name}</th>{details(r)}</tr>)}</tbody></FilterableTable>{!rows.length && <p className="p-4">{_ui("Aucune plantation dans ce périmètre.")}</p>}</div>
         <p className="text-sm">{_ui("Budget non affecté :")}{" "}{fmt(result.plannedUnallocated)} {" "}{_ui("DH. Un budget vide n’est pas une estimation automatique des coûts futurs.")}</p>
         <label className="flex flex-wrap gap-2 items-center">{_ui("Répartition des charges communes de chaque campagne")}{" "}<select className={field} disabled={updating || !hasPermission('couts', 'edit')} value={data.basis} onChange={async e => {
             const value = e.target.value
@@ -132,16 +152,21 @@ export function ProductionCostReport({ fixedCampaign, fixedGreenhouse, compact =
           }}><option value="surface">{_ui("Surface plantée")}</option><option value="production">{_ui("Quantité récoltée dans la période")}</option></select>
         </label>
         </>}
-        {tab==='review'&&<section className="space-y-4 rounded-xl border border-border bg-surface-raised p-5"><h3 className="font-semibold">{_ui("Sorties à rapprocher (")}{data.pending_movements.length})</h3><p className="text-sm text-fg-secondary">{_ui("À valoriser ou à affecter avant d’utiliser les marges comme résultat définitif. Les pertes ne doivent pas être affectées à un traitement.")}</p>{!data.pending_movements.length&&<p className="rounded-lg bg-success/10 p-4 text-success">{_ui("Aucune sortie à rapprocher sur ce périmètre.")}</p>}{data.pending_movements.map(m => <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm" key={m.id}><div><strong>{m.reference || m.id}</strong><p className="text-fg-secondary">{m.date} · {m.reason} · {fmt(m.amount)} DH</p></div>{hasPermission('couts', 'edit') && <button className={field} onClick={() => { setReviewId(m.id); setReviewPlanting(''); setReviewPrice(m.amount == null ? '' : String(Number(m.amount) / Number(m.quantity))); setReviewReason('') }}>{_ui("Rapprocher")}</button>}</div>)}
-          {reviewId && <div className="mt-3 space-y-2 border-t pt-3"><p>{_ui("Confirmer le prix historique par unité de stock et la plantation. Pour un traitement lié, ses cibles sont conservées automatiquement.")}</p>
-            <select className={field} aria-label={_ui("Plantation d’imputation")} value={reviewPlanting} onChange={e => setReviewPlanting(e.target.value)}><option value="">{_ui("Cibles du traitement lié (sinon choisir une plantation)")}</option>{data.plantings.map(p => <option key={p.id} value={p.id}>{p.farm_name} — {p.greenhouse_name} — {campaigns.find(c => c.id === p.campaign_id)?.name ?? p.campaign_id}</option>)}</select>
+        {tab==='review'&&<section className="space-y-4 rounded-xl border border-border bg-surface-raised p-5"><h3 className="font-semibold">{_ui("Sorties à rapprocher (")}{data.pending_movements.length})</h3><p className="text-sm text-fg-secondary">{_ui("À valoriser ou à affecter avant d’utiliser les marges comme résultat définitif. Les pertes ne doivent pas être affectées à un traitement.")}</p>{!data.pending_movements.length&&<p className="rounded-lg bg-success/10 p-4 text-success">{_ui("Aucune sortie à rapprocher sur ce périmètre.")}</p>}{data.pending_movements.map(m => <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm" key={m.id}><div><strong>{m.reference || m.id}</strong><p className="text-fg-secondary">{m.date} · {m.reason} · {fmt(m.amount)} DH</p></div>{hasPermission('couts', 'edit') && <button className={field} onClick={() => { setReviewId(m.id); setReviewPrice(m.amount == null ? '' : String(Number(m.amount) / Number(m.quantity))); setReviewReason('') }}>{_ui("Rapprocher")}</button>}</div>)}
+          {reviewId && <div className="mt-3 space-y-2 border-t pt-3"><p>{_ui("Confirmer le prix historique par unité de stock et les serres d’imputation. Pour un traitement lié, ses cibles sont conservées automatiquement.")}</p>
+            {reviewLoading && <p role="status">Chargement des affectations…</p>}
+            {reviewError && <p role="alert" className="text-danger">{reviewError}</p>}
+            {reviewContext && <>
+              <p className="text-sm">{reviewContext.warehouse_name} — {reviewContext.farm_name}</p>
+              {reviewContext.linked ? <p>Les cibles du traitement lié seront conservées.</p> : reviewContext.fixed ? <div className="rounded-lg border border-border p-3"><p>Affectations confirmées lors de la sortie</p>{reviewContext.targets.map(target => <p key={target.planting_id}>{reviewContext.plantings.find(p => p.id === target.planting_id)?.greenhouse_name || target.greenhouse_id} · {target.area} m²</p>)}</div> : <StockAllocationSelector plantings={reviewContext.plantings} farm={reviewContext.farm_id} campaign={reviewCampaign} selected={reviewIds} onCampaign={setReviewCampaign} onSelected={setReviewIds} disabled={updating} />}
+            </>}
             <input className={field} aria-label={_ui("Prix historique confirmé")} placeholder={_ui("Coût unitaire MAD")} value={reviewPrice} onChange={e => setReviewPrice(e.target.value)} />
             <input className={field} aria-label={_ui("Justificatif du rapprochement")} placeholder={_ui("Justificatif / source du prix")} value={reviewReason} onChange={e => setReviewReason(e.target.value)} />
-            <button className={field} disabled={updating} onClick={async () => {
+            <button className={field} disabled={updating || reviewLoading || !reviewReady} onClick={async () => {
               const price = Number(reviewPrice.replace(/\s/g, '').replace(',', '.'))
               if (!reviewPrice.trim() || !Number.isFinite(price) || price < 0 || reviewReason.trim().length < 5) { setError('Prix et justificatif requis'); return }
               setUpdating(true)
-              try { const r = await supabase.rpc('review_inventory_consumption', { p_movement: reviewId, p_planting: reviewPlanting || null, p_unit_cost: price, p_reason: reviewReason }); if (r.error) throw r.error; setReviewId(''); setRevision(v => v + 1) } catch (e: any) { setError(e.message) } finally { setUpdating(false) }
+              try { await stockAllocationRpc('review_inventory_consumption_multi', { p_movement: reviewId, p_plantings: reviewContext?.fixed || reviewContext?.linked ? null : reviewIds, p_unit_cost: price, p_reason: reviewReason }); setReviewId(''); setRevision(v => v + 1) } catch (e: any) { setError(e.message) } finally { setUpdating(false) }
             }}>{_ui("Confirmer l’imputation")}</button><button className={field} onClick={() => setReviewId('')}>{_ui("Annuler")}</button>
           </div>}
         </section>}
@@ -149,9 +174,9 @@ export function ProductionCostReport({ fixedCampaign, fixedGreenhouse, compact =
           <div className="flex flex-wrap gap-3"><input aria-label={_ui("Rechercher dans le stock valorisé")} className={`${field} min-w-0 flex-1`} placeholder={_ui("Article ou entrepôt…")} value={stockSearch} onChange={e=>setStockSearch(e.target.value)}/><select aria-label={_ui("Contrôle du stock")} className={field} value={stockControl} onChange={e=>setStockControl(e.target.value)}><option value="all">{_ui("Tous les articles")}</option><option value="pending">{_ui("À valoriser / confirmer")}</option></select><button className={field} disabled={busy} onClick={()=>setRevision(v=>v+1)}>{_ui("Actualiser")}</button></div>
           {valuationMessage&&<p role="status" className="my-2 rounded bg-green-50 p-3 text-green-800">{valuationMessage}</p>}
           <p className="my-2 text-sm">{_ui("Valeur connue en entrepôts :")}{" "}{fmt(data.inventory.reduce((s, i) => s + Number(i.value ?? 0), 0))} {" "}{_ui("DH. En transit (valeur connue) :")}{" "}{fmt(Number(data.transit))} {" "}{_ui("DH.")}{" "}{data.inventory.filter(i => Number(i.qty) > 0 && (!i.verified || i.value == null)).length} {" "}{_ui("solde(s) à confirmer. Ce relevé n’est pas un bilan comptable arrêté.")}</p>
-          <div className="overflow-auto rounded-lg border border-border"><table className="w-full text-sm"><thead className="bg-surface-input text-fg-secondary"><tr>{['Entrepôt', 'Article', 'Quantité', 'CUMP DH', 'Valeur DH', 'Contrôle'].map(h => <th className="p-3 text-left text-xs" key={h}>{h}</th>)}</tr></thead><tbody>{inventory.map(i => <tr className="border-t border-border hover:bg-surface-input" key={`${i.warehouse_id}:${i.stock_item_id}`}><td className="p-3">{i.warehouse_name}</td><td className="p-3 font-medium">{i.item_name}</td><td className="p-3 whitespace-nowrap tabular-nums">{fmt(Number(i.qty))} {i.unit}</td><td className="p-3 whitespace-nowrap tabular-nums">{fmt(i.value == null ? null : costRatio(Number(i.value), Number(i.qty)))}</td><td className="p-3 whitespace-nowrap tabular-nums">{fmt(i.value == null ? null : Number(i.value))}</td><td className="p-3"><span className={`mr-2 text-xs ${i.verified&&i.value!=null?'text-success':'text-warning'}`}>{i.verified&&i.value!=null ? _ui("Confirmé") : _ui("À valoriser / confirmer")}</span> {hasPermission('couts', 'edit') && Number(i.qty) > 0 && <button disabled={updating} className={field} onClick={async () => {
+          <div className="overflow-auto rounded-lg border border-border"><FilterableTable className="w-full text-sm"><thead className="bg-surface-input text-fg-secondary"><tr>{['Entrepôt', 'Article', 'Quantité', 'CUMP DH', 'Valeur DH', 'Contrôle'].map(h => <th className="p-3 text-left text-xs" key={h}>{h}</th>)}</tr></thead><tbody>{inventory.map(i => <tr className="border-t border-border hover:bg-surface-input" key={`${i.warehouse_id}:${i.stock_item_id}`}><td className="p-3">{i.warehouse_name}</td><td className="p-3 font-medium">{i.item_name}</td><td className="p-3 whitespace-nowrap tabular-nums">{fmt(Number(i.qty))} {i.unit}</td><td className="p-3 whitespace-nowrap tabular-nums">{fmt(i.value == null ? null : costRatio(Number(i.value), Number(i.qty)))}</td><td className="p-3 whitespace-nowrap tabular-nums">{fmt(i.value == null ? null : Number(i.value))}</td><td className="p-3"><span className={`mr-2 text-xs ${i.verified&&i.value!=null?'text-success':'text-warning'}`}>{i.verified&&i.value!=null ? _ui("Confirmé") : _ui("À valoriser / confirmer")}</span> {hasPermission('couts', 'edit') && Number(i.qty) > 0 && <button disabled={updating} className={field} onClick={async () => {
             setValuationMessage(''); setValuationItem(i)
-          }}>{_ui("Valoriser")}</button>}</td></tr>)}</tbody></table>{!inventory.length&&<p className="p-4 text-sm text-fg-secondary">{_ui("Aucun article ne correspond à ces filtres.")}</p>}</div>
+          }}>{_ui("Valoriser")}</button>}</td></tr>)}</tbody></FilterableTable>{!inventory.length&&<p className="p-4 text-sm text-fg-secondary">{_ui("Aucun article ne correspond à ces filtres.")}</p>}</div>
         </section>}
       </>}
     </>}

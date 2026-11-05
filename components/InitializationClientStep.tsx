@@ -44,14 +44,14 @@ export function InitializationClientStep({ onContinue }: { onContinue: (id: stri
     finally { setBusy(false) }
   }
   return <div className="space-y-5 max-w-4xl">
-    <PageHeader icon={Building2} title={_ui("Client ItriX Farm")} subtitle={_ui("Initialisation · étape 1")} description={_ui("Choisissez la société à initialiser avant de préparer ses fermes et ses données.")} />
+    <PageHeader icon={Building2} title={_ui("Client ItriX Farm")} subtitle={_ui("Choisir ou reprendre un dossier")} description={_ui("Choisissez le client pour ouvrir son brouillon sauvegardé ou préparer un nouveau dossier. Aucun dossier d’un autre client n’est remplacé.")} />
     <section className="rounded-xl border border-border bg-surface-raised p-5 space-y-5">
       <div className="flex gap-3 flex-wrap">
         <Button variant={mode === 'existing' ? 'primary' : 'secondary'} disabled={busy} onClick={() => setMode('existing')}>{_ui("Client existant")}</Button>
         {isPlatformAdmin && <Button variant={mode === 'new' ? 'primary' : 'secondary'} disabled={busy || !!created} onClick={() => setMode('new')}>{_ui("Nouveau client ItriX Farm")}</Button>}
       </div>
       {error && <p role="alert" className="text-red-700">{_uiNode(error)}</p>}
-      {created && <p role="status" className="text-emerald-700">{_ui("Le client a été créé dans les Domaines. Poursuivez pour préparer son dossier d’initialisation.")}</p>}
+      {created && <p role="status" className="text-emerald-700">{_ui("Le client et ses cultures par défaut ont été créés. Poursuivez pour préparer son dossier d’initialisation.")}</p>}
       {mode === 'existing' ? <>
         <label className="block text-sm">{_ui("Client / société")}{" "}<select aria-label={_ui("Client ItriX Farm à initialiser")} value={selected} disabled={busy} onChange={e => setSelected(e.target.value)} className="mt-2 block w-full rounded-lg border border-border bg-surface-raised p-3">
             <option value="">{_ui("Choisir un client")}</option>
@@ -66,7 +66,7 @@ export function InitializationClientStep({ onContinue }: { onContinue: (id: stri
           {([['name', _ui("Nom du client *")], ['legal_name', _ui("Raison sociale")], ['address', _ui("Adresse")], ['city', _ui("Ville")], ['region', _ui("Région")], ['country', _ui("Pays")]] as const).map(([key, label]) => <label key={key} className="text-sm">{_uiNode(label)}<input className="mt-1 block w-full rounded-lg border border-border bg-surface-raised p-3" value={form[key]} required={key === 'name'} maxLength={255} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} /></label>)}
         </fieldset>
         <p className="text-sm text-fg-secondary">{_ui("Code généré automatiquement. Paramètres initiaux : MAD, français, fuseau Africa/Casablanca. Vous pourrez les modifier dans Administration → Domaines.")}</p>
-        <p className="text-sm">{_ui("Cette action crée réellement le client dans l’instance actuelle. Elle ne crée aucune ferme ni donnée de démonstration et ne modifie aucun autre client.")}</p>
+        <p className="text-sm">{_ui("Cette action crée le client et ses propres copies des cultures par défaut. Aucune variété, ferme ou donnée de démonstration n’est créée. Aucun autre client n’est modifié.")}</p>
         <Button disabled={busy || !form.name.trim() || !form.country.trim()} onClick={create}>{busy ? _ui("Création…") : _ui("Créer le client")}</Button>
       </>}
       {!isPlatformAdmin && <p className="text-caption text-fg-secondary">{_ui("La création d’un client ItriX Farm est réservée à l’administrateur plateforme.")}</p>}

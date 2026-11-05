@@ -1,4 +1,6 @@
 'use client'
+
+import { FilterableTable } from '@/components/ui/FilterableTable'
 import {useLanguage} from '@/lib/i18n'
 
 import { useEffect, useState } from 'react'
@@ -107,7 +109,7 @@ export default function ChatbotPage() {
     <section className="rounded border bg-white p-4">
       <div className="flex justify-between"><h2 className="font-semibold">{_ui("Accès de la société")}</h2>
         <button onClick={() => setRevision(r => r + 1)} disabled={saving || loading}>{_ui("Actualiser")}</button></div>
-      {loading ? <p>{_ui("Chargement…")}</p> : ready && <div className="overflow-auto"><table className="w-full text-sm">
+      {loading ? <p>{_ui("Chargement…")}</p> : ready && <div className="overflow-auto"><FilterableTable className="w-full text-sm">
         <thead><tr><th className="text-left p-2">{_ui("Employé")}</th><th className="text-left">{_ui("Ferme")}</th><th className="text-left">{_ui("Statut")}</th><th>{_ui("Action")}</th></tr></thead>
         <tbody>{users.map(u => {
           const w = workers.find(w => w.id === u.worker_id)
@@ -117,7 +119,7 @@ export default function ChatbotPage() {
             <td>{w?.farm_id === u.farm_id ? w.farm_name : _ui("À vérifier")}</td><td>{status}</td>
             <td className="text-center">{u.is_active && <button className="text-red-600" disabled={saving} onClick={() => disable(u.id)}>{_ui("Désactiver")}</button>}</td></tr>
         })}</tbody>
-      </table>{!users.length && <p>{_ui("Aucun accès dans cette société.")}</p>}</div>}
+      </FilterableTable>{!users.length && <p>{_ui("Aucun accès dans cette société.")}</p>}</div>}
     </section>
   </div>
 }

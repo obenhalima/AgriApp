@@ -89,6 +89,14 @@ export async function generateCommerceForCampaign(
   campaignId: string,
   options: CommerceGenOptions = {}
 ): Promise<CommerceGenReport> {
+  throw new Error('Générateur commercial partagé désactivé : utilisez les opérations du client actif.')
+}
+
+// Retained as non-exported legacy source; never reached by the application.
+async function generateCommerceForCampaignLegacy(
+  campaignId: string,
+  options: CommerceGenOptions = {}
+): Promise<CommerceGenReport> {
   const report: CommerceGenReport = {
     dispatchesCreated: 0,
     triApplied: 0,

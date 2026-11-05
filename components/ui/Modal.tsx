@@ -1,8 +1,12 @@
 'use client'
-import { ReactNode, useRef, useId } from 'react'
+import { ReactNode, useRef, useId,createContext,useContext } from 'react'
+import * as Dialog from '@radix-ui/react-dialog'
 import { useLanguage } from '@/lib/i18n'
 import { FieldHelp } from './FieldHelp'
 import { fieldExplanation } from '@/lib/userDocumentation'
+import {confirmDiscard} from '@/lib/confirmDiscard'
+
+const DiscardContext=createContext<(close:()=>void)=>void>(close=>close())
 
 function CalendarIcon() {
   return (
@@ -31,22 +35,42 @@ interface ModalProps {
   onClose: () => void
   children: ReactNode
   size?: 'sm' | 'md' | 'lg'
+  dirty?: boolean
+  busy?: boolean
 }
 
-export function Modal({ title, onClose, children, size='md' }: ModalProps) {
+export function Modal({ title, onClose, children, size='md',dirty,busy=false }: ModalProps) {
   const {t}=useLanguage()
   const titleId = useId()
+  const edited=useRef(false)
+  const contentRef=useRef<HTMLDivElement>(null)
+  const requestClose=(close:()=>void)=>{
+    if(busy)return
+    const hasFields=!!contentRef.current?.querySelector('input:not([type="hidden"]):not([readonly]),select:not([disabled]),textarea:not([readonly]),[contenteditable="true"]')
+    if(confirmDiscard(dirty ?? (edited.current && hasFields),()=>window.confirm(t('Des modifications ne sont pas enregistrées. Voulez-vous fermer cette fenêtre et abandonner votre saisie ?'))))close()
+  }
+  // Capture before child autoFocus moves focus into the dialog during commit.
+  const returnFocusRef = useRef<HTMLElement | null>(
+    typeof document !== 'undefined' && document.activeElement instanceof HTMLElement ? document.activeElement : null
+  )
   const maxW = size==='lg' ? 860 : size==='sm' ? 420 : 580
   return (
-    <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby={titleId} style={{ maxWidth: maxW }} onClick={e=>e.stopPropagation()}>
+    <DiscardContext.Provider value={requestClose}>
+    <Dialog.Root open onOpenChange={open => { if (!open) requestClose(onClose) }}>
+      <Dialog.Portal>
+      <Dialog.Overlay className="modal-overlay">
+      <Dialog.Content ref={contentRef} onInputCapture={event=>{if(!(event.target as HTMLElement).closest('[data-column-filter-ui]'))edited.current=true}} onChangeCapture={event=>{if(!(event.target as HTMLElement).closest('[data-column-filter-ui]'))edited.current=true}} className="modal-box" aria-labelledby={titleId} aria-describedby={undefined} style={{ maxWidth: maxW }}
+        onCloseAutoFocus={event => { event.preventDefault(); if (returnFocusRef.current?.isConnected) returnFocusRef.current.focus() }}>
         <div className="modal-header">
-          <div id={titleId} className="modal-title">{t(title)}</div>
-          <button type="button" aria-label={t('Fermer la fenêtre')} className="modal-close" onClick={onClose}>×</button>
+          <Dialog.Title id={titleId} className="modal-title">{t(title)}</Dialog.Title>
+          <button type="button" disabled={busy} aria-label={t('Fermer la fenêtre')} className="modal-close" onClick={()=>requestClose(onClose)}>×</button>
         </div>
         <div className="modal-body">{children}</div>
-      </div>
-    </div>
+      </Dialog.Content>
+      </Dialog.Overlay>
+      </Dialog.Portal>
+    </Dialog.Root>
+    </DiscardContext.Provider>
   )
 }
 
@@ -66,8 +90,8 @@ export function FormRow({ children }: { children: ReactNode }) {
   return <div className="form-row">{children}</div>
 }
 
-export function Input({ type='text', value, onChange, placeholder, autoFocus, step, min, max, disabled }: {
-  type?:string; value?:string | number; onChange?:(e:any)=>void;
+export function Input({ id, type='text', value, onChange, placeholder, autoFocus, step, min, max, disabled }: {
+  id?:string; type?:string; value?:string | number; onChange?:(e:any)=>void;
   placeholder?:string; autoFocus?:boolean; step?:string | number; min?:string | number; max?:string | number; disabled?:boolean
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -88,6 +112,7 @@ export function Input({ type='text', value, onChange, placeholder, autoFocus, st
     return (
       <div style={{ position:'relative' }}>
         <input
+          id={id}
           ref={inputRef}
           disabled={disabled}
           className="form-input"
@@ -129,7 +154,7 @@ export function Input({ type='text', value, onChange, placeholder, autoFocus, st
     )
   }
 
-  return <input className="form-input" type={type} value={value} onChange={onChange} disabled={disabled}
+  return <input id={id} className="form-input" type={type} value={value} onChange={onChange} disabled={disabled}
     placeholder={placeholder} autoFocus={autoFocus} step={step} min={min} max={max} />
 }
 
@@ -147,9 +172,10 @@ export function ModalFooter({ onCancel, onSave, loading, saveLabel='ENREGISTRER'
   onCancel:()=>void; onSave:()=>void; loading?:boolean; saveLabel?:string; disabled?:boolean
 }) {
   const {t}=useLanguage()
+  const requestClose=useContext(DiscardContext)
   return (
     <div className="itrix-modal-footer" style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:20, paddingTop:16, borderTop:'1px solid var(--border)' }}>
-      <button onClick={onCancel} className="btn-ghost">{t('ANNULER')}</button>
+      <button type="button" disabled={loading} onClick={()=>requestClose(onCancel)} className="btn-ghost">{t('ANNULER')}</button>
       <button onClick={onSave} className="btn-primary" disabled={disabled||loading}
         style={{ minWidth:140, justifyContent:'center', opacity: disabled ? .5 : 1 }}>
         {t(loading ? 'TRAITEMENT...' : saveLabel)}

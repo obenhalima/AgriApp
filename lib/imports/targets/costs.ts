@@ -2,9 +2,10 @@
 // Reproduit la validation de la saisie manuelle (app/couts/page.tsx + lib/costEntries.ts)
 
 import { supabase } from '@/lib/supabase'
-import { createCostEntry } from '@/lib/costEntries'
+import { createCostEntry } from '../../costEntries'
 import { ImportTarget, FieldDef, RowIssue, ResolutionContext, CommitReport } from '../types'
 import { buildTemplate } from '../templateBuilder'
+import {requireReferenceDomain} from '../../clientReferenceScope'
 
 const CHARGE_TYPES = new Set(['charge_variable', 'charge_fixe', 'amortissement'])
 
@@ -57,7 +58,12 @@ const FIELDS: FieldDef[] = [
   },
 ]
 
-export const costsTarget: ImportTarget = {
+export function createCostsTarget(domainId:string,isCurrent:()=>boolean=()=>true):ImportTarget {
+ const domain=()=>{
+   if(!isCurrent())throw new Error('Le client sélectionné a changé. Rechargez cet import.')
+   return requireReferenceDomain(domainId)
+ }
+ return {
   key: 'cost_entries',
   label: 'Coûts',
   icon: '💰',
@@ -75,7 +81,8 @@ export const costsTarget: ImportTarget = {
     {
       key: 'campaigns', label: 'Campagne',
       load: async () => {
-        const { data } = await supabase.from('campaigns').select('id, code, name, farm_id')
+        const { data,error } = await supabase.from('campaigns').select('id, code, name, farm_id').eq('domain_id',domain())
+        if(error)throw error
         const m = new Map<string, any>()
         ;(data ?? []).forEach((c: any) => { if (c.code) m.set(String(c.code).toUpperCase(), c) })
         return m
@@ -84,7 +91,8 @@ export const costsTarget: ImportTarget = {
     {
       key: 'farms', label: 'Ferme',
       load: async () => {
-        const { data } = await supabase.from('farms').select('id, code, name').eq('is_active', true)
+        const { data,error } = await supabase.from('farms').select('id, code, name').eq('domain_id',domain()).eq('is_active', true)
+        if(error)throw error
         const m = new Map<string, any>()
         ;(data ?? []).forEach((f: any) => m.set(String(f.code).toUpperCase(), f))
         return m
@@ -93,7 +101,8 @@ export const costsTarget: ImportTarget = {
     {
       key: 'greenhouses', label: 'Serre',
       load: async () => {
-        const { data } = await supabase.from('greenhouses').select('id, code, name, farm_id')
+        const { data,error } = await supabase.from('greenhouses').select('id, code, name, farm_id,farms!greenhouses_farm_id_fkey!inner(domain_id)').eq('farms.domain_id',domain())
+        if(error)throw error
         const m = new Map<string, any>()
         ;(data ?? []).forEach((g: any) => m.set(String(g.code).toUpperCase(), g))
         return m
@@ -102,8 +111,10 @@ export const costsTarget: ImportTarget = {
     {
       key: 'categories', label: 'Catégorie',
       load: async () => {
-        const { data } = await supabase.from('account_categories')
+        domain()
+        const { data,error } = await supabase.from('account_categories')
           .select('id, code, label, type, parent_id').eq('is_active', true)
+        if(error)throw error
         const all = data ?? []
         const parentIds = new Set(all.filter((c: any) => c.parent_id).map((c: any) => c.parent_id))
         const m = new Map<string, any>()
@@ -119,6 +130,7 @@ export const costsTarget: ImportTarget = {
   ],
 
   validateRow: (raw: Record<string, any>, ctx: ResolutionContext) => {
+    const owner=domain()
     const issues: RowIssue[] = []
 
     const farmCode = String(raw.code_ferme ?? '').toUpperCase()
@@ -181,6 +193,8 @@ export const costsTarget: ImportTarget = {
     const hasErr = issues.some(i => i.severity === 'error')
     return {
       resolved: hasErr ? null : {
+        domain_id:owner,
+        farm_id:farm.id,
         campaign_id: campaign.id,
         greenhouse_id: greenhouse?.id ?? null,
         account_category_id: category.id,
@@ -196,12 +210,29 @@ export const costsTarget: ImportTarget = {
   },
 
   commit: async (resolved: any[]): Promise<CommitReport> => {
+    const owner=domain()
+    for(const row of resolved){
+      if(row.domain_id!==owner)throw new Error('Cet import a été préparé pour un autre client.')
+      for(const [table,id] of [['campaigns',row.campaign_id],['farms',row.farm_id]]){
+        const result=await supabase.from(table).select('id').eq('id',id).eq('domain_id',owner).maybeSingle()
+        if(result.error)throw result.error
+        if(!result.data)throw new Error('Référence de coût hors client.')
+      }
+      if(row.greenhouse_id){
+        const gh=await supabase.from('greenhouses').select('id,farm_id,farms!greenhouses_farm_id_fkey!inner(domain_id)').eq('id',row.greenhouse_id).eq('farms.domain_id',owner).maybeSingle()
+        if(gh.error)throw gh.error
+        if(!gh.data || gh.data.farm_id!==row.farm_id)throw new Error('Serre hors client ou hors ferme.')
+      }
+      domain()
+    }
     const errors: { rowIndex: number; message: string }[] = []
     let inserted = 0
     // On passe par createCostEntry() pour conserver la logique legacy (cost_category auto)
     for (const r of resolved) {
       try {
+        domain()
         await createCostEntry({
+          domain_id:owner,
           campaign_id: r.campaign_id,
           greenhouse_id: r.greenhouse_id,
           account_category_id: r.account_category_id,
@@ -220,12 +251,15 @@ export const costsTarget: ImportTarget = {
   },
 
   buildTemplate: async (): Promise<Blob> => {
+    const owner=domain()
     const [farmsRes, ghsRes, catsRes, campsRes] = await Promise.all([
-      supabase.from('farms').select('id, code, name').eq('is_active', true).order('name'),
-      supabase.from('greenhouses').select('code, name, farms(code, name)').order('code'),
+      supabase.from('farms').select('id, code, name').eq('domain_id',owner).eq('is_active', true).order('name'),
+      supabase.from('greenhouses').select('code, name, farms!greenhouses_farm_id_fkey!inner(code, name,domain_id)').eq('farms.domain_id',owner).order('code'),
       supabase.from('account_categories').select('id, code, label, type, parent_id').eq('is_active', true).order('type').order('display_order'),
-      supabase.from('campaigns').select('code, name, planting_start, harvest_end, farms(code, name)').order('planting_start', { ascending: false }),
+      supabase.from('campaigns').select('code, name, planting_start, harvest_end, farms(code, name)').eq('domain_id',owner).order('planting_start', { ascending: false }),
     ])
+    domain()
+    for(const result of [farmsRes,ghsRes,catsRes,campsRes])if(result.error)throw result.error
     const farms = farmsRes.data ?? []
     const ghs = ghsRes.data ?? []
     const allCats = catsRes.data ?? []
@@ -402,3 +436,5 @@ export const costsTarget: ImportTarget = {
     })
   },
 }
+}
+export const costsTarget=createCostsTarget('')

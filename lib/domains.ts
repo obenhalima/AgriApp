@@ -34,12 +34,24 @@ export async function listDomains(): Promise<Domain[]> {
 
 export async function createDomain(input: DomainInput): Promise<Domain> {
   const { data, error } = await supabase
-    .from('domains')
-    .insert({ ...input, code: input.code.trim().toUpperCase() })
-    .select()
-    .single()
-  if (error) throw error
+    .rpc('create_client_with_defaults', { p_input: { ...input, code: input.code.trim().toUpperCase() } })
+  if (error) throw clientDefaultsError(error)
+  if (!data?.id) throw new Error('Création non confirmée : vérifiez la liste des clients avant de réessayer.')
   return data as Domain
+}
+
+function clientDefaultsError(error: {code?:string;message?:string}) {
+  return new Error(['PGRST202','42883'].includes(error.code || '')
+    ? 'Initialisation des cultures non activée : appliquer le SQL 156.'
+    : error.message || 'Initialisation du client impossible.')
+}
+
+export async function initializeClientDefaultCrops(domain: string): Promise<{domain_id:string;created:number;total:number;active:number}> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(domain)) throw new Error('Client requis')
+  const {data,error}=await supabase.rpc('initialize_client_default_crops',{p_domain:domain})
+  if(error)throw clientDefaultsError(error)
+  if(data?.domain_id!==domain || !Number.isInteger(data.created) || data.created<0)throw new Error('Initialisation non confirmée : actualisez les cultures.')
+  return data
 }
 
 export async function updateDomain(id: string, input: DomainInput): Promise<Domain> {

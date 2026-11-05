@@ -25,19 +25,20 @@ import {useProfileNavigation} from '@/lib/useProfileNavigation'
 import { getOrganization, type OrganizationSettings } from '@/lib/appSettings'
 import { useRealtimeReload } from '@/lib/useRealtimeReload'
 
-export function Sidebar() {
+export function Sidebar({ collapsed, onCollapsedChange }: {
+  collapsed: boolean
+  onCollapsedChange: (collapsed: boolean) => void
+}) {
  const {t:_ui,text:_uiNode}=useLanguage()
 
   const { t, locale } = useLanguage()
   const pathname = usePathname()
-  const { canAccessModule, isPlatformAdmin, loading: authLoading } = useAuth()
-  const {nav:profileNav,config:menuConfig}=useProfileNavigation()
+  const { user, canAccessModule, isPlatformAdmin, loading: authLoading } = useAuth()
+  const {nav:profileNav}=useProfileNavigation()
 
-  const [collapsed, setCollapsed] = useState(false)
   const [pinned, setPinned] = useState(true)
   const [isDark, setIsDark] = useState(false)
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
-  const [sectionsInitialized, setSectionsInitialized] = useState(false)
   const [org, setOrg] = useState<OrganizationSettings>({ name: 'Domaine BENHALIMA', tagline: 'MES Production' })
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -70,25 +71,13 @@ export function Sidebar() {
       .filter(group => group.items.length > 0)
   }, [authLoading, canAccessModule, isPlatformAdmin,profileNav])
 
-  const activeSection = useMemo(() => {
-    return filteredNav.find(g => g.items.some(i => i.href === pathname))?.section
-  }, [filteredNav, pathname])
-
-  // Init préférences depuis localStorage
+  // Aucun sous-menu ne s'ouvre automatiquement au démarrage ou à la connexion.
   useEffect(() => {
-    const savedCollapsed = localStorage.getItem('tp_sidebar_collapsed') === 'true'
-    const savedPinned = localStorage.getItem('tp_sidebar_pinned') !== 'false'
-    setCollapsed(savedCollapsed)
-    setPinned(savedPinned)
+    setExpandedSections(new Set())
+    setPinned(true)
+  }, [user?.id])
 
-    const savedSections = localStorage.getItem('tp_sidebar_sections')
-    const initial = new Set<string>()
-    if (savedSections) {
-      try { JSON.parse(savedSections).forEach((s: string) => initial.add(s)) } catch {}
-    }
-    setExpandedSections(initial)
-    setSectionsInitialized(true)
-
+  useEffect(() => {
     const check = () => setIsDark(document.documentElement.getAttribute('data-theme') !== 'light')
     check()
     const obs = new MutationObserver(check)
@@ -96,47 +85,28 @@ export function Sidebar() {
     return () => obs.disconnect()
   }, [])
 
-  // Auto-déplie la section active
-  useEffect(()=>{if(menuConfig)setExpandedSections(new Set(menuConfig.expanded))},[menuConfig])
-  useEffect(() => {
-    if (!sectionsInitialized || !activeSection) return
-    setExpandedSections(prev => {
-      if (prev.has(activeSection)) return prev
-      const next = new Set(prev)
-      next.add(activeSection)
-      return next
-    })
-  }, [activeSection, sectionsInitialized])
-
-  const persistSections = (next: Set<string>) => {
-    try { localStorage.setItem('tp_sidebar_sections', JSON.stringify(Array.from(next))) } catch {}
-  }
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
       const next = new Set(prev)
       if (next.has(section)) next.delete(section); else next.add(section)
-      persistSections(next)
       return next
     })
   }
   const expandAll = () => {
     const next = new Set(filteredNav.map(g => g.section))
-    setExpandedSections(next); persistSections(next)
+    setExpandedSections(next)
   }
   const collapseAll = () => {
-    const next = activeSection ? new Set([activeSection]) : new Set<string>()
-    setExpandedSections(next); persistSections(next)
+    setExpandedSections(new Set())
   }
   const toggleCollapse = () => {
     const next = !collapsed
-    setCollapsed(next)
-    localStorage.setItem('tp_sidebar_collapsed', String(next))
+    onCollapsedChange(next)
     window.dispatchEvent(new CustomEvent('sidebar-change', { detail: { collapsed: next, pinned } }))
   }
   const togglePin = () => {
     const next = !pinned
     setPinned(next)
-    localStorage.setItem('tp_sidebar_pinned', String(next))
     window.dispatchEvent(new CustomEvent('sidebar-change', { detail: { collapsed, pinned: next } }))
   }
 
@@ -197,7 +167,10 @@ export function Sidebar() {
           }}
         >
           {collapsed ? (
-            <div
+            <button
+              type="button"
+              aria-label={t('Étendre le menu')}
+              aria-expanded={false}
               onClick={toggleCollapse}
               title={t('Étendre le menu')}
               className="cursor-pointer w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-105"
@@ -208,7 +181,7 @@ export function Sidebar() {
               }}
             >
               <Sprout size={18} className="text-emerald-200" strokeWidth={2.5} />
-            </div>
+            </button>
           ) : (
             <div className="flex items-center gap-sm">
               <motion.div
@@ -245,7 +218,7 @@ export function Sidebar() {
         </div>
 
         {/* ═══════════ NAVIGATION ═══════════ */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden pt-2 relative z-[1]">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y pt-2 relative z-[1]">
 
           {/* Boutons rapides */}
           {!collapsed && filteredNav.length > 0 && (
@@ -390,7 +363,6 @@ export function Sidebar() {
                     onClick={() => {
                       const next = new Set([group.section])
                       setExpandedSections(next)
-                      persistSections(next)
                       toggleCollapse()
                     }}
                     className="mx-2 my-2 flex h-11 w-12 items-center justify-center rounded-lg transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"

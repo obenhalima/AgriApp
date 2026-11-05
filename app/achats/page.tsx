@@ -1,4 +1,5 @@
 'use client'
+import {AuditHistoryButton} from '@/components/audit/AuditHistoryButton'
 import {useLanguage} from '@/lib/i18n'
 
 import '@/components/ui/workspace.css'
@@ -369,7 +370,8 @@ export default function AchatsPage() {
             <div className="space-y-sm">
               {histEntries.map(h => (
                 <motion.div key={h.id} initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }} className="rounded-md border border-border bg-surface-sunk p-md">
-                  <div className="font-mono text-caption text-fg-tertiary">{new Date(h.created_at).toLocaleString('fr')}</div>
+                  <div className="font-mono text-caption text-fg-tertiary">{new Date(h.created_at).toLocaleString('fr', { timeZone: 'Africa/Casablanca' })} · Africa/Casablanca</div>
+                  <div className="mt-1 break-all text-body-sm">{_ui('Code utilisateur (identifiant unique)')} : {h.performed_by || _ui('Opération système / sans utilisateur connecté')}</div>
                   <div className="mt-1 flex items-center gap-2 text-body-sm">
                     <Badge variant="default" size="sm">{h.from_state_code ?? '∅'}</Badge>
                     <ArrowRight size={12} className="text-fg-tertiary" />
@@ -489,9 +491,10 @@ export default function AchatsPage() {
                       )}
                     </TD>
                     <TD right>
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex flex-wrap items-center justify-end gap-1">
+                        <AuditHistoryButton table="purchase_orders" entity={o.id}/>
                         <Link href={`/achats/${o.id}`}><Button variant="ghost" size="icon-sm" title={_ui("Détail & réception")}><Package size={12} strokeWidth={2.2} /></Button></Link>
-                        <Button onClick={() => openHistory(o.id)} variant="ghost" size="icon-sm" title={_ui("Historique")}><History size={12} strokeWidth={2.2} /></Button>
+                        <Button onClick={() => openHistory(o.id)} variant="ghost" size="icon-sm" title={_ui("Historique des transitions")}><History size={12} strokeWidth={2.2} /></Button>
                       </div>
                     </TD>
                   </TR>

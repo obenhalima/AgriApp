@@ -61,7 +61,7 @@ const additions: Record<string, InitField[]> = {
   farms: [optional('city', 'Ville'), optional('region', 'Région'), optional('country', 'Pays'), numberField('total_area', 'Surface totale (ha)'), notes],
   greenhouses: [reference('status', 'Statut', 'greenhouse_status'), notes],
   warehouses: [optional('warehouse_type', 'Type d’entrepôt', { options: ['central', 'ferme', 'phytosanitaire', 'intrants', 'emballages', 'autre'] }), reference('manager', 'Responsable', 'members'), optional('address', 'Adresse / emplacement'), optional('is_default', 'Entrepôt principal', { options: ['oui', 'non'] }), optional('is_active', 'Actif', { options: ['oui', 'non'] })],
-  campaigns: [{ ...farm, required: false }, reference('status', 'Statut', 'campaign_status'), dateField('planting_start', 'Début plantation'), dateField('harvest_start', 'Début récolte'), dateField('harvest_end', 'Fin récolte'), numberField('budget_total', 'Budget global indicatif (DH)'), numberField('production_target_kg', 'Objectif de production (kg)'), notes],
+  campaigns: [farm, reference('status', 'Statut', 'campaign_status'), dateField('planting_start', 'Début plantation'), dateField('harvest_start', 'Début récolte'), dateField('harvest_end', 'Fin récolte'), numberField('budget_total', 'Budget global indicatif (DH)'), numberField('production_target_kg', 'Objectif de production (kg)'), notes],
   varieties: [reference('type', 'Type / segment', 'variety_type'), reference('destination', 'Destination', 'variety_destination'), numberField('theoretical_yield_per_m2', 'Rendement théorique (kg/m²)'), numberField('theoretical_cost_per_m2', 'Coût théorique (DH/m²)'), numberField('avg_price_local', 'Prix local (DH/kg)'), numberField('avg_price_export', 'Prix export (DH/kg)'), numberField('estimated_cycle_days', 'Cycle estimé (jours)'), optional('technical_notes', 'Notes techniques')],
   plantings: [numberField('plant_count', 'Nombre de plants'), numberField('linear_meters', 'Mètres linéaires'), numberField('target_yield_per_m2', 'Rendement cible (kg/m²)'), numberField('estimated_cost', 'Coût estimé (DH)'), numberField('export_share_pct', 'Part export (%)'), numberField('price_per_kg_export', 'Prix export (DH/kg)'), numberField('price_per_kg_local', 'Prix local (DH/kg)')],
   people: [optional('first_name', 'Prénom'), optional('last_name', 'Nom de famille'), optional('cin', 'CIN'), optional('cnss_number', 'N° CNSS'), dateField('date_birth', 'Date de naissance'), dateField('start_date', 'Date d’embauche'), reference('category', 'Catégorie salarié', 'worker_category'), reference('contract_type', 'Contrat', 'contract_type'), reference('pay_frequency', 'Fréquence de paie', 'pay_frequency'), numberField('base_salary', 'Salaire de base (DH)'), optional('function', 'Fonction'), reference('family_status', 'Situation familiale', 'family_status'), numberField('dependents', 'Personnes à charge'), optional('bank_iban', 'RIB / IBAN'), reference('payment_method', 'Mode de paiement', 'payment_method'), optional('phone', 'Téléphone'), optional('address', 'Adresse'), optional('mission_label', 'Mission'), numberField('mission_days_planned', 'Jours mission prévus'), numberField('mission_days_done', 'Jours mission réalisés'), dateField('mission_start_date', 'Début mission'), dateField('mission_end_date', 'Fin mission')],
@@ -83,7 +83,12 @@ INIT_SECTIONS.push({ key: 'harvest_trays', title: 'Contenants des récoltes', op
 export const emptyInitDraft = (): InitDraft => ({ schema: 1, rows: {}, reviewed: [], skipped: [] })
 export function newInitRow(section: InitSection, draft: InitDraft, catalog?: InitCatalog): InitRow {
   const prefixes: Record<string, string> = { farms: 'FER', greenhouses: 'SER', warehouses: 'ENT', campaigns: 'CAM', varieties: 'VAR', plantings: 'PLA', people: 'EMP', partners: 'PAR', products: 'ART', opening_stock: 'STO', reference_costs: 'TAR', budget: 'BUD', sales: 'PRE', actual_costs: 'DEP', harvests: 'REC', harvest_trays: 'PLT' }
-  const taken = new Set(initReferenceRows(draft, section.key, catalog).map(r => r.code?.trim().toUpperCase()))
+  // Existing greenhouse references are qualified as FARM/CODE, while new codes
+  // are stored without the farm prefix. Compare the same representation.
+  const taken = new Set(initReferenceRows(draft, section.key, catalog).map(r => {
+    const value=r.code?.trim().toUpperCase() || ''
+    return section.key==='greenhouses'?value.split('/').pop():value
+  }))
   let n = 1
   while (taken.has(`${prefixes[section.key]}-${String(n).padStart(4, '0')}`)) n++
   return { ...Object.fromEntries(section.fields.map(f => [f.key, ''])), code: `${prefixes[section.key]}-${String(n).padStart(4, '0')}` }
@@ -102,6 +107,13 @@ export function initNumber(value: string): number {
   return /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized) ? Number(normalized) : NaN
 }
 export type InitIssue = { section: string; row: number; field: string; message: string; warning?: boolean }
+export function initGreenhouseCapacity(greenhouse: InitRow): number | null {
+  for (const value of [greenhouse.usable_area, greenhouse.area]) {
+    const area = initNumber(value || '')
+    if (Number.isFinite(area) && area > 0) return area
+  }
+  return null
+}
 export function validateInit(draft: InitDraft, catalog?: InitCatalog): InitIssue[] {
   const issues: InitIssue[] = []
   const norm = (v: string = '') => v.trim().toUpperCase()
@@ -133,6 +145,7 @@ export function validateInit(draft: InitDraft, catalog?: InitCatalog): InitIssue
         if (row.existing_id && !linked) add('code', 'Référence existante introuvable ou inactive')
         if (linked && section.fields.some(f => (linked[f.key] || '') !== (row[f.key] || ''))) add('code', 'Fiche liée modifiée : sélectionnez de nouveau la référence')
         if (!row.existing_id && catalog[section.key].some(r => norm(r.code) === key)) add('code', 'Code déjà présent : utilisez la référence existante')
+        if(section.key==='greenhouses' && !row.existing_id && catalog.greenhouses.some(r=>norm(r.farm)===norm(row.farm) && norm(r.code.split('/').pop()||'')===key))add('code','Cette serre existe déjà dans cette ferme : réutilisez la fiche existante ou ajoutez une ligne avec un nouveau code généré.')
       }
       if (section.key === 'varieties' && catalog) {
         const sameCode = catalog.varieties.filter(r => norm(r.code) === key)
@@ -148,7 +161,11 @@ export function validateInit(draft: InitDraft, catalog?: InitCatalog): InitIssue
       if (row.usable_area && initNumber(row.usable_area) > initNumber(row.area)) add('usable_area', 'Surface exploitable supérieure à la surface officielle')
       const greenhouse = initReferenceRows(draft, 'greenhouses', catalog).find(r => norm(r.code) === norm(row.greenhouse))
       if (greenhouse && norm(row.farm) !== norm(greenhouse.farm)) add('greenhouse', 'Cette serre appartient à une autre ferme')
-      if (section.key === 'plantings' && greenhouse && initNumber(row.area) > initNumber(greenhouse.usable_area || greenhouse.area)) add('area', 'Surface plantée supérieure à la surface disponible')
+      if (section.key === 'plantings' && greenhouse) {
+        const capacity = initGreenhouseCapacity(greenhouse)
+        if (capacity === null) add('area', 'Surface de la serre non renseignée : comparaison impossible. Complétez la surface officielle ou exploitable dans les serres.', true)
+        else if (initNumber(row.area) > capacity) add('area', `Surface plantée (${row.area} m²) supérieure à la surface disponible de la serre ${greenhouse.code} (${capacity.toLocaleString('fr-FR')} m²). Vérifiez les surfaces dans les serres.`)
+      }
       const season = initReferenceRows(draft, 'campaigns', catalog).find(r => norm(r.code) === norm(row.campaign))
       if (season && row.period && (row.period < season.start?.slice(0, 7) || row.period > season.end?.slice(0, 7))) add('period', 'Mois hors campagne')
       if (section.key === 'opening_stock') {

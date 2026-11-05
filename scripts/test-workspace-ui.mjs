@@ -73,7 +73,7 @@ try{
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.dismiss());page.setDefaultTimeout(30000)
 
  for (const [path,title,action] of [
-  ['/couts','Coûts & budget','+ SAISIR UN COÛT'],
+  ['/couts/reel','Coûts réels','+ SAISIR UN COÛT'],
   ['/admin/budgets','Budgets','+ NOUVELLE'],
   ['/recoltes','Récoltes','+ SAISIR RÉCOLTE'],
   ['/clients','Clients','Nouveau client'],
@@ -92,7 +92,7 @@ try{
   if(process.env.UI_LOT==='harvest-lock'&&path!=='/recoltes')continue
   if(process.env.UI_LOT==='priced-report'&&path!=='/recoltes')continue
   await page.setViewportSize({width:1400,height:1000})
-  await page.goto('http://localhost:3001'+path,{waitUntil:'domcontentloaded',timeout:120000})
+  await page.goto((process.env.TEST_BASE_URL||'http://localhost:3001')+path,{waitUntil:'domcontentloaded',timeout:120000})
   await expect(page.getByRole('heading',{name:title,exact:true})).toBeVisible()
   if(process.env.UI_LOT==='priced-report') {
    await page.getByRole('button',{name:'Envois tarifés · Récapitulatif'}).click()
@@ -167,7 +167,7 @@ try{
  }
  if(process.env.UI_LOT==='production') {
   for(const [path,title] of [['/productivite','Productivité'],['/pointage/recolte','Récolte · Productivité par personne']]) {
-   await page.goto('http://localhost:3001'+path,{waitUntil:'domcontentloaded',timeout:120000})
+   await page.goto((process.env.TEST_BASE_URL||'http://localhost:3001')+path,{waitUntil:'domcontentloaded',timeout:120000})
    await expect(page.getByRole('heading',{name:title,exact:true})).toBeVisible()
    await page.waitForTimeout(800)
    await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true)
@@ -176,7 +176,7 @@ try{
  }
  if(process.env.UI_LOT==='phyto') {
   for(const [path,title] of [['/agronomie/produits/listes','Contrôle des listes positives'],['/agronomie/produits/import','Importer une liste positive'],['/agronomie/produits/conformite','Conformité marchés et LMR'],['/validations','Mes validations']]) {
-   await page.goto('http://localhost:3001'+path,{waitUntil:'domcontentloaded',timeout:120000})
+   await page.goto((process.env.TEST_BASE_URL||'http://localhost:3001')+path,{waitUntil:'domcontentloaded',timeout:120000})
    await expect(page.getByRole('heading',{name:title,exact:true})).toBeVisible()
    await page.waitForTimeout(800)
    await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true)

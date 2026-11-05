@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -53,7 +54,12 @@ import {
 // ────────────────────────────────────────────────────────────
 
 export function BordereauxSection() {
+ const {activeDomain}=useAuth()
+ return <BordereauxContent key={activeDomain?.domain_id || 'none'}/>
+}
+function BordereauxContent() {
  const {t:_ui,text:_uiNode,intlLocale:_uiLocale}=useLanguage()
+ const {activeDomain}=useAuth()
 
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
@@ -65,12 +71,14 @@ export function BordereauxSection() {
   const [selectedWeek, setSelectedWeek] = useState<string>(() => dateToIsoWeekString(new Date()))
 
   const load = async () => {
+    if (!activeDomain?.domain_id) { setSettlements([]); setMarkets([]); setLoading(false); return }
     setLoading(true)
     try {
       const [list, mRes] = await Promise.all([
-        listSettlements(),
-        supabase.from('markets').select('id, code, name, week1_start_date').eq('is_active', true).order('name'),
+        listSettlements(50,activeDomain?.domain_id),
+        supabase.from('markets').select('id, code, name, week1_start_date').eq('domain_id',activeDomain.domain_id).eq('is_active', true).order('name'),
       ])
+      if (mRes.error) throw mRes.error
       setSettlements(list)
       setMarkets((mRes.data ?? []) as any[])
     } catch (e: any) {
@@ -114,7 +122,7 @@ export function BordereauxSection() {
       toast.error(_ui("Sélectionnez une semaine valide"))
       return
     }
-    if (!selectedMarketId) {
+    if (!activeDomain?.domain_id || !selectedMarket) {
       toast.error(_ui("Sélectionnez d'abord un marché"))
       return
     }
@@ -125,7 +133,7 @@ export function BordereauxSection() {
     }
     setCreating(true)
     try {
-      const s = await createSettlementForWeek(selectedWeek, selectedMarketId)
+      const s = await createSettlementForWeek(selectedWeek, selectedMarketId,activeDomain?.domain_id || '')
       toast.success(_ui("Bordereau {v0} créé ({v1} · {v2})",{v0:String(s.code),v1:String(weekPreview.label),v2:String(selectedMarket?.name ?? '')}))
       await load()
       setEditTarget(s)
@@ -426,6 +434,7 @@ function SettlementMatrixModal({
   onSaved: () => Promise<void> | void
 }) {
  const {t:_ui,text:_uiNode,intlLocale:_uiLocale}=useLanguage()
+ const {activeDomain}=useAuth()
 
   const router = useRouter()
   const [rows, setRows] = useState<MatrixRow[]>([])
@@ -433,6 +442,7 @@ function SettlementMatrixModal({
   const [saving, setSaving] = useState(false)
   const [validating, setValidating] = useState(false)
   const [generatingInvoice, setGeneratingInvoice] = useState(false)
+  const [matrixError, setMatrixError] = useState('')
   // Date prévue d'encaissement (initialisée depuis settlement, écrasée par calcul auto)
   const [expectedPaymentDate, setExpectedPaymentDate] = useState<string>(
     settlement.expected_payment_date ?? ''
@@ -443,10 +453,13 @@ function SettlementMatrixModal({
 
   const refresh = async () => {
     setLoading(true)
+    setMatrixError('')
     try {
-      const m = await buildMatrix(settlement.id, settlement.market_id ?? null)
+      const m = await buildMatrix(settlement.id, settlement.market_id ?? null, activeDomain?.domain_id || '')
       setRows(m)
     } catch (e: any) {
+      setRows([])
+      setMatrixError(String(e.message ?? e))
       toast.error(_ui("Chargement matrice : {v0}",{v0:String(e.message ?? e)}))
     } finally {
       setLoading(false)
@@ -550,6 +563,7 @@ function SettlementMatrixModal({
           qty_kg: Number(r.qty_kg) || 0,
           price_per_kg: Number(r.price_per_kg) || 0,
         })),
+        activeDomain?.domain_id || '',
       )
       toast.success(_ui("Lignes enregistrées"))
       await onSaved()
@@ -574,6 +588,7 @@ function SettlementMatrixModal({
           qty_kg: Number(r.qty_kg) || 0,
           price_per_kg: Number(r.price_per_kg) || 0,
         })),
+        activeDomain?.domain_id || '',
       )
       const res = await validateSettlement(settlement.id)
       toast.success(
@@ -687,6 +702,12 @@ function SettlementMatrixModal({
         {/* Matrice */}
         {loading ? (
           <Skeleton className="h-40 w-full" />
+        ) : matrixError ? (
+          <div role="alert" className="rounded-md border border-red-300 p-4 text-red-700">
+            <p>Impossible de charger les lots du bordereau. Ce message ne signifie pas qu’aucun lot n’est disponible.</p>
+            <p className="text-sm">{matrixError}</p>
+            <Button variant="secondary" onClick={refresh}>Réessayer</Button>
+          </div>
         ) : rows.length === 0 ? (
           <EmptyState
             icon={Info}

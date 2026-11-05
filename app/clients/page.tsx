@@ -5,7 +5,7 @@ import '@/components/ui/workspace.css'
 /**
  * /clients — Refonte avec design system.
  */
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import {
@@ -14,7 +14,6 @@ import {
 } from 'lucide-react'
 
 import { getClients, createClient_, deleteClient, supabase } from '@/lib/supabase'
-import { genCode } from '@/lib/utils'
 import { cn } from '@/lib/cn'
 
 import { Card } from '@/components/ui/Card'
@@ -29,6 +28,7 @@ import { DataTable, THead, TR, TH, TD } from '@/components/ui/DataTable'
 import { MoneyDisplay } from '@/components/display'
 import { useReferenceList } from '@/lib/useReferenceList'
 import { getDefaults } from '@/lib/appSettings'
+import { useAuth } from '@/lib/auth'
 
 // ─── Formulaire partagé New/Edit (HORS du composant parent pour éviter
 //     le remount à chaque keystroke qui faisait perdre le focus) ───
@@ -89,6 +89,9 @@ const TYPE_VARIANT: Record<string, 'success' | 'warning' | 'info' | 'brand' | 'd
 
 export default function ClientsPage() {
  const {t:_ui,text:_uiNode}=useLanguage()
+  const {activeDomain,hasPermission}=useAuth()
+  const scopeRef=useRef({domain:activeDomain?.domain_id})
+  if(scopeRef.current.domain!==activeDomain?.domain_id)scopeRef.current={domain:activeDomain?.domain_id}
 
   const { values: TYPES } = useReferenceList('client_type')
   const [items, setItems] = useState<any[]>([])
@@ -111,9 +114,17 @@ export default function ClientsPage() {
   // Valeurs par défaut paramétrables (pays, délai paiement) depuis /admin/parametres
   const [defaults, setDefaults] = useState({ country: 'Maroc', paymentDays: '30' })
 
-  const load = () => getClients().then(d => { setItems(d); setLoading(false) }).catch(() => setLoading(false))
+  const load = () => {
+    const scope=scopeRef.current
+    if(!scope.domain){setItems([]);setLoading(false);return}
+    setLoading(true)
+    getClients(scope.domain).then(d=>{if(scopeRef.current===scope){setItems(d);setLoading(false)}})
+      .catch(e=>{if(scopeRef.current===scope){setLoading(false);toast.error(e.message)}})
+  }
+  useEffect(()=>{
+    setItems([]);setModalNew(false);setModalEdit(null);setDone(false);setSaving(false);setSearch('');setTypeFilter('all');load()
+  },[activeDomain?.domain_id])
   useEffect(() => {
-    load()
     getDefaults().then(d => setDefaults({
       country: d.default_country,
       paymentDays: String(d.default_payment_terms_days),
@@ -142,8 +153,10 @@ export default function ClientsPage() {
   }, [items])
 
   const openNew = () => {
+    if(!activeDomain||saving||!hasPermission('clients','create'))return
+    setDone(false)
     setForm({
-      code: genCode('CL', items.map(i => i.code)),
+      code: `CL-${crypto.randomUUID().replace(/-/g,'').slice(0,12).toUpperCase()}`,
       name: '', type: TYPES.find(t => t.is_default)?.code ?? 'grossiste',
       city: '', country: defaults.country,
       email: '', phone: '', payment_terms_days: defaults.paymentDays, credit_limit: '',
@@ -153,6 +166,8 @@ export default function ClientsPage() {
   }
 
   const openEdit = (c: any) => {
+    if(!activeDomain||c.domain_id!==activeDomain.domain_id||saving||!hasPermission('clients','edit'))return
+    setDone(false)
     setFormE({
       code: c.code, name: c.name, type: c.type, city: c.city || '', country: c.country || 'Maroc',
       email: c.email || '', phone: c.phone || '',
@@ -163,35 +178,27 @@ export default function ClientsPage() {
   }
 
   const save = async () => {
-    if (!form.name) return
+    if (!form.name||!activeDomain||saving||!hasPermission('clients','create')) return
+    const scope=scopeRef.current
     setSaving(true)
     try {
-      // 1) Cree le client basique via le helper
+      // Création atomique : propriétaire et indicateur d'écart dans la même requête.
       const n = await createClient_({
         ...form,
+        domain_id:activeDomain.domain_id,
         payment_terms_days: Number(form.payment_terms_days) || 30,
         credit_limit: Number(form.credit_limit) || undefined,
       })
-      // 2) Si is_ecart_buyer coche, on met a jour separement (colonne ajoutee migration 048)
-      if ((form as any).is_ecart_buyer) {
-        const r = await supabase.from('clients').update({ is_ecart_buyer: true }).eq('id', n.id)
-        if (r.error) {
-          if (/is_ecart_buyer.*schema cache|is_ecart_buyer.*does not exist/i.test(r.error.message)) {
-            toast.warning(_ui("Colonne is_ecart_buyer absente (migration 048 a appliquer)"), { duration: 6000 })
-          } else {
-            console.warn('[clients] is_ecart_buyer update:', r.error)
-          }
-        }
-      }
+      if(scopeRef.current!==scope)return
       setItems(p => [n, ...p]); setDone(true)
       toast.success(_ui("Client \"{v0}\" créé",{v0:String(n.name)}))
-      setTimeout(() => { setModalNew(false); setDone(false) }, 1200)
-    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
-    setSaving(false)
+    } catch (e: any) { if(scopeRef.current===scope)toast.error(_ui("Erreur :") + e.message) }
+    finally{if(scopeRef.current===scope)setSaving(false)}
   }
 
   const saveEdit = async () => {
-    if (!modalEdit || !formE.name) return
+    if (!modalEdit || !formE.name||!activeDomain||modalEdit.domain_id!==activeDomain.domain_id||saving||!hasPermission('clients','edit')) return
+    const scope=scopeRef.current
     setSaving(true)
     try {
       const payload: any = {
@@ -202,35 +209,41 @@ export default function ClientsPage() {
         credit_limit: formE.credit_limit ? Number(formE.credit_limit) : null,
         is_ecart_buyer: !!formE.is_ecart_buyer,
       }
-      let { error } = await supabase.from('clients').update(payload).eq('id', modalEdit.id)
+      let { error,data } = await supabase.from('clients').update(payload).eq('domain_id',activeDomain.domain_id).eq('id', modalEdit.id).select().single()
+      if(scopeRef.current!==scope)return
       // Retry sans is_ecart_buyer si migration 048 pas appliquee
       if (error && /is_ecart_buyer.*schema cache|is_ecart_buyer.*does not exist/i.test(error.message)) {
         toast.warning(_ui("Colonne is_ecart_buyer absente (migration 048). Sauvegarde sans ce champ."), { duration: 6000 })
         delete payload.is_ecart_buyer
-        const retry = await supabase.from('clients').update(payload).eq('id', modalEdit.id)
+        const retry = await supabase.from('clients').update(payload).eq('domain_id',activeDomain.domain_id).eq('id', modalEdit.id).select().single()
         error = retry.error ?? undefined as any
+        data=retry.data
       }
       if (error) throw error
+      if(scopeRef.current!==scope)return
+      setItems(rows=>rows.map(row=>row.id===modalEdit.id?data:row))
       setDone(true)
       toast.success(_ui("Client modifié"))
-      setTimeout(() => { setModalEdit(null); setDone(false); load() }, 1200)
-    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
-    setSaving(false)
+    } catch (e: any) { if(scopeRef.current===scope)toast.error(_ui("Erreur :") + e.message) }
+    finally{if(scopeRef.current===scope)setSaving(false)}
   }
 
   const del = async (c: any) => {
+    if(!activeDomain||c.domain_id!==activeDomain.domain_id||!hasPermission('clients','edit'))return
+    const scope=scopeRef.current
     if (!confirm(_ui("Désactiver \"{v0}\" ?",{v0:String(c.name)}))) return
     try {
-      await deleteClient(c.id)
+      await deleteClient(c.id,activeDomain.domain_id)
+      if(scopeRef.current!==scope)return
       setItems(p => p.filter(i => i.id !== c.id))
       toast.success(_ui("Client désactivé"))
-    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
+    } catch (e: any) { if(scopeRef.current===scope)toast.error(_ui("Erreur :") + e.message) }
   }
 
   return (
     <div className="itrix-workspace">
       {modalNew && (
-        <Modal title={_ui("NOUVEAU CLIENT")} onClose={() => { setModalNew(false); setDone(false) }}>
+        <Modal title={_ui("NOUVEAU CLIENT")} busy={saving} dirty={done?false:undefined} onClose={() => { setModalNew(false); setDone(false) }}>
           {done ? <SuccessMessage message={_ui("Client créé !")} /> : (
             <>
               <FormBlock vals={form} onChange={upd} />
@@ -240,7 +253,7 @@ export default function ClientsPage() {
         </Modal>
       )}
       {modalEdit && (
-        <Modal title={_ui("MODIFIER — {v0}",{v0:String(modalEdit.name)})} onClose={() => { setModalEdit(null); setDone(false) }}>
+        <Modal title={_ui("MODIFIER — {v0}",{v0:String(modalEdit.name)})} busy={saving} dirty={done?false:undefined} onClose={() => { setModalEdit(null); setDone(false) }}>
           {done ? <SuccessMessage message={_ui("Client modifié !")} /> : (
             <>
               <FormBlock vals={formE} onChange={updE} />
@@ -257,7 +270,7 @@ export default function ClientsPage() {
         iconColor="#8b5cf6"
         description={_ui("{v0} client{v1} actif{v2}",{v0:String(items.length),v1:String(items.length > 1 ? 's' : ''),v2:String(items.length > 1 ? 's' : '')})}
         actions={
-          <Button onClick={openNew} variant="primary">
+          <Button disabled={!activeDomain||!hasPermission('clients','create')} onClick={openNew} variant="primary">
             <Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouveau client")}{" "}</Button>
         }
         stats={loading ? [] : [

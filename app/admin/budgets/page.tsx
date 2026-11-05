@@ -1,4 +1,6 @@
 'use client'
+
+import { FilterableTable } from '@/components/ui/FilterableTable'
 import {useLanguage} from '@/lib/i18n'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -920,7 +922,7 @@ export default function BudgetsAdminPage() {
               <div style={{ fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 8, fontWeight: 700 }}>
                 {" "}{_ui("🏭 DÉTAIL PAR FERME (")}{totalsByFarm.length} {" "}{_ui("fermes · trié par CA décroissant)")}{" "}</div>
               <div style={{ overflowX: 'auto' }}>
-                <table className="tbl" style={{ width: '100%', minWidth: 800 }}>
+                <FilterableTable className="tbl" style={{ width: '100%', minWidth: 800 }}>
                   <thead>
                     <tr>
                       <th>{_ui("Ferme")}</th>
@@ -960,7 +962,7 @@ export default function BudgetsAdminPage() {
                       <td></td>
                     </tr>
                   </tbody>
-                </table>
+                </FilterableTable>
               </div>
               <div style={{ fontSize: 10, color: 'var(--tx-3)', marginTop: 8 }}>
                 {" "}{_ui("💡 Ce tableau résume par ferme. La grille détaillée ci-dessous montre toutes les catégories agrégées sur le domaine.")}{" "}</div>
@@ -969,7 +971,7 @@ export default function BudgetsAdminPage() {
 
         <div className="card itrix-table" style={{ padding: 0, overflow: 'auto', maxHeight: 'calc(100vh - 360px)' }}>
           {linesLoading && <div style={{ padding: 20, color: 'var(--tx-3)' }}>{_ui("Chargement des lignes...")}</div>}
-          <table className="tbl" style={{ minWidth: 1400 }}>
+          <FilterableTable className="tbl" style={{ minWidth: 1400 }}>
             <thead>
               <tr>
                 <th style={{ position: 'sticky', left: 0, background: 'var(--bg-deep)', zIndex: 2, minWidth: 220 }}>{_ui("Catégorie")}</th>
@@ -1077,7 +1079,7 @@ export default function BudgetsAdminPage() {
                 )
               })()}
             </tbody>
-          </table>
+          </FilterableTable>
         </div>
         </>
       )}

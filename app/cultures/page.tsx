@@ -25,9 +25,14 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Modal } from '@/components/ui/Modal'
 
 export default function CulturesPage() {
+  const { activeDomain } = useAuth()
+  return <CulturesContent key={activeDomain?.domain_id || 'none'} />
+}
+
+function CulturesContent() {
  const {t:_ui,text:_uiNode}=useLanguage()
 
-  const { isAdmin } = useAuth()
+  const { isAdmin, activeDomain } = useAuth()
   const [crops, setCrops] = useState<Crop[]>([])
   const [loading, setLoading] = useState(true)
   const [showInactive, setShowInactive] = useState(false)
@@ -40,32 +45,34 @@ export default function CulturesPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    try { setCrops(await listCrops()) }
+    if (!activeDomain) { setCrops([]); setLoading(false); return }
+    try { setCrops(await listCrops(activeDomain.domain_id)) }
     catch (e: any) { toast.error(_ui("Chargement : {v0}",{v0:String(e.message ?? e)})) }
     finally { setLoading(false) }
-  }, [_ui])
+  }, [_ui, activeDomain?.domain_id])
   useEffect(() => { load() }, [load])
 
   const openCatalog = async (crop: Crop) => {
     setCatalogCrop(crop); setCatalog([]); setCatalogLoading(true)
-    try { setCatalog(await listCatalog(crop.code)) }
+    if (!activeDomain) { setCatalogLoading(false); return }
+    try { setCatalog(await listCatalog(crop.code, activeDomain.domain_id)) }
     catch (e: any) { toast.error(_ui("Catalogue : {v0}",{v0:String(e.message ?? e)})) }
     finally { setCatalogLoading(false) }
   }
 
   const handleToggle = async (crop: Crop) => {
-    if (!isAdmin) { toast.error(_ui("Réservé aux administrateurs")); return }
+    if (!isAdmin || !activeDomain) { toast.error(_ui("Réservé aux administrateurs")); return }
     try {
-      await toggleCropActive(crop.id, !crop.is_active)
+      await toggleCropActive(crop.id, !crop.is_active, activeDomain.domain_id)
       setCrops(prev => prev.map(c => c.id === crop.id ? { ...c, is_active: !c.is_active } : c))
     } catch (e: any) { toast.error(_ui("MAJ : {v0}",{v0:String(e.message ?? e)})) }
   }
 
   const handleImport = async () => {
-    if (!catalogCrop) return
+    if (!catalogCrop || !activeDomain) return
     setImporting(true)
     try {
-      const res = await importCatalogVarieties(catalogCrop, catalog)
+      const res = await importCatalogVarieties(catalogCrop, catalog, activeDomain.domain_id)
       if (res.created > 0) toast.success(_ui("{v0} variété(s) importée(s) dans « {v1} »",{v0:String(res.created),v1:String(catalogCrop.name)}) + (res.skipped ? _ui("({v0} déjà présentes)",{v0:String(res.skipped)}) : ''))
       else toast.info(res.skipped ? _ui("Toutes les variétés sont déjà présentes ({v0})",{v0:String(res.skipped)}) : _ui("Rien à importer"))
       if (res.errors.length) toast.error(_ui("{v0} erreur(s) : {v1}",{v0:String(res.errors.length),v1:String(res.errors[0])}))

@@ -9,6 +9,9 @@ backup*.sql
 .next*
 node_modules
 outputs
+output
+coverage
+*.tsbuildinfo
 *.log
 *.pptx
 *.docx

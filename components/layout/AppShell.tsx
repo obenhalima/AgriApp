@@ -23,21 +23,28 @@ import { Topbar } from './Topbar'
 import { CommandPalette } from './CommandPalette'
 import { AIAssistantFAB } from '@/components/ai/AIAssistantFAB'
 import { GuideLauncher } from '@/components/help/GuideLauncher'
+import { DeletionFeedback } from '@/components/ui/DeletionFeedback'
+import { ModuleAuditHistory } from '@/components/audit/AuditHistoryButton'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
  const {t:_ui,text:_uiNode}=useLanguage()
 
   const router = useRouter()
   const pathname = usePathname()
-  const { user, profile, loading, canAccessModule, isPlatformAdmin, signOut } = useAuth()
+  const { user, profile, loading, initializationError, initializationBusy, retryInitialization, canAccessModule, isPlatformAdmin, signOut } = useAuth()
   const navItem = findNavItem(pathname)?.item
   const deniedModule = Boolean(navItem && (navItem.platformOnly ? !isPlatformAdmin : !!navItem.moduleCode && !canAccessModule(navItem.moduleCode)))
   const gate = getAccessGate({ loading, hasUser: !!user, activeProfile: !!profile?.is_active,
     mustChangePassword: !!profile?.must_change_password, pathname, moduleAllowed: !deniedModule })
   const isPublicAuthPage = ['/login','/forgot-password','/reset-password','/change-password'].includes(pathname)
-  const [sidebarW, setSidebarW] = useState(240)
+  // La barre démarre élargie ; la navigation conserve le choix manuel.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const sidebarW = sidebarCollapsed ? 64 : 240
   const [isDesktop, setIsDesktop] = useState(true)
   const [theme, setThemeState] = useState<'dark' | 'light'>('light')
+
+  // Une nouvelle connexion repart également avec la barre élargie.
+  useEffect(() => { setSidebarCollapsed(false) }, [user?.id])
 
   // Desktop (lg+) : la sidebar pousse le contenu. Mobile : drawer, contenu pleine largeur.
   useEffect(() => {
@@ -53,14 +60,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const t = getTheme()
     applyTheme(t)
     setThemeState(t)
-    const onSidebarChange = (e: any) => {
-      const { collapsed } = e.detail
-      setSidebarW(collapsed ? 64 : 240)
-    }
-    window.addEventListener('sidebar-change', onSidebarChange)
-    const saved = localStorage.getItem('tp_sidebar_collapsed') === 'true'
-    setSidebarW(saved ? 64 : 240)
-    return () => window.removeEventListener('sidebar-change', onSidebarChange)
   }, [])
 
   // Watch theme changes (depuis Topbar/CommandPalette)
@@ -82,6 +81,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [loading, user, profile?.is_active, profile?.must_change_password, pathname, router, isPublicAuthPage])
 
   // Loader d'initialisation
+  if (initializationError) return (
+    <div className="min-h-screen bg-surface-sunk flex items-center justify-center p-6">
+      <section role="alert" className="max-w-lg rounded-2xl border border-red-300 bg-surface-base p-6 text-center shadow-lg">
+        <h1 className="text-xl font-semibold text-red-700">{_ui("Service de connexion indisponible")}</h1>
+        <p className="mt-3">{_ui("La vérification de votre connexion ou de vos droits n’a pas pu aboutir. Le service met trop de temps à répondre ou rencontre une erreur.")}</p>
+        <p className="mt-3 text-sm">{_ui("Votre session enregistrée est conservée. Aucune donnée n’a été supprimée.")}</p>
+        <button type="button" disabled={initializationBusy} aria-busy={initializationBusy} className="btn btn-primary mt-5" onClick={() => void retryInitialization()}>{_ui(initializationBusy?"Vérification en cours…":"Réessayer")}</button>
+      </section>
+    </div>
+  )
   if (gate === 'loading') {
     return (
       <div className="min-h-screen bg-surface-sunk flex items-center justify-center flex-col gap-md">
@@ -121,19 +130,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   )
 
+  // Documents retain the same authentication/module gate, without navigation in print.
+  if (/^\/(factures|achats)\/document\/[^/]+$/.test(pathname)) return <>{children}</>
+
   return (
     <div className="flex min-h-screen bg-surface-base transition-colors duration-300">
-      <Sidebar />
+      <Sidebar collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
 
       <div
-        className="flex-1 flex flex-col min-h-screen min-w-0 transition-[margin-inline-start] duration-250"
+        className="flex-1 w-0 flex flex-col min-h-screen min-w-0 transition-[margin-inline-start] duration-250"
         style={{
           marginInlineStart: isDesktop ? sidebarW : 0,
           transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         <Topbar />
-        <main className="flex-1 px-md sm:px-lg lg:px-xl py-lg relative z-[1]">
+        <main className="flex-1 px-md sm:px-lg lg:px-xl py-lg pb-44 relative z-[1]">
+          <DeletionFeedback />
+          <ModuleAuditHistory />
           {children}
         </main>
       </div>

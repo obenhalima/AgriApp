@@ -15,8 +15,8 @@ export const metadata: Metadata = {
   icons: { icon: '/icon.svg', apple: '/pwa/apple.png?v=itrix' },
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const saved = cookies().get('itrix_language')?.value
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const saved = (await cookies()).get('itrix_language')?.value
   const locale = isLocale(saved) ? saved : 'fr'
   // Le thème clair est l'état par défaut (CSS :root = light).
   // AppShell appliquera le thème stocké via applyTheme(getTheme()) en useEffect.

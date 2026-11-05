@@ -1,4 +1,6 @@
 'use client'
+
+import { FilterableTable } from '@/components/ui/FilterableTable'
 /**
  * DataTable — wrapper léger pour tables stylées homogènes.
  * Pas TanStack pour cette V1 (les pages existantes ont leur propre logique de tri/filtre).
@@ -14,13 +16,13 @@ export function DataTable({
 }: React.HTMLAttributes<HTMLTableElement> & { sticky?: boolean; minWidth?: number }) {
   return (
     <div className="w-full overflow-x-auto">
-      <table
+      <FilterableTable
         className={cn('w-full text-body-sm', className)}
         style={minWidth ? { minWidth } : undefined}
         {...props}
       >
         {children}
-      </table>
+      </FilterableTable>
     </div>
   )
 }

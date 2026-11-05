@@ -1,4 +1,6 @@
 'use client'
+
+import { FilterableTable } from '@/components/ui/FilterableTable'
 import {useLanguage} from '@/lib/i18n'
 
 import { useRef, useState } from 'react'
@@ -132,7 +134,7 @@ export function BudgetImportModal(props: {
           {/* Erreurs / warnings */}
           {report.issues.length > 0 && (
             <div style={{ marginBottom: 12, maxHeight: 180, overflowY: 'auto', border: '1px solid var(--bd-1)', borderRadius: 6 }}>
-              <table className="tbl" style={{ width: '100%' }}>
+              <FilterableTable className="tbl" style={{ width: '100%' }}>
                 <thead><tr><th style={{ width: 50 }}>{_ui("Ligne")}</th><th style={{ width: 80 }}>{_ui("Type")}</th><th>{_ui("Message")}</th></tr></thead>
                 <tbody>
                   {report.issues.map((i, idx) => (
@@ -147,7 +149,7 @@ export function BudgetImportModal(props: {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </FilterableTable>
             </div>
           )}
 

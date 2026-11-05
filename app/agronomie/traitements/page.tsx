@@ -1,4 +1,5 @@
 "use client";
+import {AuditHistoryButton} from '@/components/audit/AuditHistoryButton';
 import {useLanguage} from '@/lib/i18n'
 
 import '@/components/ui/workspace.css'
@@ -1594,7 +1595,8 @@ export default function TraitementsPage() {
                     <TreatmentWarnings request={r}/>
                   </TD>
                   <TD right>
-                    <div className="flex justify-end gap-xs">
+                    <div className="flex flex-wrap justify-end gap-xs">
+                      <AuditHistoryButton table="treatment_requests" entity={r.id}/>
                       {["soumise","approuvee"].includes(r.status)&&(r.treatment_request_products||[]).some((p:any)=>!p.stock_item_id)&&<Button size="xs" variant="secondary" onClick={()=>resolveStock(r.id)}>{_ui("Rattacher les articles créés")}</Button>}
                       {r.status === "soumise" &&
                         canValidate &&

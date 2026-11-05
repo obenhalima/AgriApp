@@ -140,7 +140,7 @@ export async function getGreenhousesPageData(): Promise<{
   source: DataSource
   items: GreenhouseCardData[]
 }> {
-  const client = createSupabaseServerClient()
+  const client = await createSupabaseServerClient()
   if (!client) {
     return { source: 'empty', items: [] }
   }
@@ -223,7 +223,7 @@ export async function getCampaignsPageData(): Promise<{
   source: DataSource
   items: CampaignSummaryData[]
 }> {
-  const client = createSupabaseServerClient()
+  const client = await createSupabaseServerClient()
   if (!client) {
     return { source: 'empty', items: [] }
   }
@@ -312,7 +312,7 @@ export async function getHarvestsPageData(): Promise<{
   source: DataSource
   items: HarvestTableRow[]
 }> {
-  const client = createSupabaseServerClient()
+  const client = await createSupabaseServerClient()
   if (!client) {
     return { source: 'empty', items: [] }
   }

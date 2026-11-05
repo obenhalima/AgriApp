@@ -1,4 +1,5 @@
 'use client'
+import {AuditHistoryButton} from '@/components/audit/AuditHistoryButton'
 import {useLanguage} from '@/lib/i18n'
 
 import '@/components/ui/workspace.css'
@@ -27,6 +28,7 @@ import { MoneyDisplay } from '@/components/display'
 import { useAuth } from '@/lib/auth'
 import {PurchaseSubstitutions} from '@/components/purchases/PurchaseSubstitutions'
 import type {PurchaseSubstitution} from '@/lib/purchaseSubstitutions'
+import {PurchaseInvoiceDocuments} from '@/components/purchase/PurchaseInvoiceDocuments'
 
 type StockItem = { id: string; code: string; name: string; unit: string | null }
 type NewLine = { itemDescription: string; unit: string; quantity: string; unitPrice: string; stockItemId: string }
@@ -213,9 +215,7 @@ export default function PurchaseOrderDetailPage() {
             <StatusBadge status={po.status} size="sm" />
           </span>
         }
-        actions={canReceive ? (
-          <Button onClick={openReception} variant="primary"><Package size={14} strokeWidth={2.5} /> {" "}{_ui("Réceptionner")}</Button>
-        ) : undefined}
+        actions={<><Link className="btn btn-secondary" href={`/achats/document/${encodeURIComponent(po.id)}?domain=${encodeURIComponent(activeDomain?.domain_id||'')}`}>Consulter le BDC</Link><AuditHistoryButton table="purchase_orders" entity={po.id}/>{canReceive&&<Button onClick={openReception} variant="primary"><Package size={14} strokeWidth={2.5} /> {" "}{_ui("Réceptionner")}</Button>}</>}
         stats={[
           { label: 'Lignes', value: String(lines.length), icon: Package, color: '#10b981' },
           { label: 'Commandé', value: totalOrdered.toLocaleString('fr'), icon: Package, color: '#3b82f6' },
@@ -300,6 +300,7 @@ export default function PurchaseOrderDetailPage() {
       )}
 
       <PurchaseSubstitutions key={`${activeDomain?.domain_id}:${poId}:${po.status}`} poId={poId} lines={lines} warehouses={warehouses} canRequest={!!canReceive} onChange={setSubstitutions}/>
+      {activeDomain&&<PurchaseInvoiceDocuments key={`${activeDomain.domain_id}:${poId}`} po={po} onCreated={()=>{toast.success(_ui("Facture fournisseur créée après confirmation."))}}/>}
 
       {/* Modal réception */}
       {receiving && (

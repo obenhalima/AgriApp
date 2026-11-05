@@ -1,4 +1,6 @@
 'use client'
+
+import { FilterableTable } from '@/components/ui/FilterableTable'
 import {useLanguage} from '@/lib/i18n'
 
 /**
@@ -179,7 +181,7 @@ export function VolumesTab(props: { rows: PlantingRow[]; campaign: Campaign; loa
 
       {/* ─── Pivot table ─── */}
       <div className="card" style={{ padding: 0, overflow: 'auto', maxHeight: 'calc(100vh - 320px)' }}>
-        <table className="tbl" style={{ minWidth: viewMode === 'monthly' ? Math.max(800, 220 + months.length * 80) : 600 }}>
+        <FilterableTable className="tbl" style={{ minWidth: viewMode === 'monthly' ? Math.max(800, 220 + months.length * 80) : 600 }}>
           <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
             <tr style={{ background: 'var(--bg-deep)' }}>
               <th style={{ position: 'sticky', left: 0, background: 'var(--bg-deep)', zIndex: 6, minWidth: 220 }}>{_uiNode(AXIS_LABELS[axis])}</th>
@@ -230,7 +232,7 @@ export function VolumesTab(props: { rows: PlantingRow[]; campaign: Campaign; loa
               </td>
             </tr>
           </tfoot>
-        </table>
+        </FilterableTable>
       </div>
 
       <div style={{ marginTop: 8, fontSize: 10, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)' }}>

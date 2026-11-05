@@ -14,9 +14,8 @@ export async function loadHarvestMigrationCatalog(domainId: string, domainName: 
     }
   }
   const [plantings,markets,values,existing]=await Promise.all([
-    all(()=>supabase.from('campaign_plantings').select('id,first_harvest_date,last_harvest_date,greenhouses!inner(code,name,farms!inner(code,name,domain_id)),campaigns!inner(code,name,domain_id),varieties(code,commercial_name)').eq('domain_id',domainId).eq('greenhouses.farms.domain_id',domainId).eq('campaigns.domain_id',domainId)),
-    // Markets and clients are shared reference catalogs in the current schema.
-    all(()=>supabase.from('markets').select('id,code,name,type,currency,clients!client_id(name)').eq('is_active',true)),
+    all(()=>supabase.from('campaign_plantings').select('id,first_harvest_date,last_harvest_date,greenhouses!inner(code,name,farms!inner(code,name,domain_id)),campaigns!inner(code,name,domain_id),varieties!campaign_plantings_variety_id_fkey(code,commercial_name)').eq('domain_id',domainId).eq('greenhouses.farms.domain_id',domainId).eq('campaigns.domain_id',domainId)),
+    all(()=>supabase.from('markets').select('id,code,name,type,currency,clients!markets_client_id_fkey(name)').eq('domain_id',domainId).eq('is_active',true)),
     all(()=>supabase.from('reference_values').select('id,list_key,code,label,metadata').in('list_key',['tray_type','destination_rejet']).eq('is_active',true)),
     all(()=>supabase.from('harvests').select('id,campaign_planting_id,harvest_date,lot_number').eq('domain_id',domainId)),
   ])

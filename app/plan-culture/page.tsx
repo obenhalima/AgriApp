@@ -14,6 +14,7 @@ import {useLanguage} from '@/lib/i18n'
  */
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { clientReferenceIsolationEnabled } from '@/lib/clientReferenceScope'
 import {
   loadPlantingPlan, loadAllGreenhouses, computeKPIs,
   buildPivot, distributeMonthly, mergeMonthlyMaps,
@@ -84,7 +85,7 @@ function PlanCultureContent() {
           .eq('domain_id', activeDomain.domain_id)
           .order('preparation_start', { ascending: false, nullsFirst: false }),
         supabase.from('farms').select('id, code, name').eq('domain_id', activeDomain.domain_id).eq('is_active', true).order('name'),
-        supabase.from('varieties').select('id, code, commercial_name, type').eq('is_active', true).order('commercial_name'),
+        supabase.from('varieties').select('id, code, commercial_name, type').match(clientReferenceIsolationEnabled() ? { domain_id: activeDomain.domain_id } : {}).eq('is_active', true).order('commercial_name'),
         loadAllGreenhouses(activeDomain.domain_id),
       ])
       const camps = (c.data ?? []) as Campaign[]

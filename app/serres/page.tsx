@@ -1,4 +1,5 @@
 'use client'
+import {AuditHistoryButton} from '@/components/audit/AuditHistoryButton'
 import {useLanguage} from '@/lib/i18n'
 
 /**
@@ -406,9 +407,10 @@ export default function SerresPage() {
                   )}
 
                   {/* Actions */}
-                  <div className="mt-auto grid grid-cols-[1fr_auto] gap-xs pt-sm border-t border-border">
+                  <div className="mt-auto flex flex-wrap gap-xs pt-sm border-t border-border">
                     <Button onClick={() => openEdit(s)} variant="secondary" size="sm">
                       <Pencil size={12} strokeWidth={2.5} /> {" "}{_ui("Modifier")}{" "}</Button>
+                    <AuditHistoryButton table="greenhouses" entity={s.id}/>
                     <Button onClick={() => del(s.id, s.name)} variant="destructive" size="icon-sm" title={_ui("Supprimer")}>
                       <Trash2 size={13} strokeWidth={2.2} />
                     </Button>

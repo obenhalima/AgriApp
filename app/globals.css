@@ -421,3 +421,10 @@ html[dir="rtl"] input[type="email"],
 html[dir="rtl"] input[type="number"],
 html[dir="rtl"] input[type="date"],
 html[dir="rtl"] input[type="datetime-local"] { direction: ltr; }
+
+/* Column filters preserve the existing table and row components. */
+[data-column-filter-hidden] { display: none !important; }
+@media print {
+  [data-column-filter-ui] { display: none !important; }
+  tr[data-column-filter-hidden] { display: table-row !important; }
+}

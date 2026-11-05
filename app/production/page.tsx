@@ -1,4 +1,5 @@
 'use client'
+import {AuditHistoryButton} from '@/components/audit/AuditHistoryButton'
 import {useLanguage} from '@/lib/i18n'
 
 import '@/components/ui/workspace.css'
@@ -6,6 +7,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import { Settings2, Plus, Pencil, Sprout, Maximize, Wheat, Box, AlertCircle, Search, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { clientReferenceIsolationEnabled } from '@/lib/clientReferenceScope'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -42,6 +44,7 @@ export default function ProductionPage() {
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
   const [areaError, setAreaError] = useState('')
+  const [loadError, setLoadError] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [form, setForm] = useState(emptyForm)
@@ -73,13 +76,16 @@ export default function ProductionPage() {
 
   const load = async () => {
     if (!activeDomain) { setItems([]); setCampagnes([]); setFermes([]); setSerres([]); setLoading(false); return }
+    setLoading(true);setLoadError('')
     const [p, c, f, sr, v] = await Promise.all([
-      supabase.from('campaign_plantings').select('*, campaigns(name), greenhouses(code,name,exploitable_area), varieties(commercial_name,type)').eq('domain_id', activeDomain.domain_id).order('created_at', { ascending: false }),
+      supabase.from('campaign_plantings').select('*, campaigns(name), greenhouses(code,name,exploitable_area), varieties!campaign_plantings_variety_id_fkey(commercial_name,type)').eq('domain_id', activeDomain.domain_id).order('created_at', { ascending: false }),
       supabase.from('campaigns').select('id,name,code,farm_id').eq('domain_id', activeDomain.domain_id).order('name'),
       supabase.from('farms').select('id,code,name').eq('domain_id', activeDomain.domain_id).eq('is_active', true).order('name'),
       supabase.from('greenhouses').select('id,code,name,farm_id,total_area,exploitable_area,farms!inner(domain_id)').eq('farms.domain_id', activeDomain.domain_id).order('code'),
-      supabase.from('varieties').select('id,commercial_name,type,theoretical_yield_per_m2,theoretical_cost_per_m2,avg_price_export,avg_price_local').eq('is_active', true).order('commercial_name'),
+      supabase.from('varieties').select('id,commercial_name,type,theoretical_yield_per_m2,theoretical_cost_per_m2,avg_price_export,avg_price_local').match(clientReferenceIsolationEnabled() ? { domain_id: activeDomain.domain_id } : {}).eq('is_active', true).order('commercial_name'),
     ])
+    const failure=[p,c,f,sr,v].find(result=>result.error)?.error
+    if(failure)setLoadError(`Chargement impossible : ${failure.message}`)
     setItems(p.data || []); setCampagnes(c.data || []); setFermes(f.data || []); setSerres(sr.data || []); setVarietes(v.data || [])
     setLoading(false)
   }
@@ -152,7 +158,7 @@ export default function ProductionPage() {
         target_total_production: area * yld,
         estimated_cost: form.estimated_cost ? Number(form.estimated_cost) : null,
       }
-      const selectCols = '*, campaigns(name), greenhouses(code,name,exploitable_area), varieties(commercial_name,type)'
+      const selectCols = '*, campaigns(name), greenhouses(code,name,exploitable_area), varieties!campaign_plantings_variety_id_fkey(commercial_name,type)'
       if (editingId) {
         const { data, error } = await supabase.from('campaign_plantings').update(payload).eq('id', editingId).select(selectCols).single()
         if (error) throw error
@@ -292,7 +298,7 @@ export default function ProductionPage() {
         title={_ui("Suivi production")} subtitle={_ui("Pilotage")} icon={Settings2} iconColor="#f59e0b"
         description={_ui("{v0} plantation{v1} · {v2} ha · Objectif {v3} t",{v0:String(items.length),v1:String(items.length > 1 ? 's' : ''),v2:String((totalArea / 10000).toFixed(2)),v3:String((totalProd / 1000).toFixed(1))})}
         actions={<Button onClick={() => setModal(true)} variant="primary"><Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvelle plantation")}</Button>}
-        stats={loading ? [] : [
+        stats={loading || loadError ? [] : [
           { label: 'Plantations', value: String(items.length), icon: Sprout, color: '#10b981' },
           { label: 'Surface', value: <AreaDisplay value={totalArea} className="!text-current" />, icon: Maximize, color: '#3b82f6' },
           { label: 'Prod. théo.', value: <VolumeDisplay value={totalProd} forceUnit="t" className="!text-current" />, icon: Wheat, color: '#f59e0b' },
@@ -313,6 +319,8 @@ export default function ProductionPage() {
       <Card animate delay={0.25} padding="none" className="itrix-table">
         {loading ? (
           <div className="p-md space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
+        ) : loadError ? (
+          <div role="alert" className="p-md space-y-3 text-red-700"><p>{loadError}</p><Button variant="secondary" onClick={load}>{_ui('Réessayer')}</Button></div>
         ) : items.length === 0 ? (
           <EmptyState icon={Settings2} title={_ui("Aucune plantation")} description={_ui("Crée une plantation pour commencer.")} action={<Button onClick={() => setModal(true)}><Plus size={14} /> {" "}{_ui("Plantation")}</Button>} />
         ) : (
@@ -339,6 +347,7 @@ export default function ProductionPage() {
                     <TD right mono className={dispo >= 0 ? 'text-success' : 'text-danger'}>{exploitable > 0 ? `${dispo.toLocaleString('fr')} m²` : '—'}</TD>
                     <TD><StatusBadge status={p.status || 'planifie'} size="sm" /></TD>
                     <TD right>
+                      <AuditHistoryButton table="campaign_plantings" entity={p.id}/>
                       <Button onClick={() => { loadExisting(p); setModal(true) }} variant="ghost" size="icon-sm" title={_ui("Modifier")}>
                         <Pencil size={12} strokeWidth={2.2} />
                       </Button>

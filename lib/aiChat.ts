@@ -5,6 +5,7 @@ export type ChatRole = 'user' | 'assistant'
 export type ChatMessage = { role: ChatRole; content: string }
 
 export type AIChatInput = {
+  domainId: string
   context: {
     campaignName: string
     farmName?: string
@@ -40,7 +41,8 @@ export async function sendChatMessage(input: AIChatInput): Promise<{ reply: stri
   // Envoie le JWT de session (correctif sécurité H4) — la clé anon seule ne doit pas authentifier.
   const { supabase } = await import('./supabase')
   const { data: { session } } = await supabase.auth.getSession()
-  const token = session?.access_token ?? key
+  if (!session?.access_token) throw new Error('Session expirée : reconnectez-vous')
+  const token = session.access_token
 
   const res = await fetch(`${url}/functions/v1/ai-analyze-cpc`, {
     method: 'POST',
@@ -65,6 +67,7 @@ export async function sendChatMessage(input: AIChatInput): Promise<{ reply: stri
 }
 
 export function buildChatContext(params: {
+  domainId: string
   campaignName: string
   versionName: string
   scope: 'domain' | 'farm' | 'greenhouse'
@@ -102,6 +105,7 @@ export function buildChatContext(params: {
     .slice(0, 20)
 
   return {
+    domainId: params.domainId,
     context: {
       campaignName: params.campaignName,
       versionName: params.versionName,

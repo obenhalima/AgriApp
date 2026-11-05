@@ -1,0 +1,47 @@
+{
+  "status": "branch_created_copy_and_preview_pending",
+  "gitBranch": "test",
+  "vercelEnvironment": "preview",
+  "supabaseBranch": "test",
+  "persistent": true,
+  "supabaseProjectRef": "jxqcvhgmuskesopprqos",
+  "productionProjectRefForbidden": "dlisonvsphybjiyxoymk",
+  "copyProductionData": true,
+  "copyProductionSecrets": false,
+  "automaticProductionPromotion": false,
+  "externalNotificationsEnabled": false,
+  "verification": {
+    "persistentBranchConfirmed": true,
+    "remoteEdgeFunctionsObserved": 10,
+    "localEdgeFunctions": 11,
+    "missingRemoteFunction": "admin-send-password-reset",
+    "productionDataCopied": false,
+    "testSecretsReviewed": false,
+    "vercelPreviewConfigured": false,
+    "vercelBlocker": "Remote Git branch test does not exist; branch-specific variables rejected without changes",
+    "copyPreparationScript": "scripts/prepare-itrix-test-copy.ps1"
+  },
+  "requiredBeforeDeployment": [
+    "Confirm current Supabase plan and approve recurring branch cost",
+    "Snapshot reviewed application sources in Git; current HEAD predates deployed corrections",
+    "Create isolated persistent branch without production data",
+    "Inventory actual database schema and migration history before applying migrations",
+    "Configure Vercel Preview variables specifically for Git branch test",
+    "Use only test branch URL and keys; never inherit production credentials",
+    "Deploy and verify Edge Functions against the explicit test project reference",
+    "Configure isolated Auth redirect URLs, Storage, test users and synthetic seed data",
+    "Review schedules, webhooks and external integrations before enabling them"
+  ],
+  "edgeFunctions": [
+    "admin-create-user", "admin-send-password-reset", "admin-set-temporary-password",
+    "ai-analyze-cpc", "daily-recap", "mobile-dispatch", "mobile-readiness",
+    "purchase-order-direct", "purchase-order-receive", "telegram-webhook", "workflow-transition"
+  ],
+  "releaseRequirements": [
+    "Immutable Git commit and version tag",
+    "Release notes and previous release dependency",
+    "Required database migrations and Edge Function revisions",
+    "Test evidence and explicit production approval",
+    "Application rollback target and database compatibility assessment"
+  ]
+}

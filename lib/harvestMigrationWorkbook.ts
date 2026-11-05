@@ -1,6 +1,7 @@
 // Application export/import feature: uses the application's existing ExcelJS runtime.
 import { MIGRATION_SHEETS, type MigrationCatalog, type MigrationData, text } from './harvestMigration'
-export async function harvestMigrationWorkbook(catalog: MigrationCatalog): Promise<Blob> {
+export async function harvestMigrationWorkbook(catalog: MigrationCatalog,scope:'workflow'|'harvests'='workflow'): Promise<Blob> {
+  if(scope==='harvests')return (await import('./harvestSimpleWorkbook')).simpleHarvestWorkbook(catalog)
   const ExcelJS=(await import('exceljs')).default
   const wb=new ExcelJS.Workbook(); wb.creator='ItriX Farm'; wb.created=new Date()
   const guide=wb.addWorksheet('Mode emploi'); guide.getColumn(1).width=115
@@ -24,7 +25,8 @@ export async function harvestMigrationWorkbook(catalog: MigrationCatalog): Promi
     'Les retours et ventes d’écarts sont identifiés au tri et au prix, mais leurs réexpéditions nécessitent un rapprochement. Factures et encaissements ne sont pas repris par ce modèle.',
     'Conserver les noms d’onglets et d’en-têtes. Dates Excel ou AAAA-MM-JJ. Unités : kg. Les cellules vides signifient inconnu / étape non réalisée, pas zéro.',
   ]
-  instructions.forEach((line,i)=>{const r=guide.addRow([line]);r.height=i===0?30:44;r.alignment={wrapText:true,vertical:'middle'};r.font={name:'Arial',size:i===0?16:11,bold:i===0,color:{argb:i===0?'FF166534':'FF24352A'}}})
+  const guideLines=instructions
+  guideLines.forEach((line,i)=>{const r=guide.addRow([line]);r.height=i===0?30:44;r.alignment={wrapText:true,vertical:'middle'};r.font={name:'Arial',size:i===0?16:11,bold:i===0,color:{argb:i===0?'FF166534':'FF24352A'}}})
   guide.views=[{showGridLines:false}]
   const meta=wb.addWorksheet('_reprise');meta.addRow(['version',2]);meta.addRow(['domain',catalog.domainId]);meta.state='veryHidden'
   const reference=(name:string,headers:string[],rows:(string|number|null|undefined)[][])=>{
@@ -58,15 +60,22 @@ export async function harvestMigrationWorkbook(catalog: MigrationCatalog): Promi
   return new Blob([await wb.xlsx.writeBuffer() as ArrayBuffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})
 }
 
-export async function readHarvestMigration(buffer: ArrayBuffer, domainId: string): Promise<MigrationData> {
+export async function readHarvestMigration(buffer: ArrayBuffer, domainId: string, scope:'workflow'|'harvests'='workflow',catalog?:MigrationCatalog): Promise<MigrationData> {
   const ExcelJS=(await import('exceljs')).default, wb=new ExcelJS.Workbook()
   await wb.xlsx.load(buffer)
   const meta=wb.getWorksheet('_reprise')
   const version=meta?.getCell('B1').value
-  if((version!==1 && version!==2) || meta?.getCell('B2').value!==domainId) throw new Error('Modèle incompatible ou fichier d’un autre client. Télécharger le modèle du client actif.')
+  if((version!==1 && version!==2 && version!==3) || meta?.getCell('B2').value!==domainId) throw new Error('Modèle incompatible ou fichier d’un autre client. Télécharger le modèle du client actif.')
+  if(version===3){
+    if(!catalog || catalog.domainId!==domainId)throw new Error('Référentiel actuel du client requis pour contrôler ce modèle.')
+    const {readSimpleHarvestRows,resolveSimpleHarvests}=await import('./harvestSimpleWorkbook')
+    return resolveSimpleHarvests(readSimpleHarvestRows(wb),catalog)
+  }
   const data: MigrationData={}
   for(const spec of MIGRATION_SHEETS) {
-    const s=wb.getWorksheet(spec.name); if(!s) throw new Error(`Onglet manquant : ${spec.name}`)
+    const s=wb.getWorksheet(spec.name);
+    if(!s && scope==='harvests' && !['Recoltes','Plateaux'].includes(spec.name)){data[spec.name]=[];continue}
+    if(!s) throw new Error(`Onglet manquant : ${spec.name}`)
     const columns=version===1 && spec.name==='Recoltes' ? spec.columns.filter(c=>!['tray','count','unitKg'].includes(c.key)) : spec.columns
     columns.forEach((c,i)=>{if(s.getCell(1,i+1).value!==c.label)throw new Error(`${spec.name} : en-tête « ${c.label} » modifié ou déplacé.`)})
     if(s.rowCount>10001)throw new Error(`${spec.name} : limite de 10 000 lignes dépassée.`)

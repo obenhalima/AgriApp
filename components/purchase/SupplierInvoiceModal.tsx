@@ -3,6 +3,8 @@ import {useLanguage} from '@/lib/i18n'
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import {useAuth} from '@/lib/auth'
+import {checkInvoicePrefill,type SupplierInvoicePrefill} from '@/lib/purchaseInvoiceDocument'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter } from '@/components/ui/Modal'
 
 type PO = {
@@ -23,23 +25,25 @@ type PO = {
  * Crée une facture fournisseur rattachée à un bon d'achat.
  * Appelle onCreated() en cas de succès (utilisé pour enchaîner la transition workflow).
  */
-export function SupplierInvoiceModal({ po, onClose, onCreated }: {
+export function SupplierInvoiceModal({ po, onClose, onCreated, initial }: {
   po: PO
   onClose: () => void
   onCreated: () => void | Promise<void>
+  initial?:SupplierInvoicePrefill
 }) {
  const {t:_ui,text:_uiNode}=useLanguage()
+ const {activeDomain,user,hasPermission}=useAuth()
 
   const today = new Date().toISOString().slice(0, 10)
   const dueDefault = (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10) })()
 
-  const [invoiceNumber, setInvoiceNumber] = useState('')
-  const [invoiceDate, setInvoiceDate] = useState(today)
-  const [dueDate, setDueDate] = useState(dueDefault)
-  const [subtotal, setSubtotal] = useState(String(Number(po.subtotal ?? po.total_amount ?? 0)))
-  const [taxAmount, setTaxAmount] = useState(String(Number(po.tax_amount ?? 0)))
-  const [totalAmount, setTotalAmount] = useState(String(Number(po.total_amount ?? 0)))
-  const [autoTotal, setAutoTotal] = useState(true)
+  const [invoiceNumber, setInvoiceNumber] = useState(initial?.invoiceNumber||'')
+  const [invoiceDate, setInvoiceDate] = useState(initial?.invoiceDate??today)
+  const [dueDate, setDueDate] = useState(initial?.dueDate??dueDefault)
+  const [subtotal, setSubtotal] = useState(initial?.subtotal??String(Number(po.subtotal ?? po.total_amount ?? 0)))
+  const [taxAmount, setTaxAmount] = useState(initial?.taxAmount??String(Number(po.tax_amount ?? 0)))
+  const [totalAmount, setTotalAmount] = useState(initial?.totalAmount??String(Number(po.total_amount ?? 0)))
+  const [autoTotal, setAutoTotal] = useState(!initial?.totalAmount)
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -53,6 +57,10 @@ export function SupplierInvoiceModal({ po, onClose, onCreated }: {
 
   const submit = async () => {
     setError('')
+    if(saving)return
+    if(initial?.requireOriginalNumber&&!invoiceNumber.trim()){setError('Saisissez le numéro figurant sur la facture originale du fournisseur.');return}
+    if(!activeDomain||!user||!hasPermission('factures','create')){setError('Droits de création de facture requis pour le client actif.');return}
+    try{checkInvoicePrefill({...initial,source:initial?.source||'manual',subtotal,taxAmount,totalAmount},po.currency)}catch(e){setError((e as Error).message);return}
     if (!invoiceDate || !dueDate) { setError('Dates requises'); return }
     const subt = Number(subtotal || 0)
     const tot  = Number(totalAmount || 0)
@@ -61,9 +69,16 @@ export function SupplierInvoiceModal({ po, onClose, onCreated }: {
 
     setSaving(true)
     try {
+      const purchase=await supabase.from('purchase_orders').select('id,supplier_id,currency').eq('id',po.id).eq('domain_id',activeDomain.domain_id).maybeSingle()
+      if(purchase.error||!purchase.data||purchase.data.supplier_id!==po.supplier_id||purchase.data.currency!==po.currency)throw Error('Le bon a changé ou n’est plus accessible pour ce client. Rechargez avant de confirmer.')
       const num = invoiceNumber.trim() || `FF-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`
+      const existing=await supabase.from('supplier_invoices').select('id').eq('domain_id',activeDomain.domain_id).eq('supplier_id',po.supplier_id).eq('invoice_number',num).limit(1)
+      if(existing.error)throw existing.error
+      if(existing.data?.length)throw Error('Une facture portant ce numéro existe déjà pour ce fournisseur. Consultez-la avant de créer un doublon.')
       const { error: e } = await supabase.from('supplier_invoices').insert({
         invoice_number: num,
+        domain_id:activeDomain.domain_id,
+        created_by:user.id,
         supplier_id: po.supplier_id,
         po_id: po.id,
         campaign_id: po.campaign_id,
@@ -89,9 +104,9 @@ export function SupplierInvoiceModal({ po, onClose, onCreated }: {
   }
 
   return (
-    <Modal title={_ui("NOUVELLE FACTURE FOURNISSEUR")} onClose={onClose} size="lg">
+    <Modal title={_ui("NOUVELLE FACTURE FOURNISSEUR")} onClose={onClose} size="lg" busy={saving}>
       <div style={{ padding: 8, marginBottom: 10, background: 'var(--neon-dim)', border: '1px solid var(--neon)40', borderRadius: 6, fontSize: 11, color: 'var(--neon)' }}>
-        {" "}{_ui("Rattachée au bon d'achat")}{" "}<strong>{po.po_number}</strong> — {po.suppliers?.name ?? 'fournisseur'}{_ui(". Une fois créée, le bon passera automatiquement en état")}{" "}<strong>{_ui("Facturé")}</strong>.
+        {" "}{_ui("Rattachée au bon d'achat")}{" "}<strong>{po.po_number}</strong> — {po.suppliers?.name ?? 'fournisseur'}. Vérifiez les informations avant de créer la facture. Le statut du bon reste géré par son workflow.
       </div>
 
       {error && (
@@ -99,7 +114,7 @@ export function SupplierInvoiceModal({ po, onClose, onCreated }: {
       )}
 
       <FormRow>
-        <FormGroup label={_ui("N° facture (laisser vide = auto)")}>
+        <FormGroup label={initial?.requireOriginalNumber?'N° de la facture originale *':_ui("N° facture (laisser vide = auto)")}>
           <Input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} placeholder={_ui("FF-2026-12345")} />
         </FormGroup>
         <FormGroup label={_ui("Devise")}>
@@ -133,7 +148,7 @@ export function SupplierInvoiceModal({ po, onClose, onCreated }: {
 
       <FormGroup label={_ui("Notes")}><Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} /></FormGroup>
 
-      <ModalFooter onCancel={onClose} onSave={submit} loading={saving} saveLabel={_ui("CRÉER LA FACTURE")} />
+      <ModalFooter onCancel={onClose} onSave={submit} loading={saving} saveLabel={_ui("CONFIRMER ET CRÉER LA FACTURE")} />
     </Modal>
   )
 }

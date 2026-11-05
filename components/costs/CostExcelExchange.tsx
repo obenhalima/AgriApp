@@ -1,4 +1,6 @@
 'use client'
+
+import { FilterableTable } from '@/components/ui/FilterableTable'
 import {useLanguage} from '@/lib/i18n'
 
 import { useEffect,useRef,useState } from 'react'
@@ -27,7 +29,7 @@ function Panel({domainId,domainName,kind,canImport,onImported}:{domainId:string;
   {busy&&<p role="status">{_ui("Traitement en cours…")}</p>}{error&&<p role="alert" className="text-red-700">{_uiNode(error)}</p>}{message&&<p role="status">{_uiNode(message)}</p>}
   {preview&&<><p>{preview.rows.length} {" "}{_ui("coût(s) source ·")}{" "}{preview.plan.entries.length} {" "}{_ui("écriture(s) ·")}{" "}{preview.plan.total.toLocaleString(_uiLocale)} MAD</p>
    {!!preview.plan.issues.length&&<ul role="alert" className="max-h-48 overflow-auto">{preview.plan.issues.map((i,n)=><li key={n}>{_ui("Ligne")}{" "}{i.row} : {_uiNode(i.message)}</li>)}</ul>}
-   <div className="max-h-72 overflow-auto"><table className="w-full text-sm"><thead><tr>{['Ligne','Référence','Date','Serre / périmètre','MAD'].map(h=><th className="p-2 text-left" key={h}>{h}</th>)}</tr></thead><tbody>{preview.plan.entries.slice(0,500).map((e,i)=><tr key={i} className="border-t"><td className="p-2">{e.sourceRow}</td><td className="p-2">{e.ref}</td><td className="p-2">{e.entry_date}</td><td className="p-2">{preview.catalog.greenhouses.find(g=>g.id===e.greenhouse_id)?.label||_ui("Campagne (charge commune)")}</td><td className="p-2">{e.amount.toLocaleString(_uiLocale)}</td></tr>)}</tbody></table>{preview.plan.entries.length>500&&<p>{_ui("500 premières écritures affichées sur")}{" "}{preview.plan.entries.length}.</p>}</div>
+   <div className="max-h-72 overflow-auto"><FilterableTable className="w-full text-sm"><thead><tr>{['Ligne','Référence','Date','Serre / périmètre','MAD'].map(h=><th className="p-2 text-left" key={h}>{h}</th>)}</tr></thead><tbody>{preview.plan.entries.slice(0,500).map((e,i)=><tr key={i} className="border-t"><td className="p-2">{e.sourceRow}</td><td className="p-2">{e.ref}</td><td className="p-2">{e.entry_date}</td><td className="p-2">{preview.catalog.greenhouses.find(g=>g.id===e.greenhouse_id)?.label||_ui("Campagne (charge commune)")}</td><td className="p-2">{e.amount.toLocaleString(_uiLocale)}</td></tr>)}</tbody></FilterableTable>{preview.plan.entries.length>500&&<p>{_ui("500 premières écritures affichées sur")}{" "}{preview.plan.entries.length}.</p>}</div>
    <p className="text-sm">{_ui("Vérifiez que ces charges ne sont pas déjà saisies ou générées par les stocks, factures ou pointages. Les références stables protègent contre la relance du même import, pas contre une double saisie avec une autre référence.")}</p>
    <label className="flex gap-2"><input type="checkbox" checked={confirmed} disabled={busy||!!preview.plan.issues.length} onChange={e=>setConfirmed(e.target.checked)}/>{_ui("Je valide les répartitions et confirme l’import en")}{" "}{kind==='budget'?'budget':_ui("réel")} {" "}{_ui("pour")}{" "}{domainName}.</label>
    <button className="btn-primary" disabled={busy||!confirmed||!canImport||!!preview.plan.issues.length} onClick={commit}>{_ui("Confirmer l’import")}</button>{!canImport&&<p>{_ui("Droit de création de coûts requis pour importer.")}</p>}

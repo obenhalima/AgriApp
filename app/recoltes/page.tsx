@@ -1,4 +1,7 @@
 'use client'
+
+import { FilterableTable } from '@/components/ui/FilterableTable'
+import {AuditHistoryButton} from '@/components/audit/AuditHistoryButton'
 import { useLanguage } from "@/lib/i18n"
 
 import '@/components/ui/workspace.css'
@@ -6,9 +9,10 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { HarvestPeopleFields } from '@/components/harvest/HarvestPeopleFields'
 import { harvestPeopleInput } from '@/lib/harvestPeople'
 import { sentHarvestIds } from '@/lib/harvestEditLock'
+import { readHarvestHistory, harvestLoadError } from '@/lib/harvestHistory'
 import { PricedDispatchReport } from '@/components/harvest/PricedDispatchReport'
 import { HarvestMigration } from '@/components/harvest/HarvestMigration'
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { HarvestDarNotice } from '@/components/HarvestDarNotice'
 import { supabase } from '@/lib/supabase'
@@ -59,11 +63,17 @@ export default function RecoltesPage() {
   const [trayByHarvest, setTrayByHarvest] = useState<Map<string, any[]>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [loadError, setLoadError] = useState('')
+  const [historyDomain, setHistoryDomain] = useState<string | undefined>()
+  const loadVersion = useRef(0)
+  const currentDomain = useRef(activeDomain?.domain_id)
+  currentDomain.current = activeDomain?.domain_id
 
   // ─── Modals ───
   const [modalNew, setModalNew] = useState(false)
   const [modalEdit, setModalEdit] = useState<any>(null)
   const [modalCompose, setModalCompose] = useState(false)
+  useEffect(()=>{setModalCompose(false);setMarkets([])},[activeDomain?.domain_id])
   const [modalPesee, setModalPesee] = useState<any>(null)
   const [modalTri, setModalTri] = useState<any>(null)
   const [modalPrice, setModalPrice] = useState<any>(null)
@@ -105,56 +115,67 @@ export default function RecoltesPage() {
 
   // ─── Chargement ───
   const load = useCallback(async () => {
-    setLoading(true); setError('')
+    const version = ++loadVersion.current, domain = activeDomain?.domain_id
+    const isCurrent = () => version === loadVersion.current && domain === currentDomain.current
+    setLoading(true); setLoadError('')
     setHarvests(previous => previous.map(h => ({ ...h, edit_locked: true })))
     if (!activeDomain) {
-      setHarvests([]); setDispatches([]); setSources([]); setPlantings([]); setStockRetour([]); setLoading(false)
+      setHarvests([]); setDispatches([]); setSources([]); setPlantings([]); setStockRetour([]);setMarkets([]); setLoading(false)
       return
     }
     try {
-      const since14 = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10)
-      const since30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
       const [hRes, dRes, sRes, pRes, mRes, alRes, srRes, stRes, tlRes] = await Promise.all([
-        supabase.from('harvests')
-          .select('*, campaign_plantings(*, greenhouses(code, name, farm_id, farms(name)), varieties(commercial_name, code), campaigns(name))')
+        readHarvestHistory((from, to) => supabase.from('harvests')
+          .select('*, campaign_plantings(*, greenhouses(code, name, farm_id, farms(name)), varieties!campaign_plantings_variety_id_fkey(commercial_name, code), campaigns(name))')
           .order('harvest_date', { ascending: false })
           .eq('domain_id', activeDomain.domain_id)
-          .limit(300),
-        supabase.from('harvest_lots')
-          .select('id, lot_number, harvest_id, harvest_date, quantity_kg, estimated_kg, weighed_kg, weighed_at, market_id, markets(name, currency), variety_id, varieties(code, commercial_name), tri_status, freinte_pct, ecart_pct, qty_nette_kg, qty_acceptee_kg, qty_priced_kg, price_per_kg, ca_amount, station_ref, certificate_number, notes, destination_rejet, rejet_qty_kg, parent_dispatch_id, campaign_planting_id, greenhouse_id, greenhouses(farm_id, farms(name)), category')
+          .order('id').range(from, to), 'récoltes'),
+        readHarvestHistory((from, to) => supabase.from('harvest_lots')
+          .select('id, lot_number, harvest_id, harvest_date, quantity_kg, estimated_kg, weighed_kg, weighed_at, market_id, markets!harvest_lots_market_id_fkey(name, currency), variety_id, varieties!harvest_lots_variety_id_fkey(code, commercial_name), tri_status, freinte_pct, ecart_pct, qty_nette_kg, qty_acceptee_kg, qty_priced_kg, price_per_kg, ca_amount, station_ref, certificate_number, notes, destination_rejet, rejet_qty_kg, parent_dispatch_id, campaign_planting_id, greenhouse_id, greenhouses(farm_id, farms(name)), category')
           .eq('category', 'station_dispatch')
           .eq('domain_id', activeDomain.domain_id)
-          .gte('harvest_date', since30)
-          .order('harvest_date', { ascending: false }),
-        supabase.from('harvest_lot_sources')
+          .order('harvest_date', { ascending: false }).order('id').range(from, to), 'envois station, pesées et tris'),
+        readHarvestHistory((from, to) => supabase.from('harvest_lot_sources')
           .select('harvest_lot_id, harvest_id, qty_contributed_kg, harvests!inner(lot_number, harvest_date, recorded_by, recorded_by_name, domain_id)')
-          .eq('harvests.domain_id', activeDomain.domain_id),
-        supabase.from('campaign_plantings').select('id, variety_id, greenhouse_id, first_harvest_date, last_harvest_date, greenhouses(code, name, farm_id, farms(name)), varieties(commercial_name, code), campaigns(name, harvest_start, harvest_end)').eq('domain_id', activeDomain.domain_id),
-        supabase.from('markets').select('id, code, name, currency, type').eq('is_active', true).order('name'),
-        supabase.from('alerts').select('*').eq('type', 'no_harvest').order('created_at', { ascending: false }).limit(100),
+          .eq('harvests.domain_id', activeDomain.domain_id).order('id').range(from, to), 'récoltes liées aux envois'),
+        supabase.from('campaign_plantings').select('id, variety_id, greenhouse_id, first_harvest_date, last_harvest_date, greenhouses(code, name, farm_id, farms(name)), varieties!campaign_plantings_variety_id_fkey(commercial_name, code), campaigns(name, harvest_start, harvest_end)').eq('domain_id', activeDomain.domain_id),
+        supabase.from('markets').select('id, domain_id, code, name, currency, type').eq('domain_id',activeDomain.domain_id).eq('is_active', true).order('name'),
+        // Legacy databases still use an enum without no_harvest. Read the client's
+        // alerts first, then filter in memory instead of sending an invalid enum.
+        readHarvestHistory((from, to) => supabase.from('alerts').select('*')
+          .eq('domain_id', activeDomain.domain_id)
+          .order('created_at', { ascending: false }).order('id').range(from, to), 'alertes sans récolte'),
         // Stock de retour : lots créés via tri (destination = retour_stock) pas encore consommés
-        supabase.from('harvest_lots')
-          .select('id, lot_number, harvest_date, quantity_kg, variety_id, varieties(code, commercial_name), greenhouse_id, parent_dispatch_id, tri_status, notes')
+        readHarvestHistory((from, to) => supabase.from('harvest_lots')
+          .select('id, lot_number, harvest_date, quantity_kg, variety_id, varieties!harvest_lots_variety_id_fkey(code, commercial_name), greenhouse_id, parent_dispatch_id, tri_status, notes')
           .eq('category', 'stock_retour')
           .eq('domain_id', activeDomain.domain_id)
           .eq('tri_status', 'pending')
-          .order('harvest_date', { ascending: false }),
+          .order('harvest_date', { ascending: false }).order('id').range(from, to), 'stock de retour'),
         // Compteur de bordereaux station (pour le badge d'onglet)
         supabase.from('station_settlements').select('id', { count: 'exact', head: true }),
         // Lignes de plateaux (pour afficher plateaux + type dans la liste)
-        supabase.from('harvest_tray_lines')
+        readHarvestHistory((from, to) => supabase.from('harvest_tray_lines')
           .select('harvest_id, tray_type_code, tray_type_label, nb_trays, poids_unitaire_kg, line_kg, harvests!inner(domain_id)')
-          .eq('harvests.domain_id', activeDomain.domain_id)
-          .gte('created_at', since30),
+          .eq('harvests.domain_id', activeDomain.domain_id).order('id').range(from, to), 'plateaux des récoltes'),
       ])
-      if (hRes.error) throw hRes.error
+      if (!isCurrent()) return
+      const checks = [
+        ['récoltes', hRes], ['envois station, pesées et tris', dRes],
+        ['récoltes liées aux envois', sRes], ['plantations', pRes], ['marchés', mRes],
+        ['alertes sans récolte', alRes], ['stock de retour', srRes],
+        ['compteur de bordereaux station', stRes], ['plateaux des récoltes', tlRes],
+      ] as const
+      const failed = checks.find(([, result]) => result.error)
+      if (failed) throw harvestLoadError(failed[0], failed[1].error)
       const sent = await sentHarvestIds(activeDomain.domain_id, (hRes.data ?? []).map(h => h.id))
+      if (!isCurrent()) return
       setHarvests((hRes.data ?? []).map(h => ({ ...h, edit_locked: sent.has(h.id) })))
       setDispatches(dRes.data ?? [])
       setSources(sRes.data ?? [])
       setPlantings(pRes.data ?? [])
       setMarkets(mRes.data ?? [])
-      setAlertes(alRes.data ?? [])
+      setAlertes((alRes.data ?? []).filter(a => a.type === 'no_harvest'))
       setStockRetour(srRes.data ?? [])
       setSettlementCount(stRes.count ?? 0)
       const trayMap = new Map<string, any[]>()
@@ -163,8 +184,11 @@ export default function RecoltesPage() {
         arr.push(l); trayMap.set(l.harvest_id, arr)
       }
       setTrayByHarvest(trayMap)
-    } catch (e: any) { setError(e.message || String(e)) }
-    setLoading(false)
+      setHistoryDomain(domain)
+    } catch (e: any) {
+      if (isCurrent()) setLoadError(e instanceof Error && e.message.startsWith('Chargement') ? e.message : 'Impossible de charger l’historique des récoltes pour ce client. Aucune donnée n’a été supprimée. Réessayez ou contactez votre administrateur.')
+    }
+    if (isCurrent()) setLoading(false)
   }, [activeDomain?.domain_id])
 
   useEffect(() => { load() }, [load])
@@ -676,6 +700,12 @@ export default function RecoltesPage() {
         </div>
       )}
 
+      {loadError && <div role="alert" className="mb-4 rounded-lg border border-red-300 bg-red-50 p-4 text-red-800">
+        <p>{_ui(loadError)}</p>
+        <button type="button" className="btn btn-secondary mt-2" onClick={() => void load()}>{_ui('Réessayer')}</button>
+      </div>}
+      {loading && historyDomain !== activeDomain?.domain_id && <p role="status">{_ui('Chargement de l’historique des récoltes…')}</p>}
+      <div hidden={Boolean(loadError) || historyDomain !== activeDomain?.domain_id}>
       {/* KPIs */}
       <div className="itrix-kpis">
         <KPI icon="🌿" label={t("Récoltes")} value={kpis.lots} sub={`${(kpis.kg / 1000).toFixed(1)} t total`} color="#10b981" />
@@ -699,6 +729,7 @@ export default function RecoltesPage() {
             {t("🔍 Filtres")}</span>
 
           {/* Date du */}
+          <span className="text-xs">{_ui('Sans dates : tout l’historique du client sélectionné.')}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <label style={{ fontSize: 11, color: 'var(--text-sub)' }}>{t("Du")}</label>
             <input aria-label={_ui("Récoltes du")} type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)}
@@ -793,6 +824,7 @@ export default function RecoltesPage() {
       {tab === 'bordereaux' && <BordereauxSection />}
       {tab === 'stock_retour' && <StockRetourTab lots={stockRetour} onReload={load} loading={loading} />}
       {tab === 'alertes' && <AlertesTab alertes={alertesActives} onResolve={resolveAlerte} loading={loading} />}
+      </div>
 
       {/* Modals */}
       {modalNew && (
@@ -811,9 +843,9 @@ export default function RecoltesPage() {
           onClose={() => { setModalEdit(null); setDone(false); setError('') }} onSave={saveEdit}
         />
       )}
-      {modalCompose && (
+      {modalCompose && activeDomain && historyDomain===activeDomain.domain_id && (
         <ComposeModal
-          harvests={aEnvoyer} markets={markets}
+          key={activeDomain?.domain_id} domainId={activeDomain?.domain_id||''} harvests={aEnvoyer} markets={markets.filter(m=>m.domain_id===activeDomain?.domain_id)}
           onClose={() => setModalCompose(false)}
           onDone={() => { setModalCompose(false); load() }}
         />
@@ -974,6 +1006,7 @@ function ListeTab({ harvests, trayByHarvest, sortKey, sortDir, onSort, onEdit, o
               {fmt(h.remaining_kg)}
             </td>
             <td style={{ ...td, whiteSpace: 'nowrap' }}>
+              <AuditHistoryButton table="harvests" entity={h.id}/>
               <button onClick={() => onEdit(h)} disabled={h.edit_locked} title={h.edit_locked ? _ui("Récolte déjà envoyée (même partiellement) : modification désactivée.") : _ui("Modifier cette récolte")} className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px', marginRight: 4, opacity: h.edit_locked ? 0.45 : 1, cursor: h.edit_locked ? 'not-allowed' : 'pointer' }}>{t("Éditer")}</button>
               <button onClick={() => onDelete(h)} disabled={h.edit_locked} title={h.edit_locked ? _ui("Récolte déjà envoyée (même partiellement) : suppression désactivée.") : _ui("Supprimer cette récolte")} className="btn-ghost" style={{ fontSize: 10.5, padding: '3px 8px', color: 'var(--red)', opacity: h.edit_locked ? 0.45 : 1, cursor: h.edit_locked ? 'not-allowed' : 'pointer' }}>{t("Supprimer")}</button>
             </td>
@@ -1307,7 +1340,7 @@ function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, onGotoBorderea
               <span><strong>{summaryTotals.lots}</strong> {" "}{_ui("lot(s) · dont")}{" "}<strong>{summaryTotals.partialLots}</strong> {" "}{_ui("partiel(s)")}</span>
             </div>
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5 }}>
+          <FilterableTable style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--bd-1)', background: 'var(--bg-1)' }}>
                 <th style={{ ...th, textAlign: 'left' }}>{t("Marché")}</th>
@@ -1362,7 +1395,7 @@ function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, onGotoBorderea
                 <td style={{ ...td, textAlign: 'right' }}>{summaryTotals.lots}</td>
               </tr>
             </tbody>
-          </table>
+          </FilterableTable>
         </div>
       )}
       <Table headers={['Lot', 'Date', 'Marché', 'Variété', 'Brute', 'Freinte', 'Écart', 'Acceptée', 'Action']} loading={loading} empty={_ui("Aucun envoi en attente de prix.")} rows={dispatches}>
@@ -1716,10 +1749,12 @@ function EditHarvestModal({ harvest, form, setForm, plantings, saving, done, err
   )
 }
 
-function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[]; markets: any[]; onClose: () => void; onDone: () => void }) {
+function ComposeModal({ domainId,harvests, markets, onClose, onDone }: { domainId:string;harvests: any[]; markets: any[]; onClose: () => void; onDone: () => void }) {
  const {t:_ui,text:_uiNode}=useLanguage()
 
  const {t}=useLanguage()
+ const {activeDomain}=useAuth(),currentDomain=useRef(activeDomain?.domain_id);currentDomain.current=activeDomain?.domain_id
+ useEffect(()=>{currentDomain.current=activeDomain?.domain_id;return()=>{currentDomain.current=undefined}},[activeDomain?.domain_id])
 
   // La collecte a été saisie en PLATEAUX → on réutilise le métrage plateaux
   // de CHAQUE récolte (harvest_tray_lines). Poids moyen/plateau = kg total ÷
@@ -1783,6 +1818,7 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
   const fillAll = (h: any) => updateQty(h, String(trayOf(h).max))
 
   const save = async () => {
+    if(saving)return
     setErr('')
     // Convertit les plateaux en kg estimé, par récolte (poids propre à chacune)
     const entries = Object.entries(picks).filter(([, nb]) => nb > 0).map(([id, nb]) => {
@@ -1791,8 +1827,13 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
     }).filter(([, kg]) => kg > 0)
     if (entries.length === 0) { setErr('Sélectionne au moins une récolte.'); return }
     if (!marketId) { setErr('Choisis un marché.'); return }
+    if(!domainId||currentDomain.current!==domainId||!markets.some(m=>m.id===marketId&&m.domain_id===domainId)){setErr('Le marché doit appartenir au client sélectionné. Rouvrez l’envoi après changement de client.');return}
+    if(entries.some(([id])=>harvests.find(h=>h.id===id)?.domain_id!==domainId)){setErr('Une récolte ne correspond pas au client sélectionné. Rechargez les récoltes.');return}
     setSaving(true)
     try {
+      const market=await supabase.from('markets').select('id').eq('id',marketId).eq('domain_id',domainId).eq('is_active',true).maybeSingle()
+      if(market.error||!market.data)throw Error('Ce marché n’est plus disponible pour le client sélectionné. Rechargez avant de créer l’envoi.')
+      if(currentDomain.current!==domainId)throw Error('Le client sélectionné a changé. Aucun nouvel envoi ne sera créé pour ce client.')
       // Groupe les récoltes sélectionnées PAR VARIÉTÉ
       // (harvest_lots.variety_id est NOT NULL donc 1 lot = 1 variété)
       type Entry = { harvest_id: string; qty: number; harvest: any; variety_id: string | null }
@@ -1818,12 +1859,14 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
 
       let groupIdx = 0
       for (const [varietyId, groupEntries] of groups.entries()) {
+        if(currentDomain.current!==domainId)throw Error('Le client sélectionné a changé. Rouvrez l’écran pour consulter les envois déjà créés.')
         groupIdx++
         const sub = groupEntries[0].harvest
         const subTotal = groupEntries.reduce((s, e) => s + e.qty, 0)
         const dispLot = `D${ts.slice(-8)}-${String(groupIdx).padStart(2, '0')}`.slice(0, 50)
 
         const { data: lot, error } = await supabase.from('harvest_lots').insert({
+          domain_id:domainId,
           lot_number: dispLot,
           harvest_id: groupEntries.length === 1 ? groupEntries[0].harvest_id : null,
           campaign_planting_id: sub?.campaign_planting_id ?? null,
@@ -1871,10 +1914,11 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
           {markets.map((m: any) => <option key={m.id} value={m.id}>🌍 {m.name}{m.code ? ` (${m.code})` : ''}</option>)}
         </Select>
       </FormGroup>
+      {markets.length===0&&<p role="status" className="text-red-700">Aucun marché actif pour ce client. Créez ou activez un marché dans le client sélectionné avant de préparer l’envoi.</p>}
       <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginTop: 12, marginBottom: 4 }}>
         {t("Récoltes disponibles")}</div>
       <div style={{ border: '1px solid var(--bd-1)', borderRadius: 6, maxHeight: 360, overflow: 'auto' }}>
-        <table style={{ width: '100%', fontSize: 12 }}>
+        <FilterableTable style={{ width: '100%', fontSize: 12 }}>
           <thead style={{ background: 'var(--bg-2)', position: 'sticky', top: 0 }}>
             <tr>{[_ui("Lot"), _ui("Date"), _ui("Serre/Var"), _ui("Dispo"), _ui("Plateaux à envoyer"), ''].map(h => <th key={h} style={th}>{h}</th>)}</tr>
           </thead>
@@ -1904,7 +1948,7 @@ function ComposeModal({ harvests, markets, onClose, onDone }: { harvests: any[];
               </tr>
             ))}
           </tbody>
-        </table>
+        </FilterableTable>
       </div>
       {(() => {
         const selectedHarvests = Object.keys(picks).filter(id => Number(picks[id]) > 0).map(id => harvests.find(h => h.id === id)).filter(Boolean)
@@ -2312,7 +2356,7 @@ function PeriodPriceModal({ dispatches, onClose, onDone }: { dispatches: any[]; 
           <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginTop: 8, marginBottom: 4 }}>
             {" "}{_ui("Prix par marché × variété —")}{" "}{filtered.length} {" "}{_ui("envoi(s) sur")}{" "}{byKey.length} {" "}{_ui("combinaison(s)")}{" "}</div>
           <div style={{ border: '1px solid var(--bd-1)', borderRadius: 6, overflow: 'auto' }}>
-            <table style={{ width: '100%', fontSize: 12 }}>
+            <FilterableTable style={{ width: '100%', fontSize: 12 }}>
               <thead style={{ background: 'var(--bg-2)' }}>
                 <tr>{['Marché', 'Variété', 'Envois', 'Total acceptée', 'Prix /kg', 'CA simulé'].map(h => <th key={h} style={th}>{h}</th>)}</tr>
               </thead>
@@ -2345,14 +2389,14 @@ function PeriodPriceModal({ dispatches, onClose, onDone }: { dispatches: any[]; 
                   )
                 })}
               </tbody>
-            </table>
+            </FilterableTable>
           </div>
 
           {/* Détail dispatches (excludable) */}
           <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginTop: 14, marginBottom: 4 }}>
             {" "}{_ui("Détail des envois (décoche pour exclure)")}{" "}</div>
           <div style={{ border: '1px solid var(--bd-1)', borderRadius: 6, overflow: 'auto', maxHeight: 240 }}>
-            <table style={{ width: '100%', fontSize: 11.5 }}>
+            <FilterableTable style={{ width: '100%', fontSize: 11.5 }}>
               <thead style={{ background: 'var(--bg-2)', position: 'sticky', top: 0 }}>
                 <tr>{['', 'Lot', 'Date', 'Marché', 'Variété', 'Brute', 'Acceptée', 'CA'].map(h => <th key={h} style={th}>{h}</th>)}</tr>
               </thead>
@@ -2384,7 +2428,7 @@ function PeriodPriceModal({ dispatches, onClose, onDone }: { dispatches: any[]; 
                   )
                 })}
               </tbody>
-            </table>
+            </FilterableTable>
           </div>
 
           {/* Récap */}
@@ -2439,7 +2483,7 @@ function Table({ headers, rows, children, loading, empty }: { headers: React.Rea
 
   return (
     <div className="itrix-table">
-      <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+      <FilterableTable style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
         <thead style={{ background: 'var(--bg-2)' }}>
           <tr>{headers.map((h, idx) => <th key={idx} style={th}>{typeof h==='string'?t(h):h}</th>)}</tr>
         </thead>
@@ -2448,7 +2492,7 @@ function Table({ headers, rows, children, loading, empty }: { headers: React.Rea
           {!loading && rows.length === 0 && <tr><td colSpan={headers.length} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>{t(empty)}</td></tr>}
           {!loading && rows.map(children)}
         </tbody>
-      </table>
+      </FilterableTable>
     </div>
   )
 }

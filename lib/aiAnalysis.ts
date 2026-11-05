@@ -3,6 +3,7 @@ import { ComparisonMonthly } from './actuals'
 import { Diagnostics } from './diagnostics'
 
 export type AICPCInput = {
+  domainId: string
   context: {
     campaignName: string
     farmName?: string
@@ -38,7 +39,8 @@ export async function analyzeCPC(input: AICPCInput): Promise<string> {
   // Envoie le JWT de session (correctif sécurité H4) — la clé anon seule ne doit pas authentifier.
   const { supabase } = await import('./supabase')
   const { data: { session } } = await supabase.auth.getSession()
-  const token = session?.access_token ?? key
+  if (!session?.access_token) throw new Error('Session expirée : reconnectez-vous')
+  const token = session.access_token
 
   const res = await fetch(`${url}/functions/v1/ai-analyze-cpc`, {
     method: 'POST',
@@ -67,6 +69,7 @@ export async function analyzeCPC(input: AICPCInput): Promise<string> {
  * Sélectionne les top écarts significatifs pour nourrir le prompt.
  */
 export function buildAIInput(params: {
+  domainId: string
   campaignName: string
   versionName: string
   scope: 'domain' | 'farm' | 'greenhouse'
@@ -115,6 +118,7 @@ export function buildAIInput(params: {
     .slice(0, 15)
 
   return {
+    domainId: params.domainId,
     context: {
       campaignName: params.campaignName,
       versionName: params.versionName,
