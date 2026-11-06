@@ -1,4 +1,5 @@
 'use client'
+import { TranslatedText } from '@/lib/i18n'
 /**
  * Topbar refondu : breadcrumbs dynamiques + Cmd+K trigger + theme toggle
  * smooth + user avatar dropdown.
@@ -426,7 +427,7 @@ export function Topbar() {
                       className="w-full flex items-center gap-sm px-md py-2 rounded-md text-body-sm text-fg-secondary hover:bg-surface-hover hover:text-fg-primary transition-colors"
                     >
                       {theme === 'dark' ? <Sun size={14} strokeWidth={2.2} /> : <Moon size={14} strokeWidth={2.2} />}
-                      <span className="flex-1 text-start">{_ui("Thème")}{" "}{theme === 'dark' ? 'clair' : 'sombre'}</span>
+                      <span className="flex-1 text-start">{_ui("Thème")}{" "}<TranslatedText text={theme === 'dark' ? 'clair' : 'sombre'}/></span>
                     </button>
                   </div>
 

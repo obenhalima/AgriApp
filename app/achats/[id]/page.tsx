@@ -1,6 +1,6 @@
 'use client'
 import {AuditHistoryButton} from '@/components/audit/AuditHistoryButton'
-import {useLanguage} from '@/lib/i18n'
+import {useLanguage, TranslatedText} from '@/lib/i18n'
 
 import '@/components/ui/workspace.css'
 import { useEffect, useMemo, useState, useRef } from 'react'
@@ -215,7 +215,7 @@ export default function PurchaseOrderDetailPage() {
             <StatusBadge status={po.status} size="sm" />
           </span>
         }
-        actions={<><Link className="btn btn-secondary" href={`/achats/document/${encodeURIComponent(po.id)}?domain=${encodeURIComponent(activeDomain?.domain_id||'')}`}>Consulter le BDC</Link><AuditHistoryButton table="purchase_orders" entity={po.id}/>{canReceive&&<Button onClick={openReception} variant="primary"><Package size={14} strokeWidth={2.5} /> {" "}{_ui("Réceptionner")}</Button>}</>}
+        actions={<><Link className="btn btn-secondary" href={`/achats/document/${encodeURIComponent(po.id)}?domain=${encodeURIComponent(activeDomain?.domain_id||'')}`}><TranslatedText text={"Consulter le BDC"}/></Link><AuditHistoryButton table="purchase_orders" entity={po.id}/>{canReceive&&<Button onClick={openReception} variant="primary"><Package size={14} strokeWidth={2.5} /> {" "}{_ui("Réceptionner")}</Button>}</>}
         stats={[
           { label: 'Lignes', value: String(lines.length), icon: Package, color: '#10b981' },
           { label: 'Commandé', value: totalOrdered.toLocaleString('fr'), icon: Package, color: '#3b82f6' },

@@ -1,7 +1,7 @@
 'use client'
 
 import { FilterableTable } from '@/components/ui/FilterableTable'
-import {useLanguage} from '@/lib/i18n'
+import {useLanguage, TranslatedText} from '@/lib/i18n'
 
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -658,7 +658,7 @@ export default function BudgetsAdminPage() {
                   letterSpacing: .5,
                   fontWeight: displayDepth === opt.v ? 700 : 400,
                 }}>
-                {opt.l}
+                <TranslatedText text={opt.l}/>
               </button>
             ))}
           </div>
@@ -828,7 +828,7 @@ export default function BudgetsAdminPage() {
                   color: level===v.k ? 'var(--neon)' : 'var(--tx-2)',
                   borderRadius: 6, cursor: 'pointer', fontSize: 11,
                 }}>
-                {v.l}
+                <TranslatedText text={v.l}/>
               </button>
             ))}
           </div>
@@ -977,7 +977,7 @@ export default function BudgetsAdminPage() {
                 <th style={{ position: 'sticky', left: 0, background: 'var(--bg-deep)', zIndex: 2, minWidth: 220 }}>{_ui("Catégorie")}</th>
                 {months.map(m => (
                   <th key={`${m.year}-${m.month}`} style={{ textAlign: 'right', minWidth: 85, fontSize: 10 }}>
-                    {_uiNode(MONTH_LABELS_FR[m.month - 1])} {String(m.year).slice(-2)}
+                    {_uiNode(MONTH_LABELS_FR[m.month - 1])} <TranslatedText text={String(m.year).slice(-2)}/>
                   </th>
                 ))}
                 <th style={{ textAlign: 'right', borderLeft: '2px solid var(--bd-1)', minWidth: 110 }}>{_ui("Total")}</th>
@@ -1178,7 +1178,7 @@ export default function BudgetsAdminPage() {
                       }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: selected ? 'var(--neon)' : 'var(--tx-1)' }}>
-                          {opt.title}
+                          <TranslatedText text={opt.title}/>
                         </div>
                         {selected && <span style={{ color: 'var(--neon)', fontSize: 16 }}>✓</span>}
                       </div>

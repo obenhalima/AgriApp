@@ -1,5 +1,5 @@
 'use client'
-import {useLanguage} from '@/lib/i18n'
+import {useLanguage, TranslatedText} from '@/lib/i18n'
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -106,8 +106,7 @@ export function SupplierInvoiceModal({ po, onClose, onCreated, initial }: {
   return (
     <Modal title={_ui("NOUVELLE FACTURE FOURNISSEUR")} onClose={onClose} size="lg" busy={saving}>
       <div style={{ padding: 8, marginBottom: 10, background: 'var(--neon-dim)', border: '1px solid var(--neon)40', borderRadius: 6, fontSize: 11, color: 'var(--neon)' }}>
-        {" "}{_ui("Rattachée au bon d'achat")}{" "}<strong>{po.po_number}</strong> — {po.suppliers?.name ?? 'fournisseur'}. Vérifiez les informations avant de créer la facture. Le statut du bon reste géré par son workflow.
-      </div>
+        {" "}{_ui("Rattachée au bon d'achat")}{" "}<strong>{po.po_number}</strong> — <TranslatedText text={po.suppliers?.name ?? 'fournisseur'}/><TranslatedText text={". Vérifiez les informations avant de créer la facture. Le statut du bon reste géré par son workflow."}/></div>
 
       {error && (
         <div style={{ padding: 8, marginBottom: 10, background: 'var(--red-dim)', border: '1px solid var(--red)40', borderRadius: 6, color: 'var(--red)', fontSize: 11 }}>⚠ {_uiNode(error)}</div>

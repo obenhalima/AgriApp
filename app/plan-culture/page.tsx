@@ -1,4 +1,5 @@
 'use client'
+import { TranslatedText } from '@/lib/i18n'
 import {useLanguage} from '@/lib/i18n'
 
 /**
@@ -216,7 +217,7 @@ function PlanCultureContent() {
                   fontWeight: active ? 700 : 500,
                   letterSpacing: .5,
                 }}>
-                {t.l}
+                <TranslatedText text={t.l}/>
               </button>
             )
           })}

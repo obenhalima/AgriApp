@@ -1,4 +1,5 @@
 'use client'
+import { TranslatedText } from '@/lib/i18n'
 
 import { FilterableTable } from '@/components/ui/FilterableTable'
 import {useLanguage} from '@/lib/i18n'
@@ -157,7 +158,7 @@ export function GenerateSalesBudgetModal(props: {
                   borderRadius: 6, cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-mono)',
                   fontWeight: section === t.k ? 700 : 400, letterSpacing: .5,
                 }}>
-                {t.l} ({t.count})
+                <TranslatedText text={t.l}/> ({t.count})
               </button>
             ))}
           </div>
@@ -280,7 +281,7 @@ export function GenerateSalesBudgetModal(props: {
                       return (
                         <tr key={i}>
                           <td><span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{r.farm_code}</span></td>
-                          <td><span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: r.greenhouse_code ? 'var(--tx-2)' : 'var(--tx-3)' }}>{r.greenhouse_code ?? 'ferme'}</span></td>
+                          <td><span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: r.greenhouse_code ? 'var(--tx-2)' : 'var(--tx-3)' }}><TranslatedText text={r.greenhouse_code ?? 'ferme'}/></span></td>
                           <td>{r.category_label}</td>
                           <td><span className="tag" style={{ background: `${c}18`, color: c, border: `1px solid ${c}40`, fontSize: 9 }}>{_uiNode(tLabels[r.category_type])}</span></td>
                           <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--tx-3)' }}>{r.months}</td>

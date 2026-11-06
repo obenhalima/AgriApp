@@ -1,7 +1,7 @@
 'use client'
 
 import { FilterableTable } from '@/components/ui/FilterableTable'
-import {useLanguage} from '@/lib/i18n'
+import {useLanguage, TranslatedText} from '@/lib/i18n'
 
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -274,7 +274,7 @@ function InitializationWorkspace({ domain, name, module, onBack, onChangeClient 
     {preview && <section className="rounded-xl border border-border bg-surface-raised p-4 space-y-3" aria-label={_ui("Aperçu de l’import")}>
       <h2 className="font-semibold">{_ui("Vérifier avant de remplacer le brouillon")}</h2>
       <p className="text-sm">{_ui("Seule l’étape indiquée ci-dessous sera remplacée, même si le fichier contient d’autres feuilles. Une feuille vide effacera les lignes de cette étape après confirmation. Les autres saisies sont conservées.")}</p>
-      <div className="grid sm:grid-cols-3 gap-2 text-sm">{Object.entries(preview).map(([key, data]) => <p key={key}>{INIT_SECTIONS.find(s => s.key === key)?.title} : {data.length} {" "}{_ui("ligne(s), actuellement")}{" "}{draft.rows[key]?.length || 0}</p>)}</div>
+      <div className="grid sm:grid-cols-3 gap-2 text-sm">{Object.entries(preview).map(([key, data]) => <p key={key}><TranslatedText text={INIT_SECTIONS.find(s => s.key === key)?.title}/> : {data.length} {" "}{_ui("ligne(s), actuellement")}{" "}{draft.rows[key]?.length || 0}</p>)}</div>
       <p className="text-sm">{initProgress({ ...draft, rows: { ...draft.rows, ...preview } }, catalog).issues.filter(i => !i.warning).length} {" "}{_ui("erreur(s) détectée(s). Les lignes pourront être corrigées après chargement.")}</p>
       <Button disabled={busy} onClick={() => { let next = draft; for (const [key, rows] of Object.entries(preview)) next = updateInitRows(next, key, rows); change(next); setPreview(null) }}>{_ui("Charger dans le brouillon")}</Button>{' '}
       <Button variant="secondary" onClick={() => setPreview(null)}>{_ui("Annuler")}</Button>
@@ -284,14 +284,14 @@ function InitializationWorkspace({ domain, name, module, onBack, onChangeClient 
         {sections.map((s, index) => {
           const done = (draft.reviewed.includes(s.key) && !progress.issues.some(i => i.section === s.key && !i.warning)) || draft.skipped.includes(s.key)
           return <button type="button" key={s.key} aria-current={step === index ? 'step' : undefined} onClick={() => setStep(index)} className={`w-full text-left p-2 rounded-lg flex gap-2 items-center text-sm ${step === index ? 'bg-violet-100 text-violet-900' : 'hover:bg-surface-sunk'}`}>
-            {done ? <CheckCircle2 size={17} className="text-emerald-600 shrink-0" /> : <Circle size={17} className="shrink-0" />}<span>{index + 1}. {s.title}</span>
+            {done ? <CheckCircle2 size={17} className="text-emerald-600 shrink-0" /> : <Circle size={17} className="shrink-0" />}<span>{index + 1}. <TranslatedText text={s.title}/></span>
           </button>
         })}
         <button type="button" className={`w-full text-left p-2 rounded-lg text-sm font-semibold ${!section ? 'bg-violet-100 text-violet-900' : ''}`} onClick={() => setStep(sections.length)}>{_ui("Synthèse et contrôles")}</button>
       </nav>
       <section className="min-w-0 rounded-xl border border-border bg-surface-raised p-4 space-y-4">
         {section ? <>
-          <div><h2 className="font-semibold text-xl">{section.title}</h2><p className="text-sm text-fg-secondary mt-2">{section.help}</p></div>
+          <div><h2 className="font-semibold text-xl"><TranslatedText text={section.title}/></h2><p className="text-sm text-fg-secondary mt-2">{section.help}</p></div>
           <p className="text-caption">{_ui("Choisissez les références par nom. Les codes métier sont proposés automatiquement et restent personnalisables. Aucun ID de base de données n’est à saisir. Les nouvelles lignes restent des brouillons, sans ID définitif avant leur création.")}</p>
           {section.key === 'plantings' && <div className="rounded-lg border border-border bg-surface-sunk p-3 text-sm space-y-1">
             <p>{_ui('La surface plantée est propre à la plantation. La limite provient de la surface exploitable de la serre, ou de sa surface officielle à défaut. Toutes les surfaces sont en m².')}</p>
@@ -325,7 +325,7 @@ function InitializationWorkspace({ domain, name, module, onBack, onChangeClient 
             <p className="text-caption">{_ui("Culture absente ? Complétez d’abord le")}{" "}<a className="underline" href="/cultures" target="_blank" rel="noreferrer">{_ui("référentiel Cultures")}</a>{_ui(", puis rechargez ce dossier après sauvegarde.")}</p>
           </div>}
           <fieldset disabled={busy || applied} className="min-w-0 space-y-3">
-            <div className="overflow-x-auto max-h-[520px] border border-border rounded-lg"><FilterableTable className="text-sm w-full"><thead className="sticky top-0 bg-surface-sunk"><tr><th className="p-2">{_ui("Ligne")}</th>{visibleFields.map(f => <th key={f.key} className="p-2 text-left min-w-[175px]">{_uiNode(f.label)}{f.required ? ' *' : ''}</th>)}<th className="p-2">{_ui("Action")}</th></tr></thead><tbody>
+            <div className="overflow-x-auto max-h-[520px] border border-border rounded-lg"><FilterableTable className="text-sm w-full"><thead className="sticky top-0 bg-surface-sunk"><tr><th className="p-2">{_ui("Ligne")}</th>{visibleFields.map(f => <th key={f.key} className="p-2 text-left min-w-[175px]">{_uiNode(f.label)}<TranslatedText text={f.required ? ' *' : ''}/></th>)}<th className="p-2">{_ui("Action")}</th></tr></thead><tbody>
               {rows.map((row, index) => <tr key={index}><td className="p-2">{index + 1}{row.existing_id && <span className="block text-emerald-700 text-xs">{_ui("Existante")}</span>}</td>{visibleFields.map(field => {
                 const invalid = issues.some(i => i.row === index + 1 && i.field === field.key && !i.warning)
                 const props = { 'aria-label': `${field.label}, ligne ${index + 1}`, 'aria-invalid': invalid, className: `w-full min-w-[150px] border rounded p-2 text-slate-900 ${invalid ? 'border-red-500' : 'border-border'} ${field.required ? 'bg-orange-50' : 'bg-blue-50'}`, value: row[field.key] || '', onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => changeRows(rows.map((r, n) => n === index ? { ...r, [field.key]: e.target.value } : r)) }
@@ -347,11 +347,11 @@ function InitializationWorkspace({ domain, name, module, onBack, onChangeClient 
           <div className="overflow-x-auto rounded-lg border border-border"><FilterableTable className="w-full text-sm"><thead className="bg-surface-sunk"><tr><th className="p-2 text-start">{_ui("Étape")}</th><th className="p-2">{_ui("À créer")}</th><th className="p-2">{_ui("Fiches liées")}</th><th className="p-2">{_ui("Contrôles")}</th></tr></thead><tbody>{sections.map((s, index) => {
             const entries = draft.rows[s.key] || []
             const errors = progress.issues.filter(i => i.section === s.key && !i.warning).length
-            return <tr key={s.key} className="border-t border-border"><td className="p-2"><button className="underline" onClick={() => setStep(index)}>{s.title}</button></td><td className="p-2 text-center">{entries.filter(r => !r.existing_id).length}</td><td className="p-2 text-center">{entries.filter(r => r.existing_id).length}</td><td className="p-2 text-center">{errors ? `${errors} ${_ui('erreur(s)')}` : draft.skipped.includes(s.key) && !entries.length ? _ui('Sans objet') : draft.reviewed.includes(s.key) && entries.length ? _ui('Relue') : _ui('À relire')}</td></tr>
+            return <tr key={s.key} className="border-t border-border"><td className="p-2"><button className="underline" onClick={() => setStep(index)}><TranslatedText text={s.title}/></button></td><td className="p-2 text-center">{entries.filter(r => !r.existing_id).length}</td><td className="p-2 text-center">{entries.filter(r => r.existing_id).length}</td><td className="p-2 text-center">{errors ? `${errors} ${_ui('erreur(s)')}` : draft.skipped.includes(s.key) && !entries.length ? _ui('Sans objet') : draft.reviewed.includes(s.key) && entries.length ? _ui('Relue') : _ui('À relire')}</td></tr>
           })}</tbody></FilterableTable></div>
           {!module&&<div className="grid md:grid-cols-3 gap-3">{totals.map(t => <div key={t.key} className="rounded-xl border border-border p-4"><p className="text-caption">{t.key === 'budget' ? _ui("Budget préparé") : t.key === 'sales' ? _ui("CA prévisionnel") : _ui("Stock d’ouverture valorisé")}</p><p className="text-xl font-bold mt-2">{fmt(t.value)} DH</p>{t.missing > 0 && <p className="text-amber-700 text-caption">{_ui("Partiel :")}{" "}{t.missing} {" "}{_ui("ligne(s) sans quantité ou prix valide")}</p>}</div>)}</div>}
           <p className="text-sm">{progress.issues.filter(i => !i.warning).length} {" "}{_ui("erreur(s) ·")}{" "}{progress.issues.filter(i => i.warning).length} {" "}{_ui(module?'avertissement(s) pour ce module.':'avertissement(s). Les montants ci-dessus sont séparés : ils ne doivent pas être additionnés comme des charges.')}</p>
-          <ul className="text-sm space-y-2">{progress.issues.map((i, n) => <li key={n}><button className="underline" onClick={() => setStep(sections.findIndex(s => s.key === i.section))}>{sections.find(s => s.key === i.section)?.title}{_ui(", ligne")}{" "}{i.row}</button> : {_uiNode(i.message)}</li>)}</ul>
+          <ul className="text-sm space-y-2">{progress.issues.map((i, n) => <li key={n}><button className="underline" onClick={() => setStep(sections.findIndex(s => s.key === i.section))}><TranslatedText text={sections.find(s => s.key === i.section)?.title}/>{_ui(", ligne")}{" "}{i.row}</button> : {_uiNode(i.message)}</li>)}</ul>
           {!canIntegrate && <p className="rounded-lg bg-surface-sunk p-3 text-sm">{_ui("Ce module reste en préparation. L’intégration métier sera activée séparément, avec ses contrôles et son journal.")}</p>}
           <div className="rounded-xl border border-border p-4 space-y-3">
             <h3 className="font-semibold">{_ui(canIntegrate?'Valider et créer le module':'Terminer la préparation')}</h3>

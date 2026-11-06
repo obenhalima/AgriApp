@@ -83,7 +83,7 @@ function FormBlock({
       </div>
       <div className="grid grid-cols-2 gap-md">
         <Field label={_ui("Superficie totale (m²)")} required><TInput type="number" value={vals.total_area} onChange={onChange('total_area')} placeholder="5000" /></Field>
-        <Field label={_ui("Exploitable (m²)")} hint="= totale si vide"><TInput type="number" value={vals.exploitable_area} onChange={onChange('exploitable_area')} /></Field>
+        <Field label={_ui("Exploitable (m²)")} hint={_ui("= totale si vide")}><TInput type="number" value={vals.exploitable_area} onChange={onChange('exploitable_area')} /></Field>
       </div>
       <Field label={_ui("Notes")}><Textarea rows={2} value={vals.notes} onChange={onChange('notes')} /></Field>
     </div>

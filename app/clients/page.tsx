@@ -58,7 +58,7 @@ function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e:
         <Field label={_ui("Email")}><TInput type="email" value={vals.email} onChange={onChange('email')} /></Field>
         <Field label={_ui("Délai paiement (jours)")}><TInput type="number" value={vals.payment_terms_days} onChange={onChange('payment_terms_days')} /></Field>
       </div>
-      <Field label={_ui("Plafond crédit (MAD)")} hint="Optionnel"><TInput type="number" value={vals.credit_limit} onChange={onChange('credit_limit')} /></Field>
+      <Field label={_ui("Plafond crédit (MAD)")} hint={_ui("Optionnel")}><TInput type="number" value={vals.credit_limit} onChange={onChange('credit_limit')} /></Field>
       <div className="rounded-md border border-warning/30 bg-warning/5 p-md">
         <label className="flex items-start gap-sm cursor-pointer">
           <input

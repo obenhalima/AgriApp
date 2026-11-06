@@ -2,7 +2,7 @@
 
 import { FilterableTable } from '@/components/ui/FilterableTable'
 import {AuditHistoryButton} from '@/components/audit/AuditHistoryButton'
-import { useLanguage } from "@/lib/i18n"
+import {useLanguage , TranslatedText} from "@/lib/i18n"
 
 import '@/components/ui/workspace.css'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -1914,13 +1914,13 @@ function ComposeModal({ domainId,harvests, markets, onClose, onDone }: { domainI
           {markets.map((m: any) => <option key={m.id} value={m.id}>🌍 {m.name}{m.code ? ` (${m.code})` : ''}</option>)}
         </Select>
       </FormGroup>
-      {markets.length===0&&<p role="status" className="text-red-700">Aucun marché actif pour ce client. Créez ou activez un marché dans le client sélectionné avant de préparer l’envoi.</p>}
+      {markets.length===0&&<p role="status" className="text-red-700"><TranslatedText text={"Aucun marché actif pour ce client. Créez ou activez un marché dans le client sélectionné avant de préparer l’envoi."}/></p>}
       <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginTop: 12, marginBottom: 4 }}>
         {t("Récoltes disponibles")}</div>
       <div style={{ border: '1px solid var(--bd-1)', borderRadius: 6, maxHeight: 360, overflow: 'auto' }}>
         <FilterableTable style={{ width: '100%', fontSize: 12 }}>
           <thead style={{ background: 'var(--bg-2)', position: 'sticky', top: 0 }}>
-            <tr>{[_ui("Lot"), _ui("Date"), _ui("Serre/Var"), _ui("Dispo"), _ui("Plateaux à envoyer"), ''].map(h => <th key={h} style={th}>{h}</th>)}</tr>
+            <tr>{[_ui("Lot"), _ui("Date"), _ui("Serre/Var"), _ui("Dispo"), _ui("Plateaux à envoyer"), ''].map(h => <th key={h} style={th}><TranslatedText text={h}/></th>)}</tr>
           </thead>
           <tbody>
             {harvests.map(h => (
@@ -2358,7 +2358,7 @@ function PeriodPriceModal({ dispatches, onClose, onDone }: { dispatches: any[]; 
           <div style={{ border: '1px solid var(--bd-1)', borderRadius: 6, overflow: 'auto' }}>
             <FilterableTable style={{ width: '100%', fontSize: 12 }}>
               <thead style={{ background: 'var(--bg-2)' }}>
-                <tr>{['Marché', 'Variété', 'Envois', 'Total acceptée', 'Prix /kg', 'CA simulé'].map(h => <th key={h} style={th}>{h}</th>)}</tr>
+                <tr>{['Marché', 'Variété', 'Envois', 'Total acceptée', 'Prix /kg', 'CA simulé'].map(h => <th key={h} style={th}><TranslatedText text={h}/></th>)}</tr>
               </thead>
               <tbody>
                 {byKey.map(g => {
@@ -2398,7 +2398,7 @@ function PeriodPriceModal({ dispatches, onClose, onDone }: { dispatches: any[]; 
           <div style={{ border: '1px solid var(--bd-1)', borderRadius: 6, overflow: 'auto', maxHeight: 240 }}>
             <FilterableTable style={{ width: '100%', fontSize: 11.5 }}>
               <thead style={{ background: 'var(--bg-2)', position: 'sticky', top: 0 }}>
-                <tr>{['', 'Lot', 'Date', 'Marché', 'Variété', 'Brute', 'Acceptée', 'CA'].map(h => <th key={h} style={th}>{h}</th>)}</tr>
+                <tr>{['', 'Lot', 'Date', 'Marché', 'Variété', 'Brute', 'Acceptée', 'CA'].map(h => <th key={h} style={th}><TranslatedText text={h}/></th>)}</tr>
               </thead>
               <tbody>
                 {filtered.map(d => {
@@ -2485,7 +2485,7 @@ function Table({ headers, rows, children, loading, empty }: { headers: React.Rea
     <div className="itrix-table">
       <FilterableTable style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
         <thead style={{ background: 'var(--bg-2)' }}>
-          <tr>{headers.map((h, idx) => <th key={idx} style={th}>{typeof h==='string'?t(h):h}</th>)}</tr>
+          <tr>{headers.map((h, idx) => <th key={idx} style={th}><TranslatedText text={typeof h==='string'?t(h):h}/></th>)}</tr>
         </thead>
         <tbody>
           {loading && <tr><td colSpan={headers.length} style={{ padding: 14, textAlign: 'center', color: 'var(--text-sub)' }}>{t("Chargement…")}</td></tr>}

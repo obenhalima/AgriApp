@@ -47,4 +47,4 @@ export const SCREEN_DOCS: ScreenDoc[] = [
 ]
 export function findScreenDoc(path: string) { return SCREEN_DOCS.filter(d=>path===d.path||path.startsWith(d.path+'/')).sort((a,b)=>b.path.length-a.path.length)[0] }
 export function findFieldDoc(label: string, translate: (s:string)=>string = s=>s) { return FIELD_DOCS.find(d=>d.labels.some(l=>l===label||translate(l)===label)) }
-export function fieldExplanation(label: string, translate?: (s:string)=>string) { const doc=findFieldDoc(label,translate);return doc?[doc.purpose,doc.example,doc.caution].filter(Boolean).join('\n\n'):undefined }
+export function fieldExplanation(label: string, translate?: (s:string)=>string) { const doc=findFieldDoc(label,translate);return doc?[doc.purpose,doc.example,doc.caution].filter((value):value is string=>!!value).map(value=>translate?translate(value):value).join('\n\n'):undefined }

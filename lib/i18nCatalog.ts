@@ -1,4 +1,5 @@
 import generated from './locales/generated.json'
+import interfaceCompletion from './locales/interface-completion.json'
 export type Locale = 'fr' | 'ar' | 'en'
 export const isLocale = (value: unknown): value is Locale => value === 'fr' || value === 'ar' || value === 'en'
 // French remains the source language. Unknown labels intentionally fall back to French.
@@ -335,7 +336,7 @@ const reviewedMessages: Record<string, [string, string]> = {
   'Eau enregistrée': ['المياه المسجّلة', 'Recorded water'], 'Stock : valeur connue': ['المخزون: القيمة المعروفة', 'Stock: known value'],
   'Voir le détail': ['عرض التفاصيل', 'View details'], 'Comparer les variétés': ['مقارنة الأصناف', 'Compare varieties'], 'Comparer les serres': ['مقارنة البيوت المحمية', 'Compare greenhouses'], 'Comparer les fermes': ['مقارنة المزارع', 'Compare farms'],
 }
-export const messages: Record<string, [string, string]> = { ...generated as unknown as Record<string, [string, string]>, ...reviewedMessages,
+export const messages: Record<string, [string, string]> = { ...generated as unknown as Record<string, [string, string]>, ...reviewedMessages, ...interfaceCompletion as unknown as Record<string, [string, string]>,
   '⇑ Tout replier': ['طيّ الكل', 'Collapse all'],
   'Charges fixes': ['التكاليف الثابتة','Fixed costs'],
   'Charge fixe': ['تكلفة ثابتة','Fixed cost'],

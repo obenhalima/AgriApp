@@ -1,4 +1,5 @@
 'use client'
+import { TranslatedText } from '@/lib/i18n'
 import {useLanguage} from '@/lib/i18n'
 
 import { useEffect, useState } from 'react'
@@ -175,7 +176,7 @@ export default function WorkflowDefinitionEditor() {
                     <TD>
                       <button onClick={() => toggleTransition(t)}
                         className={`px-2.5 py-0.5 rounded text-caption font-mono uppercase font-semibold border transition-colors ${t.is_active ? 'border-success/40 bg-success/15 text-success' : 'border-border bg-transparent text-fg-tertiary'}`}>
-                        {t.is_active ? 'actif' : 'inactif'}
+                        <TranslatedText text={t.is_active ? 'actif' : 'inactif'}/>
                       </button>
                     </TD>
                     <TD right>

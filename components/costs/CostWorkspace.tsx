@@ -1,7 +1,7 @@
 'use client'
 
 import { FilterableTable } from '@/components/ui/FilterableTable'
-import {useLanguage} from '@/lib/i18n'
+import {useLanguage, TranslatedText} from '@/lib/i18n'
 
 import { useCallback, useEffect, useMemo, useState, Fragment } from 'react'
 import { useRealtimeReload } from '@/lib/useRealtimeReload'
@@ -504,7 +504,7 @@ export function CostWorkspace({kind}:{kind:Tab}) {
                     borderRadius: 6, cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-mono)',
                     fontWeight: mode === m.k ? 700 : 400, letterSpacing: .5,
                   }}>
-                  {m.l}
+                  <TranslatedText text={m.l}/>
                 </button>
               ))}
             </div>
@@ -795,7 +795,7 @@ export function CostWorkspace({kind}:{kind:Tab}) {
                 fontWeight: active ? 700 : 400,
                 marginBottom: -1,
               }}>
-              {t.l} <span style={{ opacity: .6, marginLeft: 6 }}>({t.count})</span>
+              <TranslatedText text={t.l}/> <span style={{ opacity: .6, marginLeft: 6 }}>({t.count})</span>
             </Link>
           )
         })}
@@ -820,7 +820,7 @@ export function CostWorkspace({kind}:{kind:Tab}) {
           },
         ].map((k, i) => (
           <div key={i} className="kpi" style={{ '--accent': k.c } as any}>
-            <div className="kpi-label">{k.l}</div>
+            <div className="kpi-label"><TranslatedText text={k.l}/></div>
             <div className="kpi-value" style={{ color: k.c }}>{k.v}</div>
           </div>
         ))}
@@ -908,7 +908,7 @@ export function CostWorkspace({kind}:{kind:Tab}) {
           return (
             <button key={c.k} onClick={() => toggleSort(c.k)}
               style={{ padding: '4px 10px', border: `1px solid ${active ? 'var(--neon)' : 'var(--bd-1)'}`, background: active ? 'var(--neon-dim)' : 'transparent', color: active ? 'var(--neon)' : 'var(--tx-2)', borderRadius: 5, cursor: 'pointer', fontSize: 11 }}>
-              {c.l} {active && (sortDir === 'asc' ? '↑' : '↓')}
+              <TranslatedText text={c.l}/> {active && (sortDir === 'asc' ? '↑' : '↓')}
             </button>
           )
         })}
@@ -1082,15 +1082,15 @@ function renderEntryRow(e: any, selectedIds: Set<string>, toggleSelection: (id: 
       </td>
       <td style={{ fontSize: 12, color: 'var(--tx-2)' }}>{e.campaigns?.name || '—'}</td>
       <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: e.greenhouses ? 'var(--tx-2)' : 'var(--tx-3)' }}>
-        {e.greenhouses?.code ?? 'Charge commune'}
+        {e.greenhouses?.code ?? <TranslatedText text="Charge commune"/>}
       </td>
       <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, color: 'var(--tx-1)', textAlign: 'right' }}>
         {Number(e.amount || 0).toLocaleString('fr', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </td>
       <td style={{ fontSize: 11, color: 'var(--tx-3)', maxWidth: 250 }}>{e.description || '—'}</td>
       <td>{farms.find(f=>f.id===(e.greenhouses?.farm_id || campaigns.find(c=>c.id===e.campaign_id)?.farm_id))?.name || '—'}</td>
-      <td>{e.source_stock_movement_id?'Sortie de stock':e.source_po_id?'Achat':'Saisie / import'}<small className="block text-fg-secondary">{e.cost_quality==='verified'?'Confirmé':e.cost_quality==='provisional'?'Provisoire':'—'}</small></td>
-      <td><button className="btn-ghost" onClick={()=>onDetails(e)}>Voir les détails</button></td>
+      <td><TranslatedText text={e.source_stock_movement_id?'Sortie de stock':e.source_po_id?'Achat':'Saisie / import'}/><small className="block text-fg-secondary"><TranslatedText text={e.cost_quality==='verified'?'Confirmé':e.cost_quality==='provisional'?'Provisoire':'—'}/></small></td>
+      <td><button className="btn-ghost" onClick={()=>onDetails(e)}><TranslatedText text={"Voir les détails"}/></button></td>
     </tr>
   )
 }

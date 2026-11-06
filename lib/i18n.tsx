@@ -30,3 +30,11 @@ export function LanguageSwitcher() {
   const { locale, setLocale, t } = useLanguage()
   return <label className="inline-flex items-center gap-2 text-xs text-fg-secondary"><span className="sr-only">{t('Langue')}</span><select aria-label={t('Langue')} value={locale} onChange={e => setLocale(e.target.value as Locale)} className="rounded-lg border border-border bg-surface-raised px-2 py-2 text-sm text-fg-primary" dir="ltr"><option value="fr">Français</option><option value="ar">العربية</option><option value="en">English</option></select></label>
 }
+
+/** Translate interface text without introducing markup or changing its spacing. */
+export function TranslatedText({text}:{text:React.ReactNode}) {
+  const {t}=useLanguage()
+  if(typeof text!=='string')return <>{text}</>
+  const spaces=text.match(/^(\s*)([\s\S]*?)(\s*)$/)!
+  return <>{spaces[1]}{t(spaces[2])}{spaces[3]}</>
+}

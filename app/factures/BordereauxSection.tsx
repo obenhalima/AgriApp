@@ -1,5 +1,5 @@
 'use client'
-import {useLanguage} from '@/lib/i18n'
+import {useLanguage, TranslatedText} from '@/lib/i18n'
 
 /**
  * BordereauxSection — sous-onglet de /factures dédié aux Bordereaux station.
@@ -704,9 +704,9 @@ function SettlementMatrixModal({
           <Skeleton className="h-40 w-full" />
         ) : matrixError ? (
           <div role="alert" className="rounded-md border border-red-300 p-4 text-red-700">
-            <p>Impossible de charger les lots du bordereau. Ce message ne signifie pas qu’aucun lot n’est disponible.</p>
+            <p><TranslatedText text={"Impossible de charger les lots du bordereau. Ce message ne signifie pas qu’aucun lot n’est disponible."}/></p>
             <p className="text-sm">{matrixError}</p>
-            <Button variant="secondary" onClick={refresh}>Réessayer</Button>
+            <Button variant="secondary" onClick={refresh}><TranslatedText text={"Réessayer"}/></Button>
           </div>
         ) : rows.length === 0 ? (
           <EmptyState

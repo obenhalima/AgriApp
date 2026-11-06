@@ -1,7 +1,7 @@
 'use client'
 
 import { FilterableTable } from '@/components/ui/FilterableTable'
-import {useLanguage} from '@/lib/i18n'
+import {useLanguage, TranslatedText} from '@/lib/i18n'
 
 import {useEffect,useState} from 'react'
 import Link from 'next/link'
@@ -58,7 +58,7 @@ export function HarvestPeopleReport(){
    {rows.some((h:any)=>h.target_derived)&&<p className="text-sm text-fg-secondary">{_ui("Objectifs complétés à l’affichage selon la ferme et la date d’effet lorsqu’aucun objectif n’était conservé à la saisie. Les objectifs historiques déjà renseignés restent inchangés ; aucune récolte n’est modifiée.")}</p>}
    <h2 className="text-lg font-bold">{_ui("Détail des récoltes")}</h2>
    <p>{rows.length} {" "}{_ui("récolte(s) ·")}{" "}{missing} {" "}{_ui("sans effectif. Les ratios portent sur chaque récolte, pas sur un effectif unique consolidé. Les kilos enregistrés peuvent être estimés, avant tri station.")}</p>
-   <div className="itrix-table"><FilterableTable className="w-full text-sm [&_td]:p-3 [&_th]:p-3 [&_td]:whitespace-nowrap"><thead><tr>{[_ui("Date / lot"),_ui("Serre"),'Kg',_ui("Personnes"),_ui("Kg/personne"),_ui("Kg/h-personne"),_ui("Objectif kg/personne/jour"),_ui("Atteinte")].map(s=><th key={s}>{s}</th>)}</tr></thead><tbody>{rows.map((h:any)=>{
+   <div className="itrix-table"><FilterableTable className="w-full text-sm [&_td]:p-3 [&_th]:p-3 [&_td]:whitespace-nowrap"><thead><tr>{[_ui("Date / lot"),_ui("Serre"),'Kg',_ui("Personnes"),_ui("Kg/personne"),_ui("Kg/h-personne"),_ui("Objectif kg/personne/jour"),_ui("Atteinte")].map(s=><th key={s}><TranslatedText text={s}/></th>)}</tr></thead><tbody>{rows.map((h:any)=>{
     const m=harvestPeopleMetrics(Number(h.total_qty),h.harvest_people,Number(h.harvest_hours)||null,h.harvest_full_day,Number(h.harvest_person_target)||null)
     return <tr key={h.id} className="border-t border-border"><td>{h.harvest_date}<br/>{h.lot_number}</td><td>{h.campaign_plantings?.greenhouses?.code}</td><td>{fmt(Number(h.total_qty))}</td><td>{h.harvest_people??_ui("Non renseigné")}</td><td>{fmt(m.perPerson)}</td><td>{fmt(m.perHour)}</td><td>{fmt(h.harvest_person_target==null?null:Number(h.harvest_person_target))}</td><td>{m.attainment==null?(h.harvest_full_day?_ui("Objectif ou effectif absent"):_ui("Journée complète non déclarée")):fmt(m.attainment)+' %'}</td></tr>
    })}</tbody></FilterableTable>{!rows.length&&<p>{_ui("Aucune récolte sur ce périmètre.")}</p>}</div>

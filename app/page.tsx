@@ -1,4 +1,5 @@
 'use client'
+import { TranslatedText } from '@/lib/i18n'
 import {useLanguage} from '@/lib/i18n'
 
 /**
@@ -787,7 +788,7 @@ function GeneralDashboard() {
             <Link key={item.h} href={item.h}
               className="inline-flex items-center gap-1.5 px-md py-1.5 rounded-full border border-border bg-surface-raised text-fg-secondary hover:border-border-strong hover:text-fg-primary hover:-translate-y-0.5 transition-all duration-150 text-caption">
               <Icon size={11} strokeWidth={2.2} />
-              {item.l}
+              <TranslatedText text={item.l}/>
               <ArrowUpRight size={10} className="opacity-60" />
             </Link>
           )
@@ -853,7 +854,7 @@ function HealthBanner({ health, message, synthesis, time, campaign, budgetProgre
             <div className="rounded-md border border-border bg-surface-sunk/60 backdrop-blur-sm px-md py-sm">
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
-                <span className="font-mono text-caption text-fg-tertiary uppercase tracking-wider">Live</span>
+                <span className="font-mono text-caption text-fg-tertiary uppercase tracking-wider">{_ui("Live")}</span>
               </div>
               <div className="font-mono text-body-sm text-fg-primary tabular-nums">
                 {time.toLocaleDateString(_uiLocale, { weekday: 'long', day: '2-digit', month: 'long' })} · {time.toLocaleTimeString(_uiLocale)}

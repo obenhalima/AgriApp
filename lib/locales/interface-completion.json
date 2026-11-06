@@ -1,0 +1,2342 @@
+{
+  "Facture fournisseur créée après confirmation.": [
+    "تم إنشاء فاتورة المورد بعد التأكيد.",
+    "Supplier invoice created after confirmation."
+  ],
+  "Retour aux modules": [
+    "العودة إلى الوحدات",
+    "Back to modules"
+  ],
+  "3. Récoltes": [
+    "3. الحصاد",
+    "3. Harvests"
+  ],
+  "Annuler cette intégration ? Seules les fiches créées par cette opération seront supprimées. Les fiches existantes réutilisées resteront intactes. Les fiches modifiées ou utilisées depuis bloqueront l’annulation.": [
+    "هل تريد إلغاء هذا الإدماج؟ سيُحذف فقط ما أنشأته هذه العملية من سجلات. ستبقى السجلات الموجودة التي أُعيد استخدامها كما هي. يتعذر الإلغاء إذا عُدلت السجلات أو استُخدمت لاحقًا.",
+    "Cancel this integration? Only records created by this operation will be deleted. Reused existing records will remain intact. Records modified or used since then will prevent cancellation."
+  ],
+  "Chargement du dossier et des données existantes du client…": [
+    "جارٍ تحميل الملف وبيانات العميل الموجودة…",
+    "Loading the file and the client’s existing data…"
+  ],
+  "Des modifications ne sont pas sauvegardées. Quitter ce module ?": [
+    "توجد تغييرات غير محفوظة. هل تريد مغادرة هذه الوحدة؟",
+    "There are unsaved changes. Leave this module?"
+  ],
+  "Des modifications ne sont pas sauvegardées. Les quitter pour choisir un autre client ?": [
+    "توجد تغييرات غير محفوظة. هل تريد تركها لاختيار عميل آخر؟",
+    "There are unsaved changes. Discard them to select another client?"
+  ],
+  "Changer de client": [
+    "تغيير العميل",
+    "Change client"
+  ],
+  "Compléter ce module": [
+    "إكمال هذه الوحدة",
+    "Complete this module"
+  ],
+  "La surface plantée est propre à la plantation. La limite provient de la surface exploitable de la serre, ou de sa surface officielle à défaut. Toutes les surfaces sont en m².": [
+    "تخص المساحة المزروعة كل عملية غرس. يُحدد الحد الأقصى حسب المساحة القابلة للاستغلال في البيت المحمي، أو مساحته الرسمية عند غيابها. جميع المساحات بالمتر المربع.",
+    "Planted area is specific to each planting. The limit is the greenhouse’s usable area, or its official area when unavailable. All areas are in m²."
+  ],
+  "Surface exploitable": [
+    "المساحة القابلة للاستغلال",
+    "Usable area"
+  ],
+  "Surface disponible retenue": [
+    "المساحة المتاحة المعتمدة",
+    "Available area used"
+  ],
+  "Pour renseigner ou corriger la surface de la serre, utilisez le module Exploitation, étape Serres. Les fiches existantes se corrigent dans leur module métier, pas dans ce brouillon.": [
+    "لإدخال مساحة البيت المحمي أو تصحيحها، استخدم وحدة الاستغلال، في خطوة البيوت المحمية. تُصحح السجلات الموجودة في وحدتها المختصة، وليس في هذه المسودة.",
+    "To enter or correct a greenhouse’s area, use the Farm setup module, Greenhouses step. Edit existing records in their own module, rather than in this draft."
+  ],
+  "Aucune culture active pour ce client. Ajoutez les cultures par défaut : elles seront copiées uniquement dans son référentiel. Les cultures existantes, même désactivées, ne seront pas modifiées.": [
+    "لا توجد محاصيل نشطة لهذا العميل. أضف المحاصيل الافتراضية لنسخها إلى مرجعه فقط. لن تتغير المحاصيل الموجودة، حتى المعطلة منها.",
+    "No active crops for this client. Add the default crops to copy them only into this client’s reference data. Existing crops, including inactive ones, will remain unchanged."
+  ],
+  "Initialiser les cultures par défaut": [
+    "تهيئة المحاصيل الافتراضية",
+    "Initialize default crops"
+  ],
+  "Ce module reste en préparation. L’intégration métier sera activée séparément, avec ses contrôles et son journal.": [
+    "هذه الوحدة ما تزال قيد التحضير. سيُفعّل إدماج البيانات بشكل منفصل مع ضوابطه وسجله.",
+    "This module is still being prepared. Data integration will be activated separately, with its checks and log."
+  ],
+  "Actualiser la validation serveur": [
+    "تحديث التحقق على الخادم",
+    "Refresh server validation"
+  ],
+  "Module intégré": [
+    "تم إدماج الوحدة",
+    "Module integrated"
+  ],
+  "fiche(s) créée(s)": [
+    "سجل مُنشأ",
+    "record(s) created"
+  ],
+  "fiche(s) réutilisée(s)": [
+    "سجل مُعاد استخدامه",
+    "record(s) reused"
+  ],
+  "Opération": [
+    "العملية",
+    "Operation"
+  ],
+  "Annuler cette intégration": [
+    "إلغاء هذا الإدماج",
+    "Cancel this integration"
+  ],
+  "L’annulation est bloquée si le dossier ou les fiches créées ont changé, ou si des données dépendantes existent.": [
+    "يتعذر الإلغاء إذا تغير الملف أو السجلات المنشأة، أو وُجدت بيانات مرتبطة بها.",
+    "Cancellation is blocked if the file or created records have changed, or if dependent data exists."
+  ],
+  "Non évalué": [
+    "لم يُقيّم",
+    "Not assessed"
+  ],
+  "Aucune alerte détectée dans les données accessibles. Les interventions culturales restent non évaluées.": [
+    "لم تُرصد أي تنبيهات في البيانات المتاحة. لم تُقيّم التدخلات الزراعية بعد.",
+    "No alerts detected in accessible data. Crop interventions have not been assessed."
+  ],
+  "Chargement de l’historique des récoltes…": [
+    "جارٍ تحميل سجل الحصاد…",
+    "Loading harvest history…"
+  ],
+  "Sans dates : tout l’historique du client sélectionné.": [
+    "عند عدم تحديد تواريخ، يُعرض سجل العميل المحدد بالكامل.",
+    "Without dates, the selected client’s entire history is shown."
+  ],
+  "Sortie validée et stock déduit": [
+    "تم اعتماد الصرف وخصم المخزون",
+    "Issue approved and stock deducted"
+  ],
+  "Annuler cette demande de sortie ?": [
+    "هل تريد إلغاء طلب الصرف هذا؟",
+    "Cancel this stock issue request?"
+  ],
+  "Demande de sortie annulée": [
+    "تم إلغاء طلب الصرف",
+    "Stock issue request cancelled"
+  ],
+  "Chargement des serres…": [
+    "جارٍ تحميل البيوت المحمية…",
+    "Loading greenhouses…"
+  ],
+  "Choisissez un entrepôt rattaché à une ferme.": [
+    "اختر مستودعًا مرتبطًا بمزرعة.",
+    "Choose a warehouse linked to a farm."
+  ],
+  "À la validation, le coût CUMP sera réparti sur ces serres. Si le stock n’est pas valorisé, les affectations seront conservées pour Sorties à rapprocher.": [
+    "عند الاعتماد، ستوزع التكلفة حسب متوسط التكلفة المرجح على هذه البيوت المحمية. إذا لم يُقيّم المخزون، ستُحفظ التخصيصات في قائمة عمليات الصرف المطلوب تسويتها.",
+    "On approval, the weighted average cost will be allocated to these greenhouses. If the stock is unvalued, allocations will be retained under Issues to reconcile."
+  ],
+  "La validation du responsable déduira le stock et générera les coûts si le prix est connu.": [
+    "سيؤدي اعتماد المسؤول إلى خصم المخزون وإنشاء التكاليف إذا كان السعر معلومًا.",
+    "Manager approval will deduct stock and generate costs if the price is known."
+  ],
+  "Reprise du stock initial / Excel": [
+    "إدماج المخزون الافتتاحي / Excel",
+    "Opening stock import / Excel"
+  ],
+  "Validée et comptabilisée": [
+    "معتمدة ومُرحّلة",
+    "Approved and posted"
+  ],
+  "Ancienne demande approuvée — mouvement à vérifier": [
+    "طلب قديم معتمد — يلزم التحقق من الحركة",
+    "Previously approved request — movement to verify"
+  ],
+  "Annuler ma demande": [
+    "إلغاء طلبي",
+    "Cancel my request"
+  ],
+  "Référentiel client indisponible : migration d’isolation à valider.": [
+    "مرجع العميل غير متاح. يلزم التحقق من ترحيل عزل البيانات.",
+    "Client reference data unavailable. The isolation migration needs validation."
+  ],
+  "Modification suspendue : les variétés doivent être isolées par client.": [
+    "التعديل معلق. يجب فصل الأصناف حسب العميل.",
+    "Editing suspended. Varieties must be isolated by client."
+  ],
+  "Isolation par client en cours": [
+    "جارٍ فصل البيانات حسب العميل",
+    "Client isolation in progress"
+  ],
+  "Variétés temporairement en lecture seule. Les créations, modifications et archives sont suspendues pour éviter un impact sur les autres clients. Les données existantes sont conservées.": [
+    "الأصناف متاحة مؤقتًا للقراءة فقط. تم تعليق الإنشاء والتعديل والأرشفة لتجنب التأثير على العملاء الآخرين. البيانات الموجودة محفوظة.",
+    "Varieties are temporarily read-only. Creation, editing and archiving are suspended to avoid affecting other clients. Existing data is preserved."
+  ],
+  "Origine / valorisation": [
+    "المصدر / التقييم",
+    "Origin / valuation"
+  ],
+  "Confirmer le prix historique par unité de stock et les serres d’imputation. Pour un traitement lié, ses cibles sont conservées automatiquement.": [
+    "أكد السعر التاريخي لكل وحدة مخزون والبيوت المحمية المعنية بالتكلفة. إذا كان الصرف مرتبطًا بمعالجة، تُحفظ أهدافها تلقائيًا.",
+    "Confirm the historical price per stock unit and the greenhouses to charge. For a linked treatment, its targets are retained automatically."
+  ],
+  "Chargement du brouillon sauvegardé…": [
+    "جارٍ تحميل المسودة المحفوظة…",
+    "Loading the saved draft…"
+  ],
+  "Recontrôler et sauvegarder le brouillon": [
+    "إعادة التحقق وحفظ المسودة",
+    "Recheck and save the draft"
+  ],
+  "Étapes suivantes": [
+    "الخطوات التالية",
+    "Next steps"
+  ],
+  "À envoyer : composer un envoi par date, variété et marché. À peser : renseigner le poids réellement reçu et le ticket. À trier : répartir accepté, écart et freinte. À tarifer / Bordereaux station : renseigner les kilos tarifés, prix et justificatifs. Le paiement reste distinct.": [
+    "للإرسال، أنشئ شحنة حسب التاريخ والصنف والسوق. للوزن، أدخل الوزن المستلم فعليًا ووصل الوزن. للفرز، وزّع الكميات المقبولة والمستبعدة وفاقد الوزن. للتسعير أو كشوف المحطة، أدخل الكيلوغرامات المسعّرة والأسعار والمستندات. يُسجل الدفع بشكل منفصل.",
+    "For dispatch, group shipments by date, variety and market. For weighing, enter the actual received weight and weigh ticket. For grading, split accepted, rejected and weight-loss quantities. For pricing or station statements, enter priced kilos, prices and supporting documents. Payment is recorded separately."
+  ],
+  "Ouvrir les récoltes et le suivi station": [
+    "فتح الحصاد ومتابعة المحطة",
+    "Open harvests and station tracking"
+  ],
+  "Historique des imports": [
+    "سجل الاستيراد",
+    "Import history"
+  ],
+  "Synthèse des récoltes": [
+    "ملخص الحصاد",
+    "Harvest summary"
+  ],
+  "Choisir ou reprendre un dossier": [
+    "اختيار ملف أو استئنافه",
+    "Select or resume a file"
+  ],
+  "Choisissez le client pour ouvrir son brouillon sauvegardé ou préparer un nouveau dossier. Aucun dossier d’un autre client n’est remplacé.": [
+    "اختر العميل لفتح مسودته المحفوظة أو تحضير ملف جديد. لن يُستبدل أي ملف لعميل آخر.",
+    "Select the client to open their saved draft or prepare a new file. No other client’s file will be replaced."
+  ],
+  "Le client et ses cultures par défaut ont été créés. Poursuivez pour préparer son dossier d’initialisation.": [
+    "تم إنشاء العميل ومحاصيله الافتراضية. تابع لتحضير ملف التهيئة الخاص به.",
+    "The client and their default crops have been created. Continue to prepare their initialization file."
+  ],
+  "Cette action crée le client et ses propres copies des cultures par défaut. Aucune variété, ferme ou donnée de démonstration n’est créée. Aucun autre client n’est modifié.": [
+    "ينشئ هذا الإجراء العميل ونسخه الخاصة من المحاصيل الافتراضية. لا يُنشئ أصنافًا أو مزارع أو بيانات تجريبية. لا يُعدل أي عميل آخر.",
+    "This action creates the client and their own copies of default crops. No varieties, farms or demo data are created. No other client is modified."
+  ],
+  "Reprise progressive des données": [
+    "إدماج البيانات تدريجيًا",
+    "Progressive data import"
+  ],
+  "Commencez par un module. Préparez, contrôlez et sauvegardez avant de passer au suivant.": [
+    "ابدأ بوحدة واحدة. حضّر البيانات وتحقق منها واحفظها قبل الانتقال إلى التالية.",
+    "Start with one module. Prepare, check and save before moving to the next."
+  ],
+  "Choisir un autre client": [
+    "اختيار عميل آخر",
+    "Select another client"
+  ],
+  "Création des nouvelles fiches après validation de la synthèse. Annulation disponible dans le bilan, sous conditions.": [
+    "تُنشأ السجلات الجديدة بعد اعتماد الملخص. يمكن الإلغاء من تقرير النتيجة وفق الشروط.",
+    "New records are created after the summary is approved. Conditional cancellation is available in the results report."
+  ],
+  "Préparer ce module": [
+    "تحضير هذه الوحدة",
+    "Prepare this module"
+  ],
+  "Importer les récoltes et plateaux du client, avec calcul des kilos et synthèse avant validation. Les envois sont traités séparément.": [
+    "استورد بيانات حصاد العميل وصوانيه مع حساب الكيلوغرامات وعرض ملخص قبل الاعتماد. تُعالج الشحنات بشكل منفصل.",
+    "Import the client’s harvests and trays, with kilo calculations and a summary before approval. Shipments are handled separately."
+  ],
+  "Préparer les récoltes": [
+    "تحضير الحصاد",
+    "Prepare harvests"
+  ],
+  "Utilise actuellement l’outil commun de reprise historique. Contrôlez le contenu du fichier avant validation.": [
+    "يستخدم حاليًا أداة الاستيراد التاريخي المشتركة. تحقق من محتوى الملف قبل الاعتماد.",
+    "Currently uses the shared historical import tool. Check the file contents before approval."
+  ],
+  "Ouvrir la reprise historique": [
+    "فتح الاستيراد التاريخي",
+    "Open historical import"
+  ],
+  "5. Articles et stock initial": [
+    "5. الأصناف والمخزون الافتتاحي",
+    "5. Items and opening stock"
+  ],
+  "Un modèle ItriX Farm pour les articles existants et nouveaux, les unités, les entrepôts et l’inventaire à date.": [
+    "نموذج ItriX Farm للأصناف الموجودة والجديدة والوحدات والمستودعات والجرد في تاريخ محدد.",
+    "An ItriX Farm template for existing and new items, units, warehouses and inventory as of a date."
+  ],
+  "Contrôle et synthèse, puis création des articles et initialisation du stock après confirmation serveur. Aucun stock existant n’est écrasé.": [
+    "تحقق وملخص، ثم إنشاء الأصناف وتهيئة المخزون بعد تأكيد الخادم. لا يُستبدل أي مخزون موجود.",
+    "Checks and summary, followed by item creation and stock initialization after server confirmation. Existing stock is never overwritten."
+  ],
+  "Préparer les articles et le stock": [
+    "تحضير الأصناف والمخزون",
+    "Prepare items and stock"
+  ],
+  "RH, agronomie et finance seront abordés ensuite. Aucun module n’est présenté comme importé sans résultat serveur.": [
+    "ستُعالج الموارد البشرية والهندسة الزراعية والمالية لاحقًا. لن تُعرض أي وحدة على أنها مستوردة دون نتيجة من الخادم.",
+    "HR, agronomy and finance will follow. No module is shown as imported without a server result."
+  ],
+  "Accéder au dossier complet existant": [
+    "فتح الملف الكامل الموجود",
+    "Open the existing full file"
+  ],
+  "Consulter": [
+    "عرض",
+    "View"
+  ],
+  "Service de connexion indisponible": [
+    "خدمة الاتصال غير متاحة",
+    "Connection service unavailable"
+  ],
+  "La vérification de votre connexion ou de vos droits n’a pas pu aboutir. Le service met trop de temps à répondre ou rencontre une erreur.": [
+    "تعذر التحقق من اتصالك أو صلاحياتك. تستغرق الخدمة وقتًا طويلًا للرد أو تواجه خطأً.",
+    "Your connection or permissions could not be verified. The service is taking too long to respond or has encountered an error."
+  ],
+  "Votre session enregistrée est conservée. Aucune donnée n’a été supprimée.": [
+    "تم الاحتفاظ بجلستك المحفوظة. لم تُحذف أي بيانات.",
+    "Your saved session has been retained. No data has been deleted."
+  ],
+  "CONFIRMER ET CRÉER LA FACTURE": [
+    "تأكيد وإنشاء الفاتورة",
+    "CONFIRM AND CREATE INVOICE"
+  ],
+  "Affectation de la consommation": [
+    "تخصيص الاستهلاك",
+    "Consumption allocation"
+  ],
+  "Ferme de l’entrepôt": [
+    "المزرعة التابعة للمستودع",
+    "Warehouse farm"
+  ],
+  "Aucune plantation disponible": [
+    "لا توجد عمليات غرس متاحة",
+    "No plantings available"
+  ],
+  "Campagne de la sortie": [
+    "الموسم الزراعي للصرف",
+    "Stock issue campaign"
+  ],
+  "Choisir une campagne": [
+    "اختيار موسم زراعي",
+    "Select a campaign"
+  ],
+  "Répartition au prorata des surfaces plantées sélectionnées. Une seule ferme et une seule campagne par sortie ; plusieurs serres et variétés sont possibles. Le montant total n’est compté qu’une fois.": [
+    "توزيع بالتناسب مع المساحات المزروعة المحددة. مزرعة واحدة وموسم زراعي واحد لكل عملية صرف، مع إمكانية اختيار عدة بيوت محمية وأصناف. يُحتسب المبلغ الإجمالي مرة واحدة فقط.",
+    "Allocation is proportional to the selected planted areas. Each issue covers one farm and one campaign, with multiple greenhouses and varieties allowed. The total amount is counted only once."
+  ],
+  "unités de stock": [
+    "وحدات مخزون",
+    "stock units"
+  ],
+  "Choisissez au moins une serre avec une surface plantée positive.": [
+    "اختر بيتًا محميًا واحدًا على الأقل بمساحة مزروعة أكبر من الصفر.",
+    "Select at least one greenhouse with a positive planted area."
+  ],
+  "Sélectionnez un client et un compte autorisé à modifier les stocks.": [
+    "اختر عميلًا وحسابًا مخولًا بتعديل المخزون.",
+    "Select a client and an account authorized to edit stock."
+  ],
+  "Retour à l’initialisation": [
+    "العودة إلى التهيئة",
+    "Back to initialization"
+  ],
+  "Articles et stock initial": [
+    "الأصناف والمخزون الافتتاحي",
+    "Items and opening stock"
+  ],
+  "Un seul fichier pour réutiliser les articles existants, créer les nouveaux et initialiser le stock à la date de votre inventaire.": [
+    "ملف واحد لإعادة استخدام الأصناف الموجودة وإنشاء الأصناف الجديدة وتهيئة المخزون في تاريخ الجرد.",
+    "One file to reuse existing items, create new ones and initialize stock as of your inventory date."
+  ],
+  "1. Exporter le modèle ItriX Farm": [
+    "1. تصدير نموذج ItriX Farm",
+    "1. Export the ItriX Farm template"
+  ],
+  "Entrepôt / ferme": [
+    "المستودع / المزرعة",
+    "Warehouse / farm"
+  ],
+  "Choisir un entrepôt": [
+    "اختيار مستودع",
+    "Select a warehouse"
+  ],
+  "Date de l’inventaire à reprendre": [
+    "تاريخ الجرد المراد إدماجه",
+    "Inventory date to import"
+  ],
+  "articles actifs préremplis. Les nouveaux articles peuvent être ajoutés dans le même fichier.": [
+    "صنف نشط معبأ مسبقًا. يمكن إضافة أصناف جديدة في الملف نفسه.",
+    "active items prefilled. New items can be added in the same file."
+  ],
+  "Créez un entrepôt actif rattaché à une ferme du client avant de continuer.": [
+    "أنشئ مستودعًا نشطًا مرتبطًا بإحدى مزارع العميل قبل المتابعة.",
+    "Create an active warehouse linked to one of the client’s farms before continuing."
+  ],
+  "Exporter le modèle articles et stock": [
+    "تصدير نموذج الأصناف والمخزون",
+    "Export the items and stock template"
+  ],
+  "2. Charger le fichier rempli et contrôler": [
+    "2. تحميل الملف المعبأ والتحقق منه",
+    "2. Upload the completed file and check"
+  ],
+  "Enregistrez votre fichier Excel rempli, puis sélectionnez-le ci-dessous. Le remplissage du fichier sur votre ordinateur ne le recharge pas automatiquement dans ItriX Farm.": [
+    "احفظ ملف Excel المعبأ، ثم اختره أدناه. تعبئة الملف على حاسوبك لا ترفعه تلقائيًا إلى ItriX Farm.",
+    "Save the completed Excel file, then select it below. Filling in the file on your computer does not automatically upload it to ItriX Farm."
+  ],
+  "Dans Articles_Stock, complétez code, désignation, catégorie et unité pour chaque nouvel article. Choisissez les codes des listes. Renseignez les quantités réellement disponibles, la date et l’entrepôt. Les prix renseignés nécessitent un justificatif.": [
+    "في Articles_Stock، أكمل الرمز والتسمية والفئة والوحدة لكل صنف جديد. اختر الرموز من القوائم. أدخل الكميات المتاحة فعليًا والتاريخ والمستودع. الأسعار المدخلة تستلزم مستندًا مؤيدًا.",
+    "In Articles_Stock, enter the code, description, category and unit for each new item. Choose codes from the lists. Enter actual available quantities, the date and warehouse. Entered prices require supporting evidence."
+  ],
+  "Fichier articles et stock": [
+    "ملف الأصناف والمخزون",
+    "Items and stock file"
+  ],
+  "Fichier sélectionné": [
+    "الملف المحدد",
+    "Selected file"
+  ],
+  "3. Synthèse avant validation": [
+    "3. الملخص قبل الاعتماد",
+    "3. Summary before approval"
+  ],
+  "articles à créer": [
+    "صنف للإنشاء",
+    "items to create"
+  ],
+  "articles réutilisés": [
+    "صنف مُعاد استخدامه",
+    "items reused"
+  ],
+  "stocks positifs": [
+    "رصيد مخزون موجب",
+    "positive stock balances"
+  ],
+  "stocks nuls": [
+    "رصيد مخزون صفري",
+    "zero stock balances"
+  ],
+  "stocks à valoriser": [
+    "رصيد مخزون يحتاج إلى تقييم",
+    "stock balances to value"
+  ],
+  "Aucune ligne à appliquer. Ajoutez un nouvel article ou renseignez les quantités des articles existants.": [
+    "لا توجد أسطر لتطبيقها. أضف صنفًا جديدًا أو أدخل كميات الأصناف الموجودة.",
+    "No rows to apply. Add a new item or enter quantities for existing items."
+  ],
+  "stocks sans coût unitaire : avertissement non bloquant. Les articles et les quantités peuvent être créés maintenant ; les coûts seront renseignés ensuite dans l’écran de valorisation. Un coût inconnu ne sera pas enregistré à zéro.": [
+    "رصيد مخزون دون تكلفة للوحدة. هذا التحذير لا يمنع المتابعة. يمكن إنشاء الأصناف والكميات الآن، وإدخال التكاليف لاحقًا من شاشة التقييم. لن تُسجل التكلفة المجهولة كصفر.",
+    "stock balances have no unit cost. This warning does not block the operation. Items and quantities can be created now, and costs entered later in the valuation screen. An unknown cost will not be recorded as zero."
+  ],
+  "Stock valorisé — à utiliser après la reprise": [
+    "المخزون المقيّم — يُستخدم بعد الإدماج",
+    "Valued stock — use after import"
+  ],
+  "Ligne Excel": [
+    "سطر Excel",
+    "Excel row"
+  ],
+  "Afficher le détail des avertissements non bloquants": [
+    "عرض تفاصيل التحذيرات التي لا تمنع المتابعة",
+    "Show non-blocking warning details"
+  ],
+  "4. Valider la création des articles et du stock": [
+    "4. اعتماد إنشاء الأصناف والمخزون",
+    "4. Approve item and stock creation"
+  ],
+  "Chargez votre fichier Excel rempli à l’étape 2 pour activer la validation.": [
+    "حمّل ملف Excel المعبأ في الخطوة 2 لتفعيل الاعتماد.",
+    "Upload the completed Excel file in step 2 to enable approval."
+  ],
+  "Le fichier ne contient aucune ligne à appliquer. Ajoutez les articles ou renseignez les quantités, puis rechargez-le.": [
+    "لا يحتوي الملف على أسطر قابلة للتطبيق. أضف الأصناف أو أدخل الكميات، ثم أعد تحميله.",
+    "The file contains no rows to apply. Add items or enter quantities, then upload it again."
+  ],
+  "Corrigez les erreurs indiquées dans la synthèse, puis rechargez le fichier. Les avertissements de coût manquant ne bloquent pas la création.": [
+    "صحح الأخطاء المبينة في الملخص، ثم أعد تحميل الملف. تحذيرات التكلفة المفقودة لا تمنع الإنشاء.",
+    "Correct the errors shown in the summary, then upload the file again. Missing-cost warnings do not block creation."
+  ],
+  "Le contrôle serveur doit réussir avant de créer les articles et le stock. Consultez le message ci-dessous puis relancez le contrôle.": [
+    "يجب نجاح التحقق على الخادم قبل إنشاء الأصناف والمخزون. راجع الرسالة أدناه ثم أعد تشغيل التحقق.",
+    "Server validation must succeed before creating items and stock. Review the message below, then run the checks again."
+  ],
+  "Contrôle serveur réussi. Cochez la confirmation puis validez. La création des articles et du stock sera effectuée en une seule transaction.": [
+    "نجح التحقق على الخادم. حدد خانة التأكيد ثم اعتمد. سيُنفذ إنشاء الأصناف والمخزون في معاملة واحدة.",
+    "Server validation succeeded. Tick the confirmation box, then approve. Items and stock will be created in a single transaction."
+  ],
+  "Recontrôler les références et stocks en base": [
+    "إعادة التحقق من المراجع والمخزون في قاعدة البيانات",
+    "Recheck references and stock in the database"
+  ],
+  "Je confirme le client, les entrepôts, les unités, les dates, les quantités et les coûts de cet inventaire. Les coûts manquants restent non valorisés.": [
+    "أؤكد العميل والمستودعات والوحدات والتواريخ والكميات والتكاليف لهذا الجرد. ستبقى التكاليف المفقودة دون تقييم.",
+    "I confirm this inventory’s client, warehouses, units, dates, quantities and costs. Missing costs remain unvalued."
+  ],
+  "Valider la création des articles et du stock": [
+    "اعتماد إنشاء الأصناف والمخزون",
+    "Approve item and stock creation"
+  ],
+  "Aucune création avant ce clic. Un stock déjà utilisé ou initialisé ne peut pas être réinitialisé ici.": [
+    "لا يتم الإنشاء قبل هذا النقر. لا يمكن هنا إعادة تهيئة مخزون سبق استخدامه أو تهيئته.",
+    "Nothing is created before this click. Stock already used or initialized cannot be reinitialized here."
+  ],
+  "Reprise enregistrée — ne pas réimporter": [
+    "تم تسجيل الإدماج — لا تُعد الاستيراد",
+    "Import recorded — do not import again"
+  ],
+  "articles créés": [
+    "صنف مُنشأ",
+    "items created"
+  ],
+  "stocks positifs initialisés": [
+    "رصيد مخزون موجب تمت تهيئته",
+    "positive stock balances initialized"
+  ],
+  "stocks nuls confirmés": [
+    "رصيد مخزون صفري مؤكد",
+    "zero stock balances confirmed"
+  ],
+  "Référence de l’opération": [
+    "مرجع العملية",
+    "Operation reference"
+  ],
+  "Vérifier les stocks": [
+    "التحقق من المخزون",
+    "Check stock"
+  ],
+  "Valoriser le stock maintenant ou plus tard": [
+    "تقييم المخزون الآن أو لاحقًا",
+    "Value stock now or later"
+  ],
+  "Quantité vide : pas de stock initialisé. Zéro : stock nul confirmé. Coût vide : à valoriser. Les anciennes consommations ne doivent pas être déduites une seconde fois. Aucun stock existant ne sera écrasé.": [
+    "الكمية الفارغة تعني عدم تهيئة المخزون. الصفر يؤكد عدم وجود مخزون. التكلفة الفارغة تعني أن التقييم مطلوب. يجب ألا يُخصم الاستهلاك السابق مرة ثانية. لا يُستبدل أي مخزون موجود.",
+    "Blank quantity means stock is not initialized. Zero confirms no stock. Blank cost means valuation is needed. Previous consumption must not be deducted again. Existing stock is never overwritten."
+  ],
+  "Actions du bon de commande": [
+    "إجراءات أمر الشراء",
+    "Purchase order actions"
+  ],
+  "Retour au BDC": [
+    "العودة إلى أمر الشراء",
+    "Back to purchase order"
+  ],
+  "Chargement du bon de commande…": [
+    "جارٍ تحميل أمر الشراء…",
+    "Loading purchase order…"
+  ],
+  "Consulter le BDC": [
+    "عرض أمر الشراء",
+    "View purchase order"
+  ],
+  "ItriX Farm · Finance": [
+    "ItriX Farm · المالية",
+    "ItriX Farm · Finance"
+  ],
+  "Aucune donnée n’a été modifiée.": [
+    "لم تُعدل أي بيانات.",
+    "No data has been changed."
+  ],
+  "Synthèse du module": [
+    "ملخص الوحدة",
+    "Module summary"
+  ],
+  "avertissement(s) pour ce module.": [
+    "تحذير لهذه الوحدة.",
+    "warning(s) for this module."
+  ],
+  "Valider et créer le module": [
+    "اعتماد وإنشاء الوحدة",
+    "Approve and create the module"
+  ],
+  "Les nouvelles fermes, serres et variétés seront créées pour ce client. Les fiches liées seront réutilisées sans modification. Aucun stock, coût, campagne ou récolte ne sera créé.": [
+    "ستُنشأ المزارع والبيوت المحمية والأصناف الجديدة لهذا العميل. ستُعاد الاستفادة من السجلات المرتبطة دون تعديل. لن يُنشأ مخزون أو تكاليف أو مواسم أو حصاد.",
+    "New farms, greenhouses and varieties will be created for this client. Linked records will be reused without changes. No stock, costs, campaigns or harvests will be created."
+  ],
+  "Les nouvelles campagnes et plantations seront créées pour ce client. Les fiches liées seront réutilisées sans modification. Les fermes, serres et variétés doivent déjà exister. Aucune récolte, dépense réalisée ou donnée de stock ne sera créée.": [
+    "ستُنشأ المواسم وعمليات الغرس الجديدة لهذا العميل. ستُستخدم السجلات المرتبطة دون تعديل. يجب أن تكون المزارع والبيوت المحمية والأصناف موجودة مسبقًا. لن تُنشأ بيانات حصاد أو نفقات فعلية أو مخزون.",
+    "New campaigns and plantings will be created for this client. Linked records will be reused without changes. Farms, greenhouses and varieties must already exist. No harvests, actual expenses or stock data will be created."
+  ],
+  "Cette action contrôle le dossier et sauvegarde sa préparation. Aucune donnée métier ne sera créée.": [
+    "يتحقق هذا الإجراء من الملف ويحفظ تحضيره. لن تُنشأ بيانات تشغيلية.",
+    "This action checks the file and saves its preparation. No operational data will be created."
+  ],
+  "Relisez les étapes de ce module. Les autres modules pourront être préparés ensuite.": [
+    "راجع خطوات هذه الوحدة. يمكن تحضير الوحدات الأخرى لاحقًا.",
+    "Review this module’s steps. Other modules can be prepared afterwards."
+  ],
+  "Je confirme la synthèse et autorise la création des nouvelles fiches pour ce client.": [
+    "أؤكد الملخص وأوافق على إنشاء السجلات الجديدة لهذا العميل.",
+    "I confirm the summary and authorize the creation of new records for this client."
+  ],
+  "Valider et créer ce module": [
+    "اعتماد وإنشاء هذه الوحدة",
+    "Approve and create this module"
+  ],
+  "Terminer et sauvegarder ce module": [
+    "إنهاء وحفظ هذه الوحدة",
+    "Finish and save this module"
+  ],
+  "Module préparé et sauvegardé. Aucun import métier effectué.": [
+    "تم تحضير الوحدة وحفظها. لم يُنفذ أي استيراد للبيانات التشغيلية.",
+    "Module prepared and saved. No operational data has been imported."
+  ],
+  "Valeur initiale : 1 000 L/ha. Elle reste modifiable lors de l’application réelle.": [
+    "القيمة الأولية هي 1 000 لتر/هكتار. يمكن تعديلها عند التنفيذ الفعلي.",
+    "Initial value is 1,000 L/ha. It can be changed during actual application."
+  ],
+  "Impossible de charger les lots du bordereau. Ce message ne signifie pas qu’aucun lot n’est disponible.": [
+    "تعذر تحميل دفعات الكشف. هذه الرسالة لا تعني عدم وجود دفعات متاحة.",
+    "Unable to load the statement’s lots. This message does not mean that no lots are available."
+  ],
+  "Actions de la facture": [
+    "إجراءات الفاتورة",
+    "Invoice actions"
+  ],
+  "Retour aux factures": [
+    "العودة إلى الفواتير",
+    "Back to invoices"
+  ],
+  "Bordereau": [
+    "كشف",
+    "Statement"
+  ],
+  "Chargement de la facture existante…": [
+    "جارٍ تحميل الفاتورة الموجودة…",
+    "Loading existing invoice…"
+  ],
+  "Configuration réservée aux administrateurs du client actif.": [
+    "الإعدادات مخصصة لمسؤولي العميل النشط.",
+    "Configuration is restricted to administrators of the active client."
+  ],
+  "Intégrations — DocIndex et ERP": [
+    "التكاملات — DocIndex وERP",
+    "Integrations — DocIndex and ERP"
+  ],
+  "Environnement local — tests sur données fictives.": [
+    "بيئة محلية — اختبارات على بيانات وهمية.",
+    "Local environment — tests with fictional data."
+  ],
+  "Aucune publication sur Vercel. La configuration DocIndex permet des envois réels après confirmation ; la simulation ERP ci-dessous ne contacte aucun service externe.": [
+    "لا يوجد نشر على Vercel. يتيح إعداد DocIndex عمليات إرسال فعلية بعد التأكيد، بينما لا تتصل محاكاة ERP أدناه بأي خدمة خارجية.",
+    "No Vercel publication. The DocIndex configuration allows real submissions after confirmation, while the ERP simulation below does not contact any external service."
+  ],
+  "Client ITRIX :": [
+    "عميل ITRIX:",
+    "ITRIX client:"
+  ],
+  "Destinataire": [
+    "المستلم",
+    "Recipient"
+  ],
+  "Simulation ERP — sans envoi externe": [
+    "محاكاة ERP — دون إرسال خارجي",
+    "ERP simulation — no external submission"
+  ],
+  "Activer la simulation pour ce destinataire": [
+    "تفعيل المحاكاة لهذا المستلم",
+    "Enable simulation for this recipient"
+  ],
+  "Adaptateur": [
+    "المحول",
+    "Adapter"
+  ],
+  "Autre ERP — contrat à implémenter": [
+    "نظام ERP آخر — يلزم تنفيذ عقد التكامل",
+    "Other ERP — integration contract to implement"
+  ],
+  "URL cible (non appelée)": [
+    "عنوان URL الهدف (لا يتم الاتصال به)",
+    "Target URL (not called)"
+  ],
+  "Nom du secret serveur prévu (facultatif en simulation)": [
+    "اسم سر الخادم المزمع استخدامه (اختياري في المحاكاة)",
+    "Planned server secret name (optional in simulation)"
+  ],
+  "Ne saisissez jamais de clé API dans cette simulation. Pour DocIndex, utilisez le champ « Clé API DocIndex » dans la configuration ci-dessus.": [
+    "لا تُدخل أي مفتاح API في هذه المحاكاة. بالنسبة إلى DocIndex، استخدم حقل «مفتاح API لـDocIndex» في الإعدادات أعلاه.",
+    "Never enter an API key in this simulation. For DocIndex, use the “DocIndex API key” field in the configuration above."
+  ],
+  "Enregistrer les paramètres locaux": [
+    "حفظ الإعدادات المحلية",
+    "Save local settings"
+  ],
+  "Scénarios fictifs": [
+    "سيناريوهات وهمية",
+    "Fictional scenarios"
+  ],
+  "Simuler une panne du destinataire": [
+    "محاكاة تعطل المستلم",
+    "Simulate recipient failure"
+  ],
+  "Valider une facture fictive": [
+    "اعتماد فاتورة وهمية",
+    "Approve a fictional invoice"
+  ],
+  "Simuler un bordereau validé": [
+    "محاكاة كشف معتمد",
+    "Simulate an approved statement"
+  ],
+  "Vérifier l’exclusion de l’historique": [
+    "التحقق من استبعاد السجل التاريخي",
+    "Check historical data exclusion"
+  ],
+  "Journal de simulation du destinataire": [
+    "سجل محاكاة المستلم",
+    "Recipient simulation log"
+  ],
+  "Aucune transmission simulée.": [
+    "لا توجد عمليات إرسال محاكاة.",
+    "No simulated transmissions."
+  ],
+  "tentative(s)": [
+    "محاولة",
+    "attempt(s)"
+  ],
+  "Le destinataire simulé n’a pas accepté le document. La facture source est inchangée.": [
+    "لم يقبل المستلم الوهمي المستند. بقيت الفاتورة الأصلية دون تغيير.",
+    "The simulated recipient did not accept the document. The source invoice is unchanged."
+  ],
+  "Validé par": [
+    "اعتمده",
+    "Approved by"
+  ],
+  "Renvoyer en simulation": [
+    "إعادة الإرسال في المحاكاة",
+    "Resend in simulation"
+  ],
+  "Voir les événements de recette": [
+    "عرض أحداث اختبار القبول",
+    "View acceptance test events"
+  ],
+  "Référence stable :": [
+    "المرجع الثابت:",
+    "Stable reference:"
+  ],
+  "Réception :": [
+    "الاستلام:",
+    "Receipt:"
+  ],
+  "Connecteurs ERP — simulation": [
+    "موصلات ERP — محاكاة",
+    "ERP connectors — simulation"
+  ],
+  "/ occurrence": [
+    "/ تنفيذ",
+    "/ occurrence"
+  ],
+  "/h) et son évolution.": [
+    "/ساعة) وتطوره.",
+    "/h) and its trend."
+  ],
+  "ItriX Farm · Production": [
+    "ItriX Farm · الإنتاج",
+    "ItriX Farm · Production"
+  ],
+  "Aucun marché actif pour ce client. Créez ou activez un marché dans le client sélectionné avant de préparer l’envoi.": [
+    "لا يوجد سوق نشط لهذا العميل. أنشئ أو فعّل سوقًا ضمن العميل المحدد قبل تحضير الشحنة.",
+    "No active market for this client. Create or activate a market for the selected client before preparing the shipment."
+  ],
+  "= totale si vide": [
+    "= المساحة الإجمالية عند تركها فارغة",
+    "= total area if blank"
+  ],
+  "Note de sortie (facultatif)": [
+    "ملاحظة الصرف (اختيارية)",
+    "Stock issue note (optional)"
+  ],
+  "Saisir en MAD. Pour utiliser EUR/USD, configure la devise sur le marché concerné.": [
+    "أدخل المبلغ بالدرهم المغربي. لاستخدام EUR أو USD، اضبط عملة السوق المعني.",
+    "Enter in MAD. To use EUR or USD, configure the currency for the relevant market."
+  ],
+  "Plantation → fin récolte": [
+    "الغرس ← نهاية الحصاد",
+    "Planting → end of harvest"
+  ],
+  "Détails du coût": [
+    "تفاصيل التكلفة",
+    "Cost details"
+  ],
+  "Chargement du mouvement source…": [
+    "جارٍ تحميل الحركة الأصلية…",
+    "Loading source movement…"
+  ],
+  "Détail du mouvement indisponible ·": [
+    "تفاصيل الحركة غير متاحة ·",
+    "Movement details unavailable ·"
+  ],
+  "Mouvement de stock à l’origine du coût": [
+    "حركة المخزون المنشئة للتكلفة",
+    "Stock movement underlying the cost"
+  ],
+  "Date ·": [
+    "التاريخ ·",
+    "Date ·"
+  ],
+  "· Référence ·": [
+    "· المرجع ·",
+    "· Reference ·"
+  ],
+  "Coût unitaire ·": [
+    "تكلفة الوحدة ·",
+    "Unit cost ·"
+  ],
+  "Montant total imputé ·": [
+    "إجمالي المبلغ المخصص ·",
+    "Total allocated amount ·"
+  ],
+  "Note ·": [
+    "ملاحظة ·",
+    "Note ·"
+  ],
+  "Justificatif du prix ·": [
+    "مستند إثبات السعر ·",
+    "Price evidence ·"
+  ],
+  "Les lignes réparties proviennent du même mouvement. Le montant de cette ligne correspond uniquement à son affectation.": [
+    "تنتج الأسطر الموزعة عن الحركة نفسها. يخص مبلغ هذا السطر تخصيصه وحده.",
+    "The allocated rows come from the same movement. This row’s amount relates only to its own allocation."
+  ],
+  "Voir les détails": [
+    "عرض التفاصيل",
+    "View details"
+  ],
+  "Chargement des affectations…": [
+    "جارٍ تحميل التخصيصات…",
+    "Loading allocations…"
+  ],
+  "Les cibles du traitement lié seront conservées.": [
+    "سيُحتفظ بأهداف المعالجة المرتبطة.",
+    "The linked treatment’s targets will be retained."
+  ],
+  "Affectations confirmées lors de la sortie": [
+    "التخصيصات المؤكدة عند الصرف",
+    "Allocations confirmed when issuing stock"
+  ],
+  "Module 3 : reprenez uniquement les récoltes et leurs plateaux. Kilos calculés = nombre de plateaux × poids unitaire. Les plantations doivent déjà exister ; les envois seront traités au module 4.": [
+    "الوحدة 3 مخصصة لإدماج الحصاد وصوانيه فقط. الكيلوغرامات المحسوبة = عدد الصواني × وزن الوحدة. يجب أن تكون عمليات الغرس موجودة مسبقًا. ستُعالج الشحنات في الوحدة 4.",
+    "Module 3 imports only harvests and their trays. Calculated kilos = number of trays × unit weight. Plantings must already exist. Shipments will be handled in module 4."
+  ],
+  "Le contrôle ne crée aucune donnée. La confirmation importe uniquement les récoltes et leurs plateaux. Les références déjà importées sont réutilisées sans doublon. Aucun envoi, pesée, tri, prix ou facture n’est créé.": [
+    "لا يُنشئ التحقق أي بيانات. يستورد التأكيد الحصاد وصوانيه فقط. تُستخدم المراجع المستوردة سابقًا دون تكرار. لا يُنشأ إرسال أو وزن أو فرز أو سعر أو فاتورة.",
+    "Validation creates no data. Confirmation imports only harvests and their trays. Previously imported references are reused without duplicates. No shipments, weighing, grading, prices or invoices are created."
+  ],
+  "· version": [
+    "· الإصدار",
+    "· version"
+  ],
+  "récolte(s) créée(s) ·": [
+    "عملية حصاد مُنشأة ·",
+    "harvest(s) created ·"
+  ],
+  "déjà importée(s)": [
+    "مستوردة سابقًا",
+    "already imported"
+  ],
+  "Je confirme les plantations, dates, types et nombres de plateaux ainsi que les kilos calculés. Je souhaite importer uniquement ces récoltes et plateaux.": [
+    "أؤكد عمليات الغرس والتواريخ وأنواع الصواني وأعدادها والكيلوغرامات المحسوبة. أريد استيراد عمليات الحصاد والصواني هذه فقط.",
+    "I confirm the plantings, dates, tray types and counts, and calculated kilos. I want to import only these harvests and trays."
+  ],
+  "Valider et créer les récoltes": [
+    "اعتماد وإنشاء عمليات الحصاد",
+    "Approve and create harvests"
+  ],
+  "kg calculés": [
+    "كغ محسوبة",
+    "calculated kg"
+  ],
+  "envoi(s) créé(s) ;": [
+    "شحنة مُنشأة؛",
+    "shipment(s) created;"
+  ],
+  "déjà importé(s).": [
+    "مستوردة سابقًا.",
+    "already imported."
+  ],
+  "Parcours métier": [
+    "مسار العمل",
+    "Business workflow"
+  ],
+  "Comprendre la saisie": [
+    "فهم إدخال البيانات",
+    "Understanding data entry"
+  ],
+  "À quoi sert cet écran ?": [
+    "ما الغرض من هذه الشاشة؟",
+    "What is this screen for?"
+  ],
+  "Les étapes à suivre, selon vos habilitations et le statut des données.": [
+    "الخطوات المطلوبة حسب صلاحياتك وحالة البيانات.",
+    "Steps to follow, depending on your permissions and the data status."
+  ],
+  "Les astérisques du formulaire indiquent les champs obligatoires. Vérifiez les unités et le périmètre avant d’enregistrer.": [
+    "تشير النجوم في النموذج إلى الحقول الإلزامية. تحقق من الوحدات والنطاق قبل الحفظ.",
+    "Asterisks in the form indicate required fields. Check units and scope before saving."
+  ],
+  "Exemple :": [
+    "مثال:",
+    "Example:"
+  ],
+  "À vérifier :": [
+    "للتحقق:",
+    "To check:"
+  ],
+  "Capture d’interface : les valeurs dépendent du client et des filtres sélectionnés.": [
+    "لقطة من الواجهة، وتختلف القيم حسب العميل وعوامل التصفية المحددة.",
+    "Interface screenshot. Values depend on the selected client and filters."
+  ],
+  "· Cliquez sur la capture pour l’agrandir.": [
+    "· انقر على اللقطة لتكبيرها.",
+    "· Click the screenshot to enlarge it."
+  ],
+  "De la récolte à l’encaissement": [
+    "من الحصاد إلى التحصيل",
+    "From harvest to payment collection"
+  ],
+  "Avant de commencer : les dépendances": [
+    "المتطلبات المسبقة قبل البدء",
+    "Before you start, prerequisites"
+  ],
+  "À faire :": [
+    "المطلوب:",
+    "To do:"
+  ],
+  "Ce qui change :": [
+    "ما الذي يتغير:",
+    "What changes:"
+  ],
+  "Étape suivante / contrôle :": [
+    "الخطوة التالية / التحقق:",
+    "Next step / check:"
+  ],
+  "Tarification → Facturation : trois comportements différents": [
+    "التسعير ← الفوترة، ثلاث آليات مختلفة",
+    "Pricing → Invoicing, three different behaviours"
+  ],
+  "Sources de vérification du parcours": [
+    "مصادر التحقق من المسار",
+    "Workflow verification sources"
+  ],
+  "Configuration DocIndex": [
+    "إعداد DocIndex",
+    "DocIndex configuration"
+  ],
+  "Configurez ici la connexion utilisée pour les factures jointes aux bons d’achat. Chaque envoi demande votre confirmation. La clé est chiffrée sur ce serveur local Windows ; une fois enregistrée, elle n’est jamais retournée au navigateur.": [
+    "اضبط هنا الاتصال المستخدم لفواتير أوامر الشراء المرفقة. يتطلب كل إرسال تأكيدك. يُشفّر المفتاح على خادم Windows المحلي، ولا يُعاد إلى المتصفح بعد حفظه.",
+    "Configure the connection for invoices attached to purchase orders here. Each submission requires your confirmation. The key is encrypted on this local Windows server and is never returned to the browser after saving."
+  ],
+  "Destinataire :": [
+    "المستلم:",
+    "Recipient:"
+  ],
+  ". La clé détermine l’espace DocIndex ; vérifiez son nom avant d’envoyer. Le nom saisi est un libellé, pas une vérification automatique de l’espace.": [
+    ". يحدد المفتاح مساحة DocIndex. تحقق من اسمها قبل الإرسال. الاسم المدخل مجرد تسمية ولا يمثل تحققًا آليًا من المساحة.",
+    ". The key determines the DocIndex workspace. Check its name before sending. The entered name is a label, not automatic verification of the workspace."
+  ],
+  "Nom de l’espace DocIndex destinataire": [
+    "اسم مساحة DocIndex المستلمة",
+    "Recipient DocIndex workspace name"
+  ],
+  "Clé API DocIndex": [
+    "مفتاح API لـDocIndex",
+    "DocIndex API key"
+  ],
+  "Clé déjà enregistrée — laisser vide pour la conserver": [
+    "المفتاح محفوظ بالفعل — اتركه فارغًا للاحتفاظ به",
+    "Key already saved — leave blank to keep it"
+  ],
+  "Collez la clé complète commençant par dik_, sans le préfixe Bearer. Laissez ce champ vide pour conserver la clé déjà enregistrée.": [
+    "ألصق المفتاح الكامل الذي يبدأ بـdik_ دون البادئة Bearer. اترك الحقل فارغًا للاحتفاظ بالمفتاح المحفوظ.",
+    "Paste the full key starting with dik_, without the Bearer prefix. Leave this field blank to keep the saved key."
+  ],
+  "Clé enregistrée : masquée. Elle ne peut pas être consultée depuis l’application.": [
+    "المفتاح المحفوظ مخفي ولا يمكن عرضه من التطبيق.",
+    "The saved key is hidden and cannot be viewed from the application."
+  ],
+  "Activer la connexion DocIndex pour ce destinataire": [
+    "تفعيل اتصال DocIndex لهذا المستلم",
+    "Enable DocIndex connection for this recipient"
+  ],
+  "Enregistrer la configuration sécurisée": [
+    "حفظ الإعدادات الآمنة",
+    "Save secure configuration"
+  ],
+  "Test de connexion avec une facture fictive": [
+    "اختبار الاتصال بفاتورة وهمية",
+    "Connection test with a fictional invoice"
+  ],
+  "Ces boutons utilisent un document généré pour le test. Pour envoyer votre pièce jointe, ouvrez le détail du bon d’achat.": [
+    "تستخدم هذه الأزرار مستندًا مُنشأً للاختبار. لإرسال مرفقك، افتح تفاصيل أمر الشراء.",
+    "These buttons use a document generated for testing. To send your attachment, open the purchase order details."
+  ],
+  "Facture de test sélectionnée :": [
+    "فاتورة الاختبار المحددة:",
+    "Selected test invoice:"
+  ],
+  "Nouvelle facture fictive": [
+    "فاتورة وهمية جديدة",
+    "New fictional invoice"
+  ],
+  "Actualiser la configuration": [
+    "تحديث الإعدادات",
+    "Refresh configuration"
+  ],
+  "Nouvelle facture : nouveau numéro et nouvelle référence, puis envoi séparé. Renvoyer : même PDF et même référence, sans doublon. Chaque nouvelle facture envoyée consomme le quota DocIndex. Attendez une minute entre deux envois.": [
+    "تعني الفاتورة الجديدة رقمًا ومرجعًا جديدين وإرسالًا منفصلًا. إعادة الإرسال تستخدم ملف PDF والمرجع نفسيهما دون تكرار. تستهلك كل فاتورة جديدة من حصة DocIndex. انتظر دقيقة بين عمليتي إرسال.",
+    "A new invoice gets a new number and reference and is sent separately. Resending uses the same PDF and reference without duplicates. Each new invoice sent uses the DocIndex quota. Wait one minute between submissions."
+  ],
+  "Facture reçue par DocIndex. Identifiant :": [
+    "استلم DocIndex الفاتورة. المعرّف:",
+    "Invoice received by DocIndex. ID:"
+  ],
+  ". La réception du PDF est distincte de sa validation humaine.": [
+    ". استلام ملف PDF منفصل عن اعتماده من طرف شخص.",
+    ". PDF receipt is separate from human approval."
+  ],
+  "Le journal contient une ancienne tentative non confirmée par Itrix, pas une preuve de refus. Si la facture est visible dans DocIndex, ne la renvoyez pas. Son identifiant n’a pas été conservé lors de cette tentative.": [
+    "يحتوي السجل على محاولة قديمة لم يؤكدها ItriX، ولا يثبت ذلك الرفض. إذا كانت الفاتورة ظاهرة في DocIndex، فلا تعِد إرسالها. لم يُحفظ معرّفها خلال تلك المحاولة.",
+    "The log contains an earlier attempt not confirmed by ItriX and is not proof of rejection. If the invoice is visible in DocIndex, do not resend it. Its ID was not retained during that attempt."
+  ],
+  "Journal des actions serveur": [
+    "سجل إجراءات الخادم",
+    "Server action log"
+  ],
+  "· utilisateur": [
+    "· المستخدم",
+    "· user"
+  ],
+  "Émetteur": [
+    "المرسل",
+    "Issuer"
+  ],
+  "Statut enregistré": [
+    "الحالة المسجلة",
+    "Recorded status"
+  ],
+  "Coordonnées issues des référentiels actuels ; aucune copie historique n’est reconstituée.": [
+    "بيانات الاتصال مأخوذة من المراجع الحالية. لم تُعَد صياغة أي نسخة تاريخية.",
+    "Contact details come from current reference data. No historical copy has been reconstructed."
+  ],
+  "Détail enregistré ou lié": [
+    "التفاصيل المسجلة أو المرتبطة",
+    "Recorded or linked details"
+  ],
+  "Désignation / provenance": [
+    "التسمية / المصدر",
+    "Description / origin"
+  ],
+  "Journal des paiements": [
+    "سجل المدفوعات",
+    "Payment log"
+  ],
+  "Aucune ligne de paiement disponible dans le journal consulté.": [
+    "لا توجد مدفوعات متاحة في السجل المعروض.",
+    "No payment entries are available in the viewed log."
+  ],
+  "Notes enregistrées": [
+    "الملاحظات المسجلة",
+    "Recorded notes"
+  ],
+  "Informations sur cette édition": [
+    "معلومات هذه النسخة",
+    "Information about this edition"
+  ],
+  "Document de consultation issu des données enregistrées. Aucun numéro ni montant n’a été régénéré.": [
+    "مستند للعرض مستخرج من البيانات المسجلة. لم يُعَد إنشاء أي رقم أو مبلغ.",
+    "Read-only document based on recorded data. No number or amount has been regenerated."
+  ],
+  "Lecture de facture DocIndex": [
+    "قراءة الفاتورة عبر DocIndex",
+    "DocIndex invoice reading"
+  ],
+  "Lire la facture avec DocIndex": [
+    "قراءة الفاتورة باستخدام DocIndex",
+    "Read invoice with DocIndex"
+  ],
+  "Envoi uniquement après votre accord. Le suivi est vérifié une fois par minute tant que cet écran est ouvert et visible. Les pièces restent également chiffrées sur ce PC.": [
+    "لا يتم الإرسال إلا بموافقتك. يُتحقق من المتابعة كل دقيقة ما دامت هذه الشاشة مفتوحة ومرئية. تبقى المرفقات مشفرة على هذا الحاسوب أيضًا.",
+    "Submission occurs only with your approval. Tracking is checked once a minute while this screen is open and visible. Attachments also remain encrypted on this PC."
+  ],
+  "Destinataire DocIndex": [
+    "مستلم DocIndex",
+    "DocIndex recipient"
+  ],
+  "Choisir un espace": [
+    "اختيار مساحة",
+    "Select a workspace"
+  ],
+  "Configurez une clé pour ce client dans": [
+    "اضبط مفتاحًا لهذا العميل ضمن",
+    "Configure a key for this client under"
+  ],
+  "Factures → Intégrations": [
+    "الفواتير ← التكاملات",
+    "Invoices → Integrations"
+  ],
+  "Actualiser le statut": [
+    "تحديث الحالة",
+    "Refresh status"
+  ],
+  "Échange avec DocIndex en cours…": [
+    "جارٍ التواصل مع DocIndex…",
+    "Exchange with DocIndex in progress…"
+  ],
+  "Utiliser la nouvelle clé pour ce destinataire": [
+    "استخدام المفتاح الجديد لهذا المستلم",
+    "Use the new key for this recipient"
+  ],
+  "Uniquement pour une clé remplacée dans la même entreprise DocIndex. Cette action conserve le fichier, la référence et l’historique ; elle ne renvoie rien.": [
+    "يُستخدم فقط عند استبدال المفتاح داخل شركة DocIndex نفسها. يحفظ هذا الإجراء الملف والمرجع والسجل دون إعادة إرسال.",
+    "Only for a key replaced within the same DocIndex company. This action retains the file, reference and history without resending anything."
+  ],
+  "Réception confirmée :": [
+    "تم تأكيد الاستلام:",
+    "Receipt confirmed:"
+  ],
+  "Numéro extrait": [
+    "الرقم المستخرج",
+    "Extracted number"
+  ],
+  "Fournisseur extrait": [
+    "المورد المستخرج",
+    "Extracted supplier"
+  ],
+  "Montant DocIndex (nature TTC non confirmée)": [
+    "مبلغ DocIndex (لم يُؤكد شموله للضرائب)",
+    "DocIndex amount (tax-inclusive status unconfirmed)"
+  ],
+  "Je confirme que «": [
+    "أؤكد أن «",
+    "I confirm that “"
+  ],
+  "» correspond au fournisseur du BDC «": [
+    "» يطابق مورد أمر الشراء «",
+    "” matches the supplier of purchase order “"
+  ],
+  "» et que le numéro extrait est correct.": [
+    "» وأن الرقم المستخرج صحيح.",
+    "” and that the extracted number is correct."
+  ],
+  "Vérifier le préremplissage et créer la facture": [
+    "التحقق من البيانات المعبأة مسبقًا وإنشاء الفاتورة",
+    "Check prefilled data and create the invoice"
+  ],
+  "Seuls le numéro et la devise viennent de DocIndex. Dates à saisir ; HT, taxes et total à vérifier avec le PDF. Le montant DocIndex n’est pas affecté au TTC sans contrat confirmé. Aucun enregistrement avant votre confirmation finale.": [
+    "يأتي الرقم والعملة فقط من DocIndex. أدخل التواريخ وتحقق من المبلغ دون ضرائب والضرائب والإجمالي بمطابقتها مع PDF. لا يُعتبر مبلغ DocIndex شاملًا للضرائب دون تأكيد عقد التكامل. لا يُحفظ شيء قبل تأكيدك النهائي.",
+    "Only the number and currency come from DocIndex. Enter dates and check the net amount, taxes and total against the PDF. The DocIndex amount is not treated as tax-inclusive without a confirmed integration contract. Nothing is saved before your final confirmation."
+  ],
+  "Historique des échanges": [
+    "سجل التبادلات",
+    "Exchange history"
+  ],
+  "Page précédente": [
+    "الصفحة السابقة",
+    "Previous page"
+  ],
+  "Page suivante": [
+    "الصفحة التالية",
+    "Next page"
+  ],
+  "Aperçu de la facture PDF": [
+    "معاينة فاتورة PDF",
+    "PDF invoice preview"
+  ],
+  "Facture fournisseur déposée": [
+    "فاتورة المورد المرفوعة",
+    "Uploaded supplier invoice"
+  ],
+  "Télécharger l’original": [
+    "تنزيل الأصل",
+    "Download original"
+  ],
+  "Facture fournisseur — document original": [
+    "فاتورة المورد — المستند الأصلي",
+    "Supplier invoice — original document"
+  ],
+  "Déposez la facture reçue pour la visualiser et la conserver sur ce serveur local, rattachée au client et au bon d’achat. PDF, PNG ou JPEG, 4 Mo maximum ; 10 pièces par achat.": [
+    "ارفع الفاتورة المستلمة لعرضها وحفظها على هذا الخادم المحلي مرتبطة بالعميل وأمر الشراء. الصيغ PDF أو PNG أو JPEG، بحد أقصى 4 ميغابايت و10 مرفقات لكل عملية شراء.",
+    "Upload the received invoice to view and store it on this local server, linked to the client and purchase order. PDF, PNG or JPEG, up to 4 MB each and 10 attachments per purchase."
+  ],
+  "Le dépôt seul n’envoie rien. Après visualisation, vous pouvez envoyer explicitement cette facture fictive à DocIndex. Le préremplissage est proposé uniquement après validation dans DocIndex ; les pièces restent locales, pas dans Supabase Storage.": [
+    "الرفع وحده لا يرسل شيئًا. بعد المعاينة يمكنك إرسال هذه الفاتورة الوهمية صراحةً إلى DocIndex. يُقترح الملء المسبق بعد الاعتماد في DocIndex فقط. تبقى المرفقات محلية ولا تُحفظ في Supabase Storage.",
+    "Uploading alone sends nothing. After viewing, you can explicitly send this fictional invoice to DocIndex. Prefilling is offered only after approval in DocIndex. Attachments remain local rather than in Supabase Storage."
+  ],
+  "Ajouter la facture fournisseur": [
+    "إضافة فاتورة المورد",
+    "Add supplier invoice"
+  ],
+  "Chargement du document…": [
+    "جارٍ تحميل المستند…",
+    "Loading document…"
+  ],
+  "Visualiser": [
+    "معاينة",
+    "Preview"
+  ],
+  "Ko · déposé le": [
+    "كيلوبايت · رُفع في",
+    "KB · uploaded on"
+  ],
+  "Vérifier les informations et créer la facture": [
+    "التحقق من المعلومات وإنشاء الفاتورة",
+    "Check information and create the invoice"
+  ],
+  "Le fournisseur est celui du bon :": [
+    "المورد هو مورد أمر الشراء:",
+    "The supplier is the purchase order’s supplier:"
+  ],
+  ". Les montants proposés viennent du bon, pas d’une extraction du document. Aucun enregistrement avant votre confirmation finale.": [
+    ". المبالغ المقترحة مأخوذة من أمر الشراء وليس من استخراج بيانات المستند. لا يُحفظ شيء قبل تأكيدك النهائي.",
+    ". Proposed amounts come from the purchase order rather than document extraction. Nothing is saved before your final confirmation."
+  ],
+  "La création requiert un bon réceptionné et les droits de création des factures.": [
+    "يتطلب الإنشاء أمر شراء مستلمًا وصلاحيات إنشاء الفواتير.",
+    "Creation requires a received purchase order and invoice creation permissions."
+  ],
+  "Facture créée après confirmation. Le document original reste disponible sur cet achat.": [
+    "أُنشئت الفاتورة بعد التأكيد. يبقى المستند الأصلي متاحًا ضمن هذه العملية الشرائية.",
+    "Invoice created after confirmation. The original document remains available on this purchase."
+  ],
+  ". Vérifiez les informations avant de créer la facture. Le statut du bon reste géré par son workflow.": [
+    ". تحقق من المعلومات قبل إنشاء الفاتورة. تظل حالة أمر الشراء خاضعة لمسار عمله.",
+    ". Check the information before creating the invoice. The purchase order status remains managed by its workflow."
+  ],
+  "N° de la facture originale *": [
+    "رقم الفاتورة الأصلية *",
+    "Original invoice number *"
+  ],
+  "Réutiliser": [
+    "إعادة الاستخدام",
+    "Reuse"
+  ],
+  "Montant de cette ligne": [
+    "مبلغ هذا السطر",
+    "Amount for this row"
+  ],
+  "Saisie / import": [
+    "إدخال / استيراد",
+    "Manual entry / import"
+  ],
+  "Méthode de répartition": [
+    "طريقة التوزيع",
+    "Allocation method"
+  ],
+  "Au prorata des surfaces plantées": [
+    "بالتناسب مع المساحات المزروعة",
+    "Proportional to planted areas"
+  ],
+  "Identifiant du coût": [
+    "معرّف التكلفة",
+    "Cost ID"
+  ],
+  "Identifiant fiscal : {v0}": [
+    "المعرّف الضريبي: {v0}",
+    "Tax ID: {v0}"
+  ],
+  "BON DE COMMANDE": [
+    "أمر شراء",
+    "PURCHASE ORDER"
+  ],
+  "FACTURE FOURNISSEUR": [
+    "فاتورة مورد",
+    "SUPPLIER INVOICE"
+  ],
+  "FACTURE": [
+    "فاتورة",
+    "INVOICE"
+  ],
+  "AVOIR": [
+    "إشعار دائن",
+    "CREDIT NOTE"
+  ],
+  "Partiellement réglée": [
+    "مدفوعة جزئيًا",
+    "Partially paid"
+  ],
+  "Soldée": [
+    "مدفوعة بالكامل",
+    "Paid in full"
+  ],
+  "Sous-total HT": [
+    "المجموع دون ضرائب",
+    "Subtotal excluding tax"
+  ],
+  "Sous-total enregistré": [
+    "المجموع الفرعي المسجل",
+    "Recorded subtotal"
+  ],
+  "Taxes enregistrées": [
+    "الضرائب المسجلة",
+    "Recorded taxes"
+  ],
+  "Total de la facture": [
+    "إجمالي الفاتورة",
+    "Invoice total"
+  ],
+  "Paiements enregistrés": [
+    "المدفوعات المسجلة",
+    "Recorded payments"
+  ],
+  "Total du bon": [
+    "إجمالي أمر الشراء",
+    "Purchase order total"
+  ],
+  "Bon de commande existant - ce document ne constitue pas une facture.": [
+    "أمر شراء موجود — لا يُعد هذا المستند فاتورة.",
+    "Existing purchase order — this document is not an invoice."
+  ],
+  "Copie de consultation - ne remplace pas la facture originale du fournisseur.": [
+    "نسخة للعرض — لا تحل محل فاتورة المورد الأصلية.",
+    "Viewing copy — does not replace the supplier’s original invoice."
+  ],
+  "Édition de consultation de la facture existante.": [
+    "نسخة للعرض من الفاتورة الموجودة.",
+    "Viewing copy of the existing invoice."
+  ],
+  "La devise de cette facture n’est pas renseignée. Aucune devise n’a été déduite.": [
+    "لم تُحدد عملة هذه الفاتورة. لم تُفترض أي عملة.",
+    "This invoice’s currency is not specified. No currency has been inferred."
+  ],
+  "Le détail lié diffère du sous-total de la facture. Les totaux ci-dessous sont ceux de la facture enregistrée ; aucun montant n’a été recalculé pour les remplacer.": [
+    "تختلف التفاصيل المرتبطة عن المجموع الفرعي للفاتورة. المجاميع أدناه هي المسجلة في الفاتورة ولم يُعد حساب أي مبلغ لاستبدالها.",
+    "The linked details differ from the invoice subtotal. The totals below are those recorded on the invoice. No amounts have been recalculated to replace them."
+  ],
+  "Le journal des paiements disponible ne correspond pas au cumul enregistré sur la facture. Le cumul enregistré est conservé.": [
+    "لا يتطابق سجل المدفوعات المتاح مع المجموع المسجل على الفاتورة. يُحتفظ بالمجموع المسجل.",
+    "The available payment log does not match the cumulative amount recorded on the invoice. The recorded cumulative amount is retained."
+  ],
+  "Non valorisé": [
+    "غير مقيّم",
+    "Unvalued"
+  ],
+  "Charge commune": [
+    "تكلفة مشتركة",
+    "Shared cost"
+  ],
+  "Achat": [
+    "شراء",
+    "Purchase"
+  ],
+  "Confirmée": [
+    "مؤكدة",
+    "Confirmed"
+  ],
+  "Provisoire": [
+    "مؤقتة",
+    "Provisional"
+  ],
+  "Numéro non renseigné": [
+    "الرقم غير محدد",
+    "Number not specified"
+  ],
+  "Date de facture": [
+    "تاريخ الفاتورة",
+    "Invoice date"
+  ],
+  "Créé le": [
+    "تاريخ الإنشاء",
+    "Created on"
+  ],
+  "Stock insuffisant dans {v0} : quantité demandée {v1}, disponible {v2}. Demande non comptabilisée.": [
+    "المخزون غير كافٍ في {v0}. الكمية المطلوبة {v1} والمتاحة {v2}. لم يُرحّل الطلب.",
+    "Insufficient stock in {v0}. Requested quantity {v1}, available {v2}. Request not posted."
+  ],
+  "Affectation multi-serres non activée : appliquer la migration stock_exit_multi_greenhouse avant de continuer.": [
+    "تخصيص عدة بيوت محمية غير مفعّل. طبّق ترحيل stock_exit_multi_greenhouse قبل المتابعة.",
+    "Multi-greenhouse allocation is not enabled. Apply the stock_exit_multi_greenhouse migration before continuing."
+  ],
+  "{v0} (devise non renseignée)": [
+    "{v0} (العملة غير محددة)",
+    "{v0} (currency not specified)"
+  ],
+  "Montant global enregistré - détail des articles non disponible": [
+    "المبلغ الإجمالي المسجل — تفاصيل الأصناف غير متاحة",
+    "Recorded total amount — item details unavailable"
+  ],
+  "Facture enregistrée": [
+    "فاتورة مسجلة",
+    "Recorded invoice"
+  ],
+  "Live": [
+    "مباشر",
+    "Live"
+  ],
+  "ItriX Farm · by ItriX Technologies": [
+    "ItriX Farm · من ItriX Technologies",
+    "ItriX Farm · by ItriX Technologies"
+  ],
+  "CA": [
+    "رقم المعاملات",
+    "Revenue"
+  ],
+  "MOD": [
+    "اليد العاملة المباشرة",
+    "Direct labour"
+  ],
+  "TVA": [
+    "الضريبة على القيمة المضافة",
+    "VAT"
+  ],
+  "HT": [
+    "دون ضرائب",
+    "Excl. tax"
+  ],
+  "TTC": [
+    "شامل الضرائب",
+    "Incl. tax"
+  ],
+  "Sélectionne la ferme du client actif. Les serres proposées dépendent de ce périmètre.": [
+    "يحدد مزرعة العميل النشط. تعتمد البيوت المحمية المقترحة على هذا النطاق.",
+    "Selects a farm belonging to the active client. The available greenhouses depend on this scope."
+  ],
+  "Si la liste est vide, vérifier le client actif, les fermes paramétrées et vos habilitations.": [
+    "إذا كانت القائمة فارغة، تحقق من العميل النشط والمزارع المُعدّة وصلاحياتك.",
+    "If the list is empty, check the active client, configured farms and your permissions."
+  ],
+  "Définit le cycle agricole auquel rattacher la saisie ou l’analyse.": [
+    "يحدد الموسم الزراعي الذي تُربط به البيانات المدخلة أو التحليلات.",
+    "Defines the agricultural season associated with the entry or analysis."
+  ],
+  "Vérifier la campagne avant de saisir ou comparer des données.": [
+    "تحقق من الموسم قبل إدخال البيانات أو مقارنتها.",
+    "Check the season before entering or comparing data."
+  ],
+  "Identifie la serre concernée dans la ferme sélectionnée.": [
+    "يحدد البيت المحمي المعني داخل المزرعة المختارة.",
+    "Identifies the greenhouse within the selected farm."
+  ],
+  "Ne pas confondre surface officielle de la serre et surface réellement plantée.": [
+    "ميّز بين المساحة الرسمية للبيت المحمي والمساحة المزروعة فعلياً.",
+    "Distinguish the official greenhouse area from the area actually planted."
+  ],
+  "Sélectionne une variété du référentiel. Elle sert à suivre la production et à analyser les résultats.": [
+    "يختار صنفاً من البيانات المرجعية لتتبع الإنتاج وتحليل النتائج.",
+    "Selects a variety from the reference data to monitor production and analyse results."
+  ],
+  "Relie la récolte à une plantation, donc à sa serre, sa variété et sa campagne.": [
+    "يربط الحصاد بالزراعة، وبالتالي بالبيت المحمي والصنف والموسم.",
+    "Links the harvest to a planting and therefore to its greenhouse, variety and season."
+  ],
+  "Choisir la plantation réellement récoltée ; ce lien alimente les analyses.": [
+    "اختر الزراعة التي تم حصادها فعلياً، فهذا الرابط يُستخدم في التحليلات.",
+    "Choose the planting actually harvested. This link feeds the analyses."
+  ],
+  "Date réelle de la récolte, utilisée pour les historiques et les regroupements par jour ou semaine.": [
+    "تاريخ الحصاد الفعلي، ويُستخدم في السجلات والتجميع حسب اليوم أو الأسبوع.",
+    "Actual harvest date, used in history and daily or weekly groupings."
+  ],
+  "La date de l’opération sur le terrain, pas celle de la saisie.": [
+    "تاريخ العملية في الميدان، وليس تاريخ إدخال البيانات.",
+    "The date of the field operation, rather than the data entry date."
+  ],
+  "Quantité de produit en kilogrammes pour cette saisie.": [
+    "كمية المنتج بالكيلوغرام لهذا الإدخال.",
+    "Product quantity in kilograms for this entry."
+  ],
+  "Vérifier s’il s’agit d’un poids estimé ou pesé selon l’étape du parcours.": [
+    "تحقق مما إذا كان الوزن تقديرياً أو مقاساً حسب مرحلة العملية.",
+    "Check whether the weight is estimated or measured for the current workflow stage."
+  ],
+  "Renseigne les types de plateaux et leurs nombres. Le poids de référence du plateau permet d’estimer la quantité récoltée.": [
+    "يسجل أنواع الصناديق وأعدادها. يُستخدم الوزن المرجعي للصندوق لتقدير كمية الحصاد.",
+    "Records tray types and counts. The reference tray weight is used to estimate the harvested quantity."
+  ],
+  "Ce poids estimé ne remplace pas une pesée réelle.": [
+    "هذا الوزن التقديري لا يعوّض الوزن الفعلي.",
+    "This estimated weight does not replace an actual weighing."
+  ],
+  "Poids réellement mesuré à la station, exprimé en kg malgré le mot « tonnage ».": [
+    "الوزن المقاس فعلياً في المحطة، ويُعبَّر عنه بالكيلوغرام رغم استخدام كلمة «حمولة».",
+    "Weight actually measured at the station, expressed in kg despite the term “tonnage”."
+  ],
+  "Saisir 5 000 pour 5 tonnes, pas 5.": [
+    "أدخل 5 000 لخمسة أطنان، وليس 5.",
+    "Enter 5,000 for 5 tonnes, rather than 5."
+  ],
+  "Effectif ayant participé à cette récolte. Il permet de calculer les kg par personne.": [
+    "عدد الأشخاص المشاركين في هذا الحصاد. يتيح حساب الكيلوغرامات لكل شخص.",
+    "Number of people involved in this harvest. Used to calculate kilograms per person."
+  ],
+  "Ne pas additionner des effectifs de plusieurs saisies comme s’il s’agissait forcément de personnes distinctes.": [
+    "لا تجمع أعداد العاملين من عدة إدخالات باعتبارهم بالضرورة أشخاصاً مختلفين.",
+    "Do not add headcounts from multiple entries as if they necessarily represented different people."
+  ],
+  "Temps consacré par chaque personne à cette récolte. Il permet de calculer les kg par heure-personne.": [
+    "الوقت الذي خصصه كل شخص لهذا الحصاد. يتيح حساب الكيلوغرامات لكل ساعة عمل فردية.",
+    "Time each person spent on this harvest. Used to calculate kilograms per person-hour."
+  ],
+  "Déclare que cette saisie couvre toute la journée de récolte de ces personnes, afin de comparer à un objectif journalier.": [
+    "يُقر بأن هذا الإدخال يغطي كامل يوم حصاد هؤلاء الأشخاص، للمقارنة مع الهدف اليومي.",
+    "Declares that this entry covers these people's full harvest day, allowing comparison with a daily target."
+  ],
+  "Ne pas cocher si ces personnes ont participé à d’autres récoltes non incluses dans cette saisie.": [
+    "لا تحدد هذا الخيار إذا شارك هؤلاء الأشخاص في حصادات أخرى غير مشمولة بهذا الإدخال.",
+    "Leave this unchecked if these people also worked on other harvests outside this entry."
+  ],
+  "Objectif journalier de productivité pour une personne, rattaché à une ferme et une date d’effet.": [
+    "هدف الإنتاجية اليومي للشخص، مرتبط بمزرعة وتاريخ سريان.",
+    "Daily productivity target per person, linked to a farm and an effective date."
+  ],
+  "Une nouvelle version ne remplace pas automatiquement les objectifs déjà conservés dans les récoltes.": [
+    "النسخة الجديدة لا تستبدل تلقائياً الأهداف المحفوظة سابقاً في الحصادات.",
+    "A new version does not automatically replace targets already saved in harvest records."
+  ],
+  "Applicable à partir": [
+    "يسري ابتداءً من",
+    "Effective from"
+  ],
+  "Date à partir de laquelle la valeur ou le paramétrage devient applicable.": [
+    "التاريخ الذي تصبح فيه القيمة أو الإعدادات سارية.",
+    "Date from which the value or setting takes effect."
+  ],
+  "Vérifier le contexte : objectif de récolte ou configuration de collecte.": [
+    "تحقق من السياق، سواء كان هدف الحصاد أو إعداد الجمع.",
+    "Check the context, whether a harvest target or a collection setting."
+  ],
+  "Destination commerciale utilisée pour l’envoi. Vérifier le circuit station ou local et le destinataire associé.": [
+    "الوجهة التجارية المستخدمة للإرسال. تحقق من المسار، محطة أو محلي، والمستلم المرتبط به.",
+    "Commercial destination for the dispatch. Check the station or local channel and its associated recipient."
+  ],
+  "Pourcentage de perte physique renseigné lors du tri.": [
+    "نسبة الفقد المادي المسجلة أثناء الفرز.",
+    "Physical loss percentage recorded during sorting."
+  ],
+  "Ne pas confondre freinte et catégories écartées au tri. Vérifier les quantités avant confirmation.": [
+    "ميّز بين الفقد والفئات المستبعدة أثناء الفرز. تحقق من الكميات قبل التأكيد.",
+    "Distinguish shrinkage from rejected sorting categories. Check quantities before confirming."
+  ],
+  "Précise le contexte de la saisie, les observations terrain ou les écarts constatés.": [
+    "يوضح سياق الإدخال والملاحظات الميدانية والفوارق المسجلة.",
+    "Describes the entry context, field observations or discrepancies found."
+  ],
+  "Éviter les données personnelles inutiles ; expliquer les écarts lorsque le formulaire le demande.": [
+    "تجنب البيانات الشخصية غير الضرورية، واشرح الفوارق عندما يطلب النموذج ذلك.",
+    "Avoid unnecessary personal data. Explain discrepancies when the form requests it."
+  ],
+  "Charges imputées divisées par les kilogrammes récoltés sur le même périmètre.": [
+    "التكاليف الموزعة مقسومة على الكيلوغرامات المحصودة ضمن النطاق نفسه.",
+    "Allocated expenses divided by kilograms harvested within the same scope."
+  ],
+  "Une charge manquante peut rendre le coût artificiellement faible. Sans récolte, le ratio n’est pas calculable.": [
+    "قد تؤدي تكلفة ناقصة إلى إظهار تكلفة منخفضة بشكل مصطنع. لا يمكن حساب النسبة دون حصاد.",
+    "Missing expenses can make the cost appear artificially low. The ratio cannot be calculated without a harvest."
+  ],
+  "Chiffre d’affaires issu des quantités tarifées dans le parcours commercial.": [
+    "رقم المعاملات الناتج عن الكميات التي تم تسعيرها ضمن المسار التجاري.",
+    "Revenue from quantities priced in the commercial workflow."
+  ],
+  "Tarifé ne signifie pas encaissé. Les volumes non tarifés restent à distinguer.": [
+    "التسعير لا يعني التحصيل. يجب التمييز بينه وبين الكميات غير المسعرة.",
+    "Priced does not mean collected. Unpriced volumes must remain identifiable."
+  ],
+  "Pourcentage de drainage observé, actuellement saisi manuellement.": [
+    "نسبة الصرف المرصودة، وتُدخل حالياً يدوياً.",
+    "Observed drainage percentage, currently entered manually."
+  ],
+  "Saisir 30 pour 30 %.": [
+    "أدخل 30 للتعبير عن 30٪.",
+    "Enter 30 for 30%."
+  ],
+  "Utiliser le protocole validé par le responsable agronomique ; ne pas déduire une consigne de cette aide.": [
+    "اتبع البروتوكول المعتمد من المسؤول الزراعي، ولا تستنتج تعليمات من هذه المساعدة.",
+    "Follow the protocol approved by the agronomic manager. Do not infer operating instructions from this help."
+  ],
+  "Conductivité électrique mesurée dans la solution apportée ou drainée. Elle renseigne sur la concentration en sels.": [
+    "التوصيلية الكهربائية المقاسة في المحلول المضاف أو المصروف، وتدل على تركيز الأملاح.",
+    "Electrical conductivity measured in the supplied or drained solution, indicating salt concentration."
+  ],
+  "Respecter l’unité affichée et les consignes de mesure. Cette aide ne fixe pas de seuil agronomique.": [
+    "التزم بالوحدة المعروضة وتعليمات القياس. لا تحدد هذه المساعدة عتبة زراعية.",
+    "Follow the displayed unit and measurement instructions. This help does not set an agronomic threshold."
+  ],
+  "Mesure de l’acidité de la solution apportée ou drainée.": [
+    "قياس حموضة المحلول المضاف أو المصروف.",
+    "Measures the acidity of the supplied or drained solution."
+  ],
+  "Utiliser un instrument étalonné et le protocole de l’exploitation ; aucune dose corrective n’est recommandée ici.": [
+    "استخدم جهازاً معايراً وبروتوكول المزرعة. لا تُقترح هنا أي جرعة تصحيحية.",
+    "Use a calibrated instrument and the farm's protocol. No corrective dose is recommended here."
+  ],
+  "Montant en dirhams à enregistrer ou à répartir selon le mode choisi.": [
+    "المبلغ بالدرهم المراد تسجيله أو توزيعه حسب الوضع المختار.",
+    "Amount in dirhams to record or allocate according to the selected mode."
+  ],
+  "En mode réparti, vérifier l’aperçu : ne pas ressaisir le montant total pour chaque serre ou chaque mois.": [
+    "في وضع التوزيع، تحقق من المعاينة ولا تُعد إدخال المبلغ الإجمالي لكل بيت محمي أو شهر.",
+    "In allocation mode, check the preview. Do not re-enter the total for each greenhouse or month."
+  ],
+  "Classe comptable utilisée pour organiser la charge et les analyses. Utiliser le référentiel de l’exploitation.": [
+    "الصنف المحاسبي المستخدم لتنظيم التكلفة والتحليلات. استخدم مرجع المزرعة.",
+    "Accounting class used to organise expenses and analyses. Use the farm's reference data."
+  ],
+  "Rattache la charge à une catégorie du référentiel comptable. Les sous-catégories dépendent de la catégorie sélectionnée.": [
+    "يربط التكلفة بفئة في المرجع المحاسبي. تعتمد الفئات الفرعية على الفئة المختارة.",
+    "Links the expense to an accounting reference category. Subcategories depend on the selected category."
+  ],
+  "Nombre de mois couverts par une répartition mensuelle.": [
+    "عدد الأشهر المشمولة بالتوزيع الشهري.",
+    "Number of months covered by a monthly allocation."
+  ],
+  "Pour une charge couvrant 3 mois, indiquer 3 puis contrôler les montants distribués.": [
+    "لتكلفة تغطي 3 أشهر، أدخل 3 ثم تحقق من المبالغ الموزعة.",
+    "For an expense covering 3 months, enter 3 and then check the allocated amounts."
+  ],
+  "Détermine comment le montant total est ventilé sur les mois.": [
+    "يحدد كيفية توزيع المبلغ الإجمالي على الأشهر.",
+    "Determines how the total amount is spread across months."
+  ],
+  "Vérifier la méthode choisie et l’aperçu avant de confirmer la création des écritures.": [
+    "تحقق من الطريقة المختارة والمعاينة قبل تأكيد إنشاء القيود.",
+    "Check the selected method and preview before confirming entry creation."
+  ],
+  "Date de l’écriture ponctuelle ou premier mois de la répartition selon le mode de saisie.": [
+    "تاريخ القيد الفردي أو الشهر الأول للتوزيع حسب وضع الإدخال.",
+    "Date of the one-off entry or first allocation month, depending on the entry mode."
+  ],
+  "Suivre une récolte depuis sa saisie jusqu’à l’envoi, au tri et à la tarification.": [
+    "تتبع الحصاد من التسجيل إلى الإرسال والفرز والتسعير.",
+    "Track a harvest from entry through dispatch, sorting and pricing."
+  ],
+  "Choisir la plantation et la date ; renseigner les plateaux ou la quantité selon le formulaire.": [
+    "اختر الزراعة والتاريخ، وأدخل الصناديق أو الكمية حسب النموذج.",
+    "Choose the planting and date, then enter trays or quantity as requested by the form."
+  ],
+  "Renseigner les personnes et les heures si connues ; déclarer la journée complète seulement si elle l’est.": [
+    "أدخل عدد الأشخاص والساعات إن كانت معروفة، وصرّح باليوم الكامل فقط إذا كان كاملاً فعلاً.",
+    "Enter people and hours if known. Declare a full day only when it really is complete."
+  ],
+  "Composer un envoi station ou local avec les récoltes concernées.": [
+    "أنشئ إرسالاً إلى المحطة أو السوق المحلي من الحصادات المعنية.",
+    "Create a station or local dispatch from the relevant harvests."
+  ],
+  "Compléter la pesée, le tri et le prix lorsqu’ils existent ; consulter le récapitulatif des envois tarifés.": [
+    "أكمل الوزن والفرز والسعر عند توفرها، وراجع ملخص الإرسالات المسعرة.",
+    "Complete weighing, sorting and price when available. Review the priced dispatch summary."
+  ],
+  "Une récolte déjà envoyée ne doit plus être modifiée ou supprimée depuis la liste.": [
+    "لا يجوز تعديل حصاد تم إرساله أو حذفه من القائمة.",
+    "A harvest already dispatched must no longer be edited or deleted from the list."
+  ],
+  "Les contrôles de DAR doivent être respectés ; cette documentation ne constitue pas une autorisation de dérogation.": [
+    "يجب احترام ضوابط فترة ما قبل الحصاد. هذه الوثائق لا تسمح بأي استثناء.",
+    "Pre-harvest interval checks must be respected. This documentation does not authorise any exemption."
+  ],
+  "Le CA tarifé n’est pas un encaissement.": [
+    "رقم المعاملات المسعّر لا يمثل تحصيلاً نقدياً.",
+    "Priced revenue is not a cash receipt."
+  ],
+  "Comparer la productivité de récolte aux objectifs journaliers et hebdomadaires.": [
+    "قارن إنتاجية الحصاد بالأهداف اليومية والأسبوعية.",
+    "Compare harvest productivity against daily and weekly targets."
+  ],
+  "Choisir le périmètre et la période.": [
+    "اختر النطاق والفترة.",
+    "Select the scope and period."
+  ],
+  "Vérifier les effectifs renseignés dans les récoltes.": [
+    "تحقق من أعداد العاملين المسجلة في الحصادات.",
+    "Check the headcounts recorded in harvests."
+  ],
+  "Définir l’objectif de la ferme avec sa date d’effet.": [
+    "حدد هدف المزرعة وتاريخ سريانه.",
+    "Set the farm target and its effective date."
+  ],
+  "Consulter les ratios et la courbe avec les données comparables.": [
+    "راجع النسب والمنحنى باستخدام بيانات قابلة للمقارنة.",
+    "Review the ratios and chart using comparable data."
+  ],
+  "Un effectif absent n’est pas zéro.": [
+    "غياب عدد العاملين لا يعني أن العدد صفر.",
+    "A missing headcount does not mean zero."
+  ],
+  "Une saisie partielle de journée n’est pas comparable directement à un objectif de journée complète.": [
+    "لا يمكن مقارنة إدخال ليوم جزئي مباشرة بهدف يوم كامل.",
+    "A partial-day entry cannot be compared directly with a full-day target."
+  ],
+  "Analyser la production et les coûts puis explorer le détail par périmètre.": [
+    "حلل الإنتاج والتكاليف ثم استكشف التفاصيل حسب النطاق.",
+    "Analyse production and costs, then drill down by scope."
+  ],
+  "Sélectionner la campagne et les filtres utiles.": [
+    "اختر الموسم والمرشحات المناسبة.",
+    "Select the season and relevant filters."
+  ],
+  "Choisir la lecture par ferme, serre ou variété.": [
+    "اختر العرض حسب المزرعة أو البيت المحمي أو الصنف.",
+    "Choose a view by farm, greenhouse or variety."
+  ],
+  "Cliquer sur un élément éligible pour explorer le détail ; utiliser le retour au niveau supérieur.": [
+    "انقر على عنصر مؤهل لاستكشاف التفاصيل، واستخدم العودة إلى المستوى الأعلى.",
+    "Click an eligible item to drill down. Use the parent-level control to drill up."
+  ],
+  "Examiner les messages de qualité avant d’interpréter un ratio ou un classement.": [
+    "راجع رسائل جودة البيانات قبل تفسير نسبة أو ترتيب.",
+    "Review data quality messages before interpreting a ratio or ranking."
+  ],
+  "Le coût à date d’un cycle en cours est provisoire, pas un coût de cycle clôturé.": [
+    "تكلفة الدورة الجارية حتى اليوم مؤقتة، وليست تكلفة دورة مغلقة.",
+    "The cost to date of an ongoing cycle is provisional, rather than a closed-cycle cost."
+  ],
+  "Des charges ou des récoltes manquantes peuvent empêcher une comparaison fiable.": [
+    "قد تمنع التكاليف أو الحصادات الناقصة إجراء مقارنة موثوقة.",
+    "Missing expenses or harvests can prevent a reliable comparison."
+  ],
+  "Consulter la vue Direction ou Terrain et accéder rapidement aux informations de l’exploitation.": [
+    "راجع عرض الإدارة أو الميدان للوصول السريع إلى معلومات المزرعة.",
+    "Use the Management or Field view to quickly access farm information."
+  ],
+  "Vérifier le client, la campagne et la ferme.": [
+    "تحقق من العميل والموسم والمزرعة.",
+    "Check the client, season and farm."
+  ],
+  "Utiliser la vue Direction pour la synthèse et la vue Terrain pour les serres.": [
+    "استخدم عرض الإدارة للملخص وعرض الميدان للبيوت المحمية.",
+    "Use Management for the overview and Field for greenhouses."
+  ],
+  "Ouvrir une serre pour consulter sa fiche ; suivre les liens vers les modules concernés.": [
+    "افتح بيتاً محمياً لعرض بطاقته، واتبع الروابط إلى الوحدات المعنية.",
+    "Open a greenhouse to view its details, then follow links to the relevant modules."
+  ],
+  "Les indicateurs dépendent des filtres et des données effectivement chargées.": [
+    "تعتمد المؤشرات على المرشحات والبيانات المحملة فعلياً.",
+    "Indicators depend on the filters and data actually loaded."
+  ],
+  "Visualiser les plantations, le domaine et le plan de la ferme.": [
+    "اعرض الزراعات والمجال ومخطط المزرعة.",
+    "View plantings, the estate and the farm plan."
+  ],
+  "Sélectionner la campagne, la ferme et éventuellement la variété.": [
+    "اختر الموسم والمزرعة والصنف عند الحاجة.",
+    "Select the season, farm and, optionally, variety."
+  ],
+  "Choisir la vue adaptée : plan de culture, domaine ou plan de ferme.": [
+    "اختر العرض المناسب، مخطط الزراعة أو المجال أو مخطط المزرعة.",
+    "Choose the appropriate view, crop plan, estate or farm plan."
+  ],
+  "Cliquer sur une serre pour ouvrir sa fiche.": [
+    "انقر على بيت محمي لفتح بطاقته.",
+    "Click a greenhouse to open its details."
+  ],
+  "Consulter la légende pour interpréter les couleurs et la chronologie.": [
+    "راجع مفتاح الرموز لفهم الألوان والتسلسل الزمني.",
+    "Use the legend to interpret colours and the timeline."
+  ],
+  "Les objectifs de production ne sont pas les quantités déjà récoltées.": [
+    "أهداف الإنتاج تختلف عن الكميات المحصودة بالفعل.",
+    "Production targets differ from quantities already harvested."
+  ],
+  "Suivre les prescriptions phytosanitaires et leurs occurrences.": [
+    "تتبع الوصفات الصحية النباتية ومواعيد تنفيذها.",
+    "Track crop protection prescriptions and their scheduled occurrences."
+  ],
+  "Filtrer par période et périmètre ; consulter le calendrier ou la liste.": [
+    "رشّح حسب الفترة والنطاق، وراجع التقويم أو القائمة.",
+    "Filter by period and scope, then view the calendar or list."
+  ],
+  "Ouvrir la prescription pour vérifier les serres, produits et échéances.": [
+    "افتح الوصفة للتحقق من البيوت المحمية والمنتجات والمواعيد.",
+    "Open the prescription to check greenhouses, products and due dates."
+  ],
+  "Suivre la validation puis la confirmation de réalisation selon vos habilitations.": [
+    "تتبع الاعتماد ثم تأكيد التنفيذ حسب صلاحياتك.",
+    "Follow approval and then completion confirmation according to your permissions."
+  ],
+  "Une prescription validée n’est pas forcément réalisée.": [
+    "الوصفة المعتمدة ليست بالضرورة منفذة.",
+    "An approved prescription has not necessarily been completed."
+  ],
+  "Un délai de rentrée non renseigné n’autorise pas l’entrée dans la serre.": [
+    "عدم تحديد فترة إعادة الدخول لا يسمح بدخول البيت المحمي.",
+    "A missing re-entry interval does not authorise entry into the greenhouse."
+  ],
+  "Renseigner les relevés quotidiens de drainage par serre.": [
+    "سجل قراءات الصرف اليومية حسب البيت المحمي.",
+    "Record daily drainage readings by greenhouse."
+  ],
+  "Choisir la ferme, la serre et la date du relevé.": [
+    "اختر المزرعة والبيت المحمي وتاريخ القراءة.",
+    "Choose the farm, greenhouse and reading date."
+  ],
+  "Vérifier le lien avec l’occurrence de fertigation lorsqu’il est proposé.": [
+    "تحقق من الارتباط بموعد التسميد مع الري عندما يكون متاحاً.",
+    "Check the link to the fertigation occurrence when offered."
+  ],
+  "Ajouter les mesures aux heures concernées ; renseigner le drainage observé.": [
+    "أضف القياسات في الأوقات المعنية وسجل نسبة الصرف المرصودة.",
+    "Add measurements at the relevant times and enter observed drainage."
+  ],
+  "Confirmer l’enregistrement et vérifier le retour de synchronisation.": [
+    "أكد الحفظ وتحقق من نتيجة المزامنة.",
+    "Confirm saving and check the synchronisation result."
+  ],
+  "Le relevé décrit une mesure : il ne remplace pas la confirmation des consommations de produits.": [
+    "القراءة تصف قياساً ولا تعوّض تأكيد استهلاك المنتجات.",
+    "A reading records a measurement. It does not replace confirmation of product consumption."
+  ],
+  "En cas d’erreur de synchronisation, ne pas considérer les données comme sauvegardées sur le serveur.": [
+    "عند حدوث خطأ مزامنة، لا تعتبر البيانات محفوظة على الخادم.",
+    "If synchronisation fails, do not consider the data saved on the server."
+  ],
+  "Préparer les données de départ avec un dossier guidé et les référentiels existants.": [
+    "جهز بيانات البداية باستخدام ملف إرشادي والبيانات المرجعية الموجودة.",
+    "Prepare starting data using a guided workbook and existing reference data."
+  ],
+  "Vérifier le client actif ; créer ou sélectionner le client dans le module Clients / Sociétés si nécessaire.": [
+    "تحقق من العميل النشط، وأنشئه أو اختره في وحدة العملاء / الشركات عند الحاجة.",
+    "Check the active client. Create or select it in Clients / Companies if necessary."
+  ],
+  "Compléter les étapes dans l’ordre en réutilisant les références existantes.": [
+    "أكمل المراحل بالترتيب مع إعادة استخدام المراجع الموجودة.",
+    "Complete the steps in order, reusing existing references."
+  ],
+  "Télécharger le modèle de l’étape ; conserver les liens et références fournis.": [
+    "نزّل نموذج المرحلة واحتفظ بالروابط والمراجع المرفقة.",
+    "Download the step template and preserve the supplied links and references."
+  ],
+  "Recharger le fichier, examiner les contrôles et sauvegarder le dossier.": [
+    "أعد تحميل الملف وراجع الفحوصات واحفظ الملف الإرشادي.",
+    "Upload the file again, review checks and save the workbook."
+  ],
+  "Une étape relue ou un dossier à 100 % ne prouve pas que toutes les données ont été intégrées aux modules.": [
+    "مراجعة مرحلة أو بلوغ الملف 100٪ لا يثبت إدماج كل البيانات في الوحدات.",
+    "A reviewed step or a workbook at 100% does not prove that all data has been integrated into the modules."
+  ],
+  "Se fier au statut affiché par l’écran ; ne pas saisir d’identifiants techniques manuellement.": [
+    "اعتمد على الحالة المعروضة في الشاشة، ولا تدخل المعرفات التقنية يدوياً.",
+    "Rely on the status displayed on screen. Do not enter technical identifiers manually."
+  ],
+  "Consulter les articles et leur situation de stock dans le périmètre sélectionné.": [
+    "راجع الأصناف ووضع مخزونها ضمن النطاق المختار.",
+    "View items and their stock position within the selected scope."
+  ],
+  "Vérifier le client et les filtres.": [
+    "تحقق من العميل والمرشحات.",
+    "Check the client and filters."
+  ],
+  "Consulter l’article et son unité.": [
+    "راجع الصنف ووحدته.",
+    "Check the item and its unit."
+  ],
+  "Utiliser les écrans de mouvements ou de transferts pour suivre les opérations.": [
+    "استخدم شاشات الحركات أو التحويلات لتتبع العمليات.",
+    "Use the movement or transfer screens to track operations."
+  ],
+  "Ne pas confondre quantité de stock et valeur monétaire.": [
+    "ميّز بين كمية المخزون وقيمته المالية.",
+    "Distinguish stock quantity from monetary value."
+  ],
+  "Toujours vérifier les unités des articles avant une consommation.": [
+    "تحقق دائماً من وحدات الأصناف قبل الاستهلاك.",
+    "Always check item units before consumption."
+  ],
+  "Préparer les coûts prévisionnels, distincts des coûts réels.": [
+    "جهز التكاليف التقديرية بشكل منفصل عن التكاليف الفعلية.",
+    "Prepare forecast costs separately from actual costs."
+  ],
+  "Enregistrer les charges réelles, distinctes du budget.": [
+    "سجل التكاليف الفعلية بشكل منفصل عن الميزانية.",
+    "Record actual expenses separately from the budget."
+  ],
+  "Vérifier le client, la campagne et le périmètre.": [
+    "تحقق من العميل والموسم والنطاق.",
+    "Check the client, season and scope."
+  ],
+  "Choisir une saisie ponctuelle, mensuelle, par surface ou mensuelle combinée à la surface.": [
+    "اختر إدخالاً لمرة واحدة أو شهرياً أو حسب المساحة أو شهرياً مع المساحة.",
+    "Choose one-off, monthly, area-based or combined monthly and area-based entry."
+  ],
+  "Choisir les catégories comptables et renseigner le montant en MAD.": [
+    "اختر الفئات المحاسبية وأدخل المبلغ بالدرهم المغربي.",
+    "Select accounting categories and enter the amount in MAD."
+  ],
+  "Contrôler la répartition avant confirmation ; pour Excel, télécharger le modèle et vérifier les références puis l’aperçu d’import.": [
+    "تحقق من التوزيع قبل التأكيد. في Excel، نزّل النموذج وراجع المراجع ثم معاينة الاستيراد.",
+    "Check allocation before confirming. For Excel, download the template, verify references and review the import preview."
+  ],
+  "Un budget n’est pas une consommation réelle.": [
+    "الميزانية لا تمثل استهلاكاً فعلياً.",
+    "A budget does not represent actual consumption."
+  ],
+  "Une répartition crée plusieurs écritures : vérifier le total et éviter les doublons.": [
+    "ينشئ التوزيع عدة قيود. تحقق من الإجمالي وتجنب التكرار.",
+    "An allocation creates multiple entries. Check the total and avoid duplicates."
+  ],
+  "Suivre les bons d’achat, leur statut et les réceptions fournisseur.": [
+    "تتبع أوامر الشراء وحالتها واستلامات الموردين.",
+    "Track purchase orders, their status and supplier receipts."
+  ],
+  "Ouvrir le bon et vérifier le fournisseur, les articles, unités et quantités.": [
+    "افتح الأمر وتحقق من المورد والأصناف والوحدات والكميات.",
+    "Open the order and check the supplier, items, units and quantities."
+  ],
+  "Utiliser les transitions proposées selon le statut et vos habilitations.": [
+    "استخدم انتقالات الحالة المتاحة حسب الحالة وصلاحياتك.",
+    "Use the available transitions according to the status and your permissions."
+  ],
+  "Après livraison, saisir les quantités réceptionnées et l’entrepôt concerné.": [
+    "بعد التسليم، أدخل الكميات المستلمة والمستودع المعني.",
+    "After delivery, enter quantities received and the relevant warehouse."
+  ],
+  "Vérifier le résultat de la réception avant de la recréer si une erreur ou un délai dépassé survient.": [
+    "تحقق من نتيجة الاستلام قبل إعادة إنشائه عند حدوث خطأ أو انتهاء المهلة.",
+    "Check the receipt result before recreating it following an error or timeout."
+  ],
+  "Une erreur de transition ne signifie pas que le bon a été envoyé.": [
+    "خطأ الانتقال لا يعني إرسال أمر الشراء.",
+    "A transition error does not mean the purchase order was sent."
+  ],
+  "Pour un remplacement, utiliser l’accord approuvé correspondant.": [
+    "للاستبدال، استخدم الاتفاق المعتمد المعني.",
+    "For a replacement, use the corresponding approved agreement."
+  ],
+  "Suivre la facturation et les échéances clients et fournisseurs.": [
+    "تتبع الفوترة ومواعيد استحقاق العملاء والموردين.",
+    "Track invoicing and customer and supplier due dates."
+  ],
+  "Consulter le calendrier et les prochaines échéances.": [
+    "راجع التقويم والمواعيد القادمة.",
+    "Check the calendar and upcoming due dates."
+  ],
+  "Ouvrir la facture concernée et vérifier les montants et dates.": [
+    "افتح الفاتورة المعنية وتحقق من المبالغ والتواريخ.",
+    "Open the relevant invoice and check amounts and dates."
+  ],
+  "Distinguer les montants à recevoir ou à payer des encaissements et paiements déjà enregistrés.": [
+    "ميّز بين المبالغ المستحقة للتحصيل أو الدفع وبين التحصيلات والمدفوعات المسجلة بالفعل.",
+    "Distinguish amounts receivable or payable from receipts and payments already recorded."
+  ],
+  "Une facture, une tarification et un encaissement sont des événements distincts.": [
+    "الفاتورة والتسعير والتحصيل أحداث منفصلة.",
+    "An invoice, pricing and a cash receipt are separate events."
+  ],
+  "Tracer le produit depuis la récolte sur une plantation jusqu’au règlement du client, sans confondre les volumes physiques, le chiffre d’affaires tarifé et la trésorerie.": [
+    "تتبع المنتج من حصاد الزراعة إلى سداد العميل، مع التمييز بين الكميات الفعلية ورقم المعاملات المسعر والسيولة.",
+    "Trace produce from harvest on a planting through customer payment, distinguishing physical volumes, priced revenue and cash flow."
+  ],
+  "Client actif, campagne et plantation paramétrés : la plantation rattache la récolte à la serre et à la variété.": [
+    "يجب إعداد العميل النشط والموسم والزراعة. تربط الزراعة الحصاد بالبيت المحمي والصنف.",
+    "Configure the active client, season and planting. The planting links the harvest to its greenhouse and variety."
+  ],
+  "Types de plateaux et poids de référence configurés pour estimer le poids au champ.": [
+    "يجب إعداد أنواع الصناديق وأوزانها المرجعية لتقدير الوزن في الحقل.",
+    "Configure tray types and reference weights to estimate field weight."
+  ],
+  "Marché de destination relié à un client commercial pour pouvoir générer la facture.": [
+    "يجب ربط سوق الوجهة بعميل تجاري لإنشاء الفاتورة.",
+    "Link the destination market to a commercial customer to generate the invoice."
+  ],
+  "Habilitations nécessaires et fonctions de facturation déployées sur la base utilisée.": [
+    "يلزم توفر الصلاحيات ونشر وظائف الفوترة على قاعدة البيانات المستخدمة.",
+    "The required permissions and invoicing functions must be available on the database in use."
+  ],
+  "Saisir la récolte": [
+    "تسجيل الحصاد",
+    "Record the harvest"
+  ],
+  "Ouvrir « Saisir récolte ». Choisir la plantation, la date et les plateaux ; ajouter le personnel et les notes si connus.": [
+    "افتح «تسجيل الحصاد». اختر الزراعة والتاريخ والصناديق، وأضف العمال والملاحظات إن توفرت.",
+    "Open “Record harvest”. Choose the planting, date and trays, then add personnel and notes if known."
+  ],
+  "Un lot de récolte est enregistré. Le poids issu des plateaux est une estimation, pas une pesée station.": [
+    "يُحفظ دفعة حصاد. الوزن المستنتج من الصناديق تقديري، وليس وزناً مقاساً في المحطة.",
+    "A harvest lot is recorded. Weight derived from trays is an estimate, rather than a station weighing."
+  ],
+  "Composer un envoi avec les quantités disponibles. Une récolte déjà envoyée, même partiellement, ne se modifie plus depuis la liste.": [
+    "أنشئ إرسالاً بالكميات المتاحة. الحصاد المُرسل، ولو جزئياً، لا يمكن تعديله من القائمة.",
+    "Create a dispatch using available quantities. A harvest already dispatched, even partially, can no longer be edited from the list."
+  ],
+  "Sélectionner les récoltes à envoyer et leur marché de destination, station ou local.": [
+    "اختر الحصادات المراد إرسالها وسوق وجهتها، محطة أو محلي.",
+    "Select the harvests to dispatch and their destination market, station or local."
+  ],
+  "Les quantités sont engagées dans des envois ; le restant à envoyer diminue.": [
+    "تُخصص الكميات للإرسالات، وتنخفض الكمية المتبقية للإرسال.",
+    "Quantities are committed to dispatches, reducing the quantity remaining to dispatch."
+  ],
+  "Suivre l’envoi dans les onglets concernés ; ne pas recréer le même envoi après une erreur sans vérifier son existence.": [
+    "تتبع الإرسال في التبويبات المعنية. لا تُعد إنشاءه بعد خطأ دون التحقق من وجوده.",
+    "Track the dispatch in the relevant tabs. After an error, check whether it exists before creating it again."
+  ],
+  "Confirmer la pesée": [
+    "تأكيد الوزن",
+    "Confirm weighing"
+  ],
+  "Pour le parcours station, saisir le poids réellement reçu en kilogrammes.": [
+    "في مسار المحطة، أدخل الوزن المستلم فعلياً بالكيلوغرام.",
+    "For the station workflow, enter the weight actually received in kilograms."
+  ],
+  "Le poids mesuré permet de distinguer estimation au champ et réception réelle.": [
+    "يتيح الوزن المقاس التمييز بين تقدير الحقل والاستلام الفعلي.",
+    "Measured weight distinguishes the field estimate from the actual receipt."
+  ],
+  "Compléter le tri lorsqu’il est disponible. Les étapes à renseigner dépendent du circuit commercial.": [
+    "أكمل الفرز عند توفره. تعتمد المراحل المطلوبة على المسار التجاري.",
+    "Complete sorting when available. The required stages depend on the commercial channel."
+  ],
+  "Compléter les quantités et catégories acceptées ainsi que les pertes selon les informations reçues.": [
+    "أدخل الكميات والفئات المقبولة والفواقد حسب المعلومات المستلمة.",
+    "Enter accepted quantities and categories, along with losses, based on the information received."
+  ],
+  "La quantité acceptée devient la base de la tarification.": [
+    "تصبح الكمية المقبولة أساس التسعير.",
+    "The accepted quantity becomes the basis for pricing."
+  ],
+  "Contrôler les quantités avant de saisir un prix ou de valider un bordereau.": [
+    "تحقق من الكميات قبل إدخال سعر أو اعتماد كشف المحطة.",
+    "Check quantities before entering a price or approving a station settlement."
+  ],
+  "Choisir la tarification individuelle, par période ou par bordereau station.": [
+    "اختر التسعير الفردي أو حسب الفترة أو كشف المحطة.",
+    "Choose individual, period-based or station settlement pricing."
+  ],
+  "Le prix et le CA sont enregistrés sur les envois concernés. Le statut tarifé ne prouve pas qu’une facture existe.": [
+    "يُحفظ السعر ورقم المعاملات على الإرسالات المعنية. حالة «مسعّر» لا تثبت وجود فاتورة.",
+    "Price and revenue are recorded on the relevant dispatches. Priced status does not prove an invoice exists."
+  ],
+  "Vérifier la facturation selon le mode utilisé, détaillé ci-dessous.": [
+    "تحقق من الفوترة حسب الطريقة المستخدمة الموضحة أدناه.",
+    "Check invoicing according to the method used, detailed below."
+  ],
+  "Vérifier / générer la facture": [
+    "التحقق من الفاتورة / إنشاؤها",
+    "Check / generate the invoice"
+  ],
+  "Contrôler la présence de la facture, le client, le montant et l’échéance. Pour un bordereau, utiliser l’action de génération de facture.": [
+    "تحقق من وجود الفاتورة والعميل والمبلغ والاستحقاق. لكشف المحطة، استخدم إجراء إنشاء الفاتورة.",
+    "Check the invoice exists, its customer, amount and due date. For a settlement, use the invoice generation action."
+  ],
+  "La facture formalise une créance client. Son existence ne constitue pas un encaissement.": [
+    "تثبت الفاتورة ديناً على العميل. وجودها لا يمثل تحصيلاً نقدياً.",
+    "The invoice formalises a customer receivable. Its existence does not constitute a cash receipt."
+  ],
+  "Suivre l’échéance et enregistrer le règlement effectivement reçu.": [
+    "تتبع الاستحقاق وسجل السداد المستلم فعلياً.",
+    "Track the due date and record the payment actually received."
+  ],
+  "Ouvrir la facture client et saisir le montant reçu, le moyen de paiement et la référence.": [
+    "افتح فاتورة العميل وأدخل المبلغ المستلم وطريقة الدفع والمرجع.",
+    "Open the customer invoice and enter the amount received, payment method and reference."
+  ],
+  "Le règlement est enregistré dans le parcours de paiement client.": [
+    "يُسجل السداد في مسار مدفوعات العملاء.",
+    "The payment is recorded in the customer payment workflow."
+  ],
+  "Vérifier le solde et l’état de la facture ; un règlement peut ne couvrir qu’une partie du montant.": [
+    "تحقق من الرصيد وحالة الفاتورة، فقد يغطي السداد جزءاً فقط من المبلغ.",
+    "Check the balance and invoice status. A payment may cover only part of the amount."
+  ],
+  "Après la mise à jour du prix, l’écran appelle admin_generate_dispatch_invoice. La fonction renvoie la facture existante si l’envoi est déjà lié à une facture.": [
+    "بعد تحديث السعر، تستدعي الشاشة admin_generate_dispatch_invoice. تُرجع الوظيفة الفاتورة الموجودة إذا كان الإرسال مرتبطاً بفاتورة بالفعل.",
+    "After updating the price, the screen calls admin_generate_dispatch_invoice. The function returns the existing invoice if the dispatch is already linked to one."
+  ],
+  "La tarification peut réussir alors que la facture échoue : vérifier la facture dans le récapitulatif et dans Factures. Un marché sans client par défaut empêche sa création.": [
+    "قد ينجح التسعير وتفشل الفوترة. تحقق من الفاتورة في الملخص وفي وحدة الفواتير. عدم ربط السوق بعميل افتراضي يمنع إنشاءها.",
+    "Pricing can succeed while invoicing fails. Check the invoice in the summary and Invoices. A market without a default customer prevents creation."
+  ],
+  "Tarification par période": [
+    "التسعير حسب الفترة",
+    "Period-based pricing"
+  ],
+  "Le traitement met à jour les prix, le CA et le statut tarifé des envois sélectionnés. Il n’appelle pas la fonction de génération de facture dans ce parcours.": [
+    "يحدّث الإجراء الأسعار ورقم المعاملات وحالة التسعير للإرسالات المختارة. لا يستدعي وظيفة إنشاء الفاتورة في هذا المسار.",
+    "The process updates prices, revenue and priced status for selected dispatches. It does not call the invoice generation function in this workflow."
+  ],
+  "Ne pas annoncer une facture automatiquement créée. Vérifier les envois tarifés non facturés et le parcours de facturation disponible.": [
+    "لا تفترض إنشاء فاتورة تلقائياً. تحقق من الإرسالات المسعرة غير المفوترة ومسار الفوترة المتاح.",
+    "Do not assume an invoice was created automatically. Check priced, uninvoiced dispatches and the available invoicing workflow."
+  ],
+  "La validation et la génération de facture sont deux actions distinctes dans l’écran de bordereaux. La génération utilise admin_generate_settlement_invoice et le client lié au marché.": [
+    "اعتماد كشف المحطة وإنشاء الفاتورة إجراءان منفصلان في الشاشة. يستخدم الإنشاء admin_generate_settlement_invoice والعميل المرتبط بالسوق.",
+    "Approval and invoice generation are separate actions on the settlement screen. Generation uses admin_generate_settlement_invoice and the customer linked to the market."
+  ],
+  "Vérifier que le bordereau est validé, ses marchés correctement reliés aux clients et la facture générée. Un bordereau facturé ne peut pas être corrigé librement.": [
+    "تحقق من اعتماد الكشف وربط أسواقه بالعملاء وإنشاء الفاتورة. لا يمكن تعديل كشف تمت فوترته بحرية.",
+    "Check the settlement is approved, its markets are linked to customers and the invoice is generated. An invoiced settlement cannot be freely corrected."
+  ],
+  "Campagne 2026–2027": [
+    "الموسم 2026–2027",
+    "Season 2026–2027"
+  ],
+  "Quantité (kg) *": [
+    "الكمية (كغ) *",
+    "Quantity (kg) *"
+  ],
+  "1 tonne = 1 000 kg.": [
+    "1 طن = 1 000 كغ.",
+    "1 tonne = 1,000 kg."
+  ],
+  "5 000 kg / 5 personnes = 1 000 kg par personne.": [
+    "5 000 كغ / 5 أشخاص = 1 000 كغ لكل شخص.",
+    "5,000 kg / 5 people = 1,000 kg per person."
+  ],
+  "5 personnes × 6 heures = 30 heures-personnes.": [
+    "5 أشخاص × 6 ساعات = 30 ساعة عمل فردية.",
+    "5 people × 6 hours = 30 person-hours."
+  ],
+  "800 kg par personne et par jour.": [
+    "800 كغ لكل شخص في اليوم.",
+    "800 kg per person per day."
+  ],
+  "Freinte (%)": [
+    "الفقد (%)",
+    "Shrinkage (%)"
+  ],
+  "CA réalisé": [
+    "رقم المعاملات المحقق",
+    "Realised revenue"
+  ],
+  "Drainage (%)": [
+    "الصرف (%)",
+    "Drainage (%)"
+  ],
+  "EC apport": [
+    "توصيلية المحلول المضاف",
+    "Supply EC"
+  ],
+  "EC drainage": [
+    "توصيلية مياه الصرف",
+    "Drainage EC"
+  ],
+  "pH apport": [
+    "حموضة المحلول المضاف",
+    "Supply pH"
+  ],
+  "pH drainage": [
+    "حموضة مياه الصرف",
+    "Drainage pH"
+  ],
+  "Composer l’envoi": [
+    "إنشاء الإرسال",
+    "Create the dispatch"
+  ],
+  "Renseigner le tri": [
+    "تسجيل الفرز",
+    "Record sorting"
+  ],
+  "Tarifer": [
+    "تسعير",
+    "Price"
+  ],
+  "Enregistrer l’encaissement": [
+    "تسجيل التحصيل",
+    "Record the receipt"
+  ],
+  "Tarification individuelle": [
+    "التسعير الفردي",
+    "Individual pricing"
+  ],
+  "Bordereau station": [
+    "كشف المحطة",
+    "Station settlement"
+  ],
+  "Préparation…": [
+    "جارٍ التحضير…",
+    "Preparing…"
+  ],
+  "Télécharger PDF": [
+    "تنزيل PDF",
+    "Download PDF"
+  ],
+  "Préparation du PDF fictif et simulation…": [
+    "جارٍ إعداد ملف PDF التجريبي والمحاكاة…",
+    "Preparing the test PDF and simulation…"
+  ],
+  "Aucun téléchargement ou aperçu ne déclenche un envoi.": [
+    "التنزيل أو المعاينة لا يؤدي إلى إرسال.",
+    "Downloading or previewing does not trigger sending."
+  ],
+  "Réception simulée — à vérifier humainement": [
+    "استلام محاكى — يتطلب تحققاً بشرياً",
+    "Simulated receipt — requires human verification"
+  ],
+  "Échec simulé — renvoi possible": [
+    "فشل محاكى — يمكن إعادة الإرسال",
+    "Simulated failure — retry available"
+  ],
+  "clients": [
+    "العملاء",
+    "customers"
+  ],
+  "fournisseurs": [
+    "الموردون",
+    "suppliers"
+  ],
+  "obligatoire": [
+    "إلزامي",
+    "required"
+  ],
+  "saisis": [
+    "مُدخلة",
+    "entered"
+  ],
+  "budget": [
+    "الميزانية",
+    "budget"
+  ],
+  "Renvoyer la même facture fictive à DocIndex": [
+    "إعادة إرسال الفاتورة التجريبية نفسها إلى DocIndex",
+    "Resend the same test invoice to DocIndex"
+  ],
+  "Envoyer la facture fictive à DocIndex": [
+    "إرسال الفاتورة التجريبية إلى DocIndex",
+    "Send the test invoice to DocIndex"
+  ],
+  "clair": [
+    "فاتح",
+    "light"
+  ],
+  "sombre": [
+    "داكن",
+    "dark"
+  ],
+  "Renvoyer avec la même référence": [
+    "إعادة الإرسال بالمرجع نفسه",
+    "Resend with the same reference"
+  ],
+  "Envoyer cette facture à DocIndex": [
+    "إرسال هذه الفاتورة إلى DocIndex",
+    "Send this invoice to DocIndex"
+  ],
+  "En attente du premier suivi.": [
+    "في انتظار أول تحديث للتتبع.",
+    "Awaiting the first tracking update."
+  ],
+  "(devise non renseignée)": [
+    "(العملة غير محددة)",
+    "(currency not specified)"
+  ],
+  "Fréq.": [
+    "التكرار",
+    "Freq."
+  ],
+  "QTÉ": [
+    "الكمية",
+    "QTY"
+  ],
+  "Ferme (saisie)": [
+    "المزرعة (إدخال)",
+    "Farm (entry)"
+  ],
+  "Ferme (consolidé)": [
+    "المزرعة (مجمّع)",
+    "Farm (consolidated)"
+  ],
+  "Multi-fermes": [
+    "عدة مزارع",
+    "Multiple farms"
+  ],
+  "Budget vs Réel": [
+    "الميزانية مقابل الفعلي",
+    "Budget vs actual"
+  ],
+  "Réel seul": [
+    "الفعلي فقط",
+    "Actual only"
+  ],
+  "Totaux": [
+    "الإجماليات",
+    "Totals"
+  ],
+  "Crédit clients": [
+    "ائتمان العملاء",
+    "Customer credit"
+  ],
+  "Prix/kg": [
+    "السعر/كغ",
+    "Price/kg"
+  ],
+  "Logistique": [
+    "الخدمات اللوجستية",
+    "Logistics"
+  ],
+  "Frais export": [
+    "مصاريف التصدير",
+    "Export charges"
+  ],
+  "📊 Dashboard": [
+    "📊 لوحة القيادة",
+    "📊 Dashboard"
+  ],
+  "🌱 Plan de culture": [
+    "🌱 مخطط الزراعة",
+    "🌱 Crop plan"
+  ],
+  "📦 Volumes": [
+    "📦 الكميات",
+    "📦 Volumes"
+  ],
+  "🗓️ Vue Domaine": [
+    "🗓️ عرض المجال",
+    "🗓️ Estate view"
+  ],
+  "Plan de la ferme": [
+    "مخطط المزرعة",
+    "Farm plan"
+  ],
+  "Produits (CA)": [
+    "الإيرادات (رقم المعاملات)",
+    "Income (revenue)"
+  ],
+  "Ligne simple": [
+    "قيد فردي",
+    "Single entry"
+  ],
+  "COÛTS RÉELS": [
+    "التكاليف الفعلية",
+    "ACTUAL COSTS"
+  ],
+  "BUDGET PRÉVISIONNEL": [
+    "الميزانية التقديرية",
+    "FORECAST BUDGET"
+  ],
+  "Écart budget → réel": [
+    "الفرق بين الميزانية والفعلي",
+    "Budget → actual variance"
+  ],
+  "Serre": [
+    "البيت المحمي",
+    "Greenhouse"
+  ],
+  "Serres": [
+    "البيوت المحمية",
+    "Greenhouses"
+  ],
+  "Origine": [
+    "المصدر",
+    "Source"
+  ],
+  "Valorisation": [
+    "التقييم المالي",
+    "Valuation"
+  ],
+  "Total réels": [
+    "إجمالي الفعلي",
+    "Actual total"
+  ],
+  "Entrées affichées": [
+    "القيود المعروضة",
+    "Displayed entries"
+  ],
+  "⇓ Tout déplier": [
+    "توسيع الكل",
+    "Expand all"
+  ],
+  "Total budget": [
+    "إجمالي الميزانية",
+    "Budget total"
+  ],
+  "+ SAISIR UN COÛT": [
+    "+ تسجيل تكلفة",
+    "+ RECORD A COST"
+  ],
+  "+ SAISIR UN BUDGET": [
+    "+ تسجيل ميزانية",
+    "+ RECORD A BUDGET"
+  ],
+  "ligne(s)": [
+    "سطر/أسطر",
+    "row(s)"
+  ],
+  "Excel · Modèle et import": [
+    "Excel · النموذج والاستيراد",
+    "Excel · Template and import"
+  ]
+}

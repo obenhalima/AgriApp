@@ -438,7 +438,7 @@ export default function ParametresPage() {
         <div className="space-y-md">
           <label className="flex items-center gap-sm"><input type="checkbox" checked={requireReentryDelay} onChange={e=>setRequireReentryDelay(e.target.checked)}/> {" "}{_ui("Bloquer l’application si le délai de rentrée est absent")}</label>
           {!requireReentryDelay&&<p className="text-warning">{_ui("La confirmation sera autorisée avec un avertissement conservé dans l’historique. Un délai inconnu n’est pas égal à zéro et n’autorise pas la rentrée dans la serre.")}</p>}
-          <Field label={_ui("Volume de bouillie par défaut (L/ha)")} hint="Valeur initiale : 1 000 L/ha. Elle reste modifiable lors de l’application réelle.">
+          <Field label={_ui("Volume de bouillie par défaut (L/ha)")} hint={_ui("Valeur initiale : 1 000 L/ha. Elle reste modifiable lors de l’application réelle.")}>
             <TInput type="number" min="1" step="1" value={String(defaultSprayVolume)} onChange={(e) => setDefaultSprayVolume(Number(e.target.value))} />
           </Field>
           <div className="flex justify-end pt-sm border-t border-border">

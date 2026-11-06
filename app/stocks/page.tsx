@@ -78,7 +78,7 @@ export default function StocksPage() {
       if(wh.error||bal.error) throw new Error(wh.error?.message||bal.error?.message)
       setWarehouses(wh.data||[]);setBalances(bal.data||[])
       setItems(stocks); setExitRequests((requests.data || []).map(r=>({...r,stock_items:r.stock_items?{...r.stock_items,name:r.stock_items.name+' · '+((wh.data||[]).find(w=>w.id===r.warehouse_id)?.name||'Entrepôt principal')}:r.stock_items}))); setPhytoProducts(phyto.data || []);setExitPolicy(policy.data||null)
-    } catch(e:any) { toast.error(e.message) } finally { setLoading(false) }
+    } catch(e:any) { toast.error(_ui(e.message)) } finally { setLoading(false) }
   }
   useEffect(() => { setWarehouseId('');setItems([]);setBalances([]);setWarehouses([]);setModalMvt(null);load() }, [activeDomain?.domain_id])
   useEffect(()=>{
@@ -129,7 +129,7 @@ export default function StocksPage() {
       setItems(p => [n, ...p]); setDone(true)
       toast.success(_ui("Article \"{v0}\" créé",{v0:String(n.name)}))
       setTimeout(() => { setModalArticle(false); setDone(false) }, 1200)
-    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + _ui(e.message)) }
     setSaving(false)
   }
 
@@ -148,7 +148,7 @@ export default function StocksPage() {
       setDone(true)
       toast.success(_ui("Article modifié"))
       setTimeout(() => { setModalEditArt(null); setDone(false); load() }, 1200)
-    } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
+    } catch (e: any) { toast.error(_ui("Erreur :") + _ui(e.message)) }
     setSaving(false)
   }
 
@@ -173,7 +173,7 @@ export default function StocksPage() {
       await load(); setDone(true)
       toast.success(formM.movement_type === 'sortie' ? _ui("Demande de sortie envoyée au responsable") : _ui("Mouvement enregistré"))
       setTimeout(() => { setModalMvt(null); setDone(false) }, 1200)
-    } catch (e: any) { setMovementError(e.message); toast.error(_ui("Erreur :") + e.message) }
+    } catch (e: any) { setMovementError(e.message); toast.error(_ui("Erreur :") + _ui(e.message)) }
     setSaving(false)
   }
 
@@ -189,7 +189,7 @@ export default function StocksPage() {
     const reason = approve ? null : prompt(_ui("Motif obligatoire du rejet :"))
     if (!approve && !reason) return
     const { error } = await supabase.rpc('review_stock_exit_request', { p_request_id: id, p_approve: approve, p_reason: reason })
-    if (error) toast.error(error.message); else { toast.success(approve ? _ui("Sortie validée et stock déduit") : _ui("Sortie rejetée")); load() }
+    if (error) toast.error(_ui(error.message)); else { toast.success(approve ? _ui("Sortie validée et stock déduit") : _ui("Sortie rejetée")); load() }
   }
   const cancelExit = async (id: string) => {
     if (!confirm(_ui("Annuler cette demande de sortie ?"))) return
@@ -199,7 +199,7 @@ export default function StocksPage() {
       if(error) throw error
       toast.success(_ui("Demande de sortie annulée"))
       await load()
-    } catch(e:any) { toast.error(e.message) }
+    } catch(e:any) { toast.error(_ui(e.message)) }
     finally { setCancellingRequest('') }
   }
 
@@ -220,7 +220,7 @@ export default function StocksPage() {
         <Field label={t("Coût unitaire (MAD)")}><TInput type="number" value={vals.unit_cost} onChange={onChange('unit_cost')} placeholder="12.50" /></Field>
       </div>
       <Field label={t("Emplacement")}><TInput value={vals.location} onChange={onChange('location')} placeholder={_ui("Entrepôt A / Rayon 3")} /></Field>
-      {vals.category === 'phytosanitaires' && <Field label={t("Produit phytosanitaire homologué")} hint="L’unité est proposée depuis l’usage autorisé et contrôlée à l’enregistrement."><TSelect value={vals.plant_protection_product_id||''} onChange={changePhytoProduct(vals===formA?setFormA:setFormAE)}><option value="">{t("— Non lié —")}</option>{phytoProducts.map(p=><option key={p.id} value={p.id}>{p.commercial_name} {" "}{_ui("· AMM")}{" "}{p.authorization_number}</option>)}</TSelect></Field>}
+      {vals.category === 'phytosanitaires' && <Field label={t("Produit phytosanitaire homologué")} hint={t("L’unité est proposée depuis l’usage autorisé et contrôlée à l’enregistrement.")}><TSelect value={vals.plant_protection_product_id||''} onChange={changePhytoProduct(vals===formA?setFormA:setFormAE)}><option value="">{t("— Non lié —")}</option>{phytoProducts.map(p=><option key={p.id} value={p.id}>{p.commercial_name} {" "}{_ui("· AMM")}{" "}{p.authorization_number}</option>)}</TSelect></Field>}
     </div>
   )
 
@@ -351,7 +351,7 @@ export default function StocksPage() {
                     <TD className="font-display font-semibold text-fg-primary">{i.name}</TD>
                     <TD><Badge variant="info" size="sm">{i.category}</Badge></TD>
                     <TD right mono className={alerte ? 'text-danger font-bold' : 'text-success font-bold'}>{i.current_qty} {i.unit}</TD>
-                    <TD right mono className="text-caption text-fg-tertiary">{i.min_qty} {i.unit}{warehouseId&&hasPermission('stocks','edit')&&<Button size="xs" variant="ghost" onClick={async()=>{const value=prompt(_ui("Seuil d’alerte pour cet entrepôt"),String(i.min_qty));if(value===null)return;const n=Number(value.replace(',','.'));if(!Number.isFinite(n)||n<0){toast.error(_ui("Seuil invalide"));return}const {error}=await supabase.rpc('set_warehouse_stock_threshold',{p_warehouse:warehouseId,p_item:i.id,p_min:n});if(error)toast.error(error.message);else{toast.success(_ui("Seuil enregistré"));load()}}}>{t("Modifier")}</Button>}</TD>
+                    <TD right mono className="text-caption text-fg-tertiary">{i.min_qty} {i.unit}{warehouseId&&hasPermission('stocks','edit')&&<Button size="xs" variant="ghost" onClick={async()=>{const value=prompt(_ui("Seuil d’alerte pour cet entrepôt"),String(i.min_qty));if(value===null)return;const n=Number(value.replace(',','.'));if(!Number.isFinite(n)||n<0){toast.error(_ui("Seuil invalide"));return}const {error}=await supabase.rpc('set_warehouse_stock_threshold',{p_warehouse:warehouseId,p_item:i.id,p_min:n});if(error)toast.error(_ui(error.message));else{toast.success(_ui("Seuil enregistré"));load()}}}>{t("Modifier")}</Button>}</TD>
                     <TD right mono className="text-caption">{i.unit_cost ? _ui("{v0} MAD",{v0:String(i.unit_cost.toFixed(2))}) : '—'}</TD>
                     <TD right mono className="font-semibold"><MoneyDisplay value={(i.current_qty || 0) * (i.unit_cost || 0)} compact="auto" showCurrency={false} /></TD>
                     <TD>{alerte ? <Badge variant="danger" size="sm">{t("⚠ Alerte")}</Badge> : <Badge variant="success" size="sm" dot>OK</Badge>}</TD>

@@ -1,7 +1,7 @@
 'use client'
 
 import { FilterableTable } from '@/components/ui/FilterableTable'
-import {useLanguage} from '@/lib/i18n'
+import {useLanguage, TranslatedText} from '@/lib/i18n'
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -67,7 +67,7 @@ export function GreenhouseInterventions({domainId,farmId,campaignId,greenhouseId
    {errors.map(e=><p key={e} role="alert" className="rounded-lg bg-warning/10 p-3 text-sm">{e} {" "}{_ui("Les compteurs ci-dessous ne couvrent que les données chargées.")}</p>)}
    <div className="grid grid-cols-3 gap-2">{[[_ui("Réalisées / partielles"),rows.filter(r=>r.done).length],[_ui("À réaliser / à valider"),rows.filter(r=>!r.closed).length],[_ui("Validées en retard"),rows.filter(late).length]].map(([label,n])=><div key={label} className="rounded-lg bg-surface-input p-3"><p className="text-xs text-fg-secondary">{_uiNode(label)}</p><strong className="text-xl">{n}</strong></div>)}</div>
    <label className="block text-sm">{_ui("Afficher")}{" "}<select aria-label={_ui("Filtrer les interventions de la serre")} className="ml-2 rounded border border-border bg-surface-input p-2" value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">{_ui("Toutes")}</option><option value="done">{_ui("Réalisées / partielles")}</option><option value="open">{_ui("En attente")}</option><option value="late">{_ui("En retard")}</option></select></label>
-   <div className="max-h-80 overflow-auto"><FilterableTable className="w-full text-left text-sm"><thead><tr>{[_ui("Intervention"),_ui("Prévu"),_ui("Réalisé"),_ui("Statut"),_ui("Produits du programme")].map(l=><th key={l} className="p-2">{l}</th>)}</tr></thead><tbody>{filtered.map(r=><tr key={`${r.kind}:${r.id}`} className="border-t border-border"><td className="p-2"><strong>{r.kind}</strong><p>{r.title}</p></td><td className="p-2">{date(r.planned)}</td><td className="p-2">{date(r.actual)}</td><td className="p-2">{labels[r.status]||r.status}{late(r)&&<span className="block text-warning">{_ui("En retard")}</span>}</td><td className="p-2">{r.products||_ui("Sans produit renseigné")}</td></tr>)}</tbody></FilterableTable></div>
+   <div className="max-h-80 overflow-auto"><FilterableTable className="w-full text-left text-sm"><thead><tr>{[_ui("Intervention"),_ui("Prévu"),_ui("Réalisé"),_ui("Statut"),_ui("Produits du programme")].map(l=><th key={l} className="p-2"><TranslatedText text={l}/></th>)}</tr></thead><tbody>{filtered.map(r=><tr key={`${r.kind}:${r.id}`} className="border-t border-border"><td className="p-2"><strong>{r.kind}</strong><p>{r.title}</p></td><td className="p-2">{date(r.planned)}</td><td className="p-2">{date(r.actual)}</td><td className="p-2">{labels[r.status]||r.status}{late(r)&&<span className="block text-warning">{_ui("En retard")}</span>}</td><td className="p-2">{r.products||_ui("Sans produit renseigné")}</td></tr>)}</tbody></FilterableTable></div>
    {!filtered.length&&<p className="text-sm text-fg-secondary">{_ui("Aucune intervention chargée pour ce filtre.")}</p>}
    <p className="text-xs text-fg-tertiary">{_ui("Une intervention peut concerner plusieurs serres. La liste des produits est celle du programme, pas une quantité consommée imputable à cette seule serre. Les applications partielles sont signalées séparément dans leur statut.")}</p>
   </>}

@@ -1,4 +1,5 @@
 'use client'
+import { TranslatedText } from '@/lib/i18n'
 import {useLanguage} from '@/lib/i18n'
 
 import '@/components/ui/workspace.css'
@@ -309,14 +310,14 @@ export default function MarchesPage() {
                 )}
               </Field>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
-                <Field label={_ui("Cadence du bordereau")} hint="Période de regroupement des dispatches pour facturation">
+                <Field label={_ui("Cadence du bordereau")} hint={_ui("Période de regroupement des dispatches pour facturation")}>
                   <TSelect value={(form as any).bordereau_frequency ?? 'monthly'} onChange={upd('bordereau_frequency')}>
                     <option value="weekly">{_ui("Hebdomadaire (lundi → dimanche) — recommandé pour Export")}</option>
                     <option value="monthly">{_ui("Mensuel (1er → fin du mois) — recommandé pour Local")}</option>
                     <option value="none">{_ui("Aucun (facture par dispatch direct, sans regroupement)")}</option>
                   </TSelect>
                 </Field>
-                <Field label={_ui("Début S1 (station)")} hint="Lundi de la 1ʳᵉ semaine station. Numérote les bordereaux S1, S2… au lieu de la semaine ISO.">
+                <Field label={_ui("Début S1 (station)")} hint={_ui("Lundi de la 1ʳᵉ semaine station. Numérote les bordereaux S1, S2… au lieu de la semaine ISO.")}>
                   <TInput type="date" value={form.week1_start_date} onChange={upd('week1_start_date')} />
                 </Field>
               </div>
@@ -433,7 +434,7 @@ export default function MarchesPage() {
                     { l: 'Frais export', v: m.export_fees_per_kg ? `${m.export_fees_per_kg} ${m.currency}` : '—' },
                   ].map((stat, idx) => (
                     <div key={idx} className="rounded-md bg-surface-sunk border border-border px-sm py-sm">
-                      <div className="font-mono text-[8px] uppercase tracking-wider text-fg-tertiary mb-0.5">{stat.l}</div>
+                      <div className="font-mono text-[8px] uppercase tracking-wider text-fg-tertiary mb-0.5"><TranslatedText text={stat.l}/></div>
                       <div className="font-display text-body font-bold text-fg-primary">{stat.v}</div>
                     </div>
                   ))}

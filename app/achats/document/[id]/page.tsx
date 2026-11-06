@@ -1,4 +1,5 @@
 'use client'
+import {TranslatedText, useLanguage} from '@/lib/i18n'
 import {useEffect,useRef,useState} from 'react'
 import {useParams,useSearchParams} from 'next/navigation'
 import Link from 'next/link'
@@ -8,6 +9,8 @@ import type {InvoiceDocument} from '@/lib/invoiceDocumentModel'
 import {InvoiceSheet} from '@/components/invoices/InvoiceSheet'
 import {Button} from '@/components/ui/Button'
 export default function PurchaseDocumentPage(){
+  const {t:translateUI}=useLanguage()
+
  const params=useParams(),search=useSearchParams(),{activeDomain,loading,hasPermission}=useAuth()
  const id=String(params?.id||''),domain=search.get('domain')||'',scope=`${activeDomain?.domain_id}:${domain}:${id}`
  const [doc,setDoc]=useState<InvoiceDocument|null>(null),[loaded,setLoaded]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[retry,setRetry]=useState(0)
@@ -24,10 +27,10 @@ export default function PurchaseDocumentPage(){
   const {createInvoicePdf,saveInvoicePdf}=await import('@/lib/invoicePdf'),blob=await createInvoicePdf(visible)
   if(current.current===requestScope)saveInvoicePdf(blob,visible)
  }catch{if(current.current===requestScope)setError('Téléchargement PDF impossible. Réessayez ou utilisez Imprimer.')}finally{if(current.current===requestScope)setBusy(false)}}
- return <div className="invoice-document-page"><nav className="invoice-document-toolbar" aria-label="Actions du bon de commande">
-  <Link href={`/achats/${encodeURIComponent(id)}`} className="btn btn-secondary">Retour au BDC</Link>
-  <Button disabled={!visible||busy} onClick={()=>void download()}>{busy?'Préparation…':'Télécharger PDF'}</Button>
-  <Button variant="secondary" disabled={!visible} onClick={()=>window.print()}>Imprimer</Button>
- </nav>{error&&<div role="alert" className="p-4 text-red-700"><p>{error}</p><Button onClick={()=>setRetry(n=>n+1)}>Réessayer</Button></div>}
- {!visible&&!error&&<p role="status">Chargement du bon de commande…</p>}{visible&&<InvoiceSheet document={visible}/>}</div>
+ return <div className="invoice-document-page"><nav className="invoice-document-toolbar" aria-label={translateUI("Actions du bon de commande")}>
+  <Link href={`/achats/${encodeURIComponent(id)}`} className="btn btn-secondary"><TranslatedText text={"Retour au BDC"}/></Link>
+  <Button disabled={!visible||busy} onClick={()=>void download()}><TranslatedText text={busy?'Préparation…':'Télécharger PDF'}/></Button>
+  <Button variant="secondary" disabled={!visible} onClick={()=>window.print()}><TranslatedText text={"Imprimer"}/></Button>
+ </nav>{error&&<div role="alert" className="p-4 text-red-700"><p>{error}</p><Button onClick={()=>setRetry(n=>n+1)}><TranslatedText text={"Réessayer"}/></Button></div>}
+ {!visible&&!error&&<p role="status"><TranslatedText text={"Chargement du bon de commande…"}/></p>}{visible&&<InvoiceSheet document={visible}/>}</div>
 }

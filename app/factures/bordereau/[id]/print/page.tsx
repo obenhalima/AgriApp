@@ -124,7 +124,7 @@ export default function BordereauPrintPage() {
             {data.org.logo_url && (
               <img
                 src={data.org.logo_url}
-                alt="Logo"
+                alt={_ui("Logo")}
                 style={{ maxHeight: 50, maxWidth: 140, marginBottom: 8, marginLeft: 'auto', display: 'block' }}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
               />

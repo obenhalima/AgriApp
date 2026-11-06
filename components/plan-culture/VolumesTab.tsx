@@ -1,7 +1,7 @@
 'use client'
 
 import { FilterableTable } from '@/components/ui/FilterableTable'
-import {useLanguage} from '@/lib/i18n'
+import {useLanguage, TranslatedText} from '@/lib/i18n'
 
 /**
  * Onglet VOLUMES — Pivot multi-axes (Ferme/Serre/Variété/Type) × (Total/Mensuel)
@@ -187,7 +187,7 @@ export function VolumesTab(props: { rows: PlantingRow[]; campaign: Campaign; loa
               <th style={{ position: 'sticky', left: 0, background: 'var(--bg-deep)', zIndex: 6, minWidth: 220 }}>{_uiNode(AXIS_LABELS[axis])}</th>
               {viewMode === 'monthly' && months.map(m => (
                 <th key={`${m.year}-${m.month}`} style={{ textAlign: 'right', minWidth: 80, fontSize: 10 }}>
-                  {_uiNode(MONTH_LABELS_FR[m.month - 1])} {String(m.year).slice(-2)}
+                  {_uiNode(MONTH_LABELS_FR[m.month - 1])} <TranslatedText text={String(m.year).slice(-2)}/>
                 </th>
               ))}
               <th style={{ textAlign: 'right', minWidth: 100, background: 'var(--bg-deep)' }}>{_ui("TOTAL")}</th>
@@ -276,7 +276,7 @@ function Selector<T extends string>(props: { label: string; value: T; onChange: 
               border: 'none', cursor: 'pointer',
               fontSize: 10, fontFamily: 'var(--font-mono)',
             }}>
-            {o.l}
+            <TranslatedText text={o.l}/>
           </button>
         ))}
       </div>

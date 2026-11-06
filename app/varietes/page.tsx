@@ -88,9 +88,9 @@ function FormBlock({ vals, onChange }: { vals: any; onChange: (k: string) => (e:
       </div>
       <div className="grid grid-cols-2 gap-md">
         <Field label={_ui("Prix local (MAD/kg)")}><TInput type="number" value={vals.avg_price_local} onChange={onChange('avg_price_local')} placeholder="3.50" /></Field>
-        <Field label={_ui("Prix export (MAD/kg)")} hint="Saisir en MAD. Pour utiliser EUR/USD, configure la devise sur le marché concerné."><TInput type="number" value={vals.avg_price_export} onChange={onChange('avg_price_export')} placeholder="7.00" /></Field>
+        <Field label={_ui("Prix export (MAD/kg)")} hint={_ui("Saisir en MAD. Pour utiliser EUR/USD, configure la devise sur le marché concerné.")}><TInput type="number" value={vals.avg_price_export} onChange={onChange('avg_price_export')} placeholder="7.00" /></Field>
       </div>
-      <Field label={_ui("Cycle estimé (jours)")} hint="Plantation → fin récolte">
+      <Field label={_ui("Cycle estimé (jours)")} hint={_ui("Plantation → fin récolte")}>
         <TInput type="number" value={vals.estimated_cycle_days} onChange={onChange('estimated_cycle_days')} placeholder="200" />
       </Field>
       <Field label={_ui("Notes techniques")}><Textarea rows={2} value={vals.technical_notes} onChange={onChange('technical_notes')} /></Field>

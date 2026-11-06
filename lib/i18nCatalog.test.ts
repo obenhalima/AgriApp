@@ -39,4 +39,17 @@ describe('ItriX languages', () => {
     expect(translate('en',key.replace('{v0}','S01'))).toBe(translate('en',key,{v0:'S01'}))
     expect(translate('ar','Ferme BENHALIMA / S01')).toBe('Ferme BENHALIMA / S01')
   })
+  it('translates initialization, stock approval and document details',()=>{
+    expect(translate('en','Serre')).toBe('Greenhouse')
+    expect(translate('ar','Serre')).toBe('البيت المحمي')
+    expect(translate('en','COÛTS RÉELS')).toBe('ACTUAL COSTS')
+    expect(translate('en','⇓ Tout déplier')).toBe('Expand all')
+    expect(translate('en','Note de sortie (facultatif)')).toBe('Stock issue note (optional)')
+    expect(translate('ar','Note de sortie (facultatif)')).toBe('ملاحظة الصرف (اختيارية)')
+    expect(translate('en','Articles et stock initial')).toBe('Items and opening stock')
+    expect(translate('ar','Validée et comptabilisée')).toBe('معتمدة ومُرحّلة')
+    expect(translate('en','Identifiant fiscal : {v0}',{v0:'123'})).toBe('Tax ID: 123')
+    expect(translate('en','Stock insuffisant dans Dépôt 1 : quantité demandée 200, disponible 0. Demande non comptabilisée.')).toBe('Insufficient stock in Dépôt 1. Requested quantity 200, available 0. Request not posted.')
+  })
+
 })

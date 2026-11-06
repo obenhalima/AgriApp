@@ -1,5 +1,5 @@
 'use client'
-import {useLanguage} from '@/lib/i18n'
+import {useLanguage, TranslatedText} from '@/lib/i18n'
 
 import '@/components/ui/workspace.css'
 /**
@@ -576,7 +576,7 @@ export default function FacturesPage() {
           {done ? <SuccessMessage message={_ui("Facture fournisseur créée !")} /> : (
             <div className="space-y-md">
               {/* Lien optionnel vers un bon d'achat */}
-              <Field label={_ui("Bon d'achat lié (optionnel)")} hint="Sélectionne pour auto-remplir fournisseur + montant">
+              <Field label={_ui("Bon d'achat lié (optionnel)")} hint={_ui("Sélectionne pour auto-remplir fournisseur + montant")}>
                 <TSelect value={supplierForm.po_id} onChange={(e) => selectPoForInvoice(e.target.value)}>
                   <option value="">{_ui("— Aucun (saisie libre) —")}</option>
                   {purchaseOrders
@@ -697,7 +697,7 @@ export default function FacturesPage() {
         description={_ui("Crédit clients · Débit fournisseurs · Échéances")}
         actions={
           <>
-          {(isAdmin||isPlatformAdmin)&&<Link href="/factures/integrations" className="btn btn-secondary">Connecteurs ERP — simulation</Link>}
+          {(isAdmin||isPlatformAdmin)&&<Link href="/factures/integrations" className="btn btn-secondary"><TranslatedText text={"Connecteurs ERP — simulation"}/></Link>}
           <Button onClick={() => setModal(tab === 'clients' ? 'facture_client' : 'facture_fournisseur')} variant="primary">
             <Plus size={14} strokeWidth={2.5} /> {tab === 'clients' ? _ui("Facture client") : _ui("Facture fournisseur")}
           </Button>
@@ -879,7 +879,7 @@ export default function FacturesPage() {
                   style={tab === t.k ? { background: t.c } : undefined}
                 >
                   <Icon size={12} strokeWidth={2.5} />
-                  {t.l}
+                  <TranslatedText text={t.l}/>
                 </button>
               )
             })}
@@ -954,7 +954,7 @@ export default function FacturesPage() {
         <Card animate delay={0.45} padding="none" className="itrix-table mb-md">
           <div className="px-md py-sm border-b border-border">
             <div className="font-display text-heading-sm font-bold text-fg-primary">
-              {" "}{_ui("Synthèse")}{" "}{tab === 'clients' ? 'clients' : 'fournisseurs'}
+              {" "}{_ui("Synthèse")}{" "}<TranslatedText text={tab === 'clients' ? 'clients' : 'fournisseurs'}/>
             </div>
           </div>
           <DataTable>

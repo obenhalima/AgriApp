@@ -1,4 +1,5 @@
 'use client'
+import { TranslatedText } from '@/lib/i18n'
 
 import { FilterableTable } from '@/components/ui/FilterableTable'
 import {useLanguage} from '@/lib/i18n'
@@ -160,7 +161,7 @@ export function PlanTab(props: { rows: PlantingRow[]; campaign: Campaign; loadin
               color: groupBy === o.v ? 'var(--neon)' : 'var(--tx-2)',
               borderRadius: 6, cursor: 'pointer', fontSize: 11, fontFamily: 'var(--font-mono)',
             }}>
-            {o.l}
+            <TranslatedText text={o.l}/>
           </button>
         ))}
 

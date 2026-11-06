@@ -154,7 +154,7 @@ export function CommandPalette() {
                               icon={<Icon size={16} strokeWidth={2.2} style={{ color: qa.color }} />}
                               accent={qa.color}
                               label={qa.label}
-                              hint="Action"
+                              hint={t("Action")}
                             />
                           )
                         })}
@@ -207,7 +207,7 @@ export function CommandPalette() {
                         icon={<Sun size={16} strokeWidth={2.2} className="text-warning" />}
                         accent="#f59e0b"
                         label={_ui("Basculer le thème (clair/sombre)")}
-                        hint="Système"
+                        hint={t("Système")}
                       />
                       <PaletteItem
                         value="logout signout deconnexion"
@@ -215,7 +215,7 @@ export function CommandPalette() {
                         icon={<LogOut size={16} strokeWidth={2.2} className="text-danger" />}
                         accent="#ef4444"
                         label={_ui("Se déconnecter")}
-                        hint="Système"
+                        hint={t("Système")}
                       />
                     </Command.Group>
                   </Command.List>

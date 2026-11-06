@@ -1,5 +1,5 @@
 'use client'
-import {useLanguage} from '@/lib/i18n'
+import {useLanguage, TranslatedText} from '@/lib/i18n'
 
 import '@/components/ui/workspace.css'
 /**
@@ -285,7 +285,7 @@ function CommandesContent() {
         ]}
       />
 
-      {loadError && <div role="alert" className="text-red-700 p-4">{loadError} <Button onClick={load}>Réessayer</Button></div>}
+      {loadError && <div role="alert" className="text-red-700 p-4">{loadError} <Button onClick={load}><TranslatedText text={"Réessayer"}/></Button></div>}
       {!loading && items.length > 0 && (
         <Card animate delay={0.15} className="mb-md">
           <div className="flex items-center gap-md flex-wrap">

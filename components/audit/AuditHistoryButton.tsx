@@ -44,4 +44,6 @@ export function AuditHistoryButton({table,tables,entity,label,platformScope=fals
   {more&&<button className="btn btn-secondary mt-3" disabled={busy} onClick={()=>void load(true)}>{_ui('Charger la suite')}</button>}
  </Modal>}</>
 }
-export function ModuleAuditHistory(){const path=usePathname(),tables=auditTablesForPath(path);return tables.length?<div className="mb-4 flex justify-end"><AuditHistoryButton tables={tables} platformScope={auditPlatformPaths.some(p=>path===p||path.startsWith(p+'/'))} label="Historique de ce module"/></div>:null}
+export function ModuleAuditHistory(){
+  const {t:translateUI}=useLanguage()
+const path=usePathname(),tables=auditTablesForPath(path);return tables.length?<div className="mb-4 flex justify-end"><AuditHistoryButton tables={tables} platformScope={auditPlatformPaths.some(p=>path===p||path.startsWith(p+'/'))} label={translateUI("Historique de ce module")}/></div>:null}

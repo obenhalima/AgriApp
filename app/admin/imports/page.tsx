@@ -1,7 +1,7 @@
 'use client'
 
 import { FilterableTable } from '@/components/ui/FilterableTable'
-import {useLanguage} from '@/lib/i18n'
+import {useLanguage, TranslatedText} from '@/lib/i18n'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as XLSX from 'xlsx'
@@ -503,7 +503,7 @@ function SheetStep({ sheets, selected, onSelect, headerRowIndex, setHeaderRowInd
               <thead style={{ background: 'var(--bg-2)', position: 'sticky', top: 0 }}>
                 <tr>
                   {sel.headers.map((h, i) => (
-                    <th key={i} style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid var(--bd-1)', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>{h || <em style={{ color: 'var(--text-muted)' }}>{_ui("(vide)")}</em>}</th>
+                    <th key={i} style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid var(--bd-1)', color: 'var(--text-main)', whiteSpace: 'nowrap' }}><TranslatedText text={h || <em style={{ color: 'var(--text-muted)' }}>{_ui("(vide)")}</em>}/></th>
                   ))}
                 </tr>
               </thead>

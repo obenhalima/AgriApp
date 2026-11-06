@@ -1,7 +1,7 @@
 'use client'
 
 import { FilterableTable } from '@/components/ui/FilterableTable'
-import {useLanguage} from '@/lib/i18n'
+import {useLanguage, TranslatedText} from '@/lib/i18n'
 
 import '@/components/ui/workspace.css'
 import { useEffect, useMemo, useState } from 'react'
@@ -136,7 +136,7 @@ function HarvestTeamPage(){
         <ul className="mt-3 text-sm space-y-1">{data.targets.filter(t=>!farm||t.farm_id===farm).sort((a,b)=>b.effective_from.localeCompare(a.effective_from)).map(t=><li key={t.id}>{data.farms.find(f=>f.id===t.farm_id)?.name} {" "}{_ui("· Depuis le")}{" "}{t.effective_from} : {fmt(Number(t.kg_per_person_hour))} {" "}{_ui("kg/h-personne")}</li>)}</ul>
       </details>}
       <section className="rounded-xl border border-border bg-surface-raised p-5 space-y-3"><h2 className="font-bold">{_ui("Comparaison des équipes")}</h2>
-        {!groups.length?<p>{_ui("Aucun pointage récolte rapproché sur ce périmètre.")}</p>:<div className="overflow-x-auto"><FilterableTable className="w-full text-sm"><thead><tr>{[_ui("Équipe"),_ui("Ferme"),'Kg',_ui("Heures-personnes"),_ui("Kg/h-personne"),_ui("Atteinte objectif")].map(x=><th key={x} className="text-left p-2">{x}</th>)}</tr></thead><tbody>{groups.map(g=><tr key={g.id} className="border-t border-border"><td className="p-2">{data.teams.find(t=>t.id===g.id)?.name||_ui("Équipe inconnue")}</td><td>{data.farms.find(f=>f.id===data.teams.find(t=>t.id===g.id)?.farm_id)?.name}</td><td>{fmt(g.kg)}</td><td>{fmt(g.hours)}</td><td>{fmt(g.rate)}</td><td>{g.attainment==null?_ui("Non renseigné"):fmt(g.attainment)+' %'}{g.missingTargets>0&&_ui("· partiel")}</td></tr>)}</tbody></FilterableTable></div>}
+        {!groups.length?<p>{_ui("Aucun pointage récolte rapproché sur ce périmètre.")}</p>:<div className="overflow-x-auto"><FilterableTable className="w-full text-sm"><thead><tr>{[_ui("Équipe"),_ui("Ferme"),'Kg',_ui("Heures-personnes"),_ui("Kg/h-personne"),_ui("Atteinte objectif")].map(x=><th key={x} className="text-left p-2"><TranslatedText text={x}/></th>)}</tr></thead><tbody>{groups.map(g=><tr key={g.id} className="border-t border-border"><td className="p-2">{data.teams.find(t=>t.id===g.id)?.name||_ui("Équipe inconnue")}</td><td>{data.farms.find(f=>f.id===data.teams.find(t=>t.id===g.id)?.farm_id)?.name}</td><td>{fmt(g.kg)}</td><td>{fmt(g.hours)}</td><td>{fmt(g.rate)}</td><td>{g.attainment==null?_ui("Non renseigné"):fmt(g.attainment)+' %'}{g.missingTargets>0&&_ui("· partiel")}</td></tr>)}</tbody></FilterableTable></div>}
       </section>
       <section className="rounded-xl border border-border bg-surface-raised p-5 space-y-3"><h2 className="font-bold">{_ui("Détail des pointages récolte")}</h2>{rows.map(r=><div key={r.id} className="flex flex-wrap justify-between gap-3 border-t border-border py-3"><div>{r.work_date} · {data.teams.find(t=>t.id===r.team_id)?.name} · {data.harvests.find(h=>h.id===r.harvest_id)?.lot_number}<p className="text-sm text-fg-secondary">{r.worker_count} {" "}{_ui("personnes ×")}{" "}{fmt(Number(r.hours_per_person))} h · {fmt(Number(r.quantity_kg))} {" "}{_ui("kg · Objectif conservé :")}{" "}{r.target_rate==null?_ui("non renseigné"):fmt(Number(r.target_rate))+_ui("kg/h-personne")}</p></div>{canEdit&&<Button disabled={busy} onClick={()=>{if(confirm(_ui("Annuler cette attribution et son pointage ? Les kilos redeviendront disponibles.")))void run(()=>supabase.rpc('cancel_harvest_labor',{p_id:r.id}),'Attribution annulée ; historique conservé.')}}>{_ui("Annuler")}</Button>}</div>)}</section>
     </>}

@@ -1,5 +1,5 @@
 'use client'
-import {useLanguage} from '@/lib/i18n'
+import {useLanguage, TranslatedText} from '@/lib/i18n'
 
 import '@/components/ui/workspace.css'
 import { useEffect, useMemo, useState } from 'react'
@@ -244,7 +244,7 @@ export default function PointagePage() {
             {askQuantity && (
               <FormGroup label={_ui("Travail réalisé ({v0})",{v0:String(unitLabel(taskUnit))})}>
                 <TInput type="number" value={form.quantity_done} onChange={upd('quantity_done')} placeholder={taskUnit === 'ml' ? _ui("ex: 400 mètres faits") : _ui("ex: 1200")} />
-                <div className="mt-1 font-mono text-caption text-fg-tertiary">{_ui("Sert à calculer le rendement (")}{unitLabel(taskUnit)}/h) et son évolution.</div>
+                <div className="mt-1 font-mono text-caption text-fg-tertiary">{_ui("Sert à calculer le rendement (")}{unitLabel(taskUnit)}<TranslatedText text={"/h) et son évolution."}/></div>
               </FormGroup>
             )}
             <FormGroup label={_ui("Taux journalier (MAD, optionnel)")}><TInput type="number" value={form.daily_rate} onChange={upd('daily_rate')} placeholder={_ui("ex: 100 (base 8h)")} /></FormGroup>
