@@ -3,7 +3,7 @@
 import { FilterableTable } from '@/components/ui/FilterableTable'
 import {useLanguage, TranslatedText} from '@/lib/i18n'
 
-import { useCallback, useEffect, useMemo, useState, Fragment } from 'react'
+import { useCallback, useEffect, useMemo, useState, useRef, Fragment } from 'react'
 import { useRealtimeReload } from '@/lib/useRealtimeReload'
 import { supabase } from '@/lib/supabase'
 import { Modal, FormGroup, FormRow, Input, Select, Textarea, ModalFooter, SuccessMessage } from '@/components/ui/Modal'
@@ -21,6 +21,8 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { useAuth } from '@/lib/auth'
 import Link from 'next/link'
 import { CostEntryDetails } from './CostEntryDetails'
+import {CostLedger} from './CostLedger'
+import {costFarmId} from '@/lib/costLedgerScope'
 import { CostExcelExchange } from '@/components/costs/CostExcelExchange'
 
 type Mode = 'single' | 'monthly' | 'surface'
@@ -46,9 +48,12 @@ export function CostWorkspace({kind}:{kind:Tab}) {
   const [greenhouses, setGreenhouses] = useState<Greenhouse[]>([])
   const [categories, setCategories] = useState<AccountCategory[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError,setLoadError]=useState('')
+  const loadVersion=useRef(0)
 
   // ── Onglet actif (coûts réels vs budget prévisionnel) ──
   const tab = kind
+  const [listView,setListView]=useState<'entries'|'categories'>(kind==='actual'?'entries':'categories')
 
   // ── Filtres de la liste ──
   const [filters, setFilters] = useState({
@@ -64,6 +69,9 @@ export function CostWorkspace({kind}:{kind:Tab}) {
   const resetFilters = () => setFilters({
     campaign_id: '', farm_id: '', greenhouse_id: '', charge_type: '', date_from: '', date_to: '', search: '',
   })
+  useEffect(()=>{
+    setFilters(previous=>({...previous,campaign_id:'',farm_id:'',greenhouse_id:''}))
+  },[activeDomain?.domain_id])
 
   // ── Sélection multiple ──
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -124,22 +132,25 @@ export function CostWorkspace({kind}:{kind:Tab}) {
 
   // ── Chargement initial ──
   const load = useCallback(async () => {
+    const version=++loadVersion.current
+    setItems([]);setLoading(true);setLoadError('')
     if (!activeDomain) { setItems([]); setCampagnes([]); setFarms([]); setGreenhouses([]); setLoading(false); return }
     try {
       const [entries, camps, flist, ghs, cats] = await Promise.all([
-        listCostEntries({ domainId: activeDomain.domain_id, limit: 300 }),
+        listCostEntries({ domainId: activeDomain.domain_id }),
         supabase.from('campaigns').select('id, name, code, farm_id').eq('domain_id', activeDomain.domain_id).order('planting_start', { ascending: false }),
         supabase.from('farms').select('id, code, name').eq('domain_id', activeDomain.domain_id).eq('is_active', true).order('name'),
         supabase.from('greenhouses').select('id, code, name, farm_id, exploitable_area, total_area, farms!inner(domain_id)').eq('farms.domain_id', activeDomain.domain_id).order('code'),
         listAccountCategories(),
       ])
+      if(version!==loadVersion.current)return
       setItems(entries)
       setCampagnes((camps.data ?? []) as Campaign[])
       setFarms((flist.data ?? []) as Farm[])
       setGreenhouses((ghs.data ?? []) as Greenhouse[])
       setCategories(cats)
-    } catch (e: any) { console.error(e) }
-    setLoading(false)
+    } catch (e: any) { if(version===loadVersion.current)setLoadError(e.message) }
+    if(version===loadVersion.current)setLoading(false)
   }, [activeDomain?.domain_id])
   useEffect(() => { load() }, [load])
 
@@ -320,18 +331,12 @@ export function CostWorkspace({kind}:{kind:Tab}) {
   const notCategorized = items.filter(i => !i.account_category_id).length
 
   // Filtrage : onglet + filtres utilisateur
-  const filteredItems = useMemo(() => {
+  const scopeBaseItems = useMemo(() => {
     const search = filters.search.trim().toLowerCase()
     return items.filter((i: any) => {
       if (tab === 'actual' && i.is_planned) return false
       if (tab === 'budget' && !i.is_planned) return false
       if (filters.campaign_id && i.campaign_id !== filters.campaign_id) return false
-      if (filters.greenhouse_id && i.greenhouse_id !== filters.greenhouse_id) return false
-      if (filters.farm_id) {
-        const ghFarm = i.greenhouses?.farm_id
-        const campFarm = campagnes.find(c => c.id === i.campaign_id)?.farm_id
-        if (ghFarm !== filters.farm_id && campFarm !== filters.farm_id) return false
-      }
       if (filters.charge_type && i.account_categories?.type !== filters.charge_type) return false
       if (filters.date_from && i.entry_date < filters.date_from) return false
       if (filters.date_to && i.entry_date > filters.date_to) return false
@@ -341,7 +346,13 @@ export function CostWorkspace({kind}:{kind:Tab}) {
       }
       return true
     })
-  }, [items, tab, filters, campagnes])
+  }, [items, tab, filters])
+
+  const filteredItems = useMemo(() => scopeBaseItems.filter(entry => {
+    if (filters.farm_id && costFarmId(entry) !== (filters.farm_id==='__unassigned__'?'':filters.farm_id)) return false
+    if (filters.greenhouse_id && (entry.greenhouse_id||'') !== (filters.greenhouse_id==='__unassigned__'?'':filters.greenhouse_id)) return false
+    return true
+  }), [scopeBaseItems, filters.farm_id, filters.greenhouse_id])
 
   // Tri
   const sortedItems = useMemo(() => {
@@ -804,7 +815,7 @@ export function CostWorkspace({kind}:{kind:Tab}) {
       <div className="itrix-kpis">
         {[
           {
-            l: tab === 'actual' ? 'Total réels' : 'Total budget',
+            l: tab === 'actual' ? 'Total client · réel' : 'Total client · budget',
             v: `${((tab === 'actual' ? totalReel : totalPrev) / 1000).toFixed(2)} kMAD`,
             c: tab === 'actual' ? 'var(--neon)' : 'var(--blue)'
           },
@@ -840,16 +851,18 @@ export function CostWorkspace({kind}:{kind:Tab}) {
         </div>
         <div>
           <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 3, letterSpacing: 1 }}>{_ui("FERME")}</div>
-          <select value={filters.farm_id} onChange={e => setFilters(v => ({ ...v, farm_id: e.target.value, greenhouse_id: '' }))} style={{ width: '100%', padding: 6, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 5, fontSize: 11 }}>
+          <select aria-label={_ui('Ferme')} value={filters.farm_id} onChange={e => setFilters(v => ({ ...v, farm_id: e.target.value, greenhouse_id: '' }))} style={{ width: '100%', padding: 6, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 5, fontSize: 11 }}>
             <option value="">{_ui("Toutes")}</option>
             {farms.map(fr => <option key={fr.id} value={fr.id}>{fr.name}</option>)}
+            <option value="__unassigned__">{_ui('Ferme non renseignée')}</option>
           </select>
         </div>
         <div>
           <div style={{ fontSize: 9, color: 'var(--tx-3)', fontFamily: 'var(--font-mono)', marginBottom: 3, letterSpacing: 1 }}>{_ui("SERRE")}</div>
-          <select value={filters.greenhouse_id} onChange={f('greenhouse_id')} disabled={!filters.farm_id} style={{ width: '100%', padding: 6, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 5, fontSize: 11, opacity: filters.farm_id ? 1 : 0.4 }}>
+          <select aria-label={_ui('Serre')} value={filters.greenhouse_id} onChange={e=>{const id=e.target.value;const selected=greenhouses.find(value=>value.id===id);setFilters(previous=>({...previous,greenhouse_id:id,farm_id:selected?.farm_id||previous.farm_id}))}} style={{ width: '100%', padding: 6, background: 'var(--bg-deep)', color: 'var(--tx-1)', border: '1px solid var(--bd-1)', borderRadius: 5, fontSize: 11 }}>
             <option value="">{_ui("Toutes")}</option>
             {filterGhsForFarm.map(g => <option key={g.id} value={g.id}>{g.code}</option>)}
+            <option value="__unassigned__">{_ui('Charge commune')}</option>
           </select>
         </div>
         <div>
@@ -899,6 +912,9 @@ export function CostWorkspace({kind}:{kind:Tab}) {
 
       {/* ── TOOLBAR TRI / DÉPLIER ── */}
       <div style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button className="btn-ghost" aria-pressed={listView==='entries'} onClick={()=>setListView('entries')}>{_ui('Détail par article et mouvement')}</button>
+        <button className="btn-ghost" aria-pressed={listView==='categories'} onClick={()=>setListView('categories')}>{_ui('Par catégorie')}</button>
+        {listView==='categories'&&<>
         <span style={{ fontSize: 11, color: 'var(--tx-3)' }}>{_ui("Trier par :")}</span>
         {([
           { k: 'entry_date', l: 'Date' },
@@ -917,11 +933,12 @@ export function CostWorkspace({kind}:{kind:Tab}) {
           {" "}{_ui("⇓ Tout déplier")}{" "}</button>
         <button onClick={collapseAll} style={{ padding: '4px 10px', background: 'transparent', border: '1px solid var(--bd-1)', color: 'var(--tx-2)', borderRadius: 5, cursor: 'pointer', fontSize: 11 }}>
           {" "}{_ui("⇑ Tout replier")}{" "}</button>
+        </>}
       </div>
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60, color: 'var(--tx-3)' }}>{_ui("CHARGEMENT...")}</div>
-      ) : sortedItems.length === 0 ? (
+      ) : loadError ? <p role="alert">{loadError}</p> : sortedItems.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">💰</div>
           <div className="empty-title">
@@ -931,10 +948,12 @@ export function CostWorkspace({kind}:{kind:Tab}) {
             {tab === 'actual' ? _ui("+ Saisir un coût") : _ui("+ Saisir un budget")}
           </button>
         </div>
-      ) : (
+      ) : listView==='entries'&&activeDomain ? <CostLedger entries={scopeBaseItems} domain={activeDomain.domain_id} farms={farms} clientName={activeDomain.domain_name}
+        scope={{farm:filters.farm_id?(filters.farm_id==='__unassigned__'?'':filters.farm_id):null,greenhouse:filters.greenhouse_id?(filters.greenhouse_id==='__unassigned__'?'':filters.greenhouse_id):null}}
+        onScopeChange={(farm,greenhouse)=>setFilters(previous=>({...previous,farm_id:farm===null?'':farm||'__unassigned__',greenhouse_id:greenhouse===null?'':greenhouse||'__unassigned__'}))}/> : (
         <div className="card itrix-table" style={{ padding: 0, overflow: 'auto' }}>
           <div style={{ overflowX: 'auto' }}>
-            <FilterableTable className="tbl" style={{ minWidth: 1100 }}>
+            <FilterableTable className="tbl" style={{ minWidth: 1100 }} amountSummary={{total:filteredItems.reduce((sum,entry)=>sum+Number(entry.amount||0),0),count:filteredItems.length,currency:'MAD'}}>
               <thead>
                 <tr>
                   <th style={{ width: 36 }}>
@@ -980,7 +999,7 @@ export function CostWorkspace({kind}:{kind:Tab}) {
                       </tr>
                     )
 
-                    if (!l1Expanded) continue
+
 
                     // LEVEL 2
                     const sortedL2 = Array.from(g1.children.values()).sort((a, b) => a.label.localeCompare(b.label))
@@ -989,7 +1008,7 @@ export function CostWorkspace({kind}:{kind:Tab}) {
                       const l2Expanded = expandedGroups.has(g2.catId)
 
                       rows.push(
-                        <tr key={`h2-${g2.catId}`} style={{ background: 'var(--bg-deep)', cursor: 'pointer' }} onClick={() => toggleGroup(g2.catId)}>
+                        <tr key={`h2-${g2.catId}`} hidden={!l1Expanded} style={{ background: 'var(--bg-deep)', cursor: 'pointer' }} onClick={() => toggleGroup(g2.catId)}>
                           <td style={{ textAlign: 'center' }}>
                             <span style={{ fontSize: 12, color: 'var(--tx-2)' }}>{l2Expanded ? '▾' : '▸'}</span>
                           </td>
@@ -1006,11 +1025,11 @@ export function CostWorkspace({kind}:{kind:Tab}) {
                         </tr>
                       )
 
-                      if (!l2Expanded) continue
+
 
                       if (g2.isLeaf) {
                         for (const e of g2.entries) {
-                          rows.push(renderEntryRow(e, selectedIds, toggleSelection, 2, setDetailEntry, farms, campagnes))
+                          rows.push(renderEntryRow(e, selectedIds, toggleSelection, 2, setDetailEntry, farms, campagnes, !l1Expanded || !l2Expanded))
                         }
                       } else {
                         // LEVEL 3
@@ -1018,7 +1037,7 @@ export function CostWorkspace({kind}:{kind:Tab}) {
                         for (const g3 of sortedL3) {
                           const l3Expanded = expandedGroups.has(g3.catId)
                           rows.push(
-                            <tr key={`h3-${g3.catId}`} style={{ background: 'color-mix(in srgb, var(--bg-deep) 40%, transparent)', cursor: 'pointer' }} onClick={() => toggleGroup(g3.catId)}>
+                            <tr key={`h3-${g3.catId}`} hidden={!l1Expanded || !l2Expanded} style={{ background: 'color-mix(in srgb, var(--bg-deep) 40%, transparent)', cursor: 'pointer' }} onClick={() => toggleGroup(g3.catId)}>
                               <td></td>
                               <td colSpan={3} style={{ paddingLeft: 44 }}>
                                 <span style={{ fontSize: 11, color: 'var(--tx-2)', marginRight: 6 }}>{l3Expanded ? '▾' : '▸'}</span>
@@ -1033,9 +1052,9 @@ export function CostWorkspace({kind}:{kind:Tab}) {
                               <td colSpan={4}></td>
                             </tr>
                           )
-                          if (l3Expanded) {
+                          {
                             for (const e of g3.entries) {
-                              rows.push(renderEntryRow(e, selectedIds, toggleSelection, 3, setDetailEntry, farms, campagnes))
+                              rows.push(renderEntryRow(e, selectedIds, toggleSelection, 3, setDetailEntry, farms, campagnes, !l1Expanded || !l2Expanded || !l3Expanded))
                             }
                           }
                         }
@@ -1070,10 +1089,10 @@ export function CostWorkspace({kind}:{kind:Tab}) {
 // ══════════════════════════════════════════════════════════════
 // Rendu d'une ligne d'entrée (avec case à cocher + indentation)
 // ══════════════════════════════════════════════════════════════
-function renderEntryRow(e: any, selectedIds: Set<string>, toggleSelection: (id: string) => void, depth: number, onDetails: (entry:any)=>void, farms: Farm[], campaigns: Campaign[]) {
+function renderEntryRow(e: any, selectedIds: Set<string>, toggleSelection: (id: string) => void, depth: number, onDetails: (entry:any)=>void, farms: Farm[], campaigns: Campaign[], collapsed=false) {
   const selected = selectedIds.has(e.id)
   return (
-    <tr key={e.id} style={{ background: selected ? 'color-mix(in srgb, var(--neon) 8%, transparent)' : undefined }}>
+    <tr key={e.id} hidden={collapsed} data-filter-amount={Number(e.amount||0)} style={{ background: selected ? 'color-mix(in srgb, var(--neon) 8%, transparent)' : undefined }}>
       <td style={{ textAlign: 'center' }}>
         <input type="checkbox" checked={selected} onChange={() => toggleSelection(e.id)} />
       </td>

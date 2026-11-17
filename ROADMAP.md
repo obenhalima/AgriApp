@@ -1,5 +1,26 @@
 # Roadmap ItriX Farm
 
+## Import des bordereaux station — décision du 12 novembre 2026
+
+Statut **à planifier**, rattaché au lot 1, chaîne récoltes et commercialisation. Fonctionnalité retenue pour une prochaine évolution. Le périmètre ci-dessous décrit le développement attendu.
+
+Objectif — charger le bordereau transmis par la station, préparer sa tarification et rapprocher les envois déjà saisis dans ItriX Farm.
+
+- [ ] Importer les PDF, avec reconnaissance de texte pour les documents numérisés, et conserver l'original comme justificatif du client concerné.
+- [ ] Extraire station, producteur, ferme, période et numéro de période station, date d'édition, devise, statut provisoire/définitif, désignation de variété, catégorie, calibre, poids, prix/kg et montant par ligne.
+- [ ] Faire confirmer la devise et la campagne lorsque le document ne permet pas de les déterminer. Conserver les dates explicites et le numéro de période propre à la station.
+- [ ] Mémoriser, par client et station, les correspondances entre les désignations station et le référentiel des variétés ItriX.
+- [ ] Préserver les montants officiels des lignes et du total, ainsi que la précision des prix affichés. Gérer les écarts d'arrondi lors du rapprochement et de la génération des écritures.
+- [ ] Proposer les envois éligibles par station, ferme, variété et période, avec affectation FIFO et gestion des tarifications partielles. Afficher les quantités rapprochées, les reliquats et les écarts.
+- [ ] Présenter un aperçu modifiable avant validation, avec les champs incertains et les correspondances manquantes.
+- [ ] Prévenir les doublons de fichier/bordereau et permettre de traiter les versions provisoires, définitives et corrigées avec leur historique.
+- [ ] À la validation, mettre à jour la tarification des envois et le CA réalisé, puis raccorder la facturation existante avec contrôle des doublons et des montants.
+- [ ] Enregistrer le règlement avec sa date, son montant et son justificatif, et suivre son rapprochement avec les factures concernées.
+
+Document de référence analysé — `P49_261104_204934.pdf`, Salad Time, ferme 501, liquidation nette export provisoire du 1er au 7 juin 2026. Le fichier fourni contient une page portant la mention « Page 17 sur 23 ». Points de recette issus de cet exemple — deux désignations de tomates cerises, prix/kg à cinq décimales, écart d'arrondi sur une ligne, devise à confirmer, absence de références de bons de livraison et de serres.
+
+Critère de livraison — un bordereau importé, contrôlé et validé se rapproche des envois et de ses montants officiels, avec justificatif consultable, gestion des corrections et absence de double tarification ou double facturation.
+
 ## Pilotage actualisé — 2 octobre 2026
 
 Cette section prime sur le backlog historique ci-dessous. Un développement local ou un test simulé n'atteste ni son déploiement ni sa validation métier. Aucune publication Vercel, écriture métier distante ou migration n'est autorisée par cette mise à jour.

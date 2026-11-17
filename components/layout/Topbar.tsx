@@ -20,6 +20,7 @@ import { getTheme, setTheme } from '@/lib/theme'
 import { useAuth } from '@/lib/auth'
 import { cn } from '@/lib/cn'
 import { findNavItem, buildBreadcrumbs } from '@/lib/navigation'
+import {hrNavigation} from '@/lib/hrWorkflow'
 import { getModuleKeyForPath } from '@/lib/modules'
 import { HelpLink } from '@/components/help/HelpLink'
 import { Badge } from '@/components/ui/Badge'
@@ -98,8 +99,9 @@ export function Topbar() {
     return () => window.removeEventListener('mousedown', onClickOutside)
   }, [userMenuOpen])
 
-  const breadcrumbs = useMemo(() => buildBreadcrumbs(pathname), [pathname])
-  const currentNav = useMemo(() => findNavItem(pathname), [pathname])
+  const clientNavigation = useMemo(() => hrNavigation(activeDomain?.domain_code), [activeDomain?.domain_code])
+  const breadcrumbs = useMemo(() => buildBreadcrumbs(pathname, clientNavigation), [pathname, clientNavigation])
+  const currentNav = useMemo(() => findNavItem(pathname, clientNavigation) || findNavItem(pathname), [pathname, clientNavigation])
 
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark'

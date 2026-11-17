@@ -14,6 +14,11 @@ import {
 } from 'lucide-react'
 
 import { supabase } from '@/lib/supabase'
+import {useAuth} from '@/lib/auth'
+import {usesFortnightPayroll} from '@/lib/hrWorkflow'
+import {listClientWorkers,listClientWorkerFarms} from '@/lib/workerScope'
+import {employeeEditError,missingEmployeeInformation} from '@/lib/employeeRecovery'
+import {EmployeeRecoveryImport} from '@/components/EmployeeRecoveryImport'
 import { computePayroll, fmtMAD, type PayFrequency } from '@/lib/payroll'
 import { cn } from '@/lib/cn'
 import { useReferenceList } from '@/lib/useReferenceList'
@@ -45,10 +50,13 @@ type Worker = {
   bank_iban: string | null; payment_method: string | null
   farm_id: string | null
   phone: string | null; email: string | null; address: string | null
+  is_declared?: boolean | null
   is_active: boolean
   mission_label: string | null
   mission_days_planned: number | null; mission_days_done: number | null
   mission_start_date: string | null; mission_end_date: string | null
+  normal_hourly_rate?: number | null; overtime_hourly_rate?: number | null; seniority_rate?: number | null
+  employee_import?: {filename:string;imported_at:string;source_record:{source_name:string;payment_name:string|null;notes:string|null}}
 }
 type Farm = { id: string; code: string; name: string }
 
@@ -63,11 +71,17 @@ const empty: Partial<Worker> = {
   base_salary: 0, daily_rate: 0, function: '',
   family_status: 'celibataire', dependents: 0,
   bank_iban: '', payment_method: 'virement',
-  phone: '', email: '', address: '', is_active: true,
+  phone: '', email: '', address: '', is_active: true, is_declared: true,
   mission_label: '', mission_days_planned: 0, mission_start_date: '', mission_end_date: '', mission_days_done: 0,
 }
 
 export default function EmployesPage() {
+  const {activeDomain}=useAuth()
+  const {t}=useLanguage()
+  return activeDomain?<ClientEmployees key={activeDomain.domain_id} domainId={activeDomain.domain_id} domainCode={activeDomain.domain_code} domainName={activeDomain.domain_name}/>:<p role="status">{t('Sélectionnez un client')}</p>
+}
+
+function ClientEmployees({domainId,domainCode,domainName}:{domainId:string;domainCode:string;domainName:string}) {
  const {t:_ui,text:_uiNode}=useLanguage()
 
   const { values: FAMILY_STATUS } = useReferenceList('family_status')
@@ -86,6 +100,9 @@ export default function EmployesPage() {
   const [filterCategory, setFilterCategory] = useState<string>('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('active')
   const [search, setSearch] = useState('')
+  const [filterFarm,setFilterFarm]=useState('')
+  const [completionOnly,setCompletionOnly]=useState(false)
+  const [importOpen,setImportOpen]=useState(false)
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Worker | null>(null)
@@ -97,48 +114,50 @@ export default function EmployesPage() {
   const load = async () => {
     setLoading(true)
     try {
-      const [w, f] = await Promise.all([
-        supabase.from('workers').select('*').order('last_name'),
-        supabase.from('farms').select('id, code, name').eq('is_active', true).order('name'),
+      const [workers, clientFarms] = await Promise.all([
+        listClientWorkers(domainId),
+        listClientWorkerFarms(domainId),
       ])
-      if (w.error) throw w.error
-      setItems((w.data ?? []) as any)
-      setFarms((f.data ?? []) as any)
+      setItems(workers)
+      setFarms(clientFarms)
     } catch (e: any) { toast.error(_ui("Erreur :") + e.message) }
     setLoading(false)
   }
   useEffect(() => { load() }, [])
 
   const filtered = useMemo(() => items.filter(w => {
+    if(completionOnly&&!missingEmployeeInformation(w).length)return false
+    if(filterFarm&&w.farm_id!==filterFarm)return false
     if (filterCategory && w.category !== filterCategory) return false
     if (filterStatus === 'active' && !w.is_active) return false
     if (filterStatus === 'inactive' && w.is_active) return false
     if (search) {
       const s = search.toLowerCase()
-      const hay = `${w.first_name} ${w.last_name} ${w.matricule ?? ''} ${w.cin ?? ''} ${w.cnss_number ?? ''} ${w.function ?? ''}`.toLowerCase()
+      const hay = `${w.first_name} ${w.last_name} ${w.matricule ?? ''} ${w.cin ?? ''} ${w.cnss_number ?? ''} ${w.function ?? ''} ${w.employee_import?.source_record.source_name??''} ${w.employee_import?.source_record.payment_name??''}`.toLowerCase()
       if (!hay.includes(s)) return false
     }
     return true
-  }), [items, filterCategory, filterStatus, search])
+  }), [items, filterCategory, filterStatus, search,filterFarm,completionOnly])
 
   // Stats
   const stats = useMemo(() => {
-    const active = items.filter(i => i.is_active)
+    const scoped=items.filter(worker=>!filterFarm||worker.farm_id===filterFarm)
+    const active = scoped.filter(i => i.is_active)
     const totalGross = active.reduce((s, i) => s + Number(i.base_salary || 0), 0)
     return {
-      total: items.length,
+      total: scoped.length,
       active: active.length,
-      inactive: items.length - active.length,
+      inactive: scoped.length - active.length,
       totalGross,
       byCategory: CATEGORIES.map(c => ({
         ...c,
         count: active.filter(i => i.category === c.code).length,
       })),
     }
-  }, [items, CATEGORIES])
+  }, [items, CATEGORIES,filterFarm])
 
   const openCreate = () => { setEditing(null); setForm(empty); setModalOpen(true); setDone(false); setModalError('') }
-  const openEdit = (w: Worker) => { setEditing(w); setForm({ ...w }); setModalOpen(true); setDone(false); setModalError('') }
+  const openEdit = (w: Worker) => { setEditing(w); setForm({ ...w, is_declared: w.is_declared ?? true }); setModalOpen(true); setDone(false); setModalError('') }
   const f = (k: keyof Worker) => (e: any) => setForm(s => ({ ...s, [k]: e.target.value }))
   const onChangeCategory = (e: any) => {
     const cat = e.target.value
@@ -148,28 +167,29 @@ export default function EmployesPage() {
 
   const save = async () => {
     setModalError('')
-    if (!form.first_name || !form.last_name) {
-      setModalError('Nom et prénom sont requis')
+    const validationError=employeeEditError(form,farms.map(farm=>farm.id))
+    if(validationError){
+      setModalError(_ui(validationError))
       return
     }
     setSaving(true)
     try {
       const payload: any = {
-        first_name: form.first_name,
-        last_name: form.last_name,
+        first_name: form.first_name?.trim() || '',
+        last_name: form.last_name?.trim(),
         cin: form.cin || null,
         cnss_number: form.cnss_number || null,
         ...(editing ? { matricule: form.matricule || null } : {}),
-        category: form.category,
-        contract_type: form.contract_type,
-        pay_frequency: form.pay_frequency,
-        base_salary: Number(form.base_salary) || 0,
-        daily_rate: Number(form.daily_rate) || 0,
+        category: form.category || null,
+        contract_type: form.contract_type || null,
+        pay_frequency: form.pay_frequency || null,
+        base_salary: form.base_salary==null||String(form.base_salary)===''?null:Number(form.base_salary),
+        daily_rate: form.daily_rate==null||String(form.daily_rate)===''?null:Number(form.daily_rate),
         function: form.function || null,
-        family_status: form.family_status,
-        dependents: Number(form.dependents) || 0,
+        family_status: form.family_status || null,
+        dependents: form.dependents==null||String(form.dependents)===''?null:Number(form.dependents),
         bank_iban: form.bank_iban || null,
-        payment_method: form.payment_method,
+        payment_method: form.payment_method || null,
         farm_id: form.farm_id || null,
         phone: form.phone || null,
         email: form.email || null,
@@ -183,6 +203,10 @@ export default function EmployesPage() {
         mission_end_date: form.mission_end_date || null,
         mission_days_done: Number(form.mission_days_done) || 0,
       }
+      payload.is_declared=form.is_declared ?? true
+      if(form.normal_hourly_rate!==undefined)payload.normal_hourly_rate=form.normal_hourly_rate==null||String(form.normal_hourly_rate)===''?null:Number(form.normal_hourly_rate)
+      if(form.overtime_hourly_rate!==undefined)payload.overtime_hourly_rate=form.overtime_hourly_rate==null||String(form.overtime_hourly_rate)===''?null:Number(form.overtime_hourly_rate)
+      if(form.seniority_rate!==undefined)payload.seniority_rate=form.seniority_rate==null||String(form.seniority_rate)===''?null:Number(form.seniority_rate)
       if (editing) {
         const { error } = await supabase.from('workers').update(payload).eq('id', editing.id)
         if (error) throw error
@@ -200,6 +224,7 @@ export default function EmployesPage() {
   }
 
   const toggleActive = async (w: Worker) => {
+    if(employeeEditError(w,farms.map(farm=>farm.id))){openEdit(w);setModalError(_ui('Complétez les champs requis avant de modifier cette fiche.'));return}
     if (!confirm(`${w.is_active ? 'Désactiver' : 'Réactiver'} ${w.first_name} ${w.last_name} ?`)) return
     try {
       const { error } = await supabase.from('workers').update({ is_active: !w.is_active }).eq('id', w.id)
@@ -213,13 +238,14 @@ export default function EmployesPage() {
     <div>
       <PageHeader
         title={_ui("Employés")}
-        subtitle={_ui("Ressources humaines")}
+        subtitle={_ui(usesFortnightPayroll(domainCode) ? "Parcours quinzaine" : "Module RH standard")}
         icon={UserSquare}
         iconColor="#0ea5e9"
         description={_ui("{v0} / {v1} employé{v2} affichés",{v0:String(filtered.length),v1:String(items.length),v2:String(items.length > 1 ? 's' : '')})}
         actions={
-          <Button onClick={openCreate} variant="primary">
+          <div className="flex gap-2"><Button variant="secondary" onClick={()=>setImportOpen(true)}>{_ui('Importer les employés')}</Button><Button onClick={openCreate} variant="primary">
             <Plus size={14} strokeWidth={2.5} /> {" "}{_ui("Nouvel employé")}{" "}</Button>
+          </div>
         }
         stats={loading ? [] : [
           { label: 'Total',     value: String(stats.total),                                                         icon: Users,     color: '#0ea5e9' },
@@ -228,6 +254,12 @@ export default function EmployesPage() {
           { label: 'Masse brute', value: <MoneyDisplay value={stats.totalGross} compact="auto" showCurrency={false} className="!text-current" />, icon: Wallet,    color: '#f59e0b' },
         ]}
       />
+      {importOpen&&<EmployeeRecoveryImport domain={domainId} domainCode={domainCode} domainName={domainName} farms={farms} workers={items} onClose={()=>setImportOpen(false)} onImported={()=>void load()}/>}
+      <div className="flex gap-2 mb-md" role="group" aria-label={_ui('Suivi des fiches employés')}>
+        <Button variant={completionOnly?'ghost':'secondary'} aria-pressed={!completionOnly} onClick={()=>setCompletionOnly(false)}>{_ui('Tous les employés')}</Button>
+        <Button variant={completionOnly?'secondary':'ghost'} aria-pressed={completionOnly} onClick={()=>{setCompletionOnly(true);setFilterStatus('all')}}>{_ui('Employés à compléter')} ({items.filter(worker=>missingEmployeeInformation(worker).length>0).length})</Button>
+      </div>
+      {completionOnly&&<p className="mb-md text-fg-secondary">{_ui('Les informations manquantes sont listées pour chaque fiche. Leur caractère obligatoire reste celui des contrôles de l’application.')}</p>}
 
       {/* Filtres + catégories en pills */}
       <Card animate delay={0.15} className="mb-md">
@@ -247,6 +279,10 @@ export default function EmployesPage() {
           </div>
 
           <div className="flex items-center gap-sm">
+            <TSelect aria-label={_ui('Ferme')} value={filterFarm} onChange={event=>setFilterFarm(event.target.value)} className="h-8 w-auto min-w-[160px] text-body-sm">
+              <option value="">{_ui('Toutes les fermes')}</option>
+              {farms.map(farm=><option key={farm.id} value={farm.id}>{farm.code} · {farm.name}</option>)}
+            </TSelect>
             <TSelect value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as any)} className="h-8 w-auto min-w-[120px] text-body-sm">
               <option value="active">{_ui("Actifs")}</option>
               <option value="inactive">{_ui("Inactifs")}</option>
@@ -311,7 +347,7 @@ export default function EmployesPage() {
               icon={Search}
               title={_ui("Aucun résultat")}
               description={_ui("Aucun employé ne correspond à tes filtres.")}
-              action={<Button variant="ghost" onClick={() => { setSearch(''); setFilterCategory(''); setFilterStatus('active') }}>{_ui("Réinitialiser")}</Button>}
+              action={<Button variant="ghost" onClick={() => { setSearch(''); setFilterCategory(''); setFilterStatus('active');setFilterFarm('') }}>{_ui("Réinitialiser")}</Button>}
             />
           )
         ) : (
@@ -320,14 +356,16 @@ export default function EmployesPage() {
               <TR>
                 <TH>{_ui("Matricule")}</TH>
                 <TH>{_ui("Nom complet")}</TH>
+                <TH>{_ui('Ferme')}</TH>
                 <TH>{_ui("Catégorie")}</TH>
                 <TH>{_ui("Fonction")}</TH>
                 <TH>{_ui("Contrat")}</TH>
                 <TH>{_ui("Fréq.")}</TH>
                 <TH right>{_ui("Brut mensuel")}</TH>
-                <TH>CNSS</TH>
+                <TH>{_ui("Déclaration / N° CNSS")}</TH>
                 <TH right>{_ui("Net estimé")}</TH>
                 <TH>{_ui("Statut")}</TH>
+                <TH>{_ui('Informations manquantes')}</TH>
                 <TH right>{_ui("Actions")}</TH>
               </TR>
             </THead>
@@ -344,6 +382,7 @@ export default function EmployesPage() {
                   <TR key={w.id} animate delay={0.05 + i * 0.02} className={cn(!w.is_active && 'opacity-50')}>
                     <TD mono className="text-caption font-semibold">{w.matricule ?? '—'}</TD>
                     <TD className="font-semibold text-fg-primary">{w.last_name} {w.first_name}</TD>
+                    <TD>{farms.find(farm=>farm.id===w.farm_id)?.name||'—'}</TD>
                     <TD>
                       {cat ? (
                         <span
@@ -357,8 +396,8 @@ export default function EmployesPage() {
                     <TD className="text-fg-secondary text-caption">{w.function ?? '—'}</TD>
                     <TD className="text-caption">{w.contract_type ?? '—'}</TD>
                     <TD className="text-caption">{w.pay_frequency ?? '—'}</TD>
-                    <TD right mono><MoneyDisplay value={Number(w.base_salary)} showCurrency={false} className="text-fg-primary" /></TD>
-                    <TD mono className="text-caption text-fg-tertiary">{w.cnss_number ?? '—'}</TD>
+                    <TD right mono>{w.base_salary==null?'—':<MoneyDisplay value={Number(w.base_salary)} showCurrency={false} className="text-fg-primary" />}</TD>
+                    <TD mono className="text-caption text-fg-tertiary">{_ui(w.is_declared !== false ? 'Déclaré' : 'Non déclaré')}<small className="block">{w.cnss_number ?? '—'}</small></TD>
                     <TD right mono>
                       {calc ? <MoneyDisplay value={calc.net_salary} showCurrency={false} className="text-success font-semibold" /> : <span className="text-fg-tertiary">—</span>}
                     </TD>
@@ -367,6 +406,7 @@ export default function EmployesPage() {
                         ? <Badge variant="success" size="sm" dot>{_ui("Actif")}</Badge>
                         : <Badge variant="default" size="sm">{_ui("Inactif")}</Badge>}
                     </TD>
+                    <TD>{missingEmployeeInformation(w).length>0?<details><summary className="cursor-pointer text-warning">{_ui('À compléter')} · {missingEmployeeInformation(w).length}</summary><ul className="mt-2 space-y-1">{missingEmployeeInformation(w).map(label=><li key={label}>{_ui(label)}</li>)}</ul></details>:<span>{_ui('Complète')}</span>}</TD>
                     <TD right>
                       <div className="flex items-center justify-end gap-1">
                         <Button onClick={() => openEdit(w)} variant="ghost" size="icon-sm" title={_ui("Éditer")}>
@@ -395,6 +435,10 @@ export default function EmployesPage() {
             <SuccessMessage message={editing ? _ui("Employé modifié") : _ui("Employé créé")} />
           ) : (
             <div className="space-y-md">
+              {editing?.employee_import&&<div className="rounded border border-info/30 bg-info/5 p-3 text-sm space-y-1">
+                <p>{_ui('Source de la reprise')} · {editing.employee_import.filename} · {editing.employee_import.imported_at.slice(0,10)}</p>
+                {editing.employee_import.source_record.notes&&<p>{editing.employee_import.source_record.notes}</p>}
+              </div>}
               <FormRow>
                 <FormGroup label={editing ? _ui("Matricule") : _ui("Matricule (auto-généré)")}>
                   <TInput
@@ -408,17 +452,19 @@ export default function EmployesPage() {
                   />
                 </FormGroup>
                 <FormGroup label={_ui("CIN")}><TInput value={form.cin ?? ''} onChange={f('cin')} placeholder={_ui("XX123456")} /></FormGroup>
+                <FormGroup label={_ui("Employé déclaré")}><TSelect aria-label={_ui("Employé déclaré")} value={String(form.is_declared ?? true)} onChange={event => setForm(current => ({...current, is_declared: event.target.value === 'true'}))}><option value="true">{_ui("Oui")}</option><option value="false">{_ui("Non")}</option></TSelect></FormGroup>
                 <FormGroup label={_ui("N° CNSS")}><TInput value={form.cnss_number ?? ''} onChange={f('cnss_number')} placeholder="123456789" /></FormGroup>
               </FormRow>
               <FormRow>
-                <FormGroup label={_ui("Prénom *")}><TInput value={form.first_name ?? ''} onChange={f('first_name')} autoFocus /></FormGroup>
-                <FormGroup label={_ui("Nom *")}><TInput value={form.last_name ?? ''} onChange={f('last_name')} /></FormGroup>
+                <FormGroup label={_ui("Nom *")}><TInput aria-label={_ui('Nom')} value={form.last_name ?? ''} onChange={f('last_name')} autoFocus placeholder={_ui('Nom complet de l’employé')}/></FormGroup>
+                <FormGroup label={_ui('Prénom (facultatif)')}><TInput aria-label={_ui('Prénom')} value={form.first_name ?? ''} onChange={f('first_name')} /></FormGroup>
                 <FormGroup label={_ui("Date naissance")}><TInput type="date" value={form.date_birth ?? ''} onChange={f('date_birth')} /></FormGroup>
               </FormRow>
 
               <FormRow>
                 <FormGroup label={_ui("Catégorie *")}>
-                  <TSelect value={form.category ?? 'fermier'} onChange={onChangeCategory}>
+                  <TSelect value={form.category ?? ''} onChange={onChangeCategory}>
+                    <option value="">{_ui('À compléter')}</option>
                     {CATEGORIES.map(c => <option key={c.code} value={c.code}>{c.icon} {_uiNode(c.label)}</option>)}
                   </TSelect>
                 </FormGroup>
@@ -433,13 +479,15 @@ export default function EmployesPage() {
 
               <FormRow>
                 <FormGroup label={_ui("Type de contrat")}>
-                  <TSelect value={form.contract_type ?? 'CDI'} onChange={f('contract_type')}>
+                  <TSelect value={form.contract_type ?? ''} onChange={f('contract_type')}>
+                    <option value="">{_ui('À compléter')}</option>
                     {CONTRACT_TYPES.map(c => <option key={c.code} value={c.code}>{_uiNode(c.label)}</option>)}
                   </TSelect>
                 </FormGroup>
                 <FormGroup label={_ui("Date d'embauche")}><TInput type="date" value={form.start_date ?? ''} onChange={f('start_date')} /></FormGroup>
                 <FormGroup label={_ui("Fréquence paie *")}>
-                  <TSelect value={form.pay_frequency ?? 'mensuel'} onChange={f('pay_frequency')}>
+                  <TSelect value={form.pay_frequency ?? ''} onChange={f('pay_frequency')}>
+                    <option value="">{_ui('À compléter')}</option>
                     {PAY_FREQS.map(fq => <option key={fq.code} value={fq.code}>{_uiNode(fq.label)}</option>)}
                   </TSelect>
                 </FormGroup>
@@ -450,22 +498,29 @@ export default function EmployesPage() {
                 <Banknote size={14} className="text-success" /> <strong className="text-fg-primary">{_ui("Rémunération")}</strong>
               </div>
               <FormRow>
-                <FormGroup label={_ui("Salaire brut mensuel (MAD)")}><TInput type="number" value={String(form.base_salary ?? 0)} onChange={f('base_salary')} /></FormGroup>
-                <FormGroup label={_ui("Tarif journalier (MAD)")}><TInput type="number" value={String(form.daily_rate ?? 0)} onChange={f('daily_rate')} /></FormGroup>
+                <FormGroup label={_ui("Salaire brut mensuel (MAD)")}><TInput type="number" value={String(form.base_salary ?? '')} onChange={f('base_salary')} /></FormGroup>
+                <FormGroup label={_ui("Tarif journalier (MAD)")}><TInput type="number" step="any" value={String(form.daily_rate ?? '')} onChange={f('daily_rate')} /></FormGroup>
                 <FormGroup label={_ui("Méthode paiement")}>
-                  <TSelect value={form.payment_method ?? 'virement'} onChange={f('payment_method')}>
+                  <TSelect value={form.payment_method ?? ''} onChange={f('payment_method')}>
+                    <option value="">{_ui('À compléter')}</option>
                     {PAY_METHODS.map(p => <option key={p.code} value={p.code}>{_uiNode(p.label)}</option>)}
                   </TSelect>
                 </FormGroup>
               </FormRow>
               <FormRow>
+                <FormGroup label={_ui('Tarif horaire normal net')}><TInput type="number" min="0" step="any" value={String(form.normal_hourly_rate??'')} onChange={f('normal_hourly_rate')}/></FormGroup>
+                <FormGroup label={_ui('Tarif horaire supplémentaire net')}><TInput type="number" min="0" step="any" value={String(form.overtime_hourly_rate??'')} onChange={f('overtime_hourly_rate')}/></FormGroup>
+                <FormGroup label={_ui('Taux ancienneté (0 à 1)')}><TInput type="number" min="0" max="1" step="any" value={String(form.seniority_rate??'')} onChange={f('seniority_rate')}/></FormGroup>
+              </FormRow>
+              <FormRow>
                 <FormGroup label={_ui("Statut familial")}>
-                  <TSelect value={form.family_status ?? 'celibataire'} onChange={f('family_status')}>
+                  <TSelect value={form.family_status ?? ''} onChange={f('family_status')}>
+                    <option value="">{_ui('À compléter')}</option>
                     {FAMILY_STATUS.map(s => <option key={s.code} value={s.code}>{_uiNode(s.label)}</option>)}
                   </TSelect>
                 </FormGroup>
                 <FormGroup label={_ui("Personnes à charge (max 6)")}>
-                  <TInput type="number" value={String(form.dependents ?? 0)} onChange={f('dependents')} />
+                  <TInput type="number" min="0" step="1" value={String(form.dependents ?? '')} onChange={f('dependents')} />
                 </FormGroup>
                 <FormGroup label={_ui("IBAN")}>
                   <TInput value={form.bank_iban ?? ''} onChange={f('bank_iban')} placeholder={_ui("MA64 011 …")} />
@@ -534,7 +589,7 @@ export default function EmployesPage() {
               })()}
 
               {modalError && (
-                <div className="rounded-md border border-danger/30 bg-danger/5 p-md text-body-sm text-danger">
+                <div role="alert" data-feedback="error" className="rounded-md border border-danger/30 bg-danger/5 p-md text-body-sm text-danger">
                   ⚠ {modalError}
                   {modalError.includes('column') && (
                     <div className="mt-2 text-caption text-warning">

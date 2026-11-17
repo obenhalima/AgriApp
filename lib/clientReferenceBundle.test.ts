@@ -6,7 +6,7 @@ const file=fileURLToPath(new URL('../scripts/ITRIX_ISOLATION_CLIENTS.sql',import
 describe('single manual SQL source package (not PostgreSQL execution)',()=>{
  it('matches its maintained sources and applies one consolidated server-side installation',()=>{
   const expected=execFileSync(process.execPath,[fileURLToPath(new URL('../scripts/build-client-reference-bundle.mjs',import.meta.url))],{encoding:'utf8'})
-  const sql=readFileSync(file,'utf8')
+  const sql=readFileSync(file,'utf8').replace(/\r\n/g,'\n')
   expect(sql.trim()).toBe(expected.trim())
   expect(sql.match(/^BEGIN;$/gm)).toHaveLength(1)
   expect(sql.match(/^COMMIT;$/gm)).toHaveLength(1)
@@ -26,7 +26,7 @@ describe('single manual SQL source package (not PostgreSQL execution)',()=>{
   }
  })
  it('protects old clients from deleting lines before an invalid replacement',()=>{
-  const sql=readFileSync(file,'utf8')
+  const sql=readFileSync(file,'utf8').replace(/\r\n/g,'\n')
   expect(sql).toContain('REVOKE INSERT,UPDATE,DELETE ON public.station_settlement_lines FROM authenticated')
   expect(sql).toContain('replace_client_settlement_lines(p_domain uuid,p_settlement uuid,p_lines jsonb)')
   const rpc=sql.slice(sql.indexOf('CREATE FUNCTION public.replace_client_settlement_lines'))

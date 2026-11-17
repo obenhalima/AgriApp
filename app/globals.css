@@ -4,6 +4,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Semantic feedback stays distinguishable from ordinary page copy in both themes. */
+:root {
+  --feedback-error: #fda4af;
+  --feedback-success: #86efac;
+  --feedback-info: #93c5fd;
+  --feedback-warning: #fcd34d;
+}
+[data-theme="light"] {
+  --feedback-error: #991b1b;
+  --feedback-success: #166534;
+  --feedback-info: #1e40af;
+  --feedback-warning: #92400e;
+}
+[role="alert"]:not([data-sonner-toast]) { color: var(--feedback-error); }
+[role="status"]:not([data-sonner-toast]) { color: var(--feedback-info); }
+[role="status"][class*="success"], [role="status"][class*="green-"] { color: var(--feedback-success); }
+[data-feedback="error"] { --feedback-color: var(--feedback-error); }
+[data-feedback="success"] { --feedback-color: var(--feedback-success); }
+[data-feedback="info"] { --feedback-color: var(--feedback-info); }
+[data-feedback="warning"] { --feedback-color: var(--feedback-warning); }
+[data-feedback][role] {
+  color: var(--feedback-color);
+  border: 1px solid currentColor;
+  border-inline-start-width: 4px;
+  background-color: color-mix(in srgb, var(--feedback-color) 8%, var(--bg-card));
+}
+
 /* ══════════════════════════════════════════
    DARK AGRITECH — défaut
 ══════════════════════════════════════════ */
@@ -272,7 +299,11 @@ body::before {
 }
 .form-input:focus { border-color: var(--neon); box-shadow: 0 0 0 3px var(--neon-dim); }
 .form-input::placeholder { color: var(--tx-4); }
-.form-input option { background: var(--bg-card); color: var(--tx-1); }
+/* Native Windows menus need explicit option colours as well as the select's text colour. */
+select { color-scheme: dark; }
+[data-theme="light"] select { color-scheme: light; }
+select option,
+select optgroup { background: var(--bg-card); color: var(--tx-1); }
 [data-theme="light"] .form-input { box-shadow: inset 0 1px 2px rgba(0,0,0,.04); }
 [data-theme="light"] .form-input:focus { box-shadow: 0 0 0 3px var(--neon-dim), inset 0 1px 2px rgba(0,0,0,.04); }
 

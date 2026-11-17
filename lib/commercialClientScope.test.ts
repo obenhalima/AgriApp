@@ -5,7 +5,7 @@ const mock=vi.hoisted(()=>{
  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY='synthetic-public-key'
  return {filters:[] as [string,unknown][],insert:vi.fn(),update:vi.fn(),order:vi.fn(),single:vi.fn()}
 })
-vi.mock('@supabase/supabase-js',()=>({createClient:()=>({from:()=>{
+vi.mock('@supabase/supabase-js',async importOriginal=>({...(await importOriginal<typeof import('@supabase/supabase-js')>()),createClient:()=>({from:()=>{
  const query:any={select:()=>query,eq:(key:string,value:unknown)=>{mock.filters.push([key,value]);return query},insert:(value:unknown)=>{mock.insert(value);return query},update:(value:unknown)=>{mock.update(value);return query},order:mock.order,single:mock.single};return query
 }})}))
 import {getClients,getMarches,createClient_,createMarche,deleteClient} from './supabase'

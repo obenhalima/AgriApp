@@ -12,6 +12,7 @@ const expires = Math.floor(Date.now()/1000)+3600
 const token = [{alg:'HS256',typ:'JWT'},{sub:uid,exp:expires,role:'authenticated'},'qa'].map(x=>Buffer.from(typeof x==='string'?x:JSON.stringify(x)).toString('base64url')).join('.')
 const submissions=[]
 const reviews=[]
+const receiptCalls=[]
 const costCategory={id:'cat',parent_id:'root',label:'Engrais',code:'ENG',type:'charge_variable',level:2,is_active:true}
 const costEntry={id:'cost',domain_id:domain,campaign_id:'campaign',greenhouse_id:'s0',account_category_id:'cat',amount:25,entry_date:'2026-11-05',description:'Consommation test',is_planned:false,source_stock_movement_id:'source-movement',cost_quality:'verified',allocation_method:'surface_plantee_confirmee',campaigns:{name:'2026'},greenhouses:{code:'S1',farm_id:'farm'},account_categories:costCategory}
 
@@ -25,7 +26,8 @@ try {
   await context.route(`https://${host}/**`,async route=>{
     const path = new URL(route.request().url()).pathname
     let result=[]
-    if(path.endsWith('/cost_entries')) result=[costEntry]
+    if(path.endsWith('/stock_movements')&&route.request().method()==='POST'){const data=route.request().postDataJSON();receiptCalls.push(data);result={...data,id:'manual-receipt'}}
+    else if(path.endsWith('/cost_entries')) result=[costEntry,{...costEntry,id:'cost-2',amount:75,entry_date:'2026-11-04',greenhouses:{code:'S2',farm_id:'farm'}}]
     else if(path.endsWith('/account_categories')) result=[{id:'root',label:'Charges variables',code:'CV',parent_id:null,type:'charge_variable',level:1,is_active:true},costCategory]
     else if(path.endsWith('/campaigns')) result=[{id:'campaign',name:'2026',farm_id:'farm'}]
     else if(path.endsWith('/farms')) result=[{id:'farm',name:'501'}]
@@ -64,7 +66,7 @@ try {
   },helper)
   expect(complex.labels).toEqual(['Catégorie','Mois · B','Mois · R','Total'])
   expect(complex.visible).toBe(1)
-  const table=page.locator('table').filter({has:page.locator('th',{hasText:'Coût unit.'})})
+  let table=page.locator('table').filter({has:page.locator('th',{hasText:'Coût unit.'})})
   await expect(table.getByRole('button',{name:'Filtrer la colonne Article',exact:true})).toBeVisible()
   const visibleNames=()=>table.locator('tbody tr:not([data-column-filter-hidden]) td:nth-child(2)').allTextContents()
   async function choose(column,values) {
@@ -105,8 +107,26 @@ try {
   await page.screenshot({path:'outputs/table-column-filters-mobile.png'})
   await page.keyboard.press('Escape')
   await page.setViewportSize({width:1440,height:1000})
+  await page.getByTitle('Entrée',{exact:true}).nth(1).click()
+  const receiptDialog=page.getByRole('dialog')
+  await receiptDialog.locator('input[type=number]').first().fill('5')
+  await receiptDialog.getByLabel('Prix unitaire entrée (MAD)',{exact:true}).fill('2.5')
+  await receiptDialog.getByRole('button',{name:'ENREGISTRER',exact:true}).click()
+  await expect.poll(()=>receiptCalls.length).toBe(1)
+  expect(receiptCalls[0].unit_cost).toBe(2.5)
+  expect(receiptCalls[0].quantity).toBe(5)
+  await expect(receiptDialog).toBeHidden()
   // Grouped costs and source detail dialog use the same filters.
   await page.goto((process.env.TEST_BASE_URL||'http://localhost:3001')+'/couts/reel',{waitUntil:'domcontentloaded',timeout:120000})
+  table=page.locator('table').filter({has:page.locator('th',{hasText:'Montant (MAD)'})})
+  const summary=page.getByRole('status').filter({hasText:'Total des lignes filtrées'})
+  await expect(summary).toContainText('100,00')
+  await choose('Serre',['S1'])
+  await expect(summary).toContainText('25,00')
+  await choose('Serre',[])
+  await expect(summary).toContainText('0,00')
+  await page.getByRole('button',{name:'Effacer tous les filtres',exact:true}).click()
+  await expect(summary).toContainText('100,00')
   await page.getByRole('button',{name:/Tout déplier/}).click()
   await expect(page.getByRole('button',{name:'Filtrer la colonne Campagne',exact:true})).toBeVisible()
   await page.getByRole('button',{name:'Voir les détails'}).first().evaluate(button=>button.scrollIntoView({block:'center',inline:'center'}))

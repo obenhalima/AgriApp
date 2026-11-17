@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, processLock, type SupabaseClient } from '@supabase/supabase-js'
 import { requireReferenceDomain, requireClientReferenceWrite, clientReferenceIsolationEnabled } from './clientReferenceScope'
 import { assertClientReferenceIsolation } from './clientReferenceReadiness'
 import {withDeletionFeedback,DELETION_BLOCKED_EVENT} from './deletionFeedback'
@@ -14,17 +14,23 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   )
 }
 
-// Désactive le navigatorLock de Supabase (source de NavigatorLockAcquireTimeoutError
-// quand plusieurs onglets/recharges HMR partagent la session). Lock noop = on
-// laisse chaque appel auth s'exécuter directement.
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+// Keep one browser client across Next.js hot reloads. Every client installs its
+// own refresh timer and visibility listener, even when it shares the same token.
+const browserState=globalThis as typeof globalThis & {
+  __itrixSupabaseClient?:{version:number;url:string;key:string;client:SupabaseClient}
+}
+const cachedClient=typeof window==='undefined'?undefined:browserState.__itrixSupabaseClient
+const createSupabaseClient=()=>createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   global:{fetch:withDeletionFeedback(withAuthRequestDeadline((input,init)=>fetch(input,init)),message=>{
     if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent(DELETION_BLOCKED_EVENT,{detail:message}))
   })},
   auth: {
-    lock: async (_name, _timeout, fn) => await fn(),
+    // Refresh retries can hold the lock for 30s before a getUser HTTP request.
+    lock: (name,timeout,work)=>processLock(name,timeout>0?Math.max(timeout,45000):timeout,work),
   },
 })
+export const supabase=cachedClient?.version===1&&cachedClient.url===SUPABASE_URL&&cachedClient.key===SUPABASE_ANON_KEY?cachedClient.client:createSupabaseClient()
+if(typeof window!=='undefined')browserState.__itrixSupabaseClient={version:1,url:SUPABASE_URL,key:SUPABASE_ANON_KEY,client:supabase}
 
 /* ── FERMES ── */
 export const getFarms = async (domainId?: string) => {
@@ -141,7 +147,7 @@ export const createStockItem = async (p: { code:string; name:string; category:st
   const { data, error } = await supabase.from('stock_items').insert({ ...p, current_qty: 0, is_active: true }).select().single()
   if (error) throw error; return data
 }
-export const createMouvement = async (p: { stock_item_id:string; warehouse_id?:string; movement_type:string; quantity:number; movement_date:string; reference?:string; notes?:string }) => {
+export const createMouvement = async (p: { stock_item_id:string; warehouse_id?:string; movement_type:string; quantity:number; unit_cost?:number; movement_date:string; reference?:string; notes?:string }) => {
   const { data, error } = await supabase.from('stock_movements').insert(p).select().single()
   if (error) throw error
   return data

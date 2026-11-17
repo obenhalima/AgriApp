@@ -1,0 +1,18 @@
+CREATE ROLE authenticated;
+CREATE ROLE anon;
+CREATE SCHEMA auth;
+CREATE TABLE auth.users(id uuid PRIMARY KEY);
+CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('test.actor',true),'')::uuid $$;
+CREATE TABLE profiles(id uuid PRIMARY KEY,is_active boolean);
+CREATE TABLE domains(id uuid PRIMARY KEY,is_active boolean);
+CREATE TABLE farms(id uuid PRIMARY KEY,domain_id uuid,is_active boolean);
+CREATE TABLE workers(id uuid PRIMARY KEY,farm_id uuid,first_name text,last_name text,matricule text);
+CREATE FUNCTION is_domain_member(d uuid,u uuid) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT d='11111111-1111-4111-8111-111111111111'::uuid $$;
+CREATE FUNCTION has_domain_permission(d uuid,u uuid,m text,a text) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT coalesce(current_setting('test.allowed',true),'yes')='yes' $$;
+INSERT INTO auth.users VALUES('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+INSERT INTO profiles VALUES('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
+INSERT INTO domains VALUES('11111111-1111-4111-8111-111111111111',true),('22222222-2222-4222-8222-222222222222',true);
+INSERT INTO farms VALUES('33333333-3333-4333-8333-333333333333','11111111-1111-4111-8111-111111111111',true),('44444444-4444-4444-8444-444444444444','22222222-2222-4222-8222-222222222222',true);
+INSERT INTO workers VALUES('55555555-5555-4555-8555-555555555555','33333333-3333-4333-8333-333333333333','','TEST EMPLOYE','EMP01'),('66666666-6666-4666-8666-666666666666','44444444-4444-4444-8444-444444444444','','AUTRE','EMP02');
+GRANT USAGE ON SCHEMA public,auth TO authenticated;
+GRANT SELECT ON profiles,domains,farms,workers TO authenticated;

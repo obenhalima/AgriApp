@@ -81,6 +81,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [loading, user, profile?.is_active, profile?.must_change_password, pathname, router, isPublicAuthPage])
 
   // Loader d'initialisation
+  // Recovery forms remain usable when an older saved session cannot be checked.
+  if ((loading || initializationError) && ['/login','/forgot-password','/reset-password'].includes(pathname)) return <>{children}</>
   if (initializationError) return (
     <div className="min-h-screen bg-surface-sunk flex items-center justify-center p-6">
       <section role="alert" className="max-w-lg rounded-2xl border border-red-300 bg-surface-base p-6 text-center shadow-lg">

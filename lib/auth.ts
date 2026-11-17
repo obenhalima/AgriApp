@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode, createElement } from 'react'
 import { supabase } from './supabase'
 import type { User } from '@supabase/supabase-js'
-import { withAuthCancellation } from './authInitialization'
+import { withAuthCancellation, retryAuthRead, needsAuthRecheck } from './authInitialization'
 
 // ============================================================
 // Types
@@ -180,6 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // A refresh-token operation can outlive the UI deadline inside the SDK.
   // Retries share that identity read instead of queueing new getUser calls.
   const identityRequest=useRef<ReturnType<typeof supabase.auth.getUser>|null>(null)
+  const verifiedIdentity=useRef<{id:string;at:number}|null>(null)
   const failedAttempt=useRef(false)
   const [initializationBusy,setInitializationBusy]=useState(false)
   const initialLoginStamp = useRef(true)
@@ -202,28 +203,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setInitializationBusy(true)
     const controller=new AbortController();attemptController.current=controller
     const version = ++authVersion.current
+    let stage = 'identity'
     // Initial/retry state stays blocked; background checks do not remount pages.
     try {
-      const result = await withAuthCancellation(async signal => {
-        if(!identityRequest.current)identityRequest.current=supabase.auth.getUser().finally(()=>{identityRequest.current=null})
+      const result = await withAuthCancellation(signal => retryAuthRead(async () => {
+        if(!identityRequest.current){
+          const request=supabase.auth.getUser().finally(()=>{if(identityRequest.current===request)identityRequest.current=null})
+          identityRequest.current=request
+        }
         const { data: { user }, error } = await identityRequest.current
         signal.throwIfAborted()
         if (error && error.name !== 'AuthSessionMissingError') throw error
         if (!user) return { user: null, profile: null, role: null, permissions: new Set<string>(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null, loading: false }
         const preferred = localStorage.getItem(`farmpilot_active_domain_${user.id}`)
+        stage = 'permissions'
         const data = await loadAuthData(user.id, preferred,signal)
         return { user, ...data, loading: false }
-      },controller)
+      },signal),controller)
       if (version === authVersion.current) {
         failedAttempt.current=false;setInitializationError(false)
+        verifiedIdentity.current=result.user&&result.profile?.is_active?{id:result.user.id,at:Date.now()}:null
         setState(result)
         if (initialLoginStamp.current && result.user && result.profile?.is_active) {
           void supabase.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', result.user.id).then(() => {})
         }
         initialLoginStamp.current = false
       }
-    } catch {
+    } catch (error) {
       if (version === authVersion.current) {
+        const failure = error as {name?:string;code?:string;status?:number}
+        console.warn('Auth verification unavailable', {stage, name:failure?.name??'Error', code:failure?.code, status:failure?.status})
         setInitializationError(true)
         failedAttempt.current=true
         // Fail closed in memory, without signOut/localStorage.clear/removeItem.
@@ -243,14 +252,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'INITIAL_SESSION') return // Initial getUser() performs server validation.
       if (event === 'SIGNED_OUT' || !session?.user) {
-        attemptController.current?.abort();failedAttempt.current=false;setInitializationBusy(false)
+        verifiedIdentity.current=null;attemptController.current?.abort();failedAttempt.current=false;setInitializationBusy(false)
         authVersion.current++
         pending.current = false
         setInitializationError(false)
         setState({ user: null, profile: null, role: null, permissions: new Set(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null, loading: false })
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         setTimeout(() => {
-          if (!disposed&&!failedAttempt.current) void refresh()
+          if (!disposed&&!failedAttempt.current&&needsAuthRecheck(verifiedIdentity.current,session.user.id)) void refresh()
         }, 0)
       }
     })
@@ -259,20 +268,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Recheck suspension/permissions in open tabs, including when returning from background.
   useEffect(() => {
-    const check = () => { if (!failedAttempt.current&&document.visibilityState === 'visible') void refresh().catch(() => {
-      setState({ user: null, profile: null, role: null, permissions: new Set(), isAdmin: false, isPlatformAdmin: false, domains: [], activeDomain: null, loading: false })
-    }) }
+    const check = () => {
+      if (!failedAttempt.current&&document.visibilityState === 'visible') void refresh()
+    }
+    const checkOnReturn = () => {
+      if (needsAuthRecheck(verifiedIdentity.current,verifiedIdentity.current?.id)) check()
+    }
     const timer = window.setInterval(check, 60000)
-    window.addEventListener('focus', check)
-    document.addEventListener('visibilitychange', check)
-    return () => { clearInterval(timer); window.removeEventListener('focus', check); document.removeEventListener('visibilitychange', check) }
+    window.addEventListener('focus', checkOnReturn)
+    document.addEventListener('visibilitychange', checkOnReturn)
+    return () => { clearInterval(timer); window.removeEventListener('focus', checkOnReturn); document.removeEventListener('visibilitychange', checkOnReturn) }
   }, [refresh])
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
-    // Le onAuthStateChange va recharger automatiquement
-  }, [])
+    // A successful explicit login starts a fresh verification even after a
+    // previous service outage. Discard older reads before checking this session.
+    authVersion.current++
+    attemptController.current?.abort()
+    pending.current=false
+    identityRequest.current=null
+    verifiedIdentity.current=null
+    failedAttempt.current=false
+    await refresh()
+  }, [refresh])
 
   const signOut = useCallback(async () => {
     // Shared phones: unsubscribe locally even if the server is temporarily unavailable.

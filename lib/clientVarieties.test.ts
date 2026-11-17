@@ -6,7 +6,7 @@ const fixtures = vi.hoisted(() => {
   process.env.NEXT_PUBLIC_CLIENT_REFERENCE_ISOLATION='true'
   return { rows: [] as any[], calls: 0 }
 })
-vi.mock('@supabase/supabase-js', () => ({ createClient: () => ({ rpc:async()=>({data:true,error:null}),from: (table: string) => {
+vi.mock('@supabase/supabase-js', async importOriginal => ({ ...(await importOriginal<typeof import('@supabase/supabase-js')>()), createClient: () => ({ rpc:async()=>({data:true,error:null}),from: (table: string) => {
   expect(table).toBe('varieties')
   fixtures.calls++
   const filters: [string,unknown][]=[]

@@ -24,6 +24,7 @@ export function InitializationModuleChooser({name,onChoose,onFull,onChangeClient
       </section>)}
     </div>
     <section className="rounded-xl border border-border p-4 space-y-3"><h2 className="font-semibold">{t('5. Articles et stock initial')}</h2><p>{t('Un modèle ItriX Farm pour les articles existants et nouveaux, les unités, les entrepôts et l’inventaire à date.')}</p><p className="text-caption text-fg-secondary">{t('Contrôle et synthèse, puis création des articles et initialisation du stock après confirmation serveur. Aucun stock existant n’est écrasé.')}</p>{onStock ? <Button variant="secondary" onClick={onStock}>{t('Préparer les articles et le stock')}</Button> : <Button asChild variant="secondary"><Link href="/stocks/reprise">{t('Préparer les articles et le stock')}</Link></Button>}</section>
+    <section className="rounded-xl border border-border p-4 space-y-3"><h2 className="font-semibold">{t('Historique des entrées et sorties')}</h2><p>{t('Importer les mouvements historiques et générer les coûts des consommations après contrôle.')}</p><Button asChild variant="secondary"><Link href="/stocks/historique">{t('Préparer l’historique des stocks')}</Link></Button></section>
     <p className="text-sm">{t('RH, agronomie et finance seront abordés ensuite. Aucun module n’est présenté comme importé sans résultat serveur.')}</p>
     <Button variant="ghost" onClick={onFull}>{t('Accéder au dossier complet existant')}</Button>
   </div>

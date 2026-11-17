@@ -1,4 +1,5 @@
 'use client'
+import {InventoryCostSettings} from '@/components/stock/InventoryCostSettings'
 import {useLanguage} from '@/lib/i18n'
 
 /**
@@ -55,7 +56,7 @@ interface CampaignLite {
 export default function ParametresPage() {
  const {t:_ui,text:_uiNode}=useLanguage()
 
-  const { isAdmin, loading: authLoading, activeDomain } = useAuth()
+  const { isAdmin, isPlatformAdmin, loading: authLoading, activeDomain } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -209,7 +210,7 @@ export default function ParametresPage() {
     return <div className="p-md"><Skeleton className="h-12 w-64" /></div>
   }
 
-  if (!isAdmin) {
+  if (!isAdmin && !isPlatformAdmin) {
     return (
       <div className="p-md">
         <Card>
@@ -229,6 +230,8 @@ export default function ParametresPage() {
         title={_ui("Paramètres globaux")}
         description={_ui("Identité du domaine, campagne live et options d'affichage de l'application")}
       />
+
+      <InventoryCostSettings/>
 
       {/* ─── Identité du domaine ─── */}
       <Card animate delay={0.1}>

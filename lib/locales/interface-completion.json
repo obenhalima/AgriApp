@@ -1,4 +1,692 @@
 {
+  "Nom complet de l’employé": [
+    "الاسم الكامل للموظف",
+    "Employee full name"
+  ],
+  "Prénom (facultatif)": [
+    "الاسم الشخصي (اختياري)",
+    "First name (optional)"
+  ],
+  "Le nom est requis": [
+    "الاسم مطلوب",
+    "Name is required"
+  ],
+  "Nom complet source": [
+    "الاسم الكامل الأصلي",
+    "Original full name"
+  ],
+  "Nom sur émargement": [
+    "الاسم في كشف التوقيع",
+    "Name on payment sheet"
+  ],
+  "Renseigné à l’import": [
+    "يُملأ عند الاستيراد",
+    "Filled during import"
+  ],
+  "Ces noms conservent les libellés du fichier importé. Le nom et le prénom ci-dessus servent à compléter l’identité de la fiche.": [
+    "تحفظ هذه الأسماء التسميات الواردة في الملف المستورد. يُستخدم الاسم العائلي والشخصي أعلاه لاستكمال هوية الموظف.",
+    "These names preserve the labels from the imported file. The first and last names above complete the employee’s identity."
+  ],
+  "Exporter le modèle employés": [
+    "تصدير نموذج الموظفين",
+    "Export employee template"
+  ],
+  "Exportez le modèle du client et de la ferme, complétez les informations disponibles puis rechargez-le. Le classeur consolidé avec l’onglet Employés est également accepté.": [
+    "صدّر نموذج العميل والمزرعة ثم أكمل المعلومات المتاحة وأعد تحميله. يُقبل أيضاً الملف الموحد الذي يحتوي على ورقة Employés.",
+    "Export the client and farm template, fill in the available information, then upload it. The consolidated workbook with an Employés sheet is also accepted."
+  ],
+  "Importer les employés": [
+    "استيراد الموظفين",
+    "Import employees"
+  ],
+  "Ferme destinataire": [
+    "المزرعة المستقبلة",
+    "Destination farm"
+  ],
+  "Choisir une ferme": [
+    "اختيار مزرعة",
+    "Choose a farm"
+  ],
+  "Classeur des employés": [
+    "ملف الموظفين",
+    "Employee workbook"
+  ],
+  "employés lus": [
+    "موظفاً تمت قراءتهم",
+    "employees read"
+  ],
+  "actifs": [
+    "نشطون",
+    "active"
+  ],
+  "inactifs": [
+    "غير نشطين",
+    "inactive"
+  ],
+  "employés créés": [
+    "موظفاً تم إنشاؤهم",
+    "employees created"
+  ],
+  "employés à créer": [
+    "موظفاً للإنشاء",
+    "employees to create"
+  ],
+  "déjà importés": [
+    "تم استيرادهم سابقاً",
+    "already imported"
+  ],
+  "rapprochements à vérifier": [
+    "مطابقات تحتاج إلى التحقق",
+    "matches to review"
+  ],
+  "Les fiches existantes sont préservées. Les informations manquantes seront visibles dans Employés à compléter. Toute modification de fiche applique les contrôles habituels.": [
+    "تُحفظ الملفات الموجودة. ستظهر المعلومات الناقصة في قائمة الموظفين للاستكمال. تخضع التعديلات لعمليات التحقق المعتادة.",
+    "Existing records are preserved. Missing information appears under Employees to complete. Editing a record applies the usual validation rules."
+  ],
+  "Contrôler le fichier": [
+    "التحقق من الملف",
+    "Check workbook"
+  ],
+  "Valider l’import des employés": [
+    "تأكيد استيراد الموظفين",
+    "Confirm employee import"
+  ],
+  "Appliquez la migration employee_recovery_import pour activer le contrôle et l’import.": [
+    "طبّق ترحيل employee_recovery_import لتفعيل التحقق والاستيراد.",
+    "Apply the employee_recovery_import migration to enable validation and import."
+  ],
+  "Nom source": [
+    "الاسم الأصلي",
+    "Source name"
+  ],
+  "Tarif horaire normal": [
+    "أجر الساعة العادية",
+    "Normal hourly rate"
+  ],
+  "Tarif horaire supplémentaire": [
+    "أجر الساعة الإضافية",
+    "Overtime hourly rate"
+  ],
+  "À créer": [
+    "للإنشاء",
+    "To create"
+  ],
+  "Déjà importé": [
+    "تم استيراده سابقاً",
+    "Already imported"
+  ],
+  "Employés à compléter": [
+    "موظفون للاستكمال",
+    "Employees to complete"
+  ],
+  "Suivi des fiches employés": [
+    "تتبع ملفات الموظفين",
+    "Employee record tracking"
+  ],
+  "Tous les employés": [
+    "جميع الموظفين",
+    "All employees"
+  ],
+  "Les informations manquantes sont listées pour chaque fiche. Leur caractère obligatoire reste celui des contrôles de l’application.": [
+    "تُعرض المعلومات الناقصة لكل ملف. تحدد قواعد التطبيق الحقول المطلوبة للحفظ.",
+    "Missing information is listed for each record. Required fields follow the application’s validation rules."
+  ],
+  "Informations manquantes": [
+    "المعلومات الناقصة",
+    "Missing information"
+  ],
+  "À compléter": [
+    "للاستكمال",
+    "To complete"
+  ],
+  "Complète": [
+    "مكتملة",
+    "Complete"
+  ],
+  "Source de la reprise": [
+    "مصدر الاستيراد",
+    "Import source"
+  ],
+  "Nom sur l’émargement": [
+    "الاسم في كشف التوقيع",
+    "Name on payment sheet"
+  ],
+  "Taux ancienneté (0 à 1)": [
+    "نسبة الأقدمية (من 0 إلى 1)",
+    "Seniority rate (0 to 1)"
+  ],
+  "Taux ancienneté": [
+    "نسبة الأقدمية",
+    "Seniority rate"
+  ],
+  "Personnes à charge": [
+    "الأشخاص المعالون",
+    "Dependants"
+  ],
+  "Complétez les champs requis avant de modifier cette fiche.": [
+    "أكمل الحقول المطلوبة قبل تعديل هذا الملف.",
+    "Complete the required fields before changing this record."
+  ],
+  "Nom et prénom sont requis": [
+    "الاسم العائلي والشخصي مطلوبان",
+    "First and last names are required"
+  ],
+  "Montant ou taux invalide": [
+    "مبلغ أو نسبة غير صالحة",
+    "Invalid amount or rate"
+  ],
+  "Toutes les fermes": [
+    "جميع المزارع",
+    "All farms"
+  ],
+  "Ferme inaccessible pour ce client": [
+    "المزرعة غير متاحة لهذا العميل",
+    "Farm unavailable for this client"
+  ],
+  "Total client · réel": [
+    "إجمالي العميل · الفعلي",
+    "Client total · actual"
+  ],
+  "Total client · budget": [
+    "إجمالي العميل · الميزانية",
+    "Client total · budget"
+  ],
+  "Écritures du client après filtres": [
+    "قيود العميل بعد التصفية",
+    "Client entries after filters"
+  ],
+  "Vue client, ferme et serre": [
+    "عرض العميل والمزرعة والدفيئة",
+    "Client, farm and greenhouse view"
+  ],
+  "Périmètre des coûts": [
+    "نطاق التكاليف",
+    "Cost scope"
+  ],
+  "Vue globale client": [
+    "العرض الإجمالي للعميل",
+    "Client overview"
+  ],
+  "Ferme non renseignée": [
+    "مزرعة غير محددة",
+    "Unspecified farm"
+  ],
+  "lignes regroupées": [
+    "صفوف مجمعة",
+    "grouped rows"
+  ],
+  "affectations": [
+    "توزيعات",
+    "allocations"
+  ],
+  "Voir les affectations": [
+    "عرض التوزيعات",
+    "View allocations"
+  ],
+  "Affectations du mouvement": [
+    "توزيعات الحركة",
+    "Movement allocations"
+  ],
+  "Détail par article et mouvement": [
+    "تفاصيل حسب المنتج والحركة",
+    "Detail by product and movement"
+  ],
+  "Par catégorie": [
+    "حسب الفئة",
+    "By category"
+  ],
+  "Article, référence ou description": [
+    "المنتج أو المرجع أو الوصف",
+    "Product, reference or description"
+  ],
+  "Tous les mois": [
+    "كل الأشهر",
+    "All months"
+  ],
+  "Trier les écritures": [
+    "ترتيب القيود",
+    "Sort entries"
+  ],
+  "Date du coût": [
+    "تاريخ التكلفة",
+    "Cost date"
+  ],
+  "Dernières écritures créées": [
+    "أحدث القيود المنشأة",
+    "Recently created entries"
+  ],
+  "Total des écritures affichées": [
+    "مجموع القيود المعروضة",
+    "Total displayed entries"
+  ],
+  "écritures": [
+    "قيود",
+    "entries"
+  ],
+  "Chargement des articles et mouvements sources…": [
+    "تحميل المنتجات والحركات المصدر…",
+    "Loading products and source movements…"
+  ],
+  "Détail des articles indisponible": [
+    "تفاصيل المنتجات غير متاحة",
+    "Product details unavailable"
+  ],
+  "Chaque montant correspond à une affectation de coût. Un même mouvement peut être réparti sur plusieurs serres.": [
+    "كل مبلغ يمثل تخصيص تكلفة. يمكن توزيع حركة واحدة على عدة بيوت محمية.",
+    "Each amount represents a cost allocation. One movement may be allocated across several greenhouses."
+  ],
+  "Référence mouvement": [
+    "مرجع الحركة",
+    "Movement reference"
+  ],
+  "Quantité du mouvement": [
+    "كمية الحركة",
+    "Movement quantity"
+  ],
+  "PU (MAD)": [
+    "سعر الوحدة بالدرهم",
+    "Unit cost (MAD)"
+  ],
+  "Montant imputé (MAD)": [
+    "المبلغ المخصص بالدرهم",
+    "Allocated amount (MAD)"
+  ],
+  "Aucune écriture dans ce périmètre.": [
+    "لا توجد قيود في هذا النطاق.",
+    "No entries in this scope."
+  ],
+  "Écritures derrière ce montant": [
+    "القيود المكونة لهذا المبلغ",
+    "Entries behind this amount"
+  ],
+  "Période du rapport": [
+    "فترة التقرير",
+    "Report period"
+  ],
+  "Montant du compte d’exploitation": [
+    "مبلغ حساب الاستغلال",
+    "Operating statement amount"
+  ],
+  "Chargement des écritures…": [
+    "تحميل القيود…",
+    "Loading entries…"
+  ],
+  "Le total détaillé diffère du rapport. Actualisez le compte d’exploitation pour vérifier les écritures récentes.": [
+    "يختلف المجموع التفصيلي عن التقرير. حدّث حساب الاستغلال للتحقق من القيود الأخيرة.",
+    "The detailed total differs from the report. Refresh the operating statement to check recent entries."
+  ],
+  "Voir les écritures de": [
+    "عرض قيود",
+    "View entries for"
+  ],
+  "Cliquez sur un montant réel de charges pour voir les écritures, les articles et les mouvements sources.": [
+    "انقر على مبلغ مصروفات فعلي لعرض القيود والمنتجات والحركات المصدر.",
+    "Click an actual expense amount to see the entries, products and source movements."
+  ],
+  "Actualiser les sorties à rapprocher": [
+    "تحديث عمليات الصرف المطلوب مطابقتها",
+    "Refresh issues to reconcile"
+  ],
+  "Les sorties renseignées dans ce fichier sont déjà traitées ou hors du périmètre affiché.": [
+    "عمليات الصرف المدخلة في هذا الملف معالجة بالفعل أو خارج النطاق المعروض.",
+    "The completed issues in this file have already been processed or are outside the displayed scope."
+  ],
+  "Sorties déjà traitées ou hors périmètre ignorées": [
+    "عمليات صرف معالجة أو خارج النطاق تم تجاهلها",
+    "Already processed or out-of-scope issues skipped"
+  ],
+  "Les sorties restantes ont été modifiées depuis cet export. Vérifiez les lignes concernées avant de poursuivre.": [
+    "تغيرت عمليات الصرف المتبقية منذ التصدير. تحقق من السطور المعنية قبل المتابعة.",
+    "The remaining issues changed since this export. Check the affected rows before continuing."
+  ],
+  "Les affectations ont changé depuis cet export. Vérifiez les plantations avant de poursuivre.": [
+    "تغيرت التخصيصات منذ التصدير. تحقق من الزراعات قبل المتابعة.",
+    "Allocations changed since this export. Check the plantings before continuing."
+  ],
+  "Importé par": [
+    "تم الاستيراد بواسطة",
+    "Imported by"
+  ],
+  "Date d’import": [
+    "تاريخ الاستيراد",
+    "Import date"
+  ],
+  "Session utilisateur requise pour tracer cet import.": [
+    "يلزم تسجيل الدخول لتتبع هذا الاستيراد.",
+    "A signed-in user is required to trace this import."
+  ],
+  "Si le justificatif est vide, l’utilisateur, la date et le nom du fichier sont ajoutés automatiquement. Les articles sans CUMP restent en attente.": [
+    "عند غياب المصدر، يضاف المستخدم والتاريخ واسم الملف تلقائياً. تبقى المنتجات دون متوسط تكلفة مرجح قيد الانتظار.",
+    "When a source is blank, the user, date and filename are added automatically. Products without a weighted average cost remain pending."
+  ],
+  "Prix lus depuis les résultats de formules enregistrés": [
+    "أسعار مقروءة من نتائج الصيغ المحفوظة",
+    "Prices read from saved formula results"
+  ],
+  "Source commune du fichier": [
+    "المصدر المشترك للملف",
+    "Shared file source"
+  ],
+  "Ex. prix communiqués par la ferme": [
+    "مثال: أسعار مقدمة من المزرعة",
+    "E.g. prices provided by the farm"
+  ],
+  "Utilisée pour les justificatifs vides. À défaut, le nom du fichier est conservé comme source. Les articles sans prix restent en attente.": [
+    "تُستخدم عند غياب المصدر في السطر. وإلا يُحفظ اسم الملف كمصدر. تبقى المنتجات دون سعر قيد الانتظار.",
+    "Used when row sources are blank. Otherwise, the filename is retained as the source. Unpriced products remain pending."
+  ],
+  "Articles sans CUMP laissés en attente": [
+    "منتجات دون متوسط تكلفة مرجح متروكة قيد الانتظار",
+    "Products without a weighted average cost left pending"
+  ],
+  "Les sorties ont changé depuis cet export. Exportez un nouveau fichier avant de poursuivre.": [
+    "تغيرت عمليات الصرف منذ التصدير. صدّر ملفاً جديداً قبل المتابعة.",
+    "The issues changed since this export. Export a new file before continuing."
+  ],
+  "Aucun CUMP renseigné dans le fichier. Complétez au moins un article.": [
+    "لا يوجد متوسط تكلفة مرجح في الملف. أكمل منتجاً واحداً على الأقل.",
+    "No weighted average cost was entered in the file. Complete at least one product."
+  ],
+  "Saisissez une seule fois le CUMP par unité pour les sorties non valorisées de cet article.": [
+    "أدخل متوسط التكلفة المرجح للوحدة مرة واحدة لعمليات الصرف غير المقيمة لهذا المنتج.",
+    "Enter the weighted average unit cost once for this product’s unvalued issues."
+  ],
+  "Détail des sorties et affectations": [
+    "تفاصيل عمليات الصرف والتخصيصات",
+    "Issue and allocation details"
+  ],
+  "Renseignez un CUMP positif ou nul pour cet article.": [
+    "أدخل متوسط تكلفة مرجح موجباً أو صفراً لهذا المنتج.",
+    "Enter a non-negative weighted average cost for this product."
+  ],
+  "Indiquez la source du CUMP avec au moins 5 caractères.": [
+    "حدد مصدر متوسط التكلفة المرجح بخمسة أحرف على الأقل.",
+    "Describe the weighted average cost source using at least 5 characters."
+  ],
+  "La méthode a changé. Actualisez les sorties avant de poursuivre.": [
+    "تغيرت الطريقة. حدّث عمليات الصرف قبل المتابعة.",
+    "The method changed. Refresh the issues before continuing."
+  ],
+  "Méthode active": [
+    "الطريقة المفعلة",
+    "Active method"
+  ],
+  "La bascule conserve la valorisation des mouvements et les coûts déjà enregistrés. Le stock restant constitue le lot d’ouverture pour les nouvelles sorties.": [
+    "يحافظ التغيير على تقييم الحركات والتكاليف المسجلة. يشكل المخزون المتبقي دفعة افتتاحية لعمليات الصرف الجديدة.",
+    "The change preserves posted movement values and costs. Remaining stock becomes the opening lot for new issues."
+  ],
+  "Contrôler avant activation": [
+    "التحقق قبل التفعيل",
+    "Check before activation"
+  ],
+  "Activation bloquée : données à compléter": [
+    "التفعيل متوقف: بيانات يجب إكمالها",
+    "Activation blocked: missing data"
+  ],
+  "Ouvrir les stocks": [
+    "فتح المخزون",
+    "Open stocks"
+  ],
+  "Complétez les éléments signalés puis relancez le contrôle.": [
+    "أكمل البيانات المشار إليها ثم أعد التحقق.",
+    "Complete the listed items, then run the check again."
+  ],
+  "Date de bascule": [
+    "تاريخ تغيير الطريقة",
+    "Cutover date"
+  ],
+  "Lots d’ouverture": [
+    "الدفعات الافتتاحية",
+    "Opening lots"
+  ],
+  "Valeur du stock à la bascule": [
+    "قيمة المخزون عند التغيير",
+    "Stock value at cutover"
+  ],
+  "Coûts historiques conservés": [
+    "التكاليف التاريخية المحفوظة",
+    "Preserved historical costs"
+  ],
+  "Les anciennes entrées sans prix restent dans l’historique. La bascule utilise la valeur confirmée du stock restant.": [
+    "تبقى الإدخالات القديمة بدون سعر في السجل. يعتمد التغيير على القيمة المؤكدة للمخزون المتبقي.",
+    "Older unpriced receipts remain in history. The cutover uses the confirmed value of remaining stock."
+  ],
+  "Je confirme la bascule pour les nouveaux mouvements et la valeur du stock d’ouverture affichée.": [
+    "أؤكد تغيير الطريقة للحركات الجديدة وقيمة المخزون الافتتاحي المعروضة.",
+    "I confirm the change for new movements and the displayed opening stock value."
+  ],
+  "Activer la méthode pour les nouveaux mouvements": [
+    "تفعيل الطريقة للحركات الجديدة",
+    "Activate method for new movements"
+  ],
+  "Méthode activée. La valorisation de l’historique est conservée.": [
+    "تم تفعيل الطريقة مع الحفاظ على التقييم التاريخي.",
+    "Method activated. Historical valuations are preserved."
+  ],
+  "Bascule de méthode indisponible. Appliquez la migration inventory_fifo_cutover.": [
+    "تغيير الطريقة غير متاح. طبّق الترحيل inventory_fifo_cutover.",
+    "Method cutover unavailable. Apply the inventory_fifo_cutover migration."
+  ],
+  "Cette méthode est déjà active pour ce client.": [
+    "هذه الطريقة مفعلة بالفعل لهذا العميل.",
+    "This method is already active for this client."
+  ],
+  "Rapprochez la quantité en stock et les mouvements de cet entrepôt.": [
+    "طابق كمية المخزون مع حركات هذا المستودع.",
+    "Reconcile the stock quantity with this warehouse’s movements."
+  ],
+  "Complétez et confirmez la valeur CUMP du stock restant.": [
+    "أكمل وأكد قيمة متوسط التكلفة المرجح للمخزون المتبقي.",
+    "Complete and confirm the remaining stock’s weighted average value."
+  ],
+  "Contrôlez la date, la quantité, le solde et la valorisation de ce mouvement et de ses coûts.": [
+    "تحقق من تاريخ وكمية ورصيد وتقييم هذه الحركة وتكاليفها.",
+    "Check the date, quantity, balance and valuation of this movement and its costs."
+  ],
+  "Corrigez la chronologie des mouvements : un solde historique devient négatif.": [
+    "صحح التسلسل الزمني للحركات: يوجد رصيد تاريخي سالب.",
+    "Correct the movement chronology: a historical balance becomes negative."
+  ],
+  "Activation impossible. Corrigez les éléments signalés puis relancez le contrôle.": [
+    "التفعيل غير ممكن. صحح العناصر المشار إليها ثم أعد التحقق.",
+    "Activation unavailable. Correct the listed items, then run the check again."
+  ],
+  "Le stock, les coûts ou la date ont changé. Relancez le contrôle et confirmez le code client.": [
+    "تغير المخزون أو التكاليف أو التاريخ. أعد التحقق وأكد رمز العميل.",
+    "The stock, costs or date changed. Run the check again and confirm the client code."
+  ],
+  "Date antérieure à la bascule de valorisation. Utilisez une date à partir de son activation.": [
+    "التاريخ يسبق تغيير طريقة التقييم. استخدم تاريخ التفعيل أو تاريخاً لاحقاً.",
+    "Date precedes the valuation cutover. Use the activation date or a later date."
+  ],
+  "CA réalisé issu des envois tarifés": [
+    "رقم المعاملات المحقق من الشحنات المسعرة",
+    "Realized revenue from priced dispatches"
+  ],
+  "Votre adresse email doit être confirmée avant la connexion.": [
+    "يجب تأكيد بريدك الإلكتروني قبل تسجيل الدخول.",
+    "Confirm your email address before signing in."
+  ],
+  "Trop de tentatives de connexion. Patientez quelques minutes puis réessayez.": [
+    "محاولات تسجيل دخول كثيرة. انتظر بضع دقائق ثم حاول مجدداً.",
+    "Too many sign-in attempts. Wait a few minutes and try again."
+  ],
+  "Le service de connexion est temporairement indisponible. Réessayez dans quelques instants.": [
+    "خدمة تسجيل الدخول غير متاحة مؤقتاً. حاول مجدداً بعد قليل.",
+    "The sign-in service is temporarily unavailable. Please try again shortly."
+  ],
+  "La connexion a échoué. Réessayez ou contactez votre administrateur si le problème persiste.": [
+    "تعذر تسجيل الدخول. حاول مجدداً أو اتصل بالمسؤول إذا استمرت المشكلة.",
+    "Sign-in failed. Try again or contact your administrator if the issue persists."
+  ],
+  "CUMP par article pour les sorties non valorisées. Les prix déjà calculés sont conservés.": [
+    "متوسط تكلفة واحد لكل منتج لعمليات الصرف غير المقيمة. تُحفظ الأسعار المحسوبة سابقاً.",
+    "One weighted average cost per product for unvalued issues. Previously calculated prices are preserved."
+  ],
+  "FIFO : les prix des sorties proviennent des entrées. Complétez les affectations nécessaires.": [
+    "FIFO: تُحسب أسعار الصرف من الإدخالات. أكمل التخصيصات المطلوبة.",
+    "FIFO issue prices come from receipts. Complete the required allocations."
+  ],
+  "Exporter les articles / sorties à rapprocher": [
+    "تصدير المنتجات أو عمليات الصرف للمطابقة",
+    "Export products / issues for reconciliation"
+  ],
+  "Recharger le fichier Excel": [
+    "تحميل ملف Excel المكتمل",
+    "Upload the completed Excel file"
+  ],
+  "sorties": [
+    "عمليات صرف",
+    "issues"
+  ],
+  "Quantité à valoriser": [
+    "الكمية المطلوب تقييمها",
+    "Quantity to value"
+  ],
+  "Rapprocher cet article": [
+    "مطابقة هذا المنتج",
+    "Reconcile this product"
+  ],
+  "CUMP confirmé (MAD)": [
+    "متوسط التكلفة المرجح المؤكد بالدرهم",
+    "Confirmed weighted average cost (MAD)"
+  ],
+  "PU calculé (MAD)": [
+    "سعر الوحدة المحسوب بالدرهم",
+    "Calculated unit price (MAD)"
+  ],
+  "Affectations existantes conservées": [
+    "تُحفظ التخصيصات الحالية",
+    "Existing allocations preserved"
+  ],
+  "Références plantations séparées par ;": [
+    "مراجع المزروعات مفصولة بفاصلة منقوطة ;",
+    "Planting references separated by ;"
+  ],
+  "Référentiel des plantations": [
+    "دليل مراجع المزروعات",
+    "Planting reference list"
+  ],
+  "Référence de plantation inconnue.": [
+    "مرجع المزروعات غير معروف.",
+    "Unknown planting reference."
+  ],
+  "Contrôler avant validation": [
+    "التحقق قبل الاعتماد",
+    "Check before approval"
+  ],
+  "Je confirme les prix et les affectations de ces sorties.": [
+    "أؤكد أسعار وتخصيصات عمليات الصرف هذه.",
+    "I confirm the prices and allocations for these issues."
+  ],
+  "sorties rapprochées": [
+    "عمليات صرف تمت مطابقتها",
+    "issues reconciled"
+  ],
+  "Valider les coûts": [
+    "اعتماد التكاليف",
+    "Confirm costs"
+  ],
+  "Voir les sorties individuellement": [
+    "عرض عمليات الصرف بشكل منفصل",
+    "View individual issues"
+  ],
+  "Appliquez la migration stock_product_reconciliation pour le rapprochement par article.": [
+    "طبّق ترحيل stock_product_reconciliation لتفعيل المطابقة حسب المنتج.",
+    "Apply the stock_product_reconciliation migration to reconcile by product."
+  ],
+  "Prix unitaire entrée (MAD)": [
+    "سعر وحدة الإدخال بالدرهم",
+    "Receipt unit price (MAD)"
+  ],
+  "Prix obligatoire en FIFO. Zéro correspond à une entrée gratuite confirmée.": [
+    "السعر إلزامي في طريقة FIFO. وتعني القيمة صفر إدخالاً مجانياً مؤكداً.",
+    "A price is required for FIFO. Zero means a confirmed free receipt."
+  ],
+  "Prix unitaire positif ou nul requis.": [
+    "يلزم سعر وحدة موجب أو يساوي صفرًا.",
+    "A positive or zero unit price is required."
+  ],
+  "À la validation, le coût selon la méthode du client sera réparti sur ces serres. Si le stock n’est pas valorisé, les affectations seront conservées pour Sorties à rapprocher.": [
+    "عند الاعتماد، توزّع التكلفة على هذه البيوت وفق طريقة العميل. وإذا لم يُقيّم المخزون، تُحفظ التخصيصات لمطابقة عمليات الصرف.",
+    "On approval, the cost calculated using the client's method will be allocated to these greenhouses. If stock is unvalued, allocations are retained for reconciliation."
+  ],
+  "Recalcul de campagne indisponible. Appliquez la migration inventory_method_recalculation.": [
+    "إعادة حساب الموسم غير متاحة. طبّق ترحيل inventory_method_recalculation.",
+    "Campaign recalculation unavailable. Apply the inventory_method_recalculation migration."
+  ],
+  "Valorisation des stocks par client": [
+    "تقييم المخزون حسب العميل",
+    "Inventory valuation by client"
+  ],
+  "Méthode de valorisation": [
+    "طريقة تقييم المخزون",
+    "Inventory valuation method"
+  ],
+  "CUMP — coût moyen pondéré": [
+    "CUMP — متوسط التكلفة المرجح",
+    "CUMP — weighted average cost"
+  ],
+  "FIFO — premières entrées consommées en premier": [
+    "FIFO — الوارد أولاً يصرف أولاً",
+    "FIFO — first in, first out"
+  ],
+  "FIFO exige un prix sur chaque entrée. Une sortie utilise les prix des entrées les plus anciennes.": [
+    "تتطلب طريقة FIFO سعراً لكل إدخال. ويستخدم الصرف أسعار أقدم الإدخالات.",
+    "FIFO requires a price for every receipt. Issues use the prices of the oldest receipts."
+  ],
+  "Le CUMP est recalculé à chaque entrée et utilisé pour les sorties suivantes.": [
+    "يُعاد حساب متوسط التكلفة المرجح مع كل إدخال ويُستخدم للصرف اللاحق.",
+    "The weighted average cost is recalculated with each receipt and used for subsequent issues."
+  ],
+  "Le changement recalcule l’historique du client et les coûts des campagnes à partir des prix des entrées.": [
+    "يعيد التغيير حساب سجل العميل وتكاليف المواسم اعتماداً على أسعار الإدخالات.",
+    "The change recalculates the client's history and campaign costs using receipt prices."
+  ],
+  "Afficher l’impact sur les campagnes": [
+    "عرض الأثر على المواسم",
+    "Preview impact on campaigns"
+  ],
+  "Coûts de stock avant recalcul": [
+    "تكاليف المخزون قبل إعادة الحساب",
+    "Inventory costs before recalculation"
+  ],
+  "Coûts de stock après recalcul": [
+    "تكاليف المخزون بعد إعادة الحساب",
+    "Inventory costs after recalculation"
+  ],
+  "Valeur du stock avant recalcul": [
+    "قيمة المخزون قبل إعادة الحساب",
+    "Stock value before recalculation"
+  ],
+  "Valeur du stock après recalcul": [
+    "قيمة المخزون بعد إعادة الحساب",
+    "Stock value after recalculation"
+  ],
+  "Je confirme le recalcul des campagnes affichées et de la valeur du stock pour ce client.": [
+    "أؤكد إعادة حساب المواسم المعروضة وقيمة المخزون لهذا العميل.",
+    "I confirm recalculating the displayed campaigns and stock value for this client."
+  ],
+  "Appliquer la méthode et recalculer les campagnes": [
+    "تطبيق الطريقة وإعادة حساب المواسم",
+    "Apply method and recalculate campaigns"
+  ],
+  "Méthode de valorisation enregistrée pour ce client.": [
+    "تم حفظ طريقة تقييم المخزون لهذا العميل.",
+    "Inventory valuation method saved for this client."
+  ],
+  "Paramétrage de valorisation indisponible. Appliquez la migration inventory_cost_method.": [
+    "إعداد تقييم المخزون غير متاح. طبّق ترحيل inventory_cost_method.",
+    "Inventory valuation settings unavailable. Apply the inventory_cost_method migration."
+  ],
+  "Prix obligatoire sur chaque entrée en méthode FIFO.": [
+    "السعر إلزامي لكل إدخال عند استخدام طريقة FIFO.",
+    "A price is required for every receipt when using FIFO."
+  ],
+  "Aperçu de valorisation invalide": [
+    "معاينة تقييم المخزون غير صالحة",
+    "Invalid valuation preview"
+  ],
   "Facture fournisseur créée après confirmation.": [
     "تم إنشاء فاتورة المورد بعد التأكيد.",
     "Supplier invoice created after confirmation."
@@ -1320,7 +2008,7 @@
     "Confirmed"
   ],
   "Provisoire": [
-    "مؤقتة",
+    "مؤقت",
     "Provisional"
   ],
   "Numéro non renseigné": [
@@ -2338,5 +3026,1117 @@
   "Excel · Modèle et import": [
     "Excel · النموذج والاستيراد",
     "Excel · Template and import"
+  ],
+  "Historique entrées / sorties — Excel": [
+    "سجل الواردات والصرف — Excel",
+    "Stock receipt / issue history — Excel"
+  ],
+  "Reprise historique réservée aux administrateurs du client": [
+    "استيراد السجل متاح لمسؤولي العميل فقط",
+    "Historical import is restricted to client administrators"
+  ],
+  "Historique des entrées et sorties": [
+    "سجل الواردات والصرف",
+    "Stock receipt and issue history"
+  ],
+  "Reconstituez les mouvements réels avec leurs dates, pièces et affectations. Les coûts sont générés lors de l’import des sorties valorisées.": [
+    "أعد تسجيل الحركات الفعلية بتواريخها ومستنداتها وتخصيصاتها. تُنشأ التكاليف عند استيراد حركات الصرف المقيّمة.",
+    "Reconstruct actual movements with their dates, documents and allocations. Costs are generated when valued issues are imported."
+  ],
+  "Le stock existant sert de point de départ. Une période déjà couverte par une reprise ou des mouvements doit être réconciliée avant import.": [
+    "المخزون الحالي هو نقطة البداية. يجب تسوية أي فترة تغطيها أرصدة افتتاحية أو حركات سابقة قبل الاستيراد.",
+    "Existing stock is the starting point. Reconcile any period already covered by opening stock or movements before importing."
+  ],
+  "Ordre de calcul : date, puis ordre dans la journée. Les entrées sans prix et les sorties non valorisées restent identifiables pour rapprochement.": [
+    "يتم الحساب حسب التاريخ ثم ترتيب اليوم. يمكن تحديد الواردات دون سعر وحركات الصرف غير المقيّمة لتسويتها.",
+    "Calculations follow the date, then the order within the day. Unpriced receipts and unvalued issues remain identifiable for reconciliation."
+  ],
+  "Mouvements existants": [
+    "الحركات الموجودة",
+    "Existing movements"
+  ],
+  "1. Exporter le modèle historique": [
+    "1. تنزيل نموذج السجل",
+    "1. Export the history template"
+  ],
+  "Une ligne par mouvement. Utilisez les codes et références des onglets Ref_. Pour plusieurs plantations, séparez les références par ;.": [
+    "سطر لكل حركة. استخدم الرموز والمراجع في أوراق Ref_. افصل مراجع الزراعات المتعددة بعلامة ;.",
+    "One row per movement. Use the codes and references in the Ref_ sheets. Separate multiple planting references with ;."
+  ],
+  "Exporter le modèle historique": [
+    "تنزيل نموذج السجل",
+    "Export the history template"
+  ],
+  "Voir les soldes déjà enregistrés": [
+    "عرض الأرصدة المسجلة",
+    "View recorded balances"
+  ],
+  "2. Charger et contrôler les mouvements": [
+    "2. تحميل الحركات والتحقق منها",
+    "2. Upload and check movements"
+  ],
+  "Fichier historique des stocks": [
+    "ملف سجل المخزون",
+    "Stock history file"
+  ],
+  "Aucun mouvement renseigné dans le fichier.": [
+    "لا توجد حركات مسجلة في الملف.",
+    "No movements entered in the file."
+  ],
+  "Entrées": [
+    "الواردات",
+    "Receipts"
+  ],
+  "Sorties": [
+    "حركات الصرف",
+    "Issues"
+  ],
+  "Mouvements déjà importés ignorés": [
+    "حركات سبق استيرادها وتم تجاوزها",
+    "Previously imported movements skipped"
+  ],
+  "Coûts des sorties": [
+    "تكاليف الصرف",
+    "Issue costs"
+  ],
+  "Sorties à valoriser": [
+    "حركات صرف تتطلب التقييم",
+    "Issues awaiting valuation"
+  ],
+  "Lignes de coûts générées": [
+    "قيود التكاليف المنشأة",
+    "Cost entries generated"
+  ],
+  "Stock final après import": [
+    "المخزون النهائي بعد الاستيراد",
+    "Closing stock after import"
+  ],
+  "Ouvrir la valorisation et le rapprochement": [
+    "فتح التقييم والتسوية",
+    "Open valuation and reconciliation"
+  ],
+  "Validation de l’historique": [
+    "اعتماد السجل",
+    "History approval"
+  ],
+  "La validation enregistre les mouvements et leurs coûts en une seule transaction. En cas de délai dépassé, recontrôlez le même fichier avec les mêmes identifiants.": [
+    "يسجل الاعتماد الحركات وتكاليفها في معاملة واحدة. عند انتهاء المهلة، أعد التحقق من الملف نفسه باستخدام المعرفات نفسها.",
+    "Approval records movements and costs in one transaction. If the request times out, recheck the same file with the same identifiers."
+  ],
+  "Recontrôler avant import": [
+    "إعادة التحقق قبل الاستيراد",
+    "Recheck before importing"
+  ],
+  "Je confirme les dates, quantités, prix et affectations de cet historique déjà réalisé.": [
+    "أؤكد تواريخ وكميات وأسعار وتخصيصات هذا السجل المنفذ فعلياً.",
+    "I confirm the dates, quantities, prices and allocations of this completed history."
+  ],
+  "Valider les mouvements et générer les coûts": [
+    "اعتماد الحركات وإنشاء التكاليف",
+    "Approve movements and generate costs"
+  ],
+  "Voir les mouvements de stock": [
+    "عرض حركات المخزون",
+    "View stock movements"
+  ],
+  "Import historique enregistré": [
+    "تم تسجيل الاستيراد التاريخي",
+    "Historical import recorded"
+  ],
+  "3. Synthèse avant import": [
+    "3. الملخص قبل الاستيراد",
+    "3. Summary before importing"
+  ],
+  "Valeur (MAD)": [
+    "القيمة (درهم)",
+    "Value (MAD)"
+  ],
+  "Dernière date existante": [
+    "آخر تاريخ مسجل",
+    "Latest recorded date"
+  ],
+  "Identifiant obligatoire, unique dans le fichier, maximum 100 caractères.": [
+    "المعرف إلزامي وفريد داخل الملف وبحد أقصى 100 حرف.",
+    "An identifier is required, unique within the file, with a maximum of 100 characters."
+  ],
+  "Date valide non future requise.": [
+    "يلزم تاريخ صحيح لا يقع في المستقبل.",
+    "A valid date that is not in the future is required."
+  ],
+  "Ordre entier positif, unique pour chaque date.": [
+    "يلزم ترتيب صحيح موجب وفريد لكل تاريخ.",
+    "A positive integer order, unique for each date, is required."
+  ],
+  "Article actif et unité du référentiel requis.": [
+    "يلزم صنف نشط ووحدة مطابقة للمرجع.",
+    "An active item and its reference unit are required."
+  ],
+  "Entrepôt et ferme du référentiel requis.": [
+    "يلزم مستودع ومزرعة من المرجع.",
+    "A warehouse and farm from the reference data are required."
+  ],
+  "Type attendu : entree ou sortie.": [
+    "النوع المطلوب هو entree أو sortie.",
+    "Expected type is entree or sortie."
+  ],
+  "Quantité positive, maximum deux décimales.": [
+    "يلزم مقدار موجب بمنزلتين عشريتين كحد أقصى.",
+    "A positive quantity with up to two decimal places is required."
+  ],
+  "Prix positif ou nul, maximum huit décimales.": [
+    "يلزم سعر موجب أو صفر بثماني منازل عشرية كحد أقصى.",
+    "A non-negative price with up to eight decimal places is required."
+  ],
+  "Référence limitée à 100 caractères et note à 2 000 caractères.": [
+    "المرجع محدود بـ100 حرف والملاحظة بـ2 000 حرف.",
+    "The reference is limited to 100 characters and the note to 2,000 characters."
+  ],
+  "Affectations de consommation réservées aux sorties.": [
+    "تخصيص الاستهلاك متاح لحركات الصرف فقط.",
+    "Consumption allocations apply to issues only."
+  ],
+  "Fournisseur actif du référentiel requis.": [
+    "يلزم مورد نشط من المرجع.",
+    "An active reference supplier is required."
+  ],
+  "Prix et fournisseur à renseigner sur les entrées uniquement.": [
+    "أدخل السعر والمورد للواردات فقط.",
+    "Enter prices and suppliers on receipts only."
+  ],
+  "Choisissez les références de plantations de cette ferme et campagne, séparées par ;.": [
+    "اختر مراجع زراعات هذه المزرعة والموسم وافصل بينها بعلامة ;.",
+    "Choose planting references from this farm and season, separated by ;."
+  ],
+  "Importer les mouvements historiques et générer les coûts des consommations après contrôle.": [
+    "استورد الحركات التاريخية وأنشئ تكاليف الاستهلاك بعد التحقق.",
+    "Import historical movements and generate consumption costs after checking."
+  ],
+  "Préparer l’historique des stocks": [
+    "إعداد سجل المخزون",
+    "Prepare stock history"
+  ],
+  "Import historique non activé. Appliquez la migration stock_history_import.": [
+    "استيراد السجل غير مفعّل. طبّق الترحيل stock_history_import.",
+    "Historical import is not enabled. Apply the stock_history_import migration."
+  ],
+  "Résultat serveur invalide. Recontrôlez le même fichier avant de réessayer.": [
+    "نتيجة الخادم غير صحيحة. أعد التحقق من الملف نفسه قبل المحاولة مجدداً.",
+    "Invalid server result. Recheck the same file before retrying."
+  ],
+  "Maximum 1 000 mouvements par fichier.": [
+    "الحد الأقصى 1 000 حركة لكل ملف.",
+    "Maximum 1,000 movements per file."
+  ],
+  "Comment souhaitez-vous reprendre le stock ?": [
+    "كيف ترغب في استيراد المخزون؟",
+    "How would you like to migrate stock?"
+  ],
+  "Mode de reprise des stocks": [
+    "طريقة استيراد المخزون",
+    "Stock migration mode"
+  ],
+  "Compléter l’historique existant": [
+    "استكمال السجل الحالي",
+    "Complete the existing history"
+  ],
+  "Repartir de zéro": [
+    "البدء من الصفر",
+    "Start from zero"
+  ],
+  "Les nouveaux mouvements complètent les soldes existants dans l’ordre chronologique.": [
+    "تُضاف الحركات الجديدة إلى الأرصدة الحالية حسب التسلسل الزمني.",
+    "New movements supplement existing balances in chronological order."
+  ],
+  "Un aperçu et une confirmation sont requis avant la suppression des mouvements de ce client.": [
+    "تلزم معاينة وتأكيد قبل حذف حركات هذا العميل.",
+    "A preview and confirmation are required before deleting this client's movements."
+  ],
+  "Stock remis à zéro. Vous pouvez maintenant importer les entrées et sorties historiques.": [
+    "تم تصفير المخزون. يمكنك الآن استيراد الواردات وحركات الصرف التاريخية.",
+    "Stock reset to zero. You can now import historical receipts and issues."
+  ],
+  "Repartir de zéro pour ce client": [
+    "البدء من الصفر لهذا العميل",
+    "Start from zero for this client"
+  ],
+  "Cette action supprime les mouvements existants et leurs coûts de stock, puis remet les soldes à zéro. Les articles, entrepôts, fermes et plantations sont conservés.": [
+    "يحذف هذا الإجراء الحركات الحالية وتكاليف المخزون المرتبطة بها ثم يصفّر الأرصدة. يتم الاحتفاظ بالأصناف والمستودعات والمزارع والزراعات.",
+    "This action deletes existing movements and their stock costs, then resets balances to zero. Items, warehouses, farms and plantings are retained."
+  ],
+  "Afficher l’aperçu de remise à zéro": [
+    "عرض معاينة التصفير",
+    "Preview the reset"
+  ],
+  "Client concerné": [
+    "العميل المعني",
+    "Affected client"
+  ],
+  "Mouvements à supprimer": [
+    "حركات سيتم حذفها",
+    "Movements to delete"
+  ],
+  "Coûts de stock à supprimer": [
+    "تكاليف مخزون سيتم حذفها",
+    "Stock costs to delete"
+  ],
+  "Soldes à remettre à zéro": [
+    "أرصدة سيتم تصفيرها",
+    "Balances to reset to zero"
+  ],
+  "Articles conservés": [
+    "أصناف سيتم الاحتفاظ بها",
+    "Items retained"
+  ],
+  "Des opérations liées empêchent cette remise à zéro. Elles doivent être traitées avant de poursuivre.": [
+    "تمنع العمليات المرتبطة هذا التصفير. يجب معالجتها قبل المتابعة.",
+    "Linked operations prevent this reset. They must be resolved before continuing."
+  ],
+  "Recopiez le code du client pour confirmer": [
+    "أعد كتابة رمز العميل للتأكيد",
+    "Retype the client code to confirm"
+  ],
+  "Je confirme la suppression des mouvements et coûts affichés pour reconstruire cet historique par import.": [
+    "أؤكد حذف الحركات والتكاليف المعروضة لإعادة بناء هذا السجل بالاستيراد.",
+    "I confirm deletion of the displayed movements and costs to reconstruct this history by import."
+  ],
+  "Remettre les mouvements et soldes à zéro": [
+    "حذف الحركات وتصفير الأرصدة",
+    "Reset movements and balances to zero"
+  ],
+  "Réceptions d’achat": [
+    "استلامات المشتريات",
+    "Purchase receipts"
+  ],
+  "Liens entre clients incohérents": [
+    "روابط غير متسقة بين العملاء",
+    "Inconsistent cross-client links"
+  ],
+  "Remise à zéro non activée. Appliquez la migration stock_history_reset après stock_history_import.": [
+    "التصفير غير مفعّل. طبّق الترحيل stock_history_reset بعد stock_history_import.",
+    "Reset is not enabled. Apply stock_history_reset after stock_history_import."
+  ],
+  "Remise à zéro réservée aux administrateurs du client": [
+    "التصفير متاح لمسؤولي العميل فقط",
+    "Reset is restricted to client administrators"
+  ],
+  "Client et référence de confirmation requis": [
+    "يلزم تحديد العميل ومرجع التأكيد",
+    "Client and confirmation reference are required"
+  ],
+  "Cette confirmation appartient à une autre remise à zéro": [
+    "هذا التأكيد مرتبط بعملية تصفير أخرى",
+    "This confirmation belongs to another reset"
+  ],
+  "Recopiez exactement le code du client pour confirmer": [
+    "أعد كتابة رمز العميل بدقة للتأكيد",
+    "Retype the exact client code to confirm"
+  ],
+  "Le stock a changé. Relancez l’aperçu avant de confirmer.": [
+    "تغير المخزون. أعد تشغيل المعاينة قبل التأكيد.",
+    "Stock has changed. Refresh the preview before confirming."
+  ],
+  "Des opérations liées empêchent cette remise à zéro. Consultez les blocages de l’aperçu.": [
+    "تمنع العمليات المرتبطة هذا التصفير. راجع الموانع في المعاينة.",
+    "Linked operations prevent this reset. Review the blockers in the preview."
+  ],
+  "Aperçu de remise à zéro invalide. Actualisez avant de continuer.": [
+    "معاينة التصفير غير صحيحة. حدّث الصفحة قبل المتابعة.",
+    "Invalid reset preview. Refresh before continuing."
+  ],
+  "Montant décroissant": [
+    "المبلغ تنازلياً",
+    "Amount descending"
+  ],
+  "Total des lignes filtrées": [
+    "إجمالي الصفوف المصفاة",
+    "Filtered rows total"
+  ],
+  "Pointage par quinzaine": [
+    "تسجيل ساعات العمل لكل نصف شهر",
+    "Fortnightly attendance"
+  ],
+  "Pointage par tâche": [
+    "تسجيل العمل حسب المهمة",
+    "Attendance by task"
+  ],
+  "Productivité récolte": [
+    "إنتاجية الحصاد",
+    "Harvest productivity"
+  ],
+  "Abandonner les modifications non enregistrées ?": [
+    "هل تريد تجاهل التغييرات غير المحفوظة؟",
+    "Discard unsaved changes?"
+  ],
+  "Retirer cet employé et son pointage de la période ?": [
+    "هل تريد إزالة هذا الموظف وساعات عمله من الفترة؟",
+    "Remove this employee and their attendance from the period?"
+  ],
+  "Corrigez les heures invalides avant de poursuivre.": [
+    "صحح الساعات غير الصالحة قبل المتابعة.",
+    "Correct invalid hours before continuing."
+  ],
+  "Le fichier remplace des heures déjà renseignées. Continuer ?": [
+    "سيستبدل الملف ساعات مسجلة سابقاً. هل تريد المتابعة؟",
+    "The file replaces existing hours. Continue?"
+  ],
+  "Fichier contrôlé. Enregistrez le brouillon ou validez la quinzaine.": [
+    "تم فحص الملف. احفظ المسودة أو اعتمد نصف الشهر.",
+    "File checked. Save the draft or validate the fortnight."
+  ],
+  "Confirmer à zéro toutes les cellules encore vides ?": [
+    "هل تريد تأكيد صفر لجميع الخلايا الفارغة؟",
+    "Confirm zero for all remaining blank cells?"
+  ],
+  "Renseignez les cellules vides ou confirmez-les à zéro avant validation": [
+    "أكمل الخلايا الفارغة أو أكدها بصفر قبل الاعتماد",
+    "Fill blank cells or confirm them as zero before validation"
+  ],
+  "Rouvrir cette quinzaine pour correction ?": [
+    "هل تريد إعادة فتح نصف الشهر للتصحيح؟",
+    "Reopen this fortnight for correction?"
+  ],
+  "Quinzaine validée": [
+    "تم اعتماد نصف الشهر",
+    "Fortnight validated"
+  ],
+  "Quinzaine rouverte": [
+    "تمت إعادة فتح نصف الشهر",
+    "Fortnight reopened"
+  ],
+  "Brouillon enregistré": [
+    "تم حفظ المسودة",
+    "Draft saved"
+  ],
+  "Quinzaine": [
+    "نصف الشهر",
+    "Fortnight"
+  ],
+  "Du 1 au 15": [
+    "من 1 إلى 15",
+    "From 1st to 15th"
+  ],
+  "Du 16 à la fin du mois": [
+    "من 16 إلى نهاية الشهر",
+    "From 16th to month end"
+  ],
+  "Modifications non enregistrées": [
+    "تغييرات غير محفوظة",
+    "Unsaved changes"
+  ],
+  "Employés de la quinzaine": [
+    "موظفو نصف الشهر",
+    "Employees for the fortnight"
+  ],
+  "Exporter le modèle pointage": [
+    "تصدير نموذج ساعات العمل",
+    "Export attendance template"
+  ],
+  "Charger le fichier pointage": [
+    "تحميل ملف ساعات العمل",
+    "Upload attendance file"
+  ],
+  "Cellules à renseigner": [
+    "خلايا يجب إكمالها",
+    "Cells to complete"
+  ],
+  "N = heures normales · S = heures supplémentaires · 8 h = 1 jour équivalent. Une cellule vide reste à renseigner, zéro confirme zéro heure.": [
+    "N = ساعات عادية · S = ساعات إضافية · 8 ساعات = يوم مكافئ. الخلية الفارغة تحتاج إلى إكمال، والصفر يؤكد عدم وجود ساعات.",
+    "N = normal hours · S = overtime · 8 h = 1 equivalent day. Blank cells need completing, zero confirms no hours."
+  ],
+  "Heures invalides. Maximum 24 heures par jour pour N + S, deux décimales maximum.": [
+    "ساعات غير صالحة. الحد الأقصى لمجموع N + S هو 24 ساعة يومياً وبرقمين بعد الفاصلة.",
+    "Invalid hours. N + S may total up to 24 hours a day, with at most two decimal places."
+  ],
+  "Total heures": [
+    "مجموع الساعات",
+    "Total hours"
+  ],
+  "Équivalent jours N": [
+    "أيام الساعات العادية المكافئة",
+    "Equivalent normal days"
+  ],
+  "Aucun employé à afficher": [
+    "لا يوجد موظفون للعرض",
+    "No employees to display"
+  ],
+  "Confirmer les cellules vides à zéro": [
+    "تأكيد الخلايا الفارغة بصفر",
+    "Confirm blank cells as zero"
+  ],
+  "Enregistrer le brouillon": [
+    "حفظ المسودة",
+    "Save draft"
+  ],
+  "Valider la quinzaine": [
+    "اعتماد نصف الشهر",
+    "Validate fortnight"
+  ],
+  "Rouvrir pour correction": [
+    "إعادة الفتح للتصحيح",
+    "Reopen for correction"
+  ],
+  "Appliquez la migration employee_attendance pour activer l’enregistrement du pointage.": [
+    "طبّق ترحيل employee_attendance لتفعيل حفظ ساعات العمل.",
+    "Apply the employee_attendance migration to enable attendance saving."
+  ],
+  "Choisissez le modèle de pointage exporté par ItriX.": [
+    "اختر نموذج ساعات العمل المصدّر من ItriX.",
+    "Choose the attendance template exported by ItriX."
+  ],
+  "Le fichier appartient à un autre client, une autre ferme ou une autre quinzaine.": [
+    "الملف يخص عميلاً أو مزرعة أو نصف شهر آخر.",
+    "The file belongs to another client, farm or fortnight."
+  ],
+  "Les dates du modèle ont été modifiées.": [
+    "تم تغيير تواريخ النموذج.",
+    "The template dates have been changed."
+  ],
+  "Référentiel des employés incohérent avec cette ferme.": [
+    "مرجع الموظفين غير متوافق مع هذه المزرعة.",
+    "The employee reference does not match this farm."
+  ],
+  "Chaque employé doit avoir une ligne N et une ligne S.": [
+    "يجب أن يكون لكل موظف سطر N وسطر S.",
+    "Each employee must have one N row and one S row."
+  ],
+  "Sélectionnez entre 1 et 500 employés.": [
+    "اختر من موظف واحد إلى 500 موظف.",
+    "Select between 1 and 500 employees."
+  ],
+  "Renseignez entre 0 et 24 heures, avec deux décimales au maximum.": [
+    "أدخل بين 0 و24 ساعة وبرقمين بعد الفاصلة كحد أقصى.",
+    "Enter between 0 and 24 hours, with at most two decimal places."
+  ],
+  "Le total N + S dépasse 24 heures sur une journée.": [
+    "مجموع N + S يتجاوز 24 ساعة في يوم واحد.",
+    "N + S exceeds 24 hours in one day."
+  ],
+  "Préparer la paie de la quinzaine": [
+    "إعداد أجور نصف الشهر",
+    "Prepare fortnightly payroll"
+  ],
+  "Retour à la paie": [
+    "العودة إلى الأجور",
+    "Back to payroll"
+  ],
+  "Campagne des coûts": [
+    "الموسم المخصص للتكاليف",
+    "Cost campaign"
+  ],
+  "Date de paie": [
+    "تاريخ الأجور",
+    "Payroll date"
+  ],
+  "Ouvrir le pointage": [
+    "فتح سجل الحضور",
+    "Open attendance"
+  ],
+  "Ouvrir la préparation": [
+    "فتح إعداد الأجور",
+    "Open payroll preparation"
+  ],
+  "Actualiser les heures depuis le pointage": [
+    "تحديث الساعات من سجل العمل",
+    "Refresh hours from attendance"
+  ],
+  "Actualisez les heures depuis le pointage validé.": [
+    "حدّث الساعات من سجل العمل المعتمد.",
+    "Refresh hours from validated attendance."
+  ],
+  "Le pointage a changé ou reste à valider. Rechargez la période.": [
+    "تغير سجل ساعات العمل أو لا يزال في انتظار الاعتماد. أعد تحميل الفترة.",
+    "Attendance has changed or still needs validation. Reload the period."
+  ],
+  "Retirer cet employé de la préparation ?": [
+    "هل تريد إزالة هذا الموظف من إعداد الأجور؟",
+    "Remove this employee from payroll preparation?"
+  ],
+  "Exporter état de paie et émargement": [
+    "تصدير كشف الأجور والتوقيعات",
+    "Export payroll and signature sheets"
+  ],
+  "Les heures du pointage validé sont reprises automatiquement. Sans pointage, saisissez les heures ou les jours équivalents. 8 h = 1 jour.": [
+    "تُسترجع ساعات سجل العمل المعتمد تلقائياً. عند عدم وجود سجل، أدخل الساعات أو الأيام المكافئة. 8 ساعات = يوم واحد.",
+    "Validated attendance hours are loaded automatically. Without attendance, enter hours or equivalent days. 8 h = 1 day."
+  ],
+  "Les avances, retenues et charges sont renseignées manuellement et doivent être confirmées avant validation.": [
+    "تُدخل السلف والاقتطاعات والمساهمات يدوياً ويجب تأكيدها قبل الاعتماد.",
+    "Advances, deductions and employer contributions are entered manually and must be confirmed before validation."
+  ],
+  "Taux normal": [
+    "سعر الساعة العادية",
+    "Normal hourly rate"
+  ],
+  "Taux supplémentaire": [
+    "سعر الساعة الإضافية",
+    "Overtime hourly rate"
+  ],
+  "Taux de la fiche": [
+    "السعر في ملف الموظف",
+    "Employee record rate"
+  ],
+  "Salaire normal": [
+    "الأجر العادي",
+    "Normal pay"
+  ],
+  "Montant heures supplémentaires": [
+    "مبلغ الساعات الإضافية",
+    "Overtime pay"
+  ],
+  "Unité de saisie": [
+    "وحدة الإدخال",
+    "Entry unit"
+  ],
+  "Jours de 8 h": [
+    "أيام من 8 ساعات",
+    "8-hour days"
+  ],
+  "jours équivalents": [
+    "أيام مكافئة",
+    "equivalent days"
+  ],
+  "Pointage validé": [
+    "سجل ساعات معتمد",
+    "Validated attendance"
+  ],
+  "Saisie manuelle": [
+    "إدخال يدوي",
+    "Manual entry"
+  ],
+  "Confirmées": [
+    "مؤكدة",
+    "Confirmed"
+  ],
+  "À confirmer": [
+    "في انتظار التأكيد",
+    "To confirm"
+  ],
+  "Je confirme les retenues et charges affichées pour tous les employés, y compris les montants à zéro.": [
+    "أؤكد الاقتطاعات والمساهمات المعروضة لجميع الموظفين، بما فيها المبالغ الصفرية.",
+    "I confirm the displayed deductions and employer contributions for all employees, including zero amounts."
+  ],
+  "Je confirme les retenues et charges de cet employé.": [
+    "أؤكد اقتطاعات ومساهمات هذا الموظف.",
+    "I confirm this employee’s deductions and employer contributions."
+  ],
+  "Valider la paie et générer les coûts": [
+    "اعتماد الأجور وإنشاء التكاليف",
+    "Validate payroll and generate costs"
+  ],
+  "Valider cette paie et générer les coûts de la campagne sélectionnée ?": [
+    "هل تريد اعتماد هذه الأجور وإنشاء تكاليف الموسم المحدد؟",
+    "Validate this payroll and generate costs for the selected campaign?"
+  ],
+  "Paie validée et coûts générés": [
+    "تم اعتماد الأجور وإنشاء التكاليف",
+    "Payroll validated and costs generated"
+  ],
+  "Préparation enregistrée": [
+    "تم حفظ إعداد الأجور",
+    "Payroll preparation saved"
+  ],
+  "Heures ou taux manquants": [
+    "ساعات أو أسعار مفقودة",
+    "Missing hours or rates"
+  ],
+  "Valeur numérique invalide": [
+    "قيمة عددية غير صالحة",
+    "Invalid numeric value"
+  ],
+  "Le total des heures dépasse la durée de la période": [
+    "مجموع الساعات يتجاوز مدة الفترة",
+    "Total hours exceed the period duration"
+  ],
+  "Les retenues dépassent le brut": [
+    "الاقتطاعات تتجاوز الأجر الإجمالي",
+    "Deductions exceed gross pay"
+  ],
+  "Retenues et charges à confirmer": [
+    "اقتطاعات ومساهمات يجب تأكيدها",
+    "Deductions and contributions need confirmation"
+  ],
+  "Choisissez une campagne et au moins un employé": [
+    "اختر موسماً وموظفاً واحداً على الأقل",
+    "Choose a campaign and at least one employee"
+  ],
+  "Détail de paie": [
+    "تفاصيل الأجور",
+    "Payroll details"
+  ],
+  "Montants en MAD": [
+    "المبالغ بالدرهم المغربي",
+    "Amounts in MAD"
+  ],
+  "Primes": [
+    "مكافآت",
+    "Bonuses"
+  ],
+  "Avances à récupérer": [
+    "سلف للاسترداد",
+    "Advances to recover"
+  ],
+  "Autres retenues": [
+    "اقتطاعات أخرى",
+    "Other deductions"
+  ],
+  "CNSS salarié": [
+    "حصة الموظف في CNSS",
+    "Employee CNSS"
+  ],
+  "AMO salarié": [
+    "حصة الموظف في AMO",
+    "Employee AMO"
+  ],
+  "CNSS employeur": [
+    "حصة المشغّل في CNSS",
+    "Employer CNSS"
+  ],
+  "AMO employeur": [
+    "حصة المشغّل في AMO",
+    "Employer AMO"
+  ],
+  "Allocations familiales": [
+    "التعويضات العائلية",
+    "Family allowance contributions"
+  ],
+  "Formation professionnelle": [
+    "التكوين المهني",
+    "Professional training contributions"
+  ],
+  "Enregistrer un paiement": [
+    "تسجيل دفعة",
+    "Record a payment"
+  ],
+  "Paiement enregistré": [
+    "تم تسجيل الدفعة",
+    "Payment recorded"
+  ],
+  "Paiement invalide": [
+    "دفعة غير صالحة",
+    "Invalid payment"
+  ],
+  "Montant du paiement": [
+    "مبلغ الدفعة",
+    "Payment amount"
+  ],
+  "Confirmer le paiement": [
+    "تأكيد الدفعة",
+    "Confirm payment"
+  ],
+  "Référence (facultative)": [
+    "مرجع (اختياري)",
+    "Reference (optional)"
+  ],
+  "Appliquez la migration payroll_attendance_preparation pour enregistrer la préparation de paie.": [
+    "طبّق ترحيل payroll_attendance_preparation لحفظ إعداد الأجور.",
+    "Apply the payroll_attendance_preparation migration to save payroll preparation."
+  ],
+  "La préparation a changé. Rechargez la période.": [
+    "تغير إعداد الأجور. أعد تحميل الفترة.",
+    "The payroll preparation has changed. Reload the period."
+  ],
+  "Un bulletin existe déjà pour un employé sur cette période": [
+    "توجد قسيمة أجور لموظف ضمن هذه الفترة بالفعل",
+    "An employee already has a payslip for this period"
+  ],
+  "Le paiement dépasse le net restant à payer": [
+    "الدفعة تتجاوز صافي المبلغ المتبقي",
+    "Payment exceeds the remaining net pay"
+  ],
+  "Ce pointage est utilisé par une paie validée": [
+    "سجل الساعات مستخدم في أجور معتمدة",
+    "This attendance is used by validated payroll"
+  ],
+  "La paie validée est figée": [
+    "الأجور المعتمدة مقفلة",
+    "Validated payroll is locked"
+  ],
+  "Employé déclaré": [
+    "موظف مصرح به",
+    "Declared employee"
+  ],
+  "Déclaré": [
+    "مصرح به",
+    "Declared"
+  ],
+  "Non déclaré": [
+    "غير مصرح به",
+    "Undeclared"
+  ],
+  "Déclaration / N° CNSS": [
+    "التصريح / رقم CNSS",
+    "Declaration / CNSS number"
+  ],
+  "À renseigner": [
+    "يجب إكماله",
+    "To complete"
+  ],
+  "Fiche employé": [
+    "ملف الموظف",
+    "Employee record"
+  ],
+  "Tarif horaire normal net": [
+    "أجر الساعة العادية الصافي",
+    "Net normal hourly rate"
+  ],
+  "Tarif horaire supplémentaire net": [
+    "أجر الساعة الإضافية الصافي",
+    "Net overtime hourly rate"
+  ],
+  "Taux normal net": [
+    "سعر الساعة العادية الصافي",
+    "Net normal rate"
+  ],
+  "Taux supplémentaire net": [
+    "سعر الساعة الإضافية الصافي",
+    "Net overtime rate"
+  ],
+  "Taux net de la fiche": [
+    "السعر الصافي في ملف الموظف",
+    "Employee record net rate"
+  ],
+  "Net normal acquis": [
+    "الأجر العادي الصافي المكتسب",
+    "Earned normal net pay"
+  ],
+  "Net heures supplémentaires acquis": [
+    "الأجر الصافي للساعات الإضافية",
+    "Earned net overtime pay"
+  ],
+  "Primes nettes": [
+    "مكافآت صافية",
+    "Net bonuses"
+  ],
+  "Les taux horaires sont nets. Le brut, les cotisations et le coût employeur sont calculés automatiquement selon le statut déclaré. Les avances et autres retenues sont déduites du net acquis.": [
+    "أسعار الساعة صافية. يُحسب الأجر الإجمالي والاشتراكات وتكلفة المشغّل تلقائياً حسب حالة التصريح. تُخصم السلف والاقتطاعات الأخرى من الصافي المكتسب.",
+    "Hourly rates are net. Gross pay, contributions and employer costs are calculated automatically from declaration status. Advances and other deductions reduce earned net pay."
+  ],
+  "Je confirme les primes nettes, avances et autres retenues de tous les employés.": [
+    "أؤكد المكافآت الصافية والسلف والاقتطاعات الأخرى لجميع الموظفين.",
+    "I confirm all employees’ net bonuses, advances and other deductions."
+  ],
+  "Je confirme les primes nettes, avances et autres retenues de cet employé.": [
+    "أؤكد المكافآت الصافية والسلف والاقتطاعات الأخرى لهذا الموظف.",
+    "I confirm this employee’s net bonuses, advances and other deductions."
+  ],
+  "Statut déclaré à renseigner dans la fiche employé": [
+    "أكمل حالة التصريح في ملف الموظف",
+    "Complete declaration status in the employee record"
+  ],
+  "Les avances et autres retenues dépassent le net acquis": [
+    "السلف والاقتطاعات الأخرى تتجاوز الصافي المكتسب",
+    "Advances and other deductions exceed earned net pay"
+  ],
+  "Barème automatique disponible de 2023 à 2026": [
+    "الحساب التلقائي متاح من 2023 إلى 2026",
+    "Automatic tax schedules are available from 2023 to 2026"
+  ],
+  "Net acquis invalide": [
+    "الصافي المكتسب غير صالح",
+    "Invalid earned net pay"
+  ],
+  "Régularisation mensuelle incompatible avec le net acquis. Vérifiez les paies précédentes.": [
+    "التسوية الشهرية غير متوافقة مع الصافي المكتسب. تحقق من الأجور السابقة.",
+    "Monthly regularisation is incompatible with earned net pay. Check earlier payrolls."
+  ],
+  "Le statut salarié ou les bases mensuelles ont changé. Rechargez la préparation et validez les quinzaines dans l’ordre.": [
+    "تغيرت حالة الموظف أو الأسس الشهرية. أعد تحميل الإعداد واعتمد أنصاف الأشهر بالترتيب.",
+    "Employee status or monthly bases have changed. Reload preparation and validate fortnights in order."
+  ],
+  "Appliquez la migration payroll_net_rates pour activer les taux horaires nets et le calcul automatique.": [
+    "طبّق ترحيل payroll_net_rates لتفعيل أسعار الساعة الصافية والحساب التلقائي.",
+    "Apply the payroll_net_rates migration to enable net hourly rates and automatic calculations."
+  ],
+  "Cette paie validée utilise le calcul brut enregistré lors de sa validation.": [
+    "تستخدم هذه الأجور المعتمدة حساب الأجر الإجمالي المسجل عند اعتمادها.",
+    "This validated payroll uses the gross calculation recorded at validation."
+  ],
+  "Parcours DOM-BENHALIMA": [
+    "مسار DOM-BENHALIMA",
+    "DOM-BENHALIMA workflow"
+  ],
+  "Parcours quinzaine": [
+    "مسار نصف الشهر",
+    "Fortnightly workflow"
+  ],
+  "Module RH standard": [
+    "وحدة الموارد البشرية القياسية",
+    "Standard HR module"
+  ],
+  "Paie & paiements": [
+    "الأجور والمدفوعات",
+    "Payroll & payments"
+  ],
+  "Heures normales et supplémentaires par quinzaine": [
+    "الساعات العادية والإضافية لكل نصف شهر",
+    "Normal and overtime hours by fortnight"
+  ],
+  "Taux nets, cotisations, coûts et paiements": [
+    "أسعار صافية واشتراكات وتكاليف ومدفوعات",
+    "Net rates, contributions, costs and payments"
+  ],
+  "Aperçu du menu du client": [
+    "معاينة قائمة العميل",
+    "Client menu preview"
+  ],
+  "Restaurer le menu par défaut": [
+    "استعادة القائمة الافتراضية",
+    "Restore default menu"
+  ],
+  "Menu par défaut du client restauré dans l’aperçu. Enregistrez pour appliquer.": [
+    "تمت استعادة قائمة العميل الافتراضية في المعاينة. احفظ لتطبيقها.",
+    "The client’s default menu has been restored in the preview. Save to apply."
+  ],
+  "Sélectionnez un employé de cette ferme": [
+    "اختر موظفاً من هذه المزرعة",
+    "Select an employee from this farm"
+  ],
+  "Historique des pointages": [
+    "سجل الحضور",
+    "Attendance history"
+  ],
+  "Filtrer les pointages par ferme": [
+    "تصفية الحضور حسب المزرعة",
+    "Filter attendance by farm"
+  ],
+  "Aucun pointage enregistré": [
+    "لا توجد سجلات حضور محفوظة",
+    "No saved attendance"
+  ],
+  "Paie à préparer": [
+    "كشف الأجور قيد الإعداد",
+    "Payroll to prepare"
+  ],
+  "Paie en brouillon": [
+    "مسودة كشف الأجور",
+    "Draft payroll"
+  ],
+  "Paiement à vérifier": [
+    "دفع يحتاج إلى التحقق",
+    "Payment to check"
+  ],
+  "Aucun montant à payer": [
+    "لا يوجد مبلغ مستحق",
+    "No amount due"
+  ],
+  "Partiellement payé": [
+    "مدفوع جزئياً",
+    "Partially paid"
+  ],
+  "Montant payé": [
+    "المبلغ المدفوع",
+    "Amount paid"
+  ],
+  "À préparer": [
+    "للإعداد",
+    "To prepare"
+  ],
+  "Historique des paies": [
+    "سجل الأجور",
+    "Payroll history"
+  ],
+  "Filtrer les paies par ferme": [
+    "تصفية الأجور حسب المزرعة",
+    "Filter payroll by farm"
+  ],
+  "Ouvrir la paie": [
+    "فتح كشف الأجور",
+    "Open payroll"
+  ],
+  "Détail par employé": [
+    "التفاصيل حسب الموظف",
+    "Employee breakdown"
+  ],
+  "Aucune paie enregistrée": [
+    "لا توجد كشوف أجور محفوظة",
+    "No saved payroll"
+  ],
+  "Aucun paiement enregistré": [
+    "لا توجد دفعات مسجلة",
+    "No recorded payments"
+  ],
+  "Pointages à valider": [
+    "سجلات الحضور المطلوب اعتمادها",
+    "Attendance to validate"
+  ],
+  "Quinzaines en brouillon": [
+    "مسودات أنصاف الأشهر",
+    "Draft fortnights"
+  ],
+  "Paies en brouillon": [
+    "مسودات الأجور",
+    "Draft payroll"
+  ],
+  "Net validé": [
+    "صافي الأجور المعتمد",
+    "Validated net pay"
+  ],
+  "Montants des paies validées de la période sélectionnée. Effectif actif actuel.": [
+    "مبالغ كشوف الأجور المعتمدة للفترة المحددة. عدد الموظفين النشطين حالياً.",
+    "Amounts from validated payroll for the selected period. Current active workforce."
+  ],
+  "Certaines données RH sont indisponibles.": [
+    "بعض بيانات الموارد البشرية غير متاحة.",
+    "Some HR data is unavailable."
+  ],
+  "Suivi des paies": [
+    "متابعة الأجور",
+    "Payroll monitoring"
+  ],
+  "Suivi des pointages": [
+    "متابعة الحضور",
+    "Attendance monitoring"
+  ],
+  "Contrôle des quinzaines": [
+    "مراقبة أنصاف الأشهر",
+    "Fortnight checks"
+  ],
+  "à compléter": [
+    "غير مكتملة",
+    "to complete"
+  ],
+  "Afficher seulement les quinzaines à compléter": [
+    "عرض أنصاف الأشهر غير المكتملة فقط",
+    "Show only incomplete fortnights"
+  ],
+  "Contrôle des périodes enregistrées : pointage validé, paie validée et paiement intégral.": [
+    "مراقبة الفترات المسجلة: اعتماد الحضور والأجور وتسديد المبلغ كاملاً.",
+    "Checks for recorded periods: validated attendance, validated payroll and full payment."
+  ],
+  "Pointage manquant": [
+    "سجل الحضور مفقود",
+    "Missing attendance"
+  ],
+  "Vérifier le pointage": [
+    "التحقق من الحضور",
+    "Check attendance"
+  ],
+  "Vérifier la paie": [
+    "التحقق من الأجور",
+    "Check payroll"
+  ],
+  "Toutes les quinzaines enregistrées de cette sélection sont complètes.": [
+    "جميع أنصاف الأشهر المسجلة في هذا الاختيار مكتملة.",
+    "All recorded fortnights in this selection are complete."
+  ],
+  "Aucune quinzaine enregistrée pour cette sélection.": [
+    "لا توجد أنصاف أشهر مسجلة لهذا الاختيار.",
+    "No recorded fortnights for this selection."
+  ],
+  "Contrôle indisponible : rechargez les données de pointage et de paie.": [
+    "المراقبة غير متاحة: أعد تحميل بيانات الحضور والأجور.",
+    "Checks unavailable: reload attendance and payroll data."
+  ],
+  "Campagne à contrôler": [
+    "الموسم المراد مراقبته",
+    "Campaign to check"
+  ],
+  "Campagnes en cours": [
+    "المواسم الجارية",
+    "Current campaigns"
+  ],
+  "Toutes les quinzaines échues depuis le début de campagne sont contrôlées, y compris sans saisie. Les filtres année et mois concernent les indicateurs ci-dessous.": [
+    "تتم مراقبة جميع أنصاف الأشهر المنتهية منذ بداية الموسم، بما فيها غير المسجلة. مرشحات السنة والشهر تخص المؤشرات أدناه.",
+    "All completed fortnights since campaign start are checked, including missing entries. Year and month filters apply to the indicators below."
+  ],
+  "Début du contrôle": [
+    "بداية المراقبة",
+    "Check start date"
+  ],
+  "Date de début de campagne à renseigner": [
+    "يجب تحديد تاريخ بداية الموسم",
+    "Campaign start date required"
+  ],
+  "Sélectionnez une campagne avec une date de début pour lancer le contrôle.": [
+    "اختر موسماً مع تاريخ بداية لبدء المراقبة.",
+    "Select a campaign with a start date to run checks."
+  ],
+  "Toutes les quinzaines échues de la campagne sont complètes.": [
+    "جميع أنصاف الأشهر المنتهية للموسم مكتملة.",
+    "All completed campaign fortnights are complete."
+  ],
+  "Aucune quinzaine échue depuis le début de campagne.": [
+    "لا توجد أنصاف أشهر منتهية منذ بداية الموسم.",
+    "No completed fortnights since campaign start."
+  ],
+  "Non saisie": [
+    "غير مسجلة",
+    "Not entered"
+  ],
+  "Sélectionnez un client": [
+    "اختر عميلاً",
+    "Select a client"
+  ],
+  "Sélectionnez une campagne": [
+    "اختر موسماً",
+    "Select a campaign"
+  ],
+  "Prénom": [
+    "الاسم الشخصي",
+    "First name"
+  ],
+  "Sélectionnez une ferme": [
+    "اختر مزرعة",
+    "Select a farm"
+  ],
+  "Rechercher un employé": [
+    "البحث عن موظف",
+    "Search employees"
+  ],
+  "Heures": [
+    "ساعات",
+    "Hours"
+  ],
+  "Payer": [
+    "دفع",
+    "Pay"
+  ],
+  "brut": [
+    "إجمالي",
+    "gross"
+  ],
+  "net": [
+    "صافي",
+    "net"
+  ],
+  "Reste à payer": [
+    "المبلغ المتبقي للدفع",
+    "Remaining to pay"
+  ],
+  "Date de paiement": [
+    "تاريخ الدفع",
+    "Payment date"
+  ],
+  "Non catégorisé": [
+    "غير مصنف",
+    "Uncategorized"
+  ],
+  "Toutes les catégories": [
+    "كل الفئات",
+    "All categories"
+  ],
+  "Synthèse avant validation": [
+    "ملخص قبل الاعتماد",
+    "Summary before validation"
+  ],
+  "Heures normales": [
+    "الساعات العادية",
+    "Normal hours"
+  ],
+  "Heures supplémentaires": [
+    "الساعات الإضافية",
+    "Overtime hours"
+  ],
+  "Employés actifs": [
+    "الموظفون النشطون",
+    "Active employees"
+  ],
+  "Données indisponibles": [
+    "البيانات غير متاحة",
+    "Data unavailable"
+  ],
+  "Déclarations partagées": [
+    "تصريحات مشتركة",
+    "Shared declarations"
   ]
 }

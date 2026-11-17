@@ -90,13 +90,15 @@ export function applyTableSelections(rows: TableFilterRow[], selections: ColumnS
   const active = Object.keys(selections).length > 0
   const groups: TableFilterRow[] = []
   const visibleGroups = new Set<HTMLTableRowElement>()
+  const matchingPairs = new Set(rows.filter(row => row.kind === 'data' && matchesColumns(row.values, selections))
+    .map(row => row.element.dataset.filterPair).filter(Boolean))
   let visible = 0
   for (const row of rows) {
     if (row.kind === 'group') {
       while (groups.length && groups[groups.length - 1].depth >= row.depth) groups.pop()
       groups.push(row)
     } else if (row.kind === 'data') {
-      const match = !active || matchesColumns(row.values, selections)
+      const match = !active || matchesColumns(row.values, selections) || Boolean(row.element.dataset.filterPair && matchingPairs.has(row.element.dataset.filterPair))
       row.element.toggleAttribute('data-column-filter-hidden', !match)
       if (match) { visible++; groups.forEach(group => visibleGroups.add(group.element)) }
     }

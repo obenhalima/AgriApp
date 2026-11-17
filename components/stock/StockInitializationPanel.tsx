@@ -84,6 +84,7 @@ export function StockInitializationPanel({ onBack }: { onBack?: () => void }) {
   }
   if (!domain || !allowed) return <p role="alert">{t('Sélectionnez un client et un compte autorisé à modifier les stocks.')}</p>
   return <div className="space-y-4">
+    <Button asChild variant="secondary"><Link href="/stocks/historique">{t('Historique entrées / sorties — Excel')}</Link></Button>
     <div className="flex flex-wrap gap-3"><Button asChild variant="secondary"><Link href="/stocks">{t('Retour aux stocks')}</Link></Button>{onBack ? <Button variant="ghost" disabled={busy} onClick={onBack}>{t('Retour aux modules')}</Button> : <Button asChild variant="ghost"><Link href="/admin/initialisation">{t('Retour à l’initialisation')}</Link></Button>}</div>
     <h1 className="text-2xl font-semibold">{t('Articles et stock initial')} — {name}</h1>
     <Card><p>{t('Un seul fichier pour réutiliser les articles existants, créer les nouveaux et initialiser le stock à la date de votre inventaire.')}</p><p className="mt-2 text-sm text-fg-secondary">{t('Quantité vide : pas de stock initialisé. Zéro : stock nul confirmé. Coût vide : à valoriser. Les anciennes consommations ne doivent pas être déduites une seconde fois. Aucun stock existant ne sera écrasé.')}</p></Card>

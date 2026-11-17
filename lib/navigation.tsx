@@ -911,8 +911,9 @@ export function flattenNav(
 /** Trouve l'entrée de nav correspondant à un pathname (match exact ou préfixe). */
 export function findNavItem(
   pathname: string,
+  navigation: NavSection[] = NAV,
 ): { section: string; item: NavItem } | null {
-  const flat = flattenNav();
+  const flat = flattenNav(navigation);
   const exact = flat.find(({ item }) => item.href === pathname);
   if (exact) return exact;
   const candidates = flat.filter(
@@ -926,11 +927,12 @@ export function findNavItem(
 /** Construit un fil d'ariane à partir d'un pathname. */
 export function buildBreadcrumbs(
   pathname: string,
+  navigation: NavSection[] = NAV,
 ): { label: string; href?: string; icon?: LucideIcon }[] {
   if (pathname === "/" || pathname === "/login") {
     return [{ label: "Dashboard", icon: LayoutDashboard }];
   }
-  const found = findNavItem(pathname);
+  const found = findNavItem(pathname, navigation) || findNavItem(pathname);
   if (!found) return [{ label: "Page" }];
   return [
     { label: found.section },

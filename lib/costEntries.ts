@@ -396,16 +396,24 @@ export async function listCostEntries(filters?: {
   isPlanned?: boolean
   limit?: number
 }): Promise<CostEntry[]> {
+  const makeQuery = () => {
   let q = supabase.from('cost_entries')
-    .select('*, campaigns(name), greenhouses(code,name,farm_id), account_categories(id,parent_id,code,label,type,level)')
+    .select('*, campaigns(name,farm_id), greenhouses(code,name,farm_id), account_categories(id,parent_id,code,label,type,level)')
     .order('entry_date', { ascending: false })
-    .limit(filters?.limit ?? 500)
+    .order('id')
   if (filters?.campaignId) q = q.eq('campaign_id', filters.campaignId)
   if (filters?.domainId) q = q.eq('domain_id', filters.domainId)
   if (filters?.isPlanned !== undefined) q = q.eq('is_planned', filters.isPlanned)
-  const { data, error } = await q
-  if (error) throw error
-  let res = (data ?? []) as any[]
+  return q
+  }
+  let res:any[]=[]
+  for(let offset=0;filters?.limit===undefined||offset<filters.limit;offset+=500){
+    const end=filters?.limit===undefined?offset+499:Math.min(offset+499,filters.limit-1)
+    const {data,error}=await makeQuery().range(offset,end)
+    if(error)throw error
+    res.push(...(data??[]))
+    if(!data||data.length<end-offset+1)break
+  }
   if (filters?.farmId) {
     res = res.filter(c => c.greenhouses?.farm_id === filters.farmId)
   }

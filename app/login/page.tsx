@@ -7,6 +7,7 @@ import { BRAND } from '@/lib/brand'
 import { motion } from 'framer-motion'
 import { Leaf, AlertCircle, LogIn } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
+import { loginErrorMessage } from '@/lib/loginError'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input as TInput, Field } from '@/components/ui/Input'
@@ -33,8 +34,8 @@ export default function LoginPage() {
     try {
       await signIn(email, password)
       router.replace(new URLSearchParams(window.location.search).get('next') === 'validations' ? '/validations' : '/')
-    } catch (err: any) {
-      setError(err?.message?.includes('Invalid') ? t('Email ou mot de passe incorrect') : (err?.message ?? t('Erreur de connexion')))
+    } catch (err: unknown) {
+      setError(loginErrorMessage(err))
     } finally { setLoading(false) }
   }
 
@@ -90,6 +91,7 @@ export default function LoginPage() {
 
             {error && (
               <motion.div
+                role="alert"
                 initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
                 className="rounded-md border border-danger/30 bg-danger/10 p-md text-danger text-body-sm flex items-center gap-2"
               >

@@ -1,7 +1,7 @@
 import {beforeAll,beforeEach,expect,it,vi} from 'vitest'
 import {readFileSync} from 'node:fs'
 const {from}=vi.hoisted(()=>({from:vi.fn()}))
-vi.mock('@supabase/supabase-js',()=>({createClient:()=>({from})}))
+vi.mock('@supabase/supabase-js',async importOriginal=>({...(await importOriginal<typeof import('@supabase/supabase-js')>()),createClient:()=>({from})}))
 let getFactures: typeof import('./supabase').getFactures
 const domain='11111111-1111-4111-8111-111111111111'
 beforeAll(async()=>{

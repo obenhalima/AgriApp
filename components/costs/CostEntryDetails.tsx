@@ -46,7 +46,8 @@ export function CostEntryDetails({entry,domain,farmName,onClose}:{entry:any;doma
     {source&&<section className="space-y-2 rounded-lg border border-border p-4"><h3 className="font-semibold"><TranslatedText text={"Mouvement de stock à l’origine du coût"}/></h3>
       <p>{source.item?.name} · {source.movement.quantity} {source.item?.unit} · {source.warehouse?.name}</p>
       <p><TranslatedText text={"Date · "}/>{source.movement.movement_date}<TranslatedText text={" · Référence · "}/>{source.movement.reference||'—'}</p>
-      <p><TranslatedText text={"Coût unitaire · "}/>{money(source.review?.unit_cost??source.movement.unit_cost)}</p>
+      {source.movement.costing_method&&<p>{translateUI('Méthode de valorisation')} · {source.movement.costing_method.toUpperCase()}</p>}
+      <p><TranslatedText text={"Coût unitaire · "}/>{money(source.costs.length&&Number(source.movement.quantity)>0?source.costs.reduce((sum:number,c:any)=>sum+Number(c.amount),0)/Number(source.movement.quantity):source.review?.unit_cost??source.movement.unit_cost)}</p>
       <p><TranslatedText text={"Montant total imputé · "}/>{money(source.costs.reduce((sum:number,c:any)=>sum+Number(c.amount),0))} · {source.costs.length}<TranslatedText text={" ligne(s)"}/></p>
       <p><TranslatedText text={"Note · "}/>{source.movement.notes||'—'}</p>
       {source.review&&<p><TranslatedText text={"Justificatif du prix · "}/>{source.review.reason}</p>}

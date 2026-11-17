@@ -1,0 +1,55 @@
+SELECT set_config('test.uid','10000000-0000-0000-0000-000000000001',false);
+DO $test$
+DECLARE d uuid:='20000000-0000-0000-0000-000000000001'; request uuid:=gen_random_uuid(); result jsonb; preview jsonb; rows jsonb; item uuid;
+BEGIN
+ rows:=jsonb_build_array(history_row('METHOD-IN1','entree','100','10'),history_row('METHOD-IN2','entree','100','14','2020-01-01','2'),history_row('METHOD-OUT1','sortie','120','','2020-01-02'));
+ result:=import_stock_history(d,gen_random_uuid(),rows,true);
+ PERFORM test_assert((result->>'cost_total')::numeric=1440,'CUMP default live/import cost');
+ preview:=change_inventory_cost_method(d,'fifo',request);
+ PERFORM test_assert((preview->>'cost_after')::numeric=1280,'FIFO campaign preview');
+ PERFORM test_assert((preview->>'stock_after')::numeric=1120,'FIFO remaining stock preview');
+ PERFORM test_assert((SELECT sum(amount)=1440 FROM cost_entries),'preview leaves costs intact');
+ PERFORM test_assert((SELECT count(*)=0 FROM inventory_cost_settings),'preview leaves method intact');
+ result:=change_inventory_cost_method(d,'fifo',request,preview->>'fingerprint','QA501',true);
+ PERFORM test_assert(result->>'status'='applied','method applied');
+ PERFORM test_assert((SELECT method='fifo' FROM inventory_cost_settings WHERE domain_id=d),'tenant method saved');
+ PERFORM test_assert((SELECT sum(amount)=1280 FROM cost_entries),'campaign costs recalculated');
+ PERFORM test_assert((SELECT unit_cost=1280::numeric/120::numeric::numeric(20,8) OR abs(unit_cost-10.66666667)<0.00000001 FROM stock_movements WHERE movement_type='sortie'),'FIFO weighted exit PU');
+ PERFORM test_assert((SELECT jsonb_array_length(fifo_sources)=2 FROM stock_movements WHERE movement_type='sortie'),'FIFO split sources retained');
+ SELECT id INTO item FROM stock_items WHERE code='ENG01';
+ PERFORM test_assert((SELECT current_qty=80 AND inventory_value=1120 FROM warehouse_stocks WHERE stock_item_id=item),'current stock revalued');
+ PERFORM test_assert(change_inventory_cost_method(d,'fifo',request,preview->>'fingerprint','QA501',true)=result,'idempotent method confirmation');
+ PERFORM test_reject(format('select import_stock_history(%L,gen_random_uuid(),%L::jsonb,true)',d,jsonb_build_array(history_row('NO-PRICE','entree','1','','2020-01-03'))),'prix obligatoire');
+ rows:=jsonb_build_array(history_row('METHOD-IN3','entree','80','6','2020-01-03'),history_row('METHOD-OUT2','sortie','100','','2020-01-04'));
+ preview:=import_stock_history(d,gen_random_uuid(),rows,false);
+ PERFORM test_assert((preview->>'cost_total')::numeric=1240,'FIFO handles decreasing purchase prices');
+ result:=import_stock_history(d,gen_random_uuid(),rows,true);
+ PERFORM test_assert((result->>'cost_total')::numeric=1240,'FIFO preview matches live posting');
+ PERFORM test_assert((SELECT inventory_value=360 AND current_qty=60 FROM warehouse_stocks WHERE stock_item_id=item),'FIFO layers reconcile');
+ PERFORM test_reject(format('insert into stock_movements(domain_id,stock_item_id,warehouse_id,movement_type,quantity,movement_date) values(%L,%L,''40000000-0000-0000-0000-000000000001'',''entree'',1,''2020-01-05'')',d,item),'Prix obligatoire');
+ request:=gen_random_uuid();
+ preview:=change_inventory_cost_method(d,'cump',request);
+ PERFORM test_assert((preview->>'cost_after')::numeric=2340,'CUMP historical replay after FIFO');
+ PERFORM test_reject(format('select change_inventory_cost_method(%L,''cump'',%L,''stale'',''QA501'',true)',d,request),'ont changé');
+ PERFORM test_assert((SELECT method='fifo' FROM inventory_cost_settings WHERE domain_id=d),'stale confirmation changes nothing');
+ result:=change_inventory_cost_method(d,'cump',request,preview->>'fingerprint','QA501',true);
+ PERFORM test_assert((SELECT sum(amount)=2340 FROM cost_entries),'switching back recalculates all campaign costs');
+ PERFORM test_assert((SELECT inventory_value=540 AND current_qty=60 FROM warehouse_stocks WHERE stock_item_id=item),'CUMP stock value reconciles after replay');
+ PERFORM test_assert((SELECT count(*)=2 FROM inventory_method_changes WHERE applied_at IS NOT NULL),'audited recalculation receipts');
+ INSERT INTO stock_transfers(id,domain_id) VALUES('90000000-0000-0000-0000-000000000001',d);
+ INSERT INTO stock_movements(domain_id,stock_item_id,warehouse_id,movement_type,quantity,movement_date,transfer_id)
+ VALUES(d,item,'40000000-0000-0000-0000-000000000001','sortie',20,'2020-01-05','90000000-0000-0000-0000-000000000001');
+ INSERT INTO stock_movements(domain_id,stock_item_id,warehouse_id,movement_type,quantity,movement_date,transfer_id)
+ VALUES(d,item,'40000000-0000-0000-0000-000000000003','entree',20,'2020-01-05','90000000-0000-0000-0000-000000000001');
+ request:=gen_random_uuid();preview:=change_inventory_cost_method(d,'fifo',request);
+ result:=change_inventory_cost_method(d,'fifo',request,preview->>'fingerprint','QA501',true);
+ PERFORM test_assert((SELECT unit_cost=6 FROM stock_transfers WHERE id='90000000-0000-0000-0000-000000000001'),'transfer price follows recalculation');
+ PERFORM test_assert((SELECT inventory_value=120 FROM warehouse_stocks WHERE warehouse_id='40000000-0000-0000-0000-000000000003' AND stock_item_id=item),'transfer destination value recalculated');
+ PERFORM test_reject('update stock_movements set unit_cost=1','Mouvement');
+ PERFORM test_assert(NOT has_function_privilege('anon','change_inventory_cost_method(uuid,text,uuid,text,text,boolean)','execute'),'anonymous method change denied');
+ PERFORM set_config('test.uid','10000000-0000-0000-0000-000000000002',true);
+ PERFORM test_reject(format('select change_inventory_cost_method(%L,''cump'',gen_random_uuid())',d),'administrateurs');
+ PERFORM set_config('test.uid','10000000-0000-0000-0000-000000000001',true);
+ PERFORM test_reject('select change_inventory_cost_method(''20000000-0000-0000-0000-000000000002'',''fifo'',gen_random_uuid())','administrateurs');
+END $test$;
+SELECT 'PASS per-client CUMP/FIFO, historical campaign recalculation, price enforcement, split sources, idempotence and authorization' AS result;

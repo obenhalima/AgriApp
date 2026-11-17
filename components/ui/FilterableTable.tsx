@@ -6,7 +6,7 @@ import { Filter } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useLanguage } from '@/lib/i18n'
 import { useAuth } from '@/lib/auth'
-import { applyTableSelections, filterSearch, readFilterTable, type ColumnSelections, type TableColumn } from '@/lib/tableColumnFilters'
+import { applyTableSelections, matchesColumns, filterSearch, readFilterTable, type ColumnSelections, type TableColumn } from '@/lib/tableColumnFilters'
 
 type TableModel = ReturnType<typeof readFilterTable>
 
@@ -37,7 +37,10 @@ function ColumnFilter({column,values,selected,onApply,container}:{column:TableCo
 }
 
 /** Preserve existing rendering, sorting, selection and server queries while filtering loaded rows. */
-export function FilterableTable({children,...props}:TableHTMLAttributes<HTMLTableElement>) {
+type FilterableTableProps = TableHTMLAttributes<HTMLTableElement> & {
+  amountSummary?: {total:number;count:number;currency:string}
+}
+export function FilterableTable({children,amountSummary,...props}:FilterableTableProps) {
   const {t,locale}=useLanguage()
   const {activeDomain,user}=useAuth()
   const pathname=usePathname()
@@ -57,7 +60,7 @@ export function FilterableTable({children,...props}:TableHTMLAttributes<HTMLTabl
     let headerSignature=''
     const scan=()=>{
       const next=readFilterTable(table)
-      const signature=JSON.stringify([next.columns.map(column=>[column.index,column.label]),next.rows.map(row=>[row.kind,row.depth,row.values])])
+      const signature=JSON.stringify([next.columns.map(column=>[column.index,column.label]),next.rows.map(row=>[row.kind,row.depth,row.values,row.element.dataset.filterAmount])])
       const nextHeader=JSON.stringify(next.columns.map(column=>[column.index,column.label]))
       if(headerSignature && headerSignature!==nextHeader)setSelections({})
       headerSignature=nextHeader
@@ -78,8 +81,16 @@ export function FilterableTable({children,...props}:TableHTMLAttributes<HTMLTabl
   useEffect(()=>{setVisible(applyTableSelections(model.rows,selections))},[model,selections])
   const rows=useMemo(()=>model.rows.filter(row=>row.kind==='data'),[model])
   const active=Object.keys(selections).length>0
+  const matchingRows=rows.filter(row=>matchesColumns(row.values,selections))
+  const filteredAmount=matchingRows.reduce((sum,row)=>sum+Number(row.element.dataset.filterAmount||0),0)
+  const summaryAmount=active?filteredAmount:amountSummary?.total??0
+  const summaryCount=active?matchingRows.length:amountSummary?.count??0
   return <>
-    {active&&<div data-column-filter-ui role="status" className="my-2 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface-input p-3 text-xs print:hidden"><span>{t('{v0} / {v1} lignes chargées',{v0:visible,v1:rows.length})}</span><button type="button" className="text-brand underline" onClick={()=>setSelections({})}>{t('Effacer tous les filtres')}</button><span>{t('Les totaux et sélections existantes conservent leur périmètre.')}</span>{visible===0&&<strong>{t('Aucune ligne ne correspond aux filtres.')}</strong>}</div>}
+    {active&&<div data-column-filter-ui role="status" className="my-2 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface-input p-3 text-xs print:hidden"><span>{t('{v0} / {v1} lignes chargées',{v0:visible,v1:rows.length})}</span><button type="button" className="text-brand underline" onClick={()=>setSelections({})}>{t('Effacer tous les filtres')}</button>{!amountSummary&&<span>{t('Les totaux et sélections existantes conservent leur périmètre.')}</span>}{visible===0&&<strong>{t('Aucune ligne ne correspond aux filtres.')}</strong>}</div>}
+    {amountSummary&&<div data-column-filter-ui role="status" className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface-input p-4">
+      <span>{t('Total des lignes filtrées')} <span className="text-fg-secondary">· {summaryCount}</span></span>
+      <strong className="text-lg tabular-nums">{new Intl.NumberFormat(locale,{style:'currency',currency:amountSummary.currency}).format(summaryAmount)}</strong>
+    </div>}
     <table {...props} ref={ref} data-filterable-table>{children}</table>
     {model.columns.map(column=><Fragment key={`${column.index}:${column.label}`}>{createPortal(<ColumnFilter column={column} values={rows.map(row=>row.values[column.index]??'')} selected={selections[String(column.index)]} container={container} onApply={values=>setSelections(current=>{const next={...current};if(values===undefined)delete next[String(column.index)];else next[String(column.index)]=values;return next})}/>,column.host)}</Fragment>)}
   </>

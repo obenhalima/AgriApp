@@ -3,6 +3,7 @@ import { chromium } from '@playwright/test'
 import fs from 'node:fs'
 import dotenv from 'dotenv'
 const env=dotenv.parse(fs.readFileSync('.env.local')),host=new URL(env.NEXT_PUBLIC_SUPABASE_URL).hostname
+const base=process.env.TEST_BASE_URL||'http://localhost:3001'
 const uid='11111111-1111-4111-8111-111111111111',domain='22222222-2222-4222-8222-222222222222',role='33333333-3333-4333-8333-333333333333'
 const user={id:uid,email:'qa-stock@example.test',aud:'authenticated',role:'authenticated',app_metadata:{},user_metadata:{}}
 const token=[{alg:'HS256',typ:'JWT'},{sub:uid,exp:Math.floor(Date.now()/1000)+3600,role:'authenticated'},'test'].map(x=>Buffer.from(typeof x==='string'?x:JSON.stringify(x)).toString('base64url')).join('.')
@@ -15,7 +16,8 @@ try{
  await context.addInitScript(({key,session})=>localStorage.setItem(key,JSON.stringify(session)),{key:`sb-${host.split('.')[0]}-auth-token`,session:{access_token:token,refresh_token:'qa',expires_at:Math.floor(Date.now()/1000)+3600,expires_in:3600,token_type:'bearer',user}})
  await context.route(`https://${host}/**`,async route=>{
   const url=new URL(route.request().url());let data=[]
-  if(url.pathname==='/auth/v1/user')data=user
+  if(url.pathname==='/auth/v1/token')data={access_token:token,refresh_token:'qa',expires_at:Math.floor(Date.now()/1000)+3600,expires_in:3600,token_type:'bearer',user}
+  else if(url.pathname==='/auth/v1/user')data=user
   else if(url.pathname.endsWith('/profiles'))data=[{...user,full_name:'QA',role_id:role,is_active:true,must_change_password:false}]
   else if(url.pathname.endsWith('/domain_memberships'))data=[{domain_id:domain,role_id:role,is_default:true,domains:{name:'Recette',code:'QA'},roles:{name:'Admin'}}]
   else if(url.pathname.endsWith('/roles'))data=[{id:role,name:'Admin',is_admin:true,is_active:true}]
@@ -30,8 +32,10 @@ try{
   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)})
  })
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message))
- await page.goto('http://localhost:3001/couts/pilotage',{waitUntil:'domcontentloaded',timeout:120000})
- await page.getByText('Stock actuel au bilan de gestion — hors filtre campagne/période',{exact:true}).click()
+ await page.goto(base+'/login',{waitUntil:'domcontentloaded',timeout:120000})
+ await page.waitForURL(url=>!url.pathname.includes('/login'),{timeout:90000})
+ await page.goto(base+'/couts/pilotage',{waitUntil:'domcontentloaded',timeout:120000})
+ await page.getByRole('button',{name:'Stock valorisé',exact:true}).click()
  await page.getByRole('row').filter({hasText:'Produit sans prix'}).getByRole('button',{name:'Valoriser',exact:true}).click()
  const modal=page.getByRole('dialog',{name:'Valoriser / confirmer le stock'})
  await modal.waitFor()

@@ -59,7 +59,7 @@ export default function StocksPage() {
   const [formA, setFormA] = useState({ ...blankA })
   const [formAE, setFormAE] = useState<Record<string, any>>({})
   const [movementError,setMovementError]=useState('')
-  const [formM, setFormM] = useState({ stock_item_id: '', warehouse_id: '', movement_type: 'entree', quantity: '', movement_date: '', reference: '', notes: '' })
+  const [formM, setFormM] = useState({ stock_item_id: '', warehouse_id: '', movement_type: 'entree', quantity: '', unit_cost: '', movement_date: '', reference: '', notes: '' })
   const sa = (k: string) => (e: any) => setFormA(f => ({ ...f, [k]: e.target.value }))
   const sae = (k: string) => (e: any) => setFormAE(f => ({ ...f, [k]: e.target.value }))
   const sm = (k: string) => (e: any) => setFormM(f => ({ ...f, [k]: e.target.value }))
@@ -116,7 +116,7 @@ export default function StocksPage() {
   const openMvt = (item: any, type = 'entree') => {
     allocationRequest.current={key:'',id:''};setAllocationCampaign('');setAllocationIds([])
     setMovementError('')
-    setFormM({ stock_item_id: item.id, warehouse_id: warehouseId||warehouses.find(w=>w.is_default&&w.is_active)?.id||'', movement_type: type, quantity: '', movement_date: new Date().toISOString().slice(0, 10), reference: '', notes: '' })
+    setFormM({ stock_item_id: item.id, warehouse_id: warehouseId||warehouses.find(w=>w.is_default&&w.is_active)?.id||'', movement_type: type, quantity: '', unit_cost: '', movement_date: new Date().toISOString().slice(0, 10), reference: '', notes: '' })
     setModalMvt(item)
   }
 
@@ -168,7 +168,8 @@ export default function StocksPage() {
         if(allocationRequest.current.key!==key)allocationRequest.current={key,id:crypto.randomUUID()}
         await stockAllocationRpc('submit_allocated_stock_exit',{...payload,p_request:allocationRequest.current.id})
       } else {
-        await createMouvement({ ...formM, quantity: Number(formM.quantity) })
+        if(formM.unit_cost!==''&&(!Number.isFinite(Number(formM.unit_cost))||Number(formM.unit_cost)<0))throw new Error('Prix unitaire positif ou nul requis.')
+        await createMouvement({ ...formM, quantity: Number(formM.quantity),unit_cost:formM.unit_cost===''?undefined:Number(formM.unit_cost) })
       }
       await load(); setDone(true)
       toast.success(formM.movement_type === 'sortie' ? _ui("Demande de sortie envoyée au responsable") : _ui("Mouvement enregistré"))
@@ -254,13 +255,17 @@ export default function StocksPage() {
                 </FormGroup>
                 <FormGroup label={t("Quantité *")}><TInput type="number" value={formM.quantity} onChange={sm('quantity')} autoFocus /></FormGroup>
               </FormRow>
+              {formM.movement_type==='entree'&&<FormGroup label={t('Prix unitaire entrée (MAD)')}>
+                <TInput aria-label={t('Prix unitaire entrée (MAD)')} type="number" min="0" step="0.00000001" value={formM.unit_cost} onChange={sm('unit_cost')}/>
+                <p className="text-xs text-fg-secondary">{t('Prix obligatoire en FIFO. Zéro correspond à une entrée gratuite confirmée.')}</p>
+              </FormGroup>}
               <FormRow>
                 <FormGroup label={t("Date *")}><TInput type="date" value={formM.movement_date} onChange={sm('movement_date')} /></FormGroup>
                 <FormGroup label={t("Référence")}><TInput value={formM.reference} onChange={sm('reference')} placeholder="BL-2026-001" /></FormGroup>
               </FormRow>
               {movementError && <p role="alert" className="text-danger">{movementError}</p>}
               <FormGroup label={t(formM.movement_type==='sortie' ? "Note de sortie (facultatif)" : "Notes")}><Textarea rows={2} value={formM.notes} onChange={sm('notes')} /></FormGroup>
-              {formM.movement_type==='sortie' && <>{allocationLoading&&<p role="status">{t('Chargement des serres…')}</p>}{allocationError&&<p role="alert" className="text-danger">{allocationError}</p>}{!allocationFarm&&<p role="alert">{t('Choisissez un entrepôt rattaché à une ferme.')}</p>}<StockAllocationSelector plantings={allocationRows} farm={allocationFarm} campaign={allocationCampaign} selected={allocationIds} onCampaign={id=>{setAllocationCampaign(id);setAllocationIds([])}} onSelected={setAllocationIds} disabled={saving||allocationLoading} quantity={Number(formM.quantity)||undefined}/><p className="text-sm text-fg-secondary">{t('À la validation, le coût CUMP sera réparti sur ces serres. Si le stock n’est pas valorisé, les affectations seront conservées pour Sorties à rapprocher.')}</p></>}
+              {formM.movement_type==='sortie' && <>{allocationLoading&&<p role="status">{t('Chargement des serres…')}</p>}{allocationError&&<p role="alert" className="text-danger">{allocationError}</p>}{!allocationFarm&&<p role="alert">{t('Choisissez un entrepôt rattaché à une ferme.')}</p>}<StockAllocationSelector plantings={allocationRows} farm={allocationFarm} campaign={allocationCampaign} selected={allocationIds} onCampaign={id=>{setAllocationCampaign(id);setAllocationIds([])}} onSelected={setAllocationIds} disabled={saving||allocationLoading} quantity={Number(formM.quantity)||undefined}/><p className="text-sm text-fg-secondary">{t('À la validation, le coût selon la méthode du client sera réparti sur ces serres. Si le stock n’est pas valorisé, les affectations seront conservées pour Sorties à rapprocher.')}</p></>}
               {formM.movement_type === 'sortie' && <div className="rounded-md border border-warning/30 bg-warning/10 p-sm text-body-sm text-warning">{t("La validation du responsable déduira le stock et générera les coûts si le prix est connu.")}</div>}
               <ModalFooter onCancel={() => setModalMvt(null)} onSave={saveMvt} loading={saving} disabled={!formM.warehouse_id || !Number.isFinite(Number(formM.quantity)) || Number(formM.quantity)<=0 || !formM.movement_date || (formM.movement_type === 'sortie' && (!validAllocation||allocationLoading||!!allocationError))} saveLabel={formM.movement_type === 'sortie' ? _ui("SOUMETTRE LA DEMANDE") : _ui("ENREGISTRER")} />
             </div>
@@ -274,6 +279,7 @@ export default function StocksPage() {
         actions={
           <div className="itrix-actions">
             <Link href="/stocks/reprise"><Button variant="secondary">{t('Reprise du stock initial / Excel')}</Button></Link>
+            <Link href="/stocks/historique"><Button variant="secondary">{t('Historique entrées / sorties — Excel')}</Button></Link>
             <Link href="/stocks/mouvements">
               <Button variant="ghost"><BarChart3 size={14} strokeWidth={2.2} /> {t("Mouvements")}</Button>
             </Link>

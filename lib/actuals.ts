@@ -1,16 +1,15 @@
 import { supabase } from './supabase'
+import { pricedDispatch } from './pricedDispatches'
 
 // ============================================================
 // Agrégation du RÉEL + Budget pour le Compte d'exploitation.
 //
 // - Charges réelles : cost_entries is_planned=false, groupé par (catégorie, mois)
-// - CA réel         : invoices type 'vente' sur la fenêtre campagne,
-//                     split Export/Local via clients.markets.type, par mois
+// - CA réel         : envois tarifés, avec bordereaux validés dédoublonnés,
+//                     ventilés par campagne, ferme et serre, par mois d'envoi
 // - Budget          : budget_lines, groupé par (catégorie, mois)
 //
-// Règle "mois futurs = budget" : pour chaque (cat, mois), si le mois est
-// strictement après le mois courant, on remplace le réel par le budget.
-// Permet d'obtenir une projection « actuals-to-date + budget-forward ».
+// La vue comparative peut ajouter une projection optionnelle des mois futurs.
 // ============================================================
 
 export type MonthKey = string // "YYYY-M"
@@ -24,7 +23,7 @@ export type ComparisonMonthly = {
   parent_id: string | null
   level: number
   display_order: number
-  // Totaux (déjà mois futurs extrapolés pour `actual`)
+  // Totaux enregistrés, avant projection optionnelle dans la vue comparative
   budget: number
   actual: number
   // Détail mensuel : uniquement valeurs directement associées à cette feuille
@@ -64,20 +63,31 @@ async function getBudgetMonthly(params: {
 // ────────────────────────────────────────────────────────────
 // Lecture charges réelles (monthly)
 // ────────────────────────────────────────────────────────────
-async function getActualChargesMonthly(params: {
+export async function getActualChargeEntries(params: {
   campaignId: string
   farmId?: string
   greenhouseId?: string | null
-}): Promise<Record<string, Record<MonthKey, number>>> {
+}): Promise<any[]> {
+  const {data:campaign,error}=await supabase.from('campaigns').select('domain_id,farm_id').eq('id',params.campaignId).single()
+  if(error)throw error
+  if(!campaign?.domain_id)throw new Error('Campagne inaccessible')
+  const makeQuery=()=>{
   let q = supabase.from('cost_entries')
-    .select('account_category_id, amount, entry_date, greenhouse_id, greenhouses(farm_id)')
+    .select('*,campaigns(name,farm_id),greenhouses(code,name,farm_id),account_categories(label,code,type)')
+    .eq('domain_id',campaign.domain_id)
     .eq('campaign_id', params.campaignId)
     .eq('is_planned', false)
   if (params.greenhouseId === null) q = q.is('greenhouse_id', null)
   else if (params.greenhouseId) q = q.eq('greenhouse_id', params.greenhouseId)
 
-  const { data, error } = await q
-  if (error) throw error
+  return q
+  }
+  const data=await readAllPages(makeQuery)
+  return data.filter(r=>!params.farmId||!(r.greenhouses?.farm_id||campaign.farm_id)||(r.greenhouses?.farm_id||campaign.farm_id)===params.farmId)
+}
+
+async function getActualChargesMonthly(params: {campaignId:string;farmId?:string;greenhouseId?:string|null}):Promise<Record<string,Record<MonthKey,number>>>{
+  const data=await getActualChargeEntries(params)
 
   const out: Record<string, Record<MonthKey, number>> = {}
   for (const r of (data ?? []) as any[]) {
@@ -88,9 +98,9 @@ async function getActualChargesMonthly(params: {
       const ghFarm = r.greenhouses?.farm_id
       if (ghFarm && ghFarm !== params.farmId) continue
     }
-    const d = new Date(r.entry_date)
-    if (isNaN(d.getTime())) continue
-    const mk = monthKey(d.getFullYear(), d.getMonth() + 1)
+    const date=/^(\d{4})-(\d{2})-\d{2}$/.exec(r.entry_date??'')
+    if(!date)continue
+    const mk = monthKey(Number(date[1]),Number(date[2]))
     out[catId] ??= {}
     out[catId][mk] = (out[catId][mk] ?? 0) + Number(r.amount || 0)
   }
@@ -98,12 +108,20 @@ async function getActualChargesMonthly(params: {
 }
 
 // ────────────────────────────────────────────────────────────
-// CA réel (monthly) — basé sur les RÉCOLTES × prix validé
-//   qty_category_1 (export) × prix_export
-//   qty_category_2 + qty_category_3 (local) × prix_local
-// Prix validé = price_per_kg_export/local sur la plantation si défini,
-// sinon avg_price_export/local de la variété.
-// ────────────────────────────────────────────────────────────
+// CA réalisé par mois d'envoi, depuis les tarifications enregistrées.
+// Les lots multi-serres sont ventilés selon les quantités contribuées.
+// Les allocations de bordereaux validés priment sur le CA miroir du lot.
+// ───────────────────────────────────────────────────────────
+async function readAllPages(make: () => any): Promise<any[]> {
+  const rows: any[] = []
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await make().order('id').range(offset, offset + 499)
+    if (error) throw error
+    rows.push(...(data ?? []))
+    if (!data || data.length < 500) return rows
+  }
+}
+
 async function getActualRevenuesMonthly(params: {
   campaignId: string
   farmId?: string
@@ -111,53 +129,51 @@ async function getActualRevenuesMonthly(params: {
   caExportCatId?: string | null
   caLocalCatId?: string | null
 }): Promise<Record<string, Record<MonthKey, number>>> {
-  const { data: harvests, error } = await supabase
-    .from('harvests')
-    .select(`
-      qty_category_1, qty_category_2, qty_category_3, harvest_date,
-      campaign_plantings!inner(
-        id, campaign_id, greenhouse_id,
-        price_per_kg_export, price_per_kg_local,
-        varieties!campaign_plantings_variety_id_fkey(avg_price_export, avg_price_local),
-        greenhouses(farm_id)
-      )
-    `)
-    .eq('campaign_plantings.campaign_id', params.campaignId)
-
+  const { data: campaign, error } = await supabase.from('campaigns')
+    .select('domain_id').eq('id', params.campaignId).single()
   if (error) throw error
-
-  const out: Record<string, Record<MonthKey, number>> = {}
-  const addTo = (catId: string, mk: MonthKey, amount: number) => {
-    out[catId] ??= {}
-    out[catId][mk] = (out[catId][mk] ?? 0) + amount
+  if (!campaign?.domain_id) throw new Error('Campagne inaccessible')
+  const domain = campaign.domain_id
+  const plantingSelect = 'campaign_id,greenhouse_id,greenhouses(farm_id)'
+  const [lots, allocations, sources] = await Promise.all([
+    readAllPages(() => supabase.from('harvest_lots')
+      .select(`id,harvest_date,tri_status,qty_priced_kg,qty_acceptee_kg,ca_amount,markets!harvest_lots_market_id_fkey(type),campaign_plantings(${plantingSelect})`)
+      .eq('domain_id', domain).eq('category', 'station_dispatch')),
+    readAllPages(() => supabase.from('station_settlement_allocations')
+      .select('id,harvest_lot_id,qty_allocated_kg,amount_allocated,harvest_lots!inner(domain_id),station_settlement_lines(station_settlements!station_settlement_lines_settlement_id_fkey(status))')
+      .eq('harvest_lots.domain_id', domain)),
+    readAllPages(() => supabase.from('harvest_lot_sources')
+      .select(`id,harvest_lot_id,qty_contributed_kg,harvests!inner(domain_id,campaign_plantings(${plantingSelect}))`)
+      .eq('harvests.domain_id', domain)),
+  ])
+  const sourcesByLot = new Map<string, any[]>()
+  for (const source of sources) {
+    const list = sourcesByLot.get(source.harvest_lot_id) ?? []
+    list.push(source)
+    sourcesByLot.set(source.harvest_lot_id, list)
   }
-
-  for (const h of (harvests ?? []) as any[]) {
-    const cp = h.campaign_plantings
-    if (!cp) continue
-
-    // Filtres serre / ferme
-    if (params.greenhouseId === null) {
-      // On ne filtre rien de spécifique au niveau ferme pour les récoltes (elles sont toujours liées à une serre)
-    } else if (params.greenhouseId && cp.greenhouse_id !== params.greenhouseId) continue
-    if (params.farmId && cp.greenhouses?.farm_id !== params.farmId) continue
-
-    const d = new Date(h.harvest_date)
-    if (isNaN(d.getTime())) continue
-    const mk = monthKey(d.getFullYear(), d.getMonth() + 1)
-
-    const priceExport = Number(cp.price_per_kg_export ?? cp.varieties?.avg_price_export ?? 0)
-    const priceLocal  = Number(cp.price_per_kg_local  ?? cp.varieties?.avg_price_local  ?? 0)
-
-    const qtyExport = Number(h.qty_category_1 || 0)
-    const qtyLocal  = Number(h.qty_category_2 || 0) + Number(h.qty_category_3 || 0)
-
-    if (qtyExport > 0 && priceExport > 0 && params.caExportCatId) {
-      addTo(params.caExportCatId, mk, qtyExport * priceExport)
+  const matchesScope = (planting: any) => planting?.campaign_id === params.campaignId
+    && (!params.farmId || planting.greenhouses?.farm_id === params.farmId)
+    && (!params.greenhouseId || planting.greenhouse_id === params.greenhouseId)
+  const out: Record<string, Record<MonthKey, number>> = {}
+  for (const lot of lots) {
+    const pricing = pricedDispatch(lot, allocations)
+    if (!pricing) continue
+    const lotSources = sourcesByLot.get(lot.id) ?? []
+    let share = matchesScope(lot.campaign_plantings) ? 1 : 0
+    if (lotSources.length) {
+      const total = lotSources.reduce((sum, source) => sum + Number(source.qty_contributed_kg || 0), 0)
+      const selected = lotSources.filter(source => matchesScope(source.harvests?.campaign_plantings))
+        .reduce((sum, source) => sum + Number(source.qty_contributed_kg || 0), 0)
+      share = total > 0 ? selected / total : 0
     }
-    if (qtyLocal > 0 && priceLocal > 0 && params.caLocalCatId) {
-      addTo(params.caLocalCatId, mk, qtyLocal * priceLocal)
-    }
+    if (!(share > 0)) continue
+    const catId = lot.markets?.type === 'local' ? params.caLocalCatId : params.caExportCatId
+    const date = /^(\d{4})-(\d{2})-\d{2}$/.exec(lot.harvest_date ?? '')
+    if (!catId || !date) continue
+    const key = monthKey(Number(date[1]), Number(date[2]))
+    out[catId] ??= {}
+    out[catId][key] = (out[catId][key] ?? 0) + pricing.amount * share
   }
   return out
 }
@@ -173,9 +189,6 @@ export async function buildComparison(params: {
   months: { year: number; month: number }[]   // liste ordonnée des 12 mois à considérer
   cutoffDate?: Date                             // défaut : aujourd'hui
 }): Promise<ComparisonMonthly[]> {
-  const cutoff = params.cutoffDate ?? new Date()
-  const cutoffYear = cutoff.getFullYear()
-  const cutoffMonth = cutoff.getMonth() + 1
 
   // Charge les catégories pour identifier les codes CA
   const { data: allCats, error: categoriesError } = await supabase.from('account_categories').select('*').eq('is_active', true)
@@ -204,8 +217,6 @@ export async function buildComparison(params: {
   addFromMap(actualRevenuesMonthly)
 
   // Construit les lignes pour CHAQUE catégorie et CHAQUE mois de la fenêtre
-  const isFuture = (year: number, month: number) =>
-    year > cutoffYear || (year === cutoffYear && month > cutoffMonth)
 
   const result: ComparisonMonthly[] = categories.map(c => {
     const byMonth: Record<MonthKey, { budget: number; actual: number }> = {}
@@ -216,8 +227,8 @@ export async function buildComparison(params: {
       const mk = monthKey(m.year, m.month)
       const b = budgetMonthly[c.id]?.[mk] ?? 0
       const rawActual = actualMonthly[c.id]?.[mk] ?? 0
-      // Règle : mois futurs → on prend le budget comme "réel" projeté
-      const a = isFuture(m.year, m.month) ? b : rawActual
+      // La projection budgétaire est appliquée explicitement par la vue comparative.
+      const a = rawActual
       byMonth[mk] = { budget: b, actual: a }
       totalBudget += b
       totalActual += a

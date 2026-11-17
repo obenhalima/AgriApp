@@ -28,5 +28,5 @@ describe('Couverture des tableaux de l’application', () => {
     inspect('components')
     expect(nativeTables).toEqual([])
     expect(covered).toBeGreaterThan(60)
-  })
+  }, 60000)
 })

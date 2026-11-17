@@ -3,6 +3,7 @@ import {useEffect,useState} from 'react'
 import {useAuth} from './auth'
 import {supabase} from './supabase'
 import {profileNavigation,type MenuConfig} from './profileNavigation'
+import {hrNavigation} from './hrWorkflow'
 export function useProfileNavigation(){
  const {activeDomain,role,canAccessModule,isPlatformAdmin}=useAuth()
  const key=`${activeDomain?.domain_id}:${role?.id}`
@@ -17,7 +18,7 @@ export function useProfileNavigation(){
   return()=>{cancelled=true;window.removeEventListener('profile-navigation-updated',load)}
  },[key,activeDomain,role])
  const config=state.key===key?state.config:null
- const nav=profileNavigation(config,canAccessModule,isPlatformAdmin)
+ const nav=profileNavigation(config,canAccessModule,isPlatformAdmin,hrNavigation(activeDomain?.domain_code))
  const home=config?.home&&nav.some(g=>g.items.some(i=>i.href===config.home))?config.home:''
  return {nav,config,home,loading:state.key!==key}
 }

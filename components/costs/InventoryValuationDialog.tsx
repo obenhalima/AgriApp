@@ -1,8 +1,8 @@
 'use client'
 import {useLanguage} from '@/lib/i18n'
 
-import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useState } from 'react'
+import { Modal } from '@/components/ui/Modal'
 import { supabase } from '@/lib/supabase'
 import { withDeadline } from '@/lib/withDeadline'
 import { formatPlanNumber as fmt } from '@/lib/farmLayout'
@@ -11,13 +11,11 @@ export type ValuationItem={warehouse_id:string;stock_item_id:string;warehouse_na
 export function InventoryValuationDialog({item,onClose,onConfirmed}:{item:ValuationItem;onClose:()=>void;onConfirmed:()=>void}){
  const {t:_ui,text:_uiNode}=useLanguage()
 
- const dialog=useRef<HTMLDialogElement>(null)
  const [price,setPrice]=useState(item.value==null?'':String(Number(item.value)/Number(item.qty)))
  const [reason,setReason]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[submitted,setSubmitted]=useState(false)
  const amount=Number(price.replace(/\s/g,'').replace(',','.'))
  const priceValid=price.trim()!==''&&Number.isFinite(amount)&&amount>=0
  const reasonValid=reason.trim().length>=5
- useEffect(()=>{dialog.current?.showModal()},[])
  async function save(){
   if(busy)return
   setSubmitted(true);setError('')
@@ -30,8 +28,7 @@ export function InventoryValuationDialog({item,onClose,onConfirmed}:{item:Valuat
   }catch(e:any){setError(e.message||'Confirmation impossible. Vos champs sont conservés.')}
   finally{setBusy(false)}
  }
- return createPortal(<dialog ref={dialog} aria-labelledby="stock-valuation-title" className="w-[min(580px,94vw)] rounded-xl border bg-white p-6 text-slate-900 shadow-xl backdrop:bg-black/40" onCancel={e=>{e.preventDefault();if(!busy)onClose()}}>
-  <h2 id="stock-valuation-title" className="text-lg font-semibold">{_ui("Valoriser / confirmer le stock")}</h2>
+ return <Modal title={_ui('Valoriser / confirmer le stock')} onClose={onClose} busy={busy} dirty={price.trim()!==''||reason.trim()!==''}>
   <p className="mt-2 font-medium">{item.item_name}</p><p>{item.warehouse_name} · {fmt(Number(item.qty))} {item.unit}</p>
   <p className="my-3 text-sm text-slate-600">{_ui("Cette action confirme la valeur du stock actuel. Elle ne modifie ni la quantité ni les coûts des anciennes consommations.")}</p>
   <form className="space-y-4" onSubmit={e=>{e.preventDefault();void save()}}>
@@ -45,7 +42,7 @@ export function InventoryValuationDialog({item,onClose,onConfirmed}:{item:Valuat
    </div>
    <p className="rounded bg-slate-100 p-3">{_ui("Valeur totale à confirmer :")}{" "}<strong>{priceValid?fmt(amount*Number(item.qty)):_ui("Non renseignée")} DH</strong></p>
    {error&&<p role="alert" className="rounded border border-red-400 bg-red-50 p-3 text-red-800">{_uiNode(error)}</p>}
-   <div className="flex justify-end gap-2"><button type="button" disabled={busy} onClick={onClose} className="rounded border px-4 py-2">{_ui("Annuler")}</button><button type="submit" disabled={busy} className="rounded bg-indigo-600 px-4 py-2 text-white disabled:opacity-50">{busy?_ui("Confirmation…"):_ui("Confirmer la valorisation")}</button></div>
+   <div className="flex justify-end gap-2"><button type="button" disabled={busy} onClick={onClose} className="rounded border px-4 py-2">{_ui("Annuler")}</button><button type="submit" disabled={busy} className="rounded bg-brand px-4 py-2 text-white disabled:opacity-50">{busy?_ui("Confirmation…"):_ui("Confirmer la valorisation")}</button></div>
   </form>
- </dialog>,document.body)
+ </Modal>
 }
