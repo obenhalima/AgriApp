@@ -1,8 +1,9 @@
 import { execFile } from 'node:child_process'
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const exec = promisify(execFile)
 const max = 10_000_000
@@ -26,8 +27,13 @@ export async function preprocessInvoice(bytes, type = invoiceMime(bytes)) {
     let text = ''
     let inputs = [input]
     if (type === 'application/pdf') {
-      const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs')
-      const document = await getDocument({ data: Uint8Array.from(bytes), isEvalSupported: false, disableFontFace: true }).promise
+      const engine = import.meta.resolve('pdfjs-dist/legacy/build/pdf.mjs')
+      const { getDocument } = await import(engine)
+      const document = await getDocument({
+        data: Uint8Array.from(bytes), isEvalSupported: false, disableFontFace: true,
+        standardFontDataUrl: fileURLToPath(new URL('../../standard_fonts/', engine)),
+        cMapUrl: fileURLToPath(new URL('../../cmaps/', engine)), cMapPacked: true,
+      }).promise
       try {
         const pageTexts = []
         for (let number = 1; number <= Math.min(5, document.numPages); number++) {
@@ -57,4 +63,20 @@ export async function preprocessInvoice(bytes, type = invoiceMime(bytes)) {
     if (!pages.length) throw Error('Aucune page lisible.')
     return { pages, text }
   } finally { await rm(dir, { recursive: true, force: true }) }
+}
+
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
+  console.log = console.error
+  try {
+    const file = process.argv[2]
+    if (!file) throw Error('Indiquez le chemin d’une facture.')
+    if ((await stat(file)).size > max) throw Error('Fichier supérieur à 10 Mo.')
+    const bytes = await readFile(file)
+    const type = invoiceMime(bytes)
+    const prepared = await preprocessInvoice(bytes, type)
+    process.stdout.write(JSON.stringify({ type, ...prepared }))
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : 'Prétraitement impossible.')
+    process.exitCode = 1
+  }
 }
