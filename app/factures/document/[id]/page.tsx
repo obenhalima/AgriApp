@@ -9,6 +9,7 @@ import type {InvoiceDocument,InvoiceKind} from '@/lib/invoiceDocumentModel'
 import {InvoiceSheet} from '@/components/invoices/InvoiceSheet'
 import {Button} from '@/components/ui/Button'
 import {supabase} from '@/lib/supabase'
+import { importBucket, openInvoiceOriginal } from '@/lib/supplierInvoiceImport'
 export default function InvoiceDocumentPage(){
   const {t:translateUI}=useLanguage()
 
@@ -17,6 +18,21 @@ export default function InvoiceDocumentPage(){
  const [doc,setDoc]=useState<InvoiceDocument|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[retry,setRetry]=useState(0)
  const current=useRef(''),scope=`${activeDomain?.domain_id}:${domain}:${kind}:${id}`;current.current=scope
  const [loadedScope,setLoadedScope]=useState(''),visible=loadedScope===scope?doc:null,printed=useRef('')
+ const [original, setOriginal] = useState<{ object_path: string; filename: string } | null>(null)
+ useEffect(() => {
+   let live = true
+   setOriginal(null)
+   if (visible && kind === 'fournisseur') void openInvoiceOriginal(domain, id).then(path => { if (live) setOriginal(path) }).catch(() => {})
+   return () => { live = false }
+ }, [visible, kind, domain, id])
+ async function downloadOriginal() {
+   if (!original) return
+   const requestScope = scope
+   const result = await supabase.storage.from(importBucket).createSignedUrl(original.object_path, 60, { download: original.filename })
+   if (current.current !== requestScope) return
+   if (result.error) { setError('Document original indisponible.'); return }
+   window.location.assign(result.data.signedUrl)
+ }
  const [settlements,setSettlements]=useState<{id:string}[]>([])
  useEffect(()=>{
   let stale=false;setSettlements([])
@@ -43,6 +59,7 @@ export default function InvoiceDocumentPage(){
  return <div className="invoice-document-page"><nav className="invoice-document-toolbar" aria-label={translateUI("Actions de la facture")}>
   <Link href="/factures" className="btn btn-secondary"><TranslatedText text={"Retour aux factures"}/></Link>
   <Button disabled={!visible||busy} onClick={()=>void download()}><TranslatedText text={busy?'Préparation…':'Télécharger PDF'}/></Button>
+  {visible && original && <Button variant="secondary" onClick={() => void downloadOriginal()}>Télécharger l’original</Button>}
   <Button variant="secondary" disabled={!visible} onClick={()=>window.print()}><TranslatedText text={"Imprimer"}/></Button>
   {visible&&Number(visible.invoice.total_amount||0)>Number(visible.invoice.paid_amount||0)&&<Link className="btn btn-primary" href={`/factures?tab=${kind==='client'?'clients':'fournisseurs'}&invoice=${encodeURIComponent(id)}&domain=${encodeURIComponent(domain)}&action=payment`}><TranslatedText text={kind==='client'?'Encaisser':'Régler'}/></Link>}
   {visible&&settlements.map((settlement,index)=><Link key={settlement.id} className="btn btn-secondary" target="_blank" rel="noopener noreferrer" href={`/factures/bordereau/${encodeURIComponent(settlement.id)}/print`}><TranslatedText text={"Bordereau"}/>{settlements.length>1?` ${index+1}`:''}</Link>)}

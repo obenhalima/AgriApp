@@ -227,15 +227,18 @@ export const createFactureFournisseur = async (p: {
   cost_category?:string
   notes?:string
   po_id?:string  // lien optionnel vers le bon d'achat
+  invoiceImport?: { id: string; number: string; tax: number; currency: string; review: unknown }
 }) => {
-  const num = `FF-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`
+  const { invoiceImport, ...values } = p
+  const num = invoiceImport?.number || `FF-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`
   const { data, error } = await supabase.from('supplier_invoices').insert({
-    ...p,
+    ...values,
+    ...(invoiceImport ? { supplier_invoice_import_id: invoiceImport.id, supplier_invoice_review: invoiceImport.review } : {}),
     invoice_number: num,
-    tax_amount: 0,
+    tax_amount: invoiceImport?.tax ?? 0,
     paid_amount: 0,
     status: 'en_attente',
-    currency: 'MAD',
+    currency: invoiceImport?.currency ?? 'MAD',
   }).select('*, suppliers(name,category), campaigns(name), greenhouses(code,name), purchase_orders(po_number, total_amount)').single()
   if (error) throw error; return data
 }

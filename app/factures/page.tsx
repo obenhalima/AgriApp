@@ -1,4 +1,8 @@
 'use client'
+
+import { SupplierInvoiceImports, SupplierInvoicePreview, SupplierImportLines, SupplierImportDetails } from '@/components/invoices/SupplierInvoiceImports'
+import { SupplierCreateModal } from '@/components/suppliers/SupplierCreateModal'
+import { invoiceImportLink, matchSupplier, stockSuggestion, unitFactor, type ExtractedLine, type ImportData, type InvoiceImport, type LineMatch, type StockOption } from '@/lib/supplierInvoiceImport'
 import {useLanguage, TranslatedText} from '@/lib/i18n'
 
 import '@/components/ui/workspace.css'
@@ -84,7 +88,7 @@ const STATUS_CONFIG: Record<string, { variant: 'success' | 'warning' | 'danger' 
 export default function FacturesPage() {
  const {t:_ui,text:_uiNode,intlLocale:_uiLocale}=useLanguage()
 
-  const { activeDomain, isAdmin, isPlatformAdmin } = useAuth()
+  const { activeDomain, isAdmin, isPlatformAdmin, hasPermission } = useAuth()
   const { values: PAY_METHODS } = useReferenceList('payment_method')
   const [tab, setTab] = useState<InvoiceTab>('clients')
   const [modal, setModal] = useState<ModalType>(null)
@@ -108,6 +112,19 @@ export default function FacturesPage() {
 
   const [clientForm, setClientForm] = useState({ client_id: '', invoice_date: '', due_date: '', subtotal: '', notes: '' })
   const [clientPaymentForm, setClientPaymentForm] = useState({ amount: '', payment_method: 'virement', reference: '' })
+  const [invoiceImport, setInvoiceImport] = useState<InvoiceImport | null>(null)
+  const [importDomain, setImportDomain] = useState('')
+  const activeImportDomain = useRef(activeDomain?.domain_id)
+  activeImportDomain.current = activeDomain?.domain_id
+  const reviewRequest = useRef(0)
+  const prefilledPurchase = useRef('')
+  const [reviewFields, setReviewFields] = useState({ number: '', currency: '', vat: '', stamp: '', total: '' })
+  const [reviewData, setReviewData] = useState<ImportData | null>(null)
+  const [reviewLines, setReviewLines] = useState<ExtractedLine[]>([])
+  const [lineMatches, setLineMatches] = useState<LineMatch[]>([])
+  const [stockOptions, setStockOptions] = useState<StockOption[]>([])
+  const [newSupplier, setNewSupplier] = useState(false)
+  const [duplicateInvoice, setDuplicateInvoice] = useState('')
   const [supplierForm, setSupplierForm] = useState({
     supplier_id: '', po_id: '', campaign_id: '', greenhouse_id: '', cost_category: 'services',
     invoice_date: '', due_date: '', subtotal: '', notes: '',
@@ -294,9 +311,13 @@ export default function FacturesPage() {
   // ─── Pré-remplir depuis ?po=<id> (lien depuis page achat) ──────────────
   useEffect(() => {
     const poId = searchParams?.get('po')
-    if (!poId || purchaseOrders.length === 0) return
+    if (!poId) { prefilledPurchase.current = ''; return }
+    if (!activeDomain || purchaseOrders.length === 0) return
+    const key = activeDomain.domain_id + ':' + poId
+    if (prefilledPurchase.current === key) return
     const po = purchaseOrders.find(p => p.id === poId)
     if (!po) return
+    prefilledPurchase.current = key
     // Pré-remplit le formulaire et ouvre la modale
     const today = new Date().toISOString().slice(0, 10)
     const due = new Date(); due.setDate(due.getDate() + 30)
@@ -313,7 +334,7 @@ export default function FacturesPage() {
     })
     setTab('fournisseurs')
     setModal('facture_fournisseur')
-  }, [searchParams, purchaseOrders])
+  }, [searchParams, purchaseOrders, activeDomain])
 
   // ─── Dérivations ─────────────────────────────────────────────────────────
   const effClient = useMemo(() => clientInvoices.map(i => ({ ...i, effectiveStatus: getEffectiveStatus(i) })), [clientInvoices])
@@ -449,6 +470,11 @@ export default function FacturesPage() {
 
   // ─── Actions ─────────────────────────────────────────────────────────────
   const resetModalState = () => {
+    if (invoiceImport) setSupplierForm({ supplier_id: '', po_id: '', campaign_id: '', greenhouse_id: '', cost_category: 'services', invoice_date: '', due_date: '', subtotal: '', notes: '' })
+    reviewRequest.current++
+    setInvoiceImport(null)
+    setNewSupplier(false)
+    setDuplicateInvoice('')
     setDone(false); setPaymentError(''); setModal(null)
     setSelectedClientInvoice(null); setSelectedSupplierInvoice(null)
   }
@@ -469,20 +495,111 @@ export default function FacturesPage() {
     setSaving(false)
   }
 
+  async function reviewSupplierImport(entry: InvoiceImport) {
+    const data = entry.extracted_data
+    if (!data || !activeDomain) return
+    const domain = activeDomain.domain_id
+    const supplier = matchSupplier(data.supplier, suppliers)
+    const purchase = purchaseOrders.find(po => supplier && po.supplier_id === supplier.id &&
+      data.invoice.purchase_order_ref?.trim().toUpperCase() === po.po_number?.trim().toUpperCase())
+    const request = ++reviewRequest.current
+    const [items, history, phyto] = await Promise.all([
+      supabase.from('stock_items').select('id,code,name,unit,plant_protection_product_id')
+        .eq('domain_id', domain).eq('is_active', true).order('name'),
+      supplier ? supabase.from('supplier_invoice_imports')
+        .select('validated_data,supplier_invoices!supplier_invoice_imports_invoice_id_fkey!inner(supplier_id)')
+        .eq('domain_id', domain).eq('status', 'validated').eq('supplier_invoices.supplier_id', supplier.id)
+        .order('validated_at', { ascending: false }).limit(20) : Promise.resolve({ data: [] }),
+      supabase.from('plant_protection_products').select('id,commercial_name,authorization_number')
+        .eq('domain_id', domain).eq('is_active', true),
+    ])
+    if (request !== reviewRequest.current || activeImportDomain.current !== domain) return
+    const phytoById = new Map((phyto.data ?? []).map(product => [product.id, product]))
+    const options: StockOption[] = (items.data ?? []).map(item => {
+      const reference = phytoById.get(item.plant_protection_product_id)
+      return { ...item, phytoName: reference?.commercial_name, phytoCode: reference?.authorization_number }
+    })
+    const prior = (history.data ?? []).flatMap(row => row.validated_data?.stock_matches ?? [])
+    setDuplicateInvoice('')
+    setImportDomain(domain)
+    setInvoiceImport(entry)
+    setStockOptions(options)
+    setReviewData(data)
+    setReviewLines(data.lines)
+    setLineMatches(data.lines.map(line => {
+      const historic = prior.find(item => (line.product_code && line.product_code === item.product_code) ||
+        (line.description && line.description === item.description))
+      const item = stockSuggestion(line, options, historic?.stock_item_id)
+      return { stock_item_id: item?.id ?? '', factor: item ? unitFactor(line, item.unit) : '' }
+    }))
+    setReviewFields({
+      number: data.invoice.number ?? '', currency: data.invoice.currency ?? '',
+      vat: String(data.totals.total_vat ?? ''), stamp: String(data.totals.stamp_duty ?? ''),
+      total: String(data.totals.total_ttc ?? ''),
+    })
+    setSupplierForm({
+      supplier_id: supplier?.id ?? '', po_id: purchase?.id ?? '', campaign_id: purchase?.campaign_id ?? '',
+      greenhouse_id: purchase?.greenhouse_id ?? '', cost_category: 'services',
+      invoice_date: data.invoice.date ?? '', due_date: data.invoice.due_date ?? '',
+      subtotal: String(data.totals.total_ht ?? ''), notes: '',
+    })
+    setModal('facture_fournisseur')
+  }
+
+  function importIssue(path: string) {
+    const issue = invoiceImport?.checks.find(check => check.path === path)?.message
+    const confidence = invoiceImport?.extracted_data?.confidence[path]
+    return issue || (invoiceImport && (confidence ?? 0) < 0.8 ? 'Confiance faible dans la lecture. Vérifiez ce champ.' : undefined)
+  }
+
   const saveSupplierInvoice = async () => {
+    if (saving) return
     if (!supplierForm.supplier_id || !supplierForm.invoice_date || !supplierForm.due_date || !supplierForm.subtotal) {
       toast.error(_ui("Champs requis manquants"))
       return
     }
     setSaving(true)
     try {
-      const total = Number(supplierForm.subtotal)
+      const subtotal = Number(supplierForm.subtotal)
+      let total = subtotal
+      let imported: Parameters<typeof createFactureFournisseur>[0]['invoiceImport']
+      if (invoiceImport) {
+        setDuplicateInvoice('')
+        if (activeDomain?.domain_id !== importDomain) throw Error('Le client actif a changé.')
+        if (!reviewData) throw Error('Données d’import indisponibles.')
+        const vat = Number(reviewFields.vat)
+        const stamp = Number(reviewFields.stamp || 0)
+        const tax = vat + stamp
+        total = Number(reviewFields.total)
+        const number = reviewFields.number.trim()
+        const currency = reviewFields.currency.trim().toUpperCase()
+        if (!number || number.length > 30 || !/^[A-Z]{3}$/.test(currency)) throw Error('Vérifiez le numéro original et la devise.')
+        if (!reviewFields.vat.trim() || !reviewFields.total.trim() || ![subtotal, vat, stamp, total].every(Number.isFinite)
+          || Math.min(subtotal, vat, stamp) < 0 || total <= 0 || Math.abs(Math.round((subtotal + tax - total) * 100)) > 5) {
+          throw Error('Vérifiez le HT, les taxes et le TTC.')
+        }
+        if (lineMatches.some(match => match.stock_item_id && !match.confirmed)) throw Error('Confirmez ou retirez les rapprochements d’articles proposés.')
+        if (lineMatches.some(match => match.stock_item_id && !(Number(match.factor) > 0 && Number.isFinite(Number(match.factor))))) {
+          throw Error('Indiquez une conversion positive pour chaque article sélectionné.')
+        }
+        const data = reviewData
+        const verifiedData = {
+          ...data, lines: reviewLines,
+          invoice: { ...data.invoice, number, currency, date: supplierForm.invoice_date, due_date: supplierForm.due_date },
+          totals: { ...data.totals, total_ht: subtotal, total_vat: vat, stamp_duty: reviewFields.stamp ? stamp : null, total_ttc: total },
+        }
+        imported = { id: invoiceImport.id, number, tax, currency,
+          review: { data: verifiedData, supplier_id: supplierForm.supplier_id,
+            stock_matches: lineMatches.flatMap((match, index) => match.stock_item_id ? [{
+              ...match, description: reviewLines[index]?.description, product_code: reviewLines[index]?.product_code,
+            }] : []) } }
+      }
       const created = await createFactureFournisseur({
         ...supplierForm,
         campaign_id: supplierForm.campaign_id || undefined,
         greenhouse_id: supplierForm.greenhouse_id || undefined,
         po_id: supplierForm.po_id || undefined,
-        subtotal: total, total_amount: total,
+        subtotal, total_amount: total, invoiceImport: imported,
       })
       setSupplierInvoices(p => [created, ...p]); setDone(true)
       toast.success(_ui("✅ Facture fournisseur créée") + (supplierForm.po_id ? _ui("et liée au bon d'achat") : ''))
@@ -491,7 +608,7 @@ export default function FacturesPage() {
         setSupplierForm({ supplier_id: '', po_id: '', campaign_id: '', greenhouse_id: '', cost_category: 'services', invoice_date: '', due_date: '', subtotal: '', notes: '' })
       }, 1200)
     } catch (e: any) {
-      console.error('[saveSupplierInvoice]', e)
+      if (invoiceImport && /^[0-9a-f-]{36}$/i.test(e.details ?? '')) setDuplicateInvoice(e.details)
       toast.error(_ui("Erreur :") + e.message)
     }
     setSaving(false)
@@ -508,7 +625,7 @@ export default function FacturesPage() {
       supplier_id: po.supplier_id ?? f.supplier_id,
       campaign_id: po.campaign_id ?? f.campaign_id,
       greenhouse_id: po.greenhouse_id ?? f.greenhouse_id,
-      subtotal: String(po.total_amount ?? f.subtotal),
+      subtotal: invoiceImport ? f.subtotal : String(po.total_amount ?? f.subtotal),
       notes: f.notes || `Facture liée au bon d'achat ${po.po_number}`,
     }))
   }
@@ -571,10 +688,12 @@ export default function FacturesPage() {
         </Modal>
       )}
 
-      {modal === 'facture_fournisseur' && (
-        <Modal title={_ui("Nouvelle facture fournisseur")} onClose={resetModalState} size="lg">
+      {modal === 'facture_fournisseur' && !newSupplier && (!invoiceImport || activeDomain?.domain_id === importDomain) && (
+        <Modal title={_ui("Nouvelle facture fournisseur")} onClose={resetModalState} size={invoiceImport ? 'xl' : 'lg'} busy={saving}>
           {done ? <SuccessMessage message={_ui("Facture fournisseur créée !")} /> : (
-            <div className="space-y-md">
+            <div className={invoiceImport ? 'grid gap-4 lg:grid-cols-2' : ''}>
+              {invoiceImport && <SupplierInvoicePreview key={invoiceImport.id} entry={invoiceImport} />}
+              <div className="space-y-md min-w-0">
               {/* Lien optionnel vers un bon d'achat */}
               <Field label={_ui("Bon d'achat lié (optionnel)")} hint={_ui("Sélectionne pour auto-remplir fournisseur + montant")}>
                 <TSelect value={supplierForm.po_id} onChange={(e) => selectPoForInvoice(e.target.value)}>
@@ -589,15 +708,21 @@ export default function FacturesPage() {
                 </TSelect>
               </Field>
 
-              <Field label={_ui("Fournisseur")} required>
+              <Field label={_ui("Fournisseur")} error={importIssue('supplier.name')} required>
                 <TSelect value={supplierForm.supplier_id} onChange={(e) => setSupplierForm(f => ({ ...f, supplier_id: e.target.value, po_id: '' }))}>
                   <option value="">{_ui("— Sélectionner —")}</option>
                   {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </TSelect>
               </Field>
+              {invoiceImport && !supplierForm.supplier_id && hasPermission('fournisseurs', 'create') &&
+                <Button variant="secondary" onClick={() => setNewSupplier(true)}>Créer le fournisseur</Button>}
+              {invoiceImport && <div className="grid grid-cols-2 gap-2">
+                <Field label="Numéro original" required error={importIssue('invoice.number')}><TInput title={importIssue('invoice.number')} value={reviewFields.number} onChange={e => setReviewFields(f => ({ ...f, number: e.target.value }))} /></Field>
+                <Field label="Devise" required error={importIssue('invoice.currency')}><TInput title={importIssue('invoice.currency')} maxLength={3} value={reviewFields.currency} onChange={e => setReviewFields(f => ({ ...f, currency: e.target.value }))} /></Field>
+              </div>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
-                <Field label={_ui("Date facture")} required><TInput type="date" value={supplierForm.invoice_date} onChange={(e) => setSupplierForm(f => ({ ...f, invoice_date: e.target.value }))} /></Field>
-                <Field label={_ui("Date échéance")} required><TInput type="date" value={supplierForm.due_date} onChange={(e) => setSupplierForm(f => ({ ...f, due_date: e.target.value }))} /></Field>
+                <Field label={_ui("Date facture")} error={importIssue('invoice.date')} required><TInput title={importIssue('invoice.date')} type="date" value={supplierForm.invoice_date} onChange={(e) => setSupplierForm(f => ({ ...f, invoice_date: e.target.value }))} /></Field>
+                <Field label={_ui("Date échéance")} error={importIssue('invoice.due_date')} required><TInput title={importIssue('invoice.due_date')} type="date" value={supplierForm.due_date} onChange={(e) => setSupplierForm(f => ({ ...f, due_date: e.target.value }))} /></Field>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
                 <Field label={_ui("Campagne")}>
@@ -619,14 +744,34 @@ export default function FacturesPage() {
                     {['semences', 'engrais', 'phytosanitaires', 'irrigation', 'emballage', 'transport', 'energie', 'services', 'equipement', 'divers'].map(c => <option key={c} value={c}>{c}</option>)}
                   </TSelect>
                 </Field>
-                <Field label={_ui("Montant total (MAD)")} required><TInput type="number" value={supplierForm.subtotal} onChange={(e) => setSupplierForm(f => ({ ...f, subtotal: e.target.value }))} /></Field>
+                <Field label={invoiceImport ? 'Montant HT' : _ui("Montant total (MAD)")} error={importIssue('totals.total_ht')} required><TInput title={importIssue('totals.total_ht')} type="number" value={supplierForm.subtotal} onChange={(e) => setSupplierForm(f => ({ ...f, subtotal: e.target.value }))} /></Field>
               </div>
+              {invoiceImport && <>
+                <div className="grid grid-cols-3 gap-2">
+                  {([{ key: 'vat', label: 'TVA', path: 'totals.total_vat' }, { key: 'stamp', label: 'Timbre', path: 'totals.stamp_duty' },
+                    { key: 'total', label: 'TTC', path: 'totals.total_ttc' }] as const).map(({ key, label, path }) =>
+                      <Field key={key} label={label} error={importIssue(path)}><TInput title={importIssue(path)} type="number" value={reviewFields[key]} onChange={e => setReviewFields(f => ({ ...f, [key]: e.target.value }))} /></Field>)}
+                </div>
+                {reviewData && <SupplierImportDetails data={reviewData} issue={importIssue} onChange={setReviewData} />}
+                <SupplierImportLines lines={reviewLines} matches={lineMatches} options={stockOptions}
+                  issue={importIssue} onLines={setReviewLines} onMatches={setLineMatches} />
+                {invoiceImport.checks.length > 0 && <ul className="list-disc pl-5">{invoiceImport.checks.map(check =>
+                  <li key={check.path + check.message}>{check.message}</li>)}</ul>}
+                {invoiceImport.extracted_data?.warnings.map((warning, index) => <p key={index}>{warning}</p>)}
+                {duplicateInvoice && <Link href={invoiceImportLink(duplicateInvoice, importDomain)}>Voir la facture existante</Link>}
+              </>}
               <Field label={_ui("Notes")}><Textarea rows={2} value={supplierForm.notes} onChange={(e) => setSupplierForm(f => ({ ...f, notes: e.target.value }))} /></Field>
               <ModalFooter onCancel={resetModalState} onSave={saveSupplierInvoice} loading={saving} disabled={!supplierForm.supplier_id || !supplierForm.invoice_date || !supplierForm.due_date || !supplierForm.subtotal} saveLabel={_ui("Créer la facture")} />
+              </div>
             </div>
           )}
         </Modal>
       )}
+      {invoiceImport && newSupplier && activeDomain?.domain_id === importDomain && <SupplierCreateModal key={invoiceImport.id} open initial={reviewData?.supplier}
+        onClose={() => setNewSupplier(false)} onCreated={supplier => {
+          setSuppliers(current => [...current, supplier]); setNewSupplier(false)
+          setSupplierForm(current => ({ ...current, supplier_id: supplier.id, po_id: '' }))
+        }} />}
 
       {modal === 'paiement_client' && selectedClientInvoice && (
         <Modal title={_ui("Encaisser une facture client")} onClose={resetModalState}>
@@ -705,6 +850,8 @@ export default function FacturesPage() {
         }
       />
 
+      {tab === 'fournisseurs' && activeDomain && <SupplierInvoiceImports key={activeDomain.domain_id} domain={activeDomain.domain_id}
+        canUpload={hasPermission('achats', 'create')} onReview={entry => void reviewSupplierImport(entry)} />}
       {invoiceLoadError && <div role="alert" className="mb-4 rounded-lg border border-red-300 bg-red-50 p-4 text-red-800">
         <p>{_ui(invoiceLoadError)}</p>
         <Button variant="secondary" onClick={() => void load()}>{_ui('Réessayer')}</Button>

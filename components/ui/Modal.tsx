@@ -34,7 +34,7 @@ interface ModalProps {
   title: string
   onClose: () => void
   children: ReactNode
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
   dirty?: boolean
   busy?: boolean
 }
@@ -53,7 +53,7 @@ export function Modal({ title, onClose, children, size='md',dirty,busy=false }: 
   const returnFocusRef = useRef<HTMLElement | null>(
     typeof document !== 'undefined' && document.activeElement instanceof HTMLElement ? document.activeElement : null
   )
-  const maxW = size==='lg' ? 860 : size==='sm' ? 420 : 580
+  const maxW = size==='xl' ? 1300 : size==='lg' ? 860 : size==='sm' ? 420 : 580
   return (
     <DiscardContext.Provider value={requestClose}>
     <Dialog.Root open onOpenChange={open => { if (!open) requestClose(onClose) }}>

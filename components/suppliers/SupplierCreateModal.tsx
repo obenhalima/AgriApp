@@ -36,27 +36,31 @@ function suggestCode(name: string): string {
   return `${prefix}-${String(Date.now()).slice(-4)}`
 }
 
-export type CreatedSupplier = { id: string; code: string; name: string; category: string }
+export type CreatedSupplier = { id: string; code: string; name: string; category: string; ice?: string; if_number?: string }
 
 export function SupplierCreateModal(props: {
   open: boolean
   onClose: () => void
   onCreated: (supplier: CreatedSupplier) => void
   initialCategory?: SupplierCategory
+  initial?: Record<string, string | null>
 }) {
  const {t:_ui,text:_uiNode}=useLanguage()
 
   const { activeDomain } = useAuth()
-  const { open, onClose, onCreated, initialCategory = 'autre' } = props
+  const { open, onClose, onCreated, initialCategory = 'autre', initial } = props
 
-  const [name, setName] = useState('')
-  const [code, setCode] = useState('')
+  const [name, setName] = useState(initial?.name ?? '')
+  const [code, setCode] = useState(initial?.name ? suggestCode(initial.name) : '')
   const [codeTouched, setCodeTouched] = useState(false)
   const [category, setCategory] = useState<SupplierCategory>(initialCategory)
-  const [city, setCity] = useState('')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
+  const [city, setCity] = useState(initial?.city ?? '')
+  const [email, setEmail] = useState(initial?.email ?? '')
+  const [phone, setPhone] = useState(initial?.phone ?? '')
   const [contactName, setContactName] = useState('')
+  const [address, setAddress] = useState(initial?.address ?? '')
+  const [ice, setIce] = useState(initial?.ice ?? '')
+  const [fiscal, setFiscal] = useState(initial?.if_number ?? '')
   const [paymentTermsDays, setPaymentTermsDays] = useState('30')
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
@@ -81,10 +85,12 @@ export function SupplierCreateModal(props: {
     setError('')
     if (!activeDomain) { setError('Aucun domaine actif'); return }
     if (!name.trim() || !code.trim()) { setError('Nom et code sont requis'); return }
+    if (initial && ice.trim() && !/^\d{15}$/.test(ice.trim())) { setError('L’ICE doit comporter 15 chiffres.'); return }
     setSaving(true)
     try {
       const { data, error: e } = await supabase.from('suppliers').insert({
         domain_id: activeDomain.domain_id,
+        ...(initial ? { address: address.trim() || null, ice: ice.trim() || null, if_number: fiscal.trim() || null } : {}),
         code: code.trim(),
         name: name.trim(),
         category,
@@ -98,7 +104,7 @@ export function SupplierCreateModal(props: {
         is_active: true,
       }).select('id, code, name, category').single()
       if (e) throw e
-      onCreated(data as CreatedSupplier)
+      onCreated({ ...data, ...(initial ? { ice: ice.trim() || undefined, if_number: fiscal.trim() || undefined } : {}) })
       reset()
       onClose()
     } catch (e: any) {
@@ -154,6 +160,13 @@ export function SupplierCreateModal(props: {
         </FormGroup>
       </FormRow>
 
+      {initial && <>
+        <FormRow>
+          <FormGroup label="ICE"><Input value={ice} onChange={e => setIce(e.target.value)} /></FormGroup>
+          <FormGroup label="Identifiant fiscal"><Input value={fiscal} onChange={e => setFiscal(e.target.value)} /></FormGroup>
+        </FormRow>
+        <FormGroup label="Adresse"><Input value={address} onChange={e => setAddress(e.target.value)} /></FormGroup>
+      </>}
       <FormGroup label={_ui("Notes")}>
         <Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} />
       </FormGroup>
