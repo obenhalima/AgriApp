@@ -1,0 +1,60 @@
+import { execFile } from 'node:child_process'
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { promisify } from 'node:util'
+
+const exec = promisify(execFile)
+const max = 10_000_000
+const run = (command, args) => exec(command, args, { timeout: 30_000, windowsHide: true, maxBuffer: 1_000_000 })
+
+export function invoiceMime(bytes) {
+  if (bytes.subarray(0, 5).toString() === '%PDF-') return 'application/pdf'
+  if (bytes.subarray(0, 3).toString('hex') === 'ffd8ff') return 'image/jpeg'
+  if (bytes.subarray(0, 8).toString('hex') === '89504e470d0a1a0a') return 'image/png'
+  if (bytes.subarray(4, 8).toString() === 'ftyp' && /heic|heix|hevc|hevx/.test(bytes.subarray(8, 32).toString())) return 'image/heic'
+  throw new Error('Format de facture non reconnu.')
+}
+
+export async function preprocessInvoice(bytes, type = invoiceMime(bytes)) {
+  if (bytes.length > max || type !== invoiceMime(bytes)) throw Error('Fichier invalide ou supérieur à 10 Mo.')
+  const dir = await mkdtemp(join(tmpdir(), 'supplier-invoice-'))
+  try {
+    const suffix = { 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/heic': 'heic' }[type]
+    const input = join(dir, 'source.' + suffix)
+    await writeFile(input, bytes, { mode: 0o600 })
+    let text = ''
+    let inputs = [input]
+    if (type === 'application/pdf') {
+      const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs')
+      const document = await getDocument({ data: Uint8Array.from(bytes), isEvalSupported: false, disableFontFace: true }).promise
+      try {
+        const pageTexts = []
+        for (let number = 1; number <= Math.min(5, document.numPages); number++) {
+          const page = await document.getPage(number)
+          const content = await page.getTextContent()
+          pageTexts.push(content.items.map(item => item.str ?? '').join(' '))
+        }
+        text = pageTexts.join('\n').slice(0, 100_000)
+      } finally { await document.destroy() }
+      await run(process.env.PDFTOPPM_PATH || 'pdftoppm', ['-f', '1', '-l', '5', '-r', '150', '-scale-to', '2000', '-jpeg', input, join(dir, 'page')])
+      inputs = (await readdir(dir)).filter(name => /^page-\d+\.jpg$/.test(name))
+        .sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]))
+        .map(name => join(dir, name))
+    }
+
+    const pages = []
+    for (const [index, source] of inputs.entries()) {
+      const output = join(dir, `render-${index}.jpg`)
+      await run(process.env.MAGICK_PATH || 'magick', [
+        '-limit', 'memory', '192MiB', '-limit', 'map', '256MiB', '-limit', 'disk', '256MiB',
+        `${source}[0]`, '-auto-orient', '-resize', '2000x2000>', '-strip', '-quality', '78', output,
+      ])
+      const page = await readFile(output)
+      if (page.length > 1_500_000) throw Error('Une page dépasse la taille maximale après compression.')
+      pages.push({ mimeType: 'image/jpeg', base64: page.toString('base64') })
+    }
+    if (!pages.length) throw Error('Aucune page lisible.')
+    return { pages, text }
+  } finally { await rm(dir, { recursive: true, force: true }) }
+}

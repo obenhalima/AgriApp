@@ -1,4 +1,4 @@
-import { invoiceSchema, jsonSchema, type InvoiceData } from './schema.ts'
+import { geminiSchema, invoiceSchema, jsonSchema, parseGeminiInvoice, type InvoiceData } from './schema.ts'
 
 export type ImagePage = { mimeType: 'image/jpeg' | 'image/png'; base64: string }
 export type ExtractionResult = {
@@ -46,7 +46,7 @@ export function createInvoiceExtractor(config: Config, request = fetch, wait = s
         contents: [{ role: 'user', parts: [{ text: prompt }, ...file.map(page => ({
           inlineData: { mimeType: page.mimeType, data: page.base64 },
         }))] }],
-        generationConfig: { temperature: 0, responseMimeType: 'application/json', responseJsonSchema: jsonSchema },
+        generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: geminiSchema },
       } : {
         model, stream: false, options: { temperature: 0 }, format: jsonSchema,
         messages: [{ role: 'system', content: instructions }, { role: 'user', content: prompt, images: file.map(page => page.base64) }],
@@ -74,7 +74,7 @@ export function createInvoiceExtractor(config: Config, request = fetch, wait = s
         : (payload as OllamaResponse)?.message?.content
       if (!output) throw new Error('Le service d’extraction a renvoyé une réponse vide.')
       const raw: unknown = JSON.parse(output)
-      return { data: invoiceSchema.parse(raw), raw, provider, model, durationMs: Math.round(performance.now() - started) }
+      return { data: gemini ? parseGeminiInvoice(raw) : invoiceSchema.parse(raw), raw, provider, model, durationMs: Math.round(performance.now() - started) }
     },
   }
 }

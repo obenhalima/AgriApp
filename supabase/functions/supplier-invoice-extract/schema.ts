@@ -21,3 +21,48 @@ export const invoiceSchema = z.strictObject({
 })
 export type InvoiceData = z.infer<typeof invoiceSchema>
 export const jsonSchema = z.toJSONSchema(invoiceSchema)
+
+const geminiInvoiceSchema = invoiceSchema.extend({
+  // Gemini's responseSchema describes fixed model properties. Paths in the
+  // confidence map vary with the number of invoice lines.
+  confidence: z.array(z.strictObject({ path: z.string(), score: z.number().min(0).max(1) })),
+})
+
+type Schema = {
+  type?: string
+  anyOf?: Schema[]
+  required?: string[]
+  properties?: Record<string, Schema>
+  items?: Schema
+  minimum?: number
+  maximum?: number
+}
+
+function asGeminiSchema(schema: Schema): object {
+  if (schema.anyOf) {
+    const nonNull = schema.anyOf.find(variant => variant.type !== 'null')
+    if (!nonNull || !schema.anyOf.some(variant => variant.type === 'null')) throw Error('Type Gemini non pris en charge.')
+    return { ...asGeminiSchema(nonNull), nullable: true }
+  }
+
+  return {
+    type: schema.type?.toUpperCase(),
+    ...(schema.required ? { required: schema.required } : {}),
+    ...(schema.properties ? { properties: Object.fromEntries(
+      Object.entries(schema.properties).map(([key, value]) => [key, asGeminiSchema(value)]),
+    ) } : {}),
+    ...(schema.items ? { items: asGeminiSchema(schema.items) } : {}),
+    minimum: schema.minimum,
+    maximum: schema.maximum,
+  }
+}
+
+export const geminiSchema = asGeminiSchema(z.toJSONSchema(geminiInvoiceSchema) as Schema)
+
+export function parseGeminiInvoice(raw: unknown): InvoiceData {
+  const data = geminiInvoiceSchema.parse(raw)
+  return invoiceSchema.parse({
+    ...data,
+    confidence: Object.fromEntries(data.confidence.map(({ path, score }) => [path, score])),
+  })
+}
