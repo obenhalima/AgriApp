@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
@@ -29,6 +29,7 @@ export async function preprocessInvoice(bytes, type = invoiceMime(bytes)) {
     if (type === 'application/pdf') {
       const engine = import.meta.resolve('pdfjs-dist/legacy/build/pdf.mjs')
       const { getDocument } = await import(engine)
+      inputs = []
       const document = await getDocument({
         data: Uint8Array.from(bytes), isEvalSupported: false, disableFontFace: true,
         standardFontDataUrl: fileURLToPath(new URL('../../standard_fonts/', engine)),
@@ -40,13 +41,16 @@ export async function preprocessInvoice(bytes, type = invoiceMime(bytes)) {
           const page = await document.getPage(number)
           const content = await page.getTextContent()
           pageTexts.push(content.items.map(item => item.str ?? '').join(' '))
+          const { width, height } = page.getViewport({ scale: 150 / 72 })
+          const limit = Math.max(width, height) > 2000 ? ['-scale-to', '2000'] : []
+          const prefix = join(dir, 'page-' + number)
+          await run(process.env.PDFTOPPM_PATH || 'pdftoppm', [
+            '-f', String(number), '-l', String(number), '-singlefile', '-r', '150', ...limit, '-jpeg', input, prefix,
+          ])
+          inputs.push(prefix + '.jpg')
         }
         text = pageTexts.join('\n').slice(0, 100_000)
       } finally { await document.destroy() }
-      await run(process.env.PDFTOPPM_PATH || 'pdftoppm', ['-f', '1', '-l', '5', '-r', '150', '-scale-to', '2000', '-jpeg', input, join(dir, 'page')])
-      inputs = (await readdir(dir)).filter(name => /^page-\d+\.jpg$/.test(name))
-        .sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]))
-        .map(name => join(dir, name))
     }
 
     const pages = []

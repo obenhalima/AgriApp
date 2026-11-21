@@ -35,6 +35,10 @@ test('PDF rasterization and text are limited to the same first five pages', asyn
   assert.match(result.text, /Facture page 5/)
   assert.doesNotMatch(result.text, /Facture page 6/)
   for (const page of result.pages) assert.equal(invoiceMime(Buffer.from(page.base64, 'base64')), 'image/jpeg')
+  const dimensions = execFileSync(process.env.MAGICK_PATH || 'magick', ['identify', '-format', '%wx%h', '-'], {
+    input: Buffer.from(result.pages[0].base64, 'base64'), encoding: 'utf8',
+  })
+  assert.equal(dimensions, '417x521')
 })
 
 test('large photo is resized before extraction', async () => {
