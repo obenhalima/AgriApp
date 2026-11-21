@@ -212,14 +212,14 @@ function ClientPayroll({domainId}:{domainId:string}) {
         ) : (
           <DataTable minWidth={1200}>
             <THead>
-              <TR><TH>{_ui("Matricule")}</TH><TH>{_ui("Employé")}</TH><TH>{_ui('Ferme')}</TH><TH right>{_ui("Brut")}</TH><TH right>{_ui("CNSS sal.")}</TH><TH right>{_ui("AMO sal.")}</TH><TH right>{_ui("IR")}</TH><TH right>{_ui("Net à payer")}</TH><TH right>{_ui("CNSS pat.")}</TH><TH right>{_ui("Coût total")}</TH><TH>{_ui("Statut")}</TH></TR>
+              <TR><TH>{_ui("Employé")}</TH><TH>{_ui('Ferme')}</TH><TH right>{_ui("Brut")}</TH><TH right>{_ui("CNSS sal.")}</TH><TH right>{_ui("AMO sal.")}</TH><TH right>{_ui("IR")}</TH><TH right>{_ui("Net à payer")}</TH><TH right>{_ui("CNSS pat.")}</TH><TH right>{_ui("Coût total")}</TH><TH>{_ui("Statut")}</TH></TR>
             </THead>
             <tbody>
               {periodPayslips.map((ps, i) => {
                 const w = workers.find(x => x.id === ps.worker_id)
                 return (
                   <TR key={ps.id} animate delay={0.04 + i * 0.02}>
-                    <TD mono className="text-caption">{w?.matricule ?? '—'}</TD>
+
                     <TD className="font-display font-semibold text-fg-primary">{w ? `${w.last_name} ${w.first_name}` : '—'}</TD>
                     <TD>{farms.find(farm=>farm.id===w?.farm_id)?.name||'—'}</TD>
                     <TD right mono>{Math.round(ps.gross_salary).toLocaleString(_uiLocale)}</TD>

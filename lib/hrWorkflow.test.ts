@@ -12,10 +12,10 @@ it('enables the fortnight workflow for the pilot and 501 clients', () => {
   expect(usesFortnightPayroll(null)).toBe(false)
   expect(hrNavigation('STALSON')).toBe(NAV)
 })
-it('groups the pilot into four RH entries without duplicate production attendance or mutation of the standard menu', () => {
+it('includes client contribution settlements without duplicate production attendance or mutation of the standard menu', () => {
   const standard = NAV.map(group => ({section: group.section, paths: group.items.map(item => item.href)}))
   const nav = hrNavigation('DOM-BENHALIMA')
-  expect(nav.find(group => group.section === 'RESSOURCES HUMAINES')?.items.map(item => item.href)).toEqual(['/rh', '/rh/employes', '/pointage', '/rh/paie'])
+  expect(nav.find(group => group.section === 'RESSOURCES HUMAINES')?.items.map(item => item.href)).toEqual(['/rh', '/rh/employes', '/pointage', '/rh/paie', '/rh/cnss'])
   expect(nav.flatMap(group => group.items).filter(item => item.href === '/pointage')).toHaveLength(1)
   expect(nav.find(group => group.section === 'PRODUCTION')?.items.some(item => item.href === '/pointage')).toBe(false)
   expect(NAV.map(group => ({section: group.section, paths: group.items.map(item => item.href)}))).toEqual(standard)

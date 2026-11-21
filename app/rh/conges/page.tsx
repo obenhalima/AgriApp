@@ -154,7 +154,7 @@ export default function CongesPage() {
                   <TR key={lr.id} animate delay={0.04 + i * 0.02}>
                     <TD>
                       <div className="font-display font-semibold text-fg-primary">{w ? `${w.last_name} ${w.first_name}` : '—'}</div>
-                      {w?.matricule && <div className="font-mono text-[10px] text-fg-tertiary">{w.matricule}</div>}
+
                     </TD>
                     <TD>
                       {t ? (
@@ -192,7 +192,7 @@ export default function CongesPage() {
               <Field label={_ui("Employé")} required>
                 <TSelect value={form.worker_id ?? ''} onChange={f('worker_id')}>
                   <option value="">{_ui("— Sélectionner —")}</option>
-                  {workers.map(w => <option key={w.id} value={w.id}>{w.last_name} {w.first_name} {w.matricule ? `(${w.matricule})` : ''}</option>)}
+                  {workers.map(w => <option key={w.id} value={w.id}>{w.last_name} {w.first_name}</option>)}
                 </TSelect>
               </Field>
               <Field label={_ui("Type")} required>

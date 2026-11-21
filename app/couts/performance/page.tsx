@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
+import {readHarvestPerformance} from '@/lib/harvestPerformanceApi'
 import { withDeadline } from '@/lib/withDeadline'
 import { formatPlanNumber } from '@/lib/farmLayout'
 import { PerformanceDashboard } from '@/components/costs/PerformanceDashboard'
@@ -48,7 +49,7 @@ function PerformanceReport({entry}:{entry:AnalyticalScope}){
   setData(null);setSelected('');setError('');setBusy(false)
   if(start&&end&&start>end){setError('La fin de période doit être postérieure ou égale au début.');return}
   let cancelled=false;setBusy(true)
-  void withDeadline(signal=>supabase.rpc('get_farm_performance_data',{p_domain:domain,p_campaign:campaign||null,p_start:start||null,p_end:end||null}).abortSignal(signal),30000,'Le rapport ne répond pas après 30 secondes. Réessayez après avoir vérifié la connexion.').then(r=>{if(!cancelled){if(r.error)throw r.error;setData(r.data as PerformanceData)}}).catch(e=>{if(!cancelled)setError(e.message)}).finally(()=>{if(!cancelled)setBusy(false)})
+  void withDeadline(signal=>readHarvestPerformance(domain,campaign||null,start||null,end||null,signal),30000,'Le rapport ne répond pas après 30 secondes. Réessayez après avoir vérifié la connexion.').then(r=>{if(!cancelled){setData(r)}}).catch(e=>{if(!cancelled)setError(e.message)}).finally(()=>{if(!cancelled)setBusy(false)})
   return()=>{cancelled=true}
  },[domain,allowed,campaign,start,end,reload])
  const result=useMemo(()=>data?buildFarmPerformance(data,{farm,variety,level}):null,[data,farm,variety,level])
@@ -66,6 +67,7 @@ function PerformanceReport({entry}:{entry:AnalyticalScope}){
  if(!domain)return <p>{_ui("Sélectionnez un client / une société.")}</p>
  return <section className="itrix-workspace performance-report space-y-4" style={{color:'var(--tx-1)'}}>
   <nav aria-label={_ui("Parcours analytique")} className="flex flex-wrap gap-3 text-sm"><Link className="text-brand underline" href={analyticalHref('/agronomie/dashboard',domain,{campaign,farm})}>{_ui("← Vue de mon exploitation")}</Link><Link className="text-brand underline" href={analyticalHref('/couts/pilotage',domain,{campaign,farm,start,end})}>{_ui("Détail des charges du même périmètre →")}</Link></nav>
+  {!!data?.revenue_date_issues && <p role="alert" className="itrix-notice text-amber-700">{_ui("Des envois tarifés sont sans récolte source datée : contrôlez le récapitulatif des envois avant d’interpréter le CA.")}</p>}
   <PageHeader title={_ui("Performance & rentabilité")} subtitle={_ui("Pilotage analytique · {v0}",{v0:String(activeDomain?.domain_name)})} icon={BarChart3} iconColor="var(--neon)" description={_ui("De la vue d’ensemble à l’écriture source : explorez votre exploitation.")} actions={<Link href={analyticalHref('/couts/pilotage',domain,{campaign,farm,start,end})} className="btn btn-secondary">{_ui("Contrôler les coûts")}</Link>}/>
   <nav aria-label={_ui("Mode analytique")} className="flex flex-wrap gap-2 rounded-xl border border-border bg-surface-raised p-2"><button className={`btn ${mode==='explore'?'btn-primary':'btn-secondary'}`} aria-pressed={mode==='explore'} onClick={()=>setMode('explore')}>{_ui("Explorer les chiffres")}</button><button className={`btn ${mode==='compare'?'btn-primary':'btn-secondary'}`} aria-pressed={mode==='compare'} onClick={()=>setMode('compare')}>{_ui("Comparer et classer")}</button></nav>
   <section aria-label={_ui("Filtres analytiques")} className="card space-y-3 p-4">

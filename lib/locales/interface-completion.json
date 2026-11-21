@@ -1960,7 +1960,7 @@
     "Invoice total"
   ],
   "Paiements enregistrés": [
-    "المدفوعات المسجلة",
+    "الدفعات المسجلة",
     "Recorded payments"
   ],
   "Total du bon": [
@@ -4138,5 +4138,1101 @@
   "Déclarations partagées": [
     "تصريحات مشتركة",
     "Shared declarations"
+  ],
+  "Importer plusieurs quinzaines": [
+    "استيراد عدة فترات نصف شهرية",
+    "Import multiple fortnights"
+  ],
+  "Choisissez le classeur de la ferme. Chaque onglet daté sera contrôlé et enregistré dans sa quinzaine.": [
+    "اختر ملف المزرعة. سيتم فحص كل ورقة مؤرخة وحفظها في فترتها.",
+    "Choose the farm workbook. Each dated sheet will be checked and saved in its fortnight."
+  ],
+  "N = heures normales · S = heures supplémentaires · 8 h = 1 jour. Les tarifs, avances et paiements seront traités dans la paie.": [
+    "N = ساعات عادية · S = ساعات إضافية · 8 ساعات = يوم واحد. تعالج الأجور والسلف والمدفوعات في الرواتب.",
+    "N = normal hours · S = overtime · 8 h = 1 day. Rates, advances and payments are handled in payroll."
+  ],
+  "Classeur de plusieurs quinzaines": [
+    "ملف عدة فترات نصف شهرية",
+    "Multiple-fortnight workbook"
+  ],
+  "Associer les noms du fichier aux employés": [
+    "ربط أسماء الملف بالموظفين",
+    "Match workbook names to employees"
+  ],
+  "Correspondance automatique par nom exact": [
+    "مطابقة تلقائية بالاسم المطابق تماما",
+    "Automatic exact-name matching"
+  ],
+  "Enregistrer les quinzaines en brouillon": [
+    "حفظ الفترات كمسودة",
+    "Save fortnights as drafts"
+  ],
+  "Valider les quinzaines sélectionnées": [
+    "اعتماد الفترات المحددة",
+    "Validate selected fortnights"
+  ],
+  "Chaque quinzaine est enregistrée séparément. En cas d’erreur, les périodes réussies restent enregistrées et seules les autres sont à reprendre.": [
+    "تحفظ كل فترة بشكل مستقل. عند حدوث خطأ تبقى الفترات الناجحة محفوظة ويمكن إعادة محاولة البقية.",
+    "Each fortnight is saved separately. If an error occurs, successful periods stay saved and the remaining periods can be retried."
+  ],
+  "Complétez les heures manquantes ou confirmez les cellules vides à zéro.": [
+    "أكمل الساعات الناقصة أو أكد أن الخانات الفارغة تساوي صفرا.",
+    "Complete missing hours or confirm blank cells as zero."
+  ],
+  "Enregistrer les quinzaines sélectionnées ? Les valeurs déjà saisies peuvent être remplacées.": [
+    "هل تريد حفظ الفترات المحددة؟ قد تستبدل القيم المدخلة سابقا.",
+    "Save selected fortnights? Existing values may be replaced."
+  ],
+  "Le fichier dépasse 10 Mo.": [
+    "يتجاوز حجم الملف 10 ميغابايت.",
+    "The file exceeds 10 MB."
+  ],
+  "Cellules vides": [
+    "خانات فارغة",
+    "Blank cells"
+  ],
+  "À corriger": [
+    "يحتاج إلى تصحيح",
+    "Needs correction"
+  ],
+  "Prêt": [
+    "جاهز",
+    "Ready"
+  ],
+  "Actualiser l’aperçu": [
+    "تحديث المعاينة",
+    "Refresh preview"
+  ],
+  "Je confirme que les cellules vides correspondent à zéro heure.": [
+    "أؤكد أن الخانات الفارغة تعادل صفر ساعة.",
+    "I confirm that blank cells mean zero hours."
+  ],
+  "Période invalide ou en double.": [
+    "الفترة غير صالحة أو مكررة.",
+    "Invalid or duplicate period."
+  ],
+  "La date de l’onglet diffère de la période en C2.": [
+    "يختلف تاريخ الورقة عن الفترة في C2.",
+    "The sheet date differs from the period in C2."
+  ],
+  "Dates quotidiennes manquantes ou en double dans la ligne 6.": [
+    "تواريخ يومية ناقصة أو مكررة في الصف 6.",
+    "Missing or duplicate daily dates in row 6."
+  ],
+  "Nom manquant": [
+    "اسم مفقود",
+    "Missing name"
+  ],
+  "Nom manquant.": [
+    "الاسم مفقود.",
+    "Missing name."
+  ],
+  "Employé à associer.": [
+    "يجب ربط الموظف.",
+    "Employee needs matching."
+  ],
+  "Type N/S invalide.": [
+    "نوع N/S غير صالح.",
+    "Invalid N/S type."
+  ],
+  "Employé et type N/S en double.": [
+    "الموظف ونوع N/S مكرران.",
+    "Duplicate employee and N/S type."
+  ],
+  "Formule sans résultat exploitable.": [
+    "صيغة دون نتيجة قابلة للاستخدام.",
+    "Formula has no usable result."
+  ],
+  "Heures sans date à corriger dans le fichier.": [
+    "ساعات دون تاريخ يجب تصحيحها في الملف.",
+    "Undated hours must be corrected in the workbook."
+  ],
+  "N + S dépasse 24 heures.": [
+    "مجموع N و S يتجاوز 24 ساعة.",
+    "N + S exceeds 24 hours."
+  ],
+  "Aucune heure exploitable pour les employés de cette ferme.": [
+    "لا توجد ساعات قابلة للاستخدام لموظفي هذه المزرعة.",
+    "No usable hours for employees of this farm."
+  ],
+  "Aucun onglet QUINZAINE avec dates de début et de fin en C2.": [
+    "لا توجد ورقة QUINZAINE بتاريخ بداية ونهاية في C2.",
+    "No QUINZAINE sheet with start and end dates in C2."
+  ],
+  "Valeurs remplacées": [
+    "قيم مستبدلة",
+    "Replaced values"
+  ],
+  "Chargez le modèle ItriX rempli. Les quinzaines du classeur seront contrôlées ensemble.": [
+    "حمّل نموذج ItriX المعبأ. سيتم فحص الفترات نصف الشهرية في الملف معا.",
+    "Upload the completed ItriX template. The workbook’s fortnights will be checked together."
+  ],
+  "Le fichier appartient à un autre client ou une autre ferme.": [
+    "الملف يخص عميلا آخر أو مزرعة أخرى.",
+    "The file belongs to another client or farm."
+  ],
+  "Le manifeste des périodes ou le référentiel des employés est manquant.": [
+    "قائمة الفترات أو مرجع الموظفين مفقود.",
+    "The period manifest or employee reference sheet is missing."
+  ],
+  "Aucune période dans le classeur.": [
+    "لا توجد فترة في الملف.",
+    "No period in the workbook."
+  ],
+  "Les codes ItriX et les noms exacts sont reconnus automatiquement.": [
+    "يتم التعرف تلقائيا على رموز ItriX والأسماء المطابقة.",
+    "ItriX codes and exact names are recognized automatically."
+  ],
+  "Employés à identifier": [
+    "موظفون يجب تحديد هويتهم",
+    "Employees to identify"
+  ],
+  "Choisissez l’employé correspondant": [
+    "اختر الموظف المقابل",
+    "Choose the matching employee"
+  ],
+  "Corriger les anomalies dans l’application": [
+    "تصحيح الأخطاء داخل التطبيق",
+    "Correct issues in the application"
+  ],
+  "Quinzaine à corriger": [
+    "الفترة المراد تصحيحها",
+    "Fortnight to correct"
+  ],
+  "Afficher uniquement les lignes à corriger": [
+    "عرض الصفوف التي تحتاج إلى تصحيح فقط",
+    "Show only rows needing correction"
+  ],
+  "Rechercher un employé ou une ligne": [
+    "البحث عن موظف أو صف",
+    "Search for an employee or row"
+  ],
+  "Appliquer les corrections": [
+    "تطبيق التصحيحات",
+    "Apply corrections"
+  ],
+  "Annuler la saisie": [
+    "إلغاء الإدخال",
+    "Discard edits"
+  ],
+  "Additionner les lignes en double": [
+    "جمع الساعات في الصفوف المكررة",
+    "Add duplicate rows together"
+  ],
+  "Les cellules vides restent inconnues. Corrigez les heures ou le type N/S, puis appliquez les corrections pour relancer les contrôles.": [
+    "تبقى الخانات الفارغة غير محددة. صحح الساعات أو نوع N/S ثم طبق التصحيحات لإعادة الفحص.",
+    "Blank cells remain unknown. Correct the hours or N/S type, then apply corrections to run the checks again."
+  ],
+  "La fusion additionne les heures du même employé et du même type N/S. Choisissez un autre employé si les lignes concernent deux personnes différentes.": [
+    "يدمج النظام ساعات الموظف نفسه ونوع N/S نفسه. اختر موظفا آخر إذا كانت الصفوف تخص شخصين مختلفين.",
+    "Merging adds hours for the same employee and N/S type. Choose another employee if the rows concern different people."
+  ],
+  "Cette quinzaine est déjà enregistrée. Ouvrez son pointage pour la modifier.": [
+    "تم حفظ هذه الفترة. افتح سجل حضورها لتعديلها.",
+    "This fortnight has already been saved. Open its attendance record to edit it."
+  ],
+  "Employé et ligne": [
+    "الموظف والصف",
+    "Employee and row"
+  ],
+  "Points à corriger": [
+    "نقاط تحتاج إلى تصحيح",
+    "Issues to correct"
+  ],
+  "Date d’affectation": [
+    "تاريخ التخصيص",
+    "Allocation date"
+  ],
+  "Choisissez une date": [
+    "اختر تاريخا",
+    "Choose a date"
+  ],
+  "Heures à affecter": [
+    "الساعات المراد تخصيصها",
+    "Hours to allocate"
+  ],
+  "Affecter les heures": [
+    "تخصيص الساعات",
+    "Allocate hours"
+  ],
+  "Aucune ligne à corriger pour ce filtre.": [
+    "لا توجد صفوف تحتاج إلى تصحيح مع هذه التصفية.",
+    "No rows need correction for this filter."
+  ],
+  "Corrections appliquées à l’aperçu. Enregistrez les quinzaines pour les conserver.": [
+    "تم تطبيق التصحيحات على المعاينة. احفظ الفترات للاحتفاظ بها.",
+    "Corrections applied to the preview. Save the fortnights to keep them."
+  ],
+  "Télécharger le fichier corrigé": [
+    "تنزيل الملف المصحح",
+    "Download corrected workbook"
+  ],
+  "Annuler la dernière correction": [
+    "التراجع عن التصحيح الأخير",
+    "Undo the last correction"
+  ],
+  "Abandonner les modifications non appliquées ?": [
+    "هل تريد تجاهل التعديلات غير المطبقة؟",
+    "Discard unapplied changes?"
+  ],
+  "Renseignez des heures positives avec deux décimales au maximum.": [
+    "أدخل ساعات موجبة بمنزلتين عشريتين كحد أقصى.",
+    "Enter nonnegative hours with up to two decimal places."
+  ],
+  "Heures invalides.": [
+    "ساعات غير صالحة.",
+    "Invalid hours."
+  ],
+  "Heures sans date.": [
+    "ساعات دون تاريخ.",
+    "Undated hours."
+  ],
+  "Heures sans date invalides.": [
+    "ساعات دون تاريخ غير صالحة.",
+    "Invalid undated hours."
+  ],
+  "Ligne N/S en double.": [
+    "صف N/S مكرر.",
+    "Duplicate N/S row."
+  ],
+  "Ligne N ou S manquante.": [
+    "صف N أو S مفقود.",
+    "Missing N or S row."
+  ],
+  "Heures à renseigner.": [
+    "يجب إدخال الساعات.",
+    "Hours need to be entered."
+  ],
+  "Période invalide.": [
+    "فترة غير صالحة.",
+    "Invalid period."
+  ],
+  "Ligne de pointage invalide.": [
+    "صف حضور غير صالح.",
+    "Invalid attendance row."
+  ],
+  "Cette colonne ne peut pas être modifiée.": [
+    "لا يمكن تعديل هذا العمود.",
+    "This column cannot be edited."
+  ],
+  "Code employé en double dans le référentiel.": [
+    "رمز موظف مكرر في المرجع.",
+    "Duplicate employee code in the reference sheet."
+  ],
+  "Choisissez une date de cette quinzaine.": [
+    "اختر تاريخا ضمن هذه الفترة.",
+    "Choose a date within this fortnight."
+  ],
+  "La fusion des doublons nécessite le modèle ItriX.": [
+    "يتطلب دمج الصفوف المكررة نموذج ItriX.",
+    "Duplicate merging requires the ItriX template."
+  ],
+  "La fusion dépasserait 24 heures par jour. Corrigez les heures ou l’employé avant de fusionner.": [
+    "سيتجاوز الدمج 24 ساعة يوميا. صحح الساعات أو الموظف قبل الدمج.",
+    "Merging would exceed 24 hours per day. Correct the hours or employee before merging."
+  ],
+  "Les heures à affecter doivent être positives et inférieures ou égales au solde sans date.": [
+    "يجب أن تكون الساعات المخصصة موجبة ولا تتجاوز رصيد الساعات دون تاريخ.",
+    "Allocated hours must be positive and must not exceed the undated balance."
+  ],
+  "Supprimer la ligne sans nom": [
+    "حذف السطر بدون اسم",
+    "Delete unnamed row"
+  ],
+  "Seules les lignes sans nom et sans employé peuvent être supprimées.": [
+    "يمكن حذف الأسطر التي لا تحتوي على اسم أو موظف فقط.",
+    "Only rows without a name and employee can be deleted."
+  ],
+  "Choisissez la date d’affectation.": [
+    "اختر تاريخ التخصيص.",
+    "Choose the allocation date."
+  ],
+  "Une date sans quantité affecte tout le solde sans date. Appliquer les corrections enregistre aussi les affectations dans l’aperçu.": [
+    "تاريخ بدون كمية يخصص كامل الرصيد بدون تاريخ. تطبيق التصحيحات يحفظ التخصيصات أيضًا في المعاينة.",
+    "A date without a quantity allocates the entire undated balance. Apply corrections also saves allocations in the preview."
+  ],
+  "Pour corriger dans Excel, téléchargez le fichier corrigé, consultez Controle_Pointage et Mode_correction, modifiez les onglets de pointage puis rechargez le classeur ici. Les anomalies seront recalculées.": [
+    "للتصحيح في Excel، نزّل الملف المصحح وراجع Controle_Pointage وMode_correction، وعدّل أوراق الحضور ثم أعد تحميل الملف هنا. ستتم إعادة فحص الأخطاء.",
+    "To correct in Excel, download the corrected file, review Controle_Pointage and Mode_correction, edit the attendance sheets, then upload the workbook here. Issues will be checked again."
+  ],
+  "Appliquer les correspondances et consolider": [
+    "تطبيق المطابقات وتجميع الساعات",
+    "Apply matches and consolidate"
+  ],
+  "Supprimer la ligne sans employé": [
+    "حذف السطر بدون موظف",
+    "Delete unassigned row"
+  ],
+  "Les heures de cette ligne seront retirées du fichier à importer.": [
+    "ستتم إزالة ساعات هذا السطر من الملف المراد استيراده.",
+    "This row’s hours will be removed from the import file."
+  ],
+  "Seules les lignes sans employé associé peuvent être supprimées.": [
+    "يمكن حذف الأسطر غير المرتبطة بموظف فقط.",
+    "Only rows without an assigned employee can be deleted."
+  ],
+  "Anomalies de pointage à contrôler": [
+    "حالات الحضور المطلوب مراجعتها",
+    "Attendance issues to review"
+  ],
+  "Les valeurs d’origine sont conservées. Enregistrez le brouillon, puis renseignez le motif et résolvez ou confirmez les anomalies avant la validation et la paie.": [
+    "يتم الاحتفاظ بالقيم الأصلية. احفظ المسودة ثم حدد السبب وعالج الحالات أو أكدها قبل الاعتماد والأجور.",
+    "Original values are retained. Save the draft, then provide a reason and resolve or confirm issues before validation and payroll."
+  ],
+  "Enregistrez les modifications avant de contrôler les anomalies.": [
+    "احفظ التغييرات قبل مراجعة الحالات.",
+    "Save changes before reviewing issues."
+  ],
+  "Confirmer ces heures malgré l’alerte ? Elles pourront être utilisées dans la paie après validation du pointage.": [
+    "تأكيد هذه الساعات رغم التنبيه؟ يمكن استخدامها في الأجور بعد اعتماد الحضور.",
+    "Confirm these hours despite the warning? They can be used in payroll after attendance validation."
+  ],
+  "Confirmer la résolution de cette anomalie ?": [
+    "تأكيد معالجة هذه الحالة؟",
+    "Confirm resolution of this issue?"
+  ],
+  "Heures d’origine N / S": [
+    "الساعات الأصلية N / S",
+    "Original hours N / S"
+  ],
+  "Heures actuelles N / S": [
+    "الساعات الحالية N / S",
+    "Current hours N / S"
+  ],
+  "Alerte": [
+    "تنبيه",
+    "Warning"
+  ],
+  "Choisissez un motif": [
+    "اختر السبب",
+    "Choose a reason"
+  ],
+  "Doublon": [
+    "تكرار",
+    "Duplicate"
+  ],
+  "Erreur de saisie": [
+    "خطأ في الإدخال",
+    "Entry error"
+  ],
+  "Valeurs corrigées : résolution à confirmer.": [
+    "تم تصحيح القيم: يرجى تأكيد المعالجة.",
+    "Values corrected: confirm resolution."
+  ],
+  "Contrôle effectué": [
+    "تمت المراجعة",
+    "Review completed"
+  ],
+  "Une avance se saisit en montant dans la paie. Corrigez les heures puis résolvez cette anomalie.": [
+    "تُسجل السلفة كمبلغ في الأجور. صحح الساعات ثم أكد معالجة الحالة.",
+    "Enter an advance as a payroll amount. Correct the hours, then resolve this issue."
+  ],
+  "Valeur confirmée": [
+    "تم تأكيد القيمة",
+    "Value confirmed"
+  ],
+  "Anomalie résolue": [
+    "تمت معالجة الحالة",
+    "Issue resolved"
+  ],
+  "Confirmer la valeur": [
+    "تأكيد القيمة",
+    "Confirm value"
+  ],
+  "Résoudre l’anomalie": [
+    "معالجة الحالة",
+    "Resolve issue"
+  ],
+  "N + S dépasse 24 heures sur une journée.": [
+    "مجموع N + S يتجاوز 24 ساعة في اليوم.",
+    "N + S exceeds 24 hours in one day."
+  ],
+  "Plus de deux décimales : valeur d’origine conservée, précision à contrôler.": [
+    "أكثر من منزلتين عشريتين: تم حفظ القيمة الأصلية، يرجى مراجعة الدقة.",
+    "More than two decimal places: original value retained, precision requires review."
+  ],
+  "Renseignez un nombre d’heures positif ou nul et inférieur à 100 millions.": [
+    "أدخل عدد ساعات غير سالب وأقل من 100 مليون.",
+    "Enter nonnegative hours below 100 million."
+  ],
+  "Des anomalies de pointage restent à contrôler avant validation et paie.": [
+    "توجد حالات حضور يجب مراجعتها قبل الاعتماد والأجور.",
+    "Attendance issues must be reviewed before validation and payroll."
+  ],
+  "Enregistrez cette quinzaine en brouillon puis contrôlez ses anomalies avant validation et paie.": [
+    "احفظ هذه الفترة كمسودة ثم راجع الحالات قبل الاعتماد والأجور.",
+    "Save this fortnight as a draft, then review its issues before validation and payroll."
+  ],
+  "Import accepté en brouillon. Ces anomalies doivent être contrôlées avant validation et paie.": [
+    "تم قبول الاستيراد كمسودة. يجب مراجعة هذه الحالات قبل الاعتماد والأجور.",
+    "Import accepted as a draft. Review these issues before validation and payroll."
+  ],
+  "Contrôler les anomalies": [
+    "مراجعة الحالات",
+    "Review issues"
+  ],
+  "Heures invalides. Renseignez des nombres positifs ou nuls.": [
+    "ساعات غير صالحة. أدخل أعدادًا غير سالبة.",
+    "Invalid hours. Enter nonnegative numbers."
+  ],
+  "Appliquez la migration attendance_anomaly_review pour enregistrer et contrôler les heures atypiques.": [
+    "طبّق ترحيل attendance_anomaly_review لحفظ الساعات غير المعتادة ومراجعتها.",
+    "Apply the attendance_anomaly_review migration to save and review atypical hours."
+  ],
+  "Appliquez la migration attendance_anomaly_review pour enregistrer les heures atypiques.": [
+    "طبّق ترحيل attendance_anomaly_review لحفظ الساعات غير المعتادة.",
+    "Apply the attendance_anomaly_review migration to save atypical hours."
+  ],
+  "Ignorée — aucune heure renseignée": [
+    "تم تجاهلها — لم تُدخل أي ساعات",
+    "Skipped — no hours entered"
+  ],
+  "Les quinzaines sans heures renseignées sont ignorées. Elles ne bloquent pas les autres périodes et aucun pointage à zéro n’est créé.": [
+    "يتم تجاهل الفترات التي لا تحتوي على ساعات. لا تمنع الفترات الأخرى ولا يتم إنشاء حضور بصفر ساعات.",
+    "Fortnights with no hours entered are skipped. They do not block other periods and no zero-hour attendance is created."
+  ],
+  "Quinzaine sans heures : ignorée à l’import tant que vous ne la complétez pas.": [
+    "فترة بدون ساعات: يتم تجاهلها في الاستيراد حتى تُكملها.",
+    "No hours in this fortnight: skipped on import until you fill it in."
+  ],
+  "Enregistrer puis contrôler les anomalies": [
+    "حفظ ثم مراجعة الحالات",
+    "Save and review issues"
+  ],
+  "Enregistrer cette quinzaine en brouillon pour contrôler ses anomalies ?": [
+    "حفظ هذه الفترة كمسودة لمراجعة الحالات؟",
+    "Save this fortnight as a draft to review its issues?"
+  ],
+  "Ouvrir le pointage validé": [
+    "فتح الحضور المعتمد",
+    "Open validated attendance"
+  ],
+  "Modifier les heures": [
+    "تعديل الساعات",
+    "Edit hours"
+  ],
+  "Enregistrer la correction": [
+    "حفظ التصحيح",
+    "Save correction"
+  ],
+  "Heures normales à corriger": [
+    "الساعات العادية المطلوب تصحيحها",
+    "Normal hours to correct"
+  ],
+  "Heures supplémentaires à corriger": [
+    "الساعات الإضافية المطلوب تصحيحها",
+    "Overtime hours to correct"
+  ],
+  "Cette quinzaine est validée. Rouvrez-la pour modifier les heures.": [
+    "تم اعتماد هذه الفترة. أعد فتحها لتعديل الساعات.",
+    "This fortnight is validated. Reopen it to edit hours."
+  ],
+  "Enregistrez ou annulez la correction en cours.": [
+    "احفظ التصحيح الجاري أو قم بإلغائه.",
+    "Save or cancel the current correction."
+  ],
+  "Correction enregistrée. Renseignez le motif puis résolvez ou confirmez à nouveau l’anomalie.": [
+    "تم حفظ التصحيح. حدد السبب ثم عالج الحالة أو أكدها مجددًا.",
+    "Correction saved. Provide a reason, then resolve or confirm the issue again."
+  ],
+  "Modifier dans la grille": [
+    "تعديل في شبكة الحضور",
+    "Edit in attendance grid"
+  ],
+  "Modifiez les heures dans la grille de pointage. Renseignez ici le motif et le commentaire, puis résolvez ou confirmez l’anomalie.": [
+    "عدّل الساعات في شبكة الحضور. أدخل هنا السبب والتعليق ثم عالج الحالة أو أكدها.",
+    "Edit hours in the attendance grid. Enter the reason and comment here, then resolve or confirm the issue."
+  ],
+  "Le motif reste accessible. Les heures modifiées seront enregistrées avant l’application du contrôle.": [
+    "يبقى السبب متاحًا. سيتم حفظ الساعات المعدّلة قبل تطبيق المراجعة.",
+    "The reason remains editable. Changed hours will be saved before the review is applied."
+  ],
+  "Enregistrer et confirmer la valeur": [
+    "حفظ القيمة وتأكيدها",
+    "Save and confirm value"
+  ],
+  "Enregistrer et résoudre l’anomalie": [
+    "حفظ ومعالجة الحالة",
+    "Save and resolve issue"
+  ],
+  "Le brouillon n’a pas pu être enregistré. Le contrôle n’a pas été appliqué.": [
+    "تعذر حفظ المسودة. لم يتم تطبيق المراجعة.",
+    "The draft could not be saved. The review was not applied."
+  ],
+  "Corrections de paie": [
+    "تصحيحات الأجور",
+    "Payroll corrections"
+  ],
+  "Rouvrir la paie": [
+    "إعادة فتح الأجر",
+    "Reopen payroll"
+  ],
+  "Préparer une régularisation": [
+    "إعداد تسوية",
+    "Prepare an adjustment"
+  ],
+  "Motif de la correction": [
+    "سبب التصحيح",
+    "Reason for correction"
+  ],
+  "Confirmer la correction": [
+    "تأكيد التصحيح",
+    "Confirm correction"
+  ],
+  "Abandonner la correction": [
+    "إلغاء التصحيح",
+    "Discard correction"
+  ],
+  "Abandonner la correction et conserver la dernière paie validée ?": [
+    "إلغاء التصحيح والاحتفاظ بآخر أجر معتمد؟",
+    "Discard the correction and keep the last validated payroll?"
+  ],
+  "Renseignez le motif de la correction": [
+    "أدخل سبب التصحيح",
+    "Enter the reason for correction"
+  ],
+  "Régularisation en cours": [
+    "تسوية قيد الإعداد",
+    "Adjustment in progress"
+  ],
+  "Paie rouverte pour correction": [
+    "أعيد فتح الأجر للتصحيح",
+    "Payroll reopened for correction"
+  ],
+  "Réouverture": [
+    "إعادة الفتح",
+    "Reopening"
+  ],
+  "Régularisation": [
+    "تسوية",
+    "Adjustment"
+  ],
+  "Appliquée": [
+    "مطبّقة",
+    "Applied"
+  ],
+  "Net avant correction": [
+    "الصافي قبل التصحيح",
+    "Net before correction"
+  ],
+  "Net après correction": [
+    "الصافي بعد التصحيح",
+    "Net after correction"
+  ],
+  "Écart net": [
+    "فرق الصافي",
+    "Net difference"
+  ],
+  "Coût avant correction": [
+    "التكلفة قبل التصحيح",
+    "Cost before correction"
+  ],
+  "Coût après correction": [
+    "التكلفة بعد التصحيح",
+    "Cost after correction"
+  ],
+  "Écart coût": [
+    "فرق التكلفة",
+    "Cost difference"
+  ],
+  "Trop-perçu à régulariser": [
+    "مبلغ زائد يستلزم التسوية",
+    "Overpayment to settle"
+  ],
+  "Montant payé à l’ouverture": [
+    "المبلغ المدفوع عند الفتح",
+    "Amount paid at opening"
+  ],
+  "Valider la correction et remplacer les coûts de la paie précédente ?": [
+    "اعتماد التصحيح واستبدال تكاليف الأجر السابق؟",
+    "Validate the correction and replace the previous payroll costs?"
+  ],
+  "La version validée est conservée dans l’historique. Les coûts seront recalculés à la nouvelle validation.": [
+    "يُحتفظ بالنسخة المعتمدة في السجل. تُعاد حساب التكاليف عند الاعتماد الجديد.",
+    "The validated version is kept in history. Costs are recalculated on revalidation."
+  ],
+  "Les paiements existants seront conservés. L’écart indiquera le complément à payer ou le trop-perçu à régulariser.": [
+    "يُحتفظ بالدفعات الحالية. يبيّن الفرق المبلغ الإضافي المستحق أو المبلغ الزائد لتسويته.",
+    "Existing payments are retained. The difference shows the additional amount due or the overpayment to settle."
+  ],
+  "Les paiements sont conservés. Les bulletins et coûts validés restent en place jusqu’à la nouvelle validation. Les paiements sont suspendus pendant la correction.": [
+    "يُحتفظ بالدفعات وكشوف الأجر والتكاليف المعتمدة حتى الاعتماد الجديد. تُعلّق الدفعات أثناء التصحيح.",
+    "Payments are retained. Validated payslips and costs remain until revalidation. Payments are suspended during correction."
+  ],
+  "Un trop-perçu est signalé séparément. Aucune retenue ni récupération automatique n’est créée.": [
+    "يُعرض المبلغ الزائد بشكل منفصل. لا يتم إنشاء اقتطاع أو استرداد تلقائي.",
+    "Overpayments are flagged separately. No automatic deduction or recovery is created."
+  ],
+  "Appliquez la migration payroll_corrections pour activer la correction des paies.": [
+    "طبّق ترحيل payroll_corrections لتفعيل تصحيح الأجور.",
+    "Apply the payroll_corrections migration to enable payroll corrections."
+  ],
+  "Correction de paie non autorisée": [
+    "تصحيح الأجر غير مسموح",
+    "Payroll correction not authorized"
+  ],
+  "Paie inaccessible": [
+    "الأجر غير متاح",
+    "Payroll unavailable"
+  ],
+  "Requête de correction déjà utilisée": [
+    "طلب التصحيح مستخدم مسبقًا",
+    "Correction request already used"
+  ],
+  "Seule une paie validée peut être corrigée": [
+    "يمكن تصحيح الأجر المعتمد فقط",
+    "Only a validated payroll can be corrected"
+  ],
+  "Une paie suivante du même mois est validée. Son impact doit être traité avant de corriger cette quinzaine.": [
+    "يوجد أجر لاحق معتمد في الشهر نفسه. يجب معالجة أثره قبل تصحيح هذه الفترة.",
+    "A later payroll in the same month is validated. Its impact must be addressed before correcting this fortnight."
+  ],
+  "Un bulletin est payé sans paiement détaillé. Rapprochez les paiements avant correction.": [
+    "هناك كشف أجر مدفوع دون تفاصيل الدفعات. طابق الدفعات قبل التصحيح.",
+    "A payslip is marked paid without detailed payments. Reconcile payments before correction."
+  ],
+  "Aucune correction en cours": [
+    "لا يوجد تصحيح جارٍ",
+    "No correction in progress"
+  ],
+  "Terminez la correction de la quinzaine précédente avant de valider cette paie.": [
+    "أكمل تصحيح الفترة السابقة قبل اعتماد هذا الأجر.",
+    "Finish the previous fortnight correction before validating this payroll."
+  ],
+  "Correction de paie incohérente": [
+    "تصحيح الأجر غير متسق",
+    "Inconsistent payroll correction"
+  ],
+  "Un employé déjà payé ne peut pas être retiré. Corrigez son montant et contrôlez le trop-perçu.": [
+    "لا يمكن حذف موظف تلقى دفعة. صحح المبلغ وتحقق من المبلغ الزائد.",
+    "An employee who has been paid cannot be removed. Correct their amount and review any overpayment."
+  ],
+  "CNSS et charges patronales": [
+    "الضمان الاجتماعي ومساهمات المشغّل",
+    "CNSS and employer contributions"
+  ],
+  "CNSS & règlements": [
+    "الضمان الاجتماعي والتسديدات",
+    "CNSS & settlements"
+  ],
+  "Cotisations mensuelles, paiements et reste à payer": [
+    "المساهمات الشهرية والتسديدات والمبلغ المتبقي",
+    "Monthly contributions, payments and outstanding balance"
+  ],
+  "Total à régler": [
+    "المجموع الواجب تسديده",
+    "Total due"
+  ],
+  "Part salariale": [
+    "حصة الأجير",
+    "Employee share"
+  ],
+  "Charges patronales": [
+    "مساهمات المشغّل",
+    "Employer contributions"
+  ],
+  "Dernier règlement": [
+    "آخر تسديد",
+    "Last settlement"
+  ],
+  "Payer les cotisations": [
+    "تسديد المساهمات",
+    "Pay contributions"
+  ],
+  "Déclarer les cotisations": [
+    "التصريح بالمساهمات",
+    "Declare contributions"
+  ],
+  "Détail des cotisations": [
+    "تفاصيل المساهمات",
+    "Contribution details"
+  ],
+  "Suivi mensuel des cotisations": [
+    "التتبع الشهري للمساهمات",
+    "Monthly contribution tracking"
+  ],
+  "Historique des règlements": [
+    "سجل التسديدات",
+    "Settlement history"
+  ],
+  "Aucun règlement enregistré": [
+    "لا توجد تسديدات مسجلة",
+    "No settlement recorded"
+  ],
+  "Correction de paie en cours": [
+    "تصحيح الأجر قيد الإعداد",
+    "Payroll correction in progress"
+  ],
+  "À actualiser": [
+    "يجب تحديثه",
+    "Needs updating"
+  ],
+  "Numéro DAMANCOM (facultatif)": [
+    "رقم دامانكوم (اختياري)",
+    "DAMANCOM number (optional)"
+  ],
+  "Confirmer la déclaration": [
+    "تأكيد التصريح",
+    "Confirm declaration"
+  ],
+  "période(s) de paie validée(s)": [
+    "فترات أجور معتمدة",
+    "validated payroll period(s)"
+  ],
+  "Cotisations actualisées. Aucun coût supplémentaire créé.": [
+    "تم تحديث المساهمات دون إنشاء تكلفة إضافية.",
+    "Contributions updated. No additional cost created."
+  ],
+  "Règlement enregistré. Aucun nouveau coût généré.": [
+    "تم تسجيل التسديد دون إنشاء تكلفة جديدة.",
+    "Settlement recorded. No new cost generated."
+  ],
+  "Saisissez une date et un montant positif, inférieur ou égal au reste à payer.": [
+    "أدخل تاريخًا ومبلغًا موجبًا لا يتجاوز المبلغ المتبقي.",
+    "Enter a date and a positive amount no greater than the outstanding balance."
+  ],
+  "Aucune paie validée pour cette période.": [
+    "لا توجد أجور معتمدة لهذه الفترة.",
+    "No validated payroll for this period."
+  ],
+  "Les paies ont changé. Recalculez le mois et vérifiez la déclaration avant le prochain règlement.": [
+    "تغيرت الأجور. أعد حساب الشهر وتحقق من التصريح قبل التسديد التالي.",
+    "Payroll has changed. Recalculate the month and check the declaration before the next settlement."
+  ],
+  "Les cotisations sont calculées depuis les bulletins validés du mois. Le total à régler comprend la part salariale et la part patronale, hors impôt sur le revenu.": [
+    "تُحسب المساهمات من كشوف الأجور المعتمدة للشهر. يشمل المجموع حصتي الأجير والمشغّل دون الضريبة على الدخل.",
+    "Contributions come from the validated payroll for the month. The total includes employee and employer shares, excluding income tax."
+  ],
+  "Les règlements suivent uniquement les sommes versées à l’organisme. Ils ne créent aucun coût supplémentaire et ne modifient pas les paiements des employés.": [
+    "تتتبع التسديدات فقط المبالغ المدفوعة للهيئة. لا تُنشئ تكاليف إضافية ولا تغيّر دفعات الموظفين.",
+    "Settlements track only amounts paid to the agency. They create no additional costs and do not change employee payments."
+  ],
+  "Appliquez la migration social_contribution_payments pour activer le suivi des règlements CNSS.": [
+    "طبّق ترحيل social_contribution_payments لتفعيل تتبع تسديدات الضمان الاجتماعي.",
+    "Apply the social_contribution_payments migration to enable CNSS settlement tracking."
+  ],
+  "Accès aux cotisations non autorisé": [
+    "الوصول إلى المساهمات غير مسموح",
+    "Contribution access not authorized"
+  ],
+  "Période de cotisations invalide": [
+    "فترة المساهمات غير صالحة",
+    "Invalid contribution period"
+  ],
+  "Les cotisations ont changé. Actualisez le mois avant de continuer.": [
+    "تغيرت المساهمات. حدّث الشهر قبل المتابعة.",
+    "Contributions have changed. Refresh the month before continuing."
+  ],
+  "Validez les paies et terminez les corrections du mois avant de continuer.": [
+    "اعتمد الأجور وأكمل تصحيحات الشهر قبل المتابعة.",
+    "Validate payroll and finish the month’s corrections before continuing."
+  ],
+  "Référence de déclaration invalide": [
+    "مرجع التصريح غير صالح",
+    "Invalid declaration reference"
+  ],
+  "Le suivi des cotisations a changé. Actualisez.": [
+    "تغير تتبع المساهمات. يرجى التحديث.",
+    "Contribution tracking has changed. Refresh."
+  ],
+  "Règlement de cotisations invalide": [
+    "تسديد المساهمات غير صالح",
+    "Invalid contribution settlement"
+  ],
+  "Requête de règlement déjà utilisée": [
+    "طلب التسديد مستخدم مسبقًا",
+    "Settlement request already used"
+  ],
+  "Recalculez le mois après la modification des paies avant de régler les cotisations.": [
+    "أعد حساب الشهر بعد تعديل الأجور وقبل تسديد المساهمات.",
+    "Recalculate the month after changing payroll before paying contributions."
+  ],
+  "Le règlement dépasse le reste à payer des cotisations.": [
+    "يتجاوز التسديد المبلغ المتبقي للمساهمات.",
+    "The settlement exceeds the outstanding contribution balance."
+  ],
+  "Retour à la liste des employés": [
+    "العودة إلى قائمة الموظفين",
+    "Back to the employee list"
+  ],
+  "Historique des paiements": [
+    "سجل الدفعات",
+    "Payment history"
+  ],
+  "Marquer la paie comme payée": [
+    "تسجيل الأجر كمدفوع",
+    "Mark payroll as paid"
+  ],
+  "Règlements de la quinzaine": [
+    "تسديدات نصف الشهر",
+    "Fortnight settlements"
+  ],
+  "Déjà payé": [
+    "مدفوع مسبقًا",
+    "Already paid"
+  ],
+  "Solde à enregistrer": [
+    "الرصيد المطلوب تسجيله",
+    "Balance to record"
+  ],
+  "Employés à solder": [
+    "موظفون لتسديد أرصدتهم",
+    "Employees to settle"
+  ],
+  "Date réelle du paiement": [
+    "التاريخ الفعلي للدفع",
+    "Actual payment date"
+  ],
+  "Détail des soldes par employé": [
+    "تفاصيل الأرصدة لكل موظف",
+    "Employee balance breakdown"
+  ],
+  "Historique des règlements collectifs": [
+    "سجل التسديدات الجماعية",
+    "Batch settlement history"
+  ],
+  "Confirmer le paiement de la quinzaine": [
+    "تأكيد دفع أجور نصف الشهر",
+    "Confirm fortnight payment"
+  ],
+  "Paiements de la quinzaine enregistrés. Aucun nouveau coût généré.": [
+    "تم تسجيل دفعات نصف الشهر دون إنشاء تكلفة جديدة.",
+    "Fortnight payments recorded. No new cost generated."
+  ],
+  "Actualiser les paiements": [
+    "تحديث الدفعات",
+    "Refresh payments"
+  ],
+  "Renseignez la date réelle du paiement.": [
+    "أدخل التاريخ الفعلي للدفع.",
+    "Enter the actual payment date."
+  ],
+  "Ce bouton enregistre des paiements déjà effectués. Seuls les soldes restant dus sont ajoutés ; les paiements partiels sont conservés. Aucun virement ni nouveau coût n’est généré.": [
+    "يسجل هذا الزر دفعات تمت بالفعل. تُضاف الأرصدة المستحقة فقط وتُحفظ الدفعات الجزئية. لا يتم تنفيذ تحويل بنكي أو إنشاء تكلفة جديدة.",
+    "This records payments already made. Only outstanding balances are added; partial payments are retained. No bank transfer or new cost is generated."
+  ],
+  "Un trop-perçu existe. Seuls les montants dus aux autres employés seront réglés.": [
+    "يوجد مبلغ زائد. ستُسدد فقط المبالغ المستحقة للموظفين الآخرين.",
+    "An overpayment exists. Only balances owed to other employees will be settled."
+  ],
+  "Appliquez la migration payroll_fortnight_settlement pour régler toute la quinzaine.": [
+    "طبّق ترحيل payroll_fortnight_settlement لتسديد نصف الشهر بالكامل.",
+    "Apply the payroll_fortnight_settlement migration to settle the whole fortnight."
+  ],
+  "Règlement de paie non autorisé": [
+    "تسديد الأجر غير مسموح",
+    "Payroll settlement not authorized"
+  ],
+  "Règlement de quinzaine invalide": [
+    "تسديد نصف الشهر غير صالح",
+    "Invalid fortnight settlement"
+  ],
+  "Requête de règlement déjà utilisée pour une autre opération": [
+    "طلب التسديد مستخدم مسبقًا لعملية أخرى",
+    "Settlement request already used for another operation"
+  ],
+  "Validez la paie et terminez toute correction avant de la marquer payée.": [
+    "اعتمد الأجر وأكمل أي تصحيح قبل تسجيله كمدفوع.",
+    "Validate payroll and finish any correction before marking it paid."
+  ],
+  "Les bulletins et la paie ne correspondent pas. Vérifiez la période avant règlement.": [
+    "لا تتطابق كشوف الأجر مع التحضير. تحقق من الفترة قبل التسديد.",
+    "Payslips and payroll do not match. Check the period before settlement."
+  ],
+  "Les paiements ont changé. Actualisez la quinzaine avant de confirmer.": [
+    "تغيرت الدفعات. حدّث نصف الشهر قبل التأكيد.",
+    "Payments have changed. Refresh the fortnight before confirming."
+  ],
+  "Aucun solde à payer pour cette quinzaine.": [
+    "لا يوجد رصيد مستحق لنصف الشهر هذا.",
+    "No outstanding balance for this fortnight."
+  ],
+  "Base du CA": [
+    "أساس رقم المعاملات",
+    "Revenue basis"
+  ],
+  "Réel tarifé uniquement": [
+    "رقم المعاملات الفعلي المسعّر فقط",
+    "Actual priced revenue only"
+  ],
+  "Réel + CA prévisionnel (prix variété)": [
+    "الفعلي + المتوقع (سعر الصنف)",
+    "Actual + forecast revenue (variety price)"
+  ],
+  "Réel + CA prévisionnel": [
+    "الفعلي + رقم المعاملات المتوقع",
+    "Actual + forecast revenue"
+  ],
+  "Vue prévisionnelle : tarifs réels disponibles + quantités récoltées restant à tarifer × prix moyen local ou export de la fiche variété. Le réel remplace l’estimation sur les kilos tarifés. Les charges restent réelles ; le résultat devient prévisionnel.": [
+    "التوقع: الأسعار الفعلية المتاحة + الكميات المحصودة المتبقية للتسعير × متوسط السعر المحلي أو سعر التصدير في بطاقة الصنف. يحل الفعلي محل التقدير للكميات المسعّرة. تبقى التكاليف فعلية وتصبح النتيجة متوقعة.",
+    "Forecast: available actual prices + remaining harvested quantities × the average local or export price on the variety record. Actual revenue replaces estimates for priced kilos. Costs remain actual; the result becomes a forecast."
+  ],
+  "Prévisionnel incomplet : certains prix, destinations ou dates de récolte sont à compléter. Les lignes non calculables sont exclues du total et indiquées dans le détail.": [
+    "التوقع غير مكتمل: يجب استكمال بعض الأسعار أو الوجهات أو تواريخ الحصاد. السطور غير القابلة للحساب مستبعدة من الإجمالي ومبيّنة في التفاصيل.",
+    "Incomplete forecast: some prices, destinations or harvest dates need completing. Uncalculable lines are excluded from the total and shown in the detail."
+  ],
+  "Le CA tarifé est constaté à la date de récolte d’origine. Un envoi regroupé est réparti au prorata des kilos récoltés. Les dates d’envoi, de facture et de paiement restent distinctes.": [
+    "يُحتسب رقم المعاملات المسعّر بتاريخ الحصاد الأصلي. تُوزّع الشحنة المجمّعة بنسبة الكميات المحصودة. تبقى تواريخ الإرسال والفاتورة والدفع مستقلة.",
+    "Priced revenue is recognized on the original harvest date. Combined dispatches are split by contributed kilos. Dispatch, invoice and payment dates remain separate."
+  ],
+  "CA à dater, exclu des totaux mensuels :": [
+    "رقم المعاملات بدون تاريخ، مستبعد من الإجماليات الشهرية:",
+    "Undated revenue, excluded from monthly totals:"
+  ],
+  "Consultez les envois tarifés pour retrouver les récoltes sources manquantes.": [
+    "راجع الشحنات المسعّرة لتحديد المحاصيل المصدرية الناقصة.",
+    "Check priced dispatches to identify missing source harvests."
+  ],
+  "Certains envois du client ne peuvent pas être rattachés à une campagne : récoltes sources à compléter dans le récapitulatif des envois.": [
+    "لا يمكن ربط بعض شحنات العميل بموسم: أكمل المحاصيل المصدرية في ملخص الشحنات.",
+    "Some client dispatches cannot be linked to a campaign: complete their source harvests in the dispatch summary."
+  ],
+  "CA tarifé rattaché au mois de récolte": [
+    "رقم المعاملات المسعّر مرتبط بشهر الحصاد",
+    "Priced revenue assigned to the harvest month"
+  ],
+  "Détail du CA : récoltes, quantités et prix utilisés": [
+    "تفاصيل رقم المعاملات: المحاصيل والكميات والأسعار المستخدمة",
+    "Revenue detail: harvests, quantities and prices used"
+  ],
+  "Date récolte / CA": [
+    "تاريخ الحصاد / رقم المعاملات",
+    "Harvest / revenue date"
+  ],
+  "Récolte source": [
+    "الحصاد الأصلي",
+    "Source harvest"
+  ],
+  "Tarif réel": [
+    "السعر الفعلي",
+    "Actual price"
+  ],
+  "Prix moyen variété": [
+    "متوسط سعر الصنف",
+    "Average variety price"
+  ],
+  "Prix variété à compléter": [
+    "سعر الصنف مطلوب",
+    "Variety price required"
+  ],
+  "Destination à compléter": [
+    "الوجهة مطلوبة",
+    "Destination required"
+  ],
+  "Récolte source à compléter": [
+    "الحصاد الأصلي مطلوب",
+    "Source harvest required"
+  ],
+  "Récolte à compléter": [
+    "بيانات الحصاد مطلوبة",
+    "Harvest details required"
+  ],
+  "Réel tarifé": [
+    "الفعلي المسعّر",
+    "Actual priced"
+  ],
+  "Prévisionnel": [
+    "المتوقع",
+    "Forecast"
+  ],
+  "Avec budget": [
+    "مع الميزانية",
+    "With budget"
+  ],
+  "Sans budget": [
+    "بدون ميزانية",
+    "Without budget"
+  ],
+  "réel + estimation CA": [
+    "الفعلي + تقدير رقم المعاملات",
+    "actual + estimated revenue"
+  ],
+  "CA à dater :": [
+    "رقم المعاملات بدون تاريخ:",
+    "Undated revenue:"
+  ],
+  "parts de récolte ·": [
+    "حصص الحصاد ·",
+    "harvest shares ·"
+  ],
+  "Tout l’historique · CA tarifé à la date de récolte, pas encaissements.": [
+    "كامل السجل · رقم المعاملات المسعّر بتاريخ الحصاد، وليس التحصيلات.",
+    "Full history · Priced revenue by harvest date, excluding cash receipts."
+  ],
+  "Le CA de chaque envoi est réparti entre les récoltes sources au prorata des kilos contribués. Les filtres sélectionnent ces parts. Les montants sans date de récolte sont affichés à compléter et exclus du CA daté.": [
+    "يوزّع رقم معاملات كل شحنة بين محاصيلها المصدرية بنسبة الكميات المساهمة. تختار الفلاتر هذه الحصص. تُعرض المبالغ بدون تاريخ حصاد كبيانات ناقصة وتُستبعد من الإجمالي المؤرّخ.",
+    "Each dispatch’s revenue is split between source harvests by contributed kilos. Filters select these shares. Amounts without a harvest date are marked incomplete and excluded from dated revenue."
+  ],
+  "Part de cette récolte :": [
+    "حصة هذا الحصاد:",
+    "Share of this harvest:"
+  ],
+  "Les bordereaux ci-dessous concernent l’envoi entier.": [
+    "الكشوف أدناه تخص الشحنة كاملة.",
+    "The statements below concern the entire dispatch."
+  ],
+  "Quantité acceptée de l’envoi :": [
+    "الكمية المقبولة للشحنة:",
+    "Accepted quantity for the dispatch:"
+  ],
+  "Des envois tarifés sont sans récolte source datée : contrôlez le récapitulatif des envois avant d’interpréter le CA.": [
+    "بعض الشحنات المسعّرة بدون حصاد مصدري مؤرّخ: راجع ملخص الشحنات قبل تفسير رقم المعاملات.",
+    "Some priced dispatches have no dated source harvest: check the dispatch summary before interpreting revenue."
+  ],
+  "Filtrer les envois par type de plateau": [
+    "تصفية الشحنات حسب نوع الصندوق",
+    "Filter dispatches by tray type"
+  ],
+  "Tous les types de plateau": [
+    "جميع أنواع الصناديق",
+    "All tray types"
+  ],
+  "Type de plateau non renseigné": [
+    "نوع الصندوق غير محدد",
+    "Tray type not specified"
+  ],
+  "Types de plateau": [
+    "أنواع الصناديق",
+    "Tray types"
+  ],
+  "Filtrer les récoltes disponibles par type de plateau": [
+    "تصفية المحاصيل المتاحة حسب نوع الصندوق",
+    "Filter available harvests by tray type"
+  ],
+  "Hypothèse prévisionnelle : plateaux de 10 kg = export ; caisses de 25 kg = local. Les récoltes mixtes sont réparties selon les kilos de chaque format. Les autres formats sont à contrôler.": [
+    "افتراض التوقع: صناديق 10 كغ للتصدير وصناديق 25 كغ للسوق المحلي. تُوزّع المحاصيل المختلطة حسب وزن كل نوع. يجب التحقق من الأنواع الأخرى.",
+    "Forecast assumption: 10kg trays for export; 25kg crates for local sales. Mixed harvests are split by the kilos of each format. Other formats require review."
+  ],
+  "Format de plateau à contrôler": [
+    "نوع الصندوق يحتاج للتحقق",
+    "Tray format requires review"
+  ],
+  "Mois futurs vides": [
+    "الأشهر المقبلة فارغة",
+    "Future months empty"
+  ],
+  "Lecture seule": [
+    "للقراءة فقط",
+    "Read only"
+  ],
+  "Heures sans date": [
+    "ساعات بدون تاريخ",
+    "Hours without a date"
+  ],
+  "Sans date": [
+    "بدون تاريخ",
+    "Undated"
+  ],
+  "Commentaire": [
+    "تعليق",
+    "Comment"
+  ],
+  "Déclarée": [
+    "مصرح بها",
+    "Declared"
+  ],
+  "Recalculer": [
+    "إعادة الحساب",
+    "Recalculate"
   ]
 }

@@ -1,0 +1,103 @@
+SET ROLE authenticated;
+SELECT set_config('test.actor','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
+DO $$
+DECLARE d uuid:='11111111-1111-4111-8111-111111111111';f uuid:='33333333-3333-4333-8333-333333333333';
+ w uuid:='77777777-7777-4777-8777-777777777777';campaign uuid:='88888888-8888-4888-8888-888888888888';
+ prep jsonb; rows jsonb; previous jsonb; ctx jsonb; audit uuid; period uuid; slip uuid; req uuid; payment uuid;
+ cost numeric; failed boolean; rev integer; nextprep jsonb; legacy uuid;
+BEGIN
+ rows:=jsonb_build_array(jsonb_build_object('worker_id',w,'source','manual','normal_hours',8,'overtime_hours',0,'normal_rate',10,'overtime_rate',0,'bonuses',0,'advance',0,'other_deductions',0,'deductions_confirmed',true));
+ SELECT x INTO ctx FROM jsonb_array_elements(payroll_net_context(d,f,'2026-11-01')) x WHERE x->>'worker_id'=w::text;
+ rows:=jsonb_set(rows,'{0,tax_context}',ctx);
+ prep:=save_payroll_preparation(d,f,'2026-11-01','2026-11-15',campaign,'2026-11-15',NULL,0,rows,'validate',gen_random_uuid());
+ period:=(prep->>'payroll_period_id')::uuid;
+ SELECT id INTO slip FROM payslips WHERE period_id=period AND worker_id=w;
+ SELECT sum(amount) INTO cost FROM cost_entries WHERE payroll_period_id=period;
+ IF cost<>(prep->'rows'->0->>'total_employer_cost')::numeric THEN RAISE EXCEPTION 'Initial cost mismatch'; END IF;
+ failed:=false;
+ BEGIN PERFORM begin_payroll_correction(d,(prep->>'id')::uuid,(prep->>'revision')::int,' ',gen_random_uuid());
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT LIKE '%motif%' THEN RAISE; END IF;failed:=true; END;
+ IF NOT failed THEN RAISE EXCEPTION 'Empty reason accepted'; END IF;
+ failed:=false;
+ BEGIN PERFORM begin_payroll_correction('22222222-2222-4222-8222-222222222222',(prep->>'id')::uuid,(prep->>'revision')::int,'Correction',gen_random_uuid());
+ EXCEPTION WHEN insufficient_privilege THEN failed:=true; END;
+ IF NOT failed THEN RAISE EXCEPTION 'Cross-domain correction allowed'; END IF;
+ PERFORM set_config('test.allowed','no',true);failed:=false;
+ BEGIN PERFORM begin_payroll_correction(d,(prep->>'id')::uuid,(prep->>'revision')::int,'Correction',gen_random_uuid());
+ EXCEPTION WHEN insufficient_privilege THEN failed:=true; END;
+ IF NOT failed THEN RAISE EXCEPTION 'Unauthorized correction allowed'; END IF;
+ PERFORM set_config('test.allowed','yes',true);
+ failed:=false;
+ BEGIN PERFORM begin_payroll_correction(d,(prep->>'id')::uuid,0,'Correction',gen_random_uuid());
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT LIKE '%changé%' THEN RAISE; END IF;failed:=true; END;
+ IF NOT failed THEN RAISE EXCEPTION 'Stale revision allowed'; END IF;
+ previous:=prep;req:=gen_random_uuid();rev:=(prep->>'revision')::int;
+ prep:=begin_payroll_correction(d,(prep->>'id')::uuid,rev,'Taux horaire corrigé',req);
+ audit:=(prep->>'correction_id')::uuid;
+ IF prep->>'correction_mode'<>'reopen' OR prep->>'status'<>'draft' THEN RAISE EXCEPTION 'Unpaid reopen failed'; END IF;
+ IF (prep->'rows'->0->>'deductions_confirmed')::boolean THEN RAISE EXCEPTION 'Correction was preconfirmed'; END IF;
+ IF begin_payroll_correction(d,(prep->>'id')::uuid,rev,'Taux horaire corrigé',req)->>'revision'<>prep->>'revision' THEN RAISE EXCEPTION 'Reopen replay changed revision'; END IF;
+ IF (SELECT original_preparation->'rows' FROM payroll_corrections WHERE id=audit) IS DISTINCT FROM previous->'rows'
+ OR (SELECT sum(amount) FROM cost_entries WHERE payroll_period_id=period)<>cost THEN RAISE EXCEPTION 'Snapshot or published costs lost'; END IF;
+ failed:=false;
+ BEGIN
+   INSERT INTO payroll_periods(code,start_date,end_date,status) VALUES('LEGACY-CONFLICT','2026-11-01','2026-11-15','brouillon') RETURNING id INTO legacy;
+   INSERT INTO payslips(period_id,worker_id,net_salary) VALUES(legacy,w,80);
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT LIKE '%préparation validée existe déjà%' THEN RAISE; END IF;failed:=true; END;
+ IF NOT failed THEN RAISE EXCEPTION 'Legacy payroll bypassed open correction'; END IF;
+ failed:=false;
+ BEGIN PERFORM record_payroll_preparation_payment((prep->>'id')::uuid,w,10,'2026-11-15','cash',NULL,gen_random_uuid());
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT LIKE '%Paiement invalide%' THEN RAISE; END IF;failed:=true; END;
+ IF NOT failed THEN RAISE EXCEPTION 'Payment allowed during correction'; END IF;
+ rows:=jsonb_set(rows,'{0,normal_rate}','15');
+ req:=gen_random_uuid();rev:=(prep->>'revision')::int;
+ prep:=save_payroll_preparation(d,f,'2026-11-01','2026-11-15',campaign,'2026-11-15',NULL,rev,rows,'validate',req);
+ IF (prep->>'payroll_period_id')::uuid<>period OR (SELECT id FROM payslips WHERE period_id=period AND worker_id=w)<>slip THEN RAISE EXCEPTION 'Period/slip identity changed'; END IF;
+ IF prep->>'correction_id' IS NOT NULL OR prep->>'status'<>'validated'
+ OR (SELECT status FROM payroll_corrections WHERE id=audit)<>'applied' THEN RAISE EXCEPTION 'Correction not closed'; END IF;
+ IF (SELECT sum(amount) FROM cost_entries WHERE payroll_period_id=period)<>(prep->'rows'->0->>'total_employer_cost')::numeric
+ OR (SELECT net_salary FROM payslips WHERE id=slip)<>120 THEN RAISE EXCEPTION 'Recalculation or cost replacement failed'; END IF;
+ previous:=save_payroll_preparation(d,f,'2026-11-01','2026-11-15',campaign,'2026-11-15',NULL,rev,rows,'validate',req);
+ IF previous->>'revision'<>prep->>'revision' OR (SELECT count(*) FROM payroll_periods WHERE id=period)<>1 THEN RAISE EXCEPTION 'Validation replay failed'; END IF;
+ payment:=(record_payroll_preparation_payment((prep->>'id')::uuid,w,40,'2026-11-15','cash',NULL,gen_random_uuid())->>'id')::uuid;
+ prep:=begin_payroll_correction(d,(prep->>'id')::uuid,(prep->>'revision')::int,'Régularisation positive',gen_random_uuid());
+ IF prep->>'correction_mode'<>'regularization' THEN RAISE EXCEPTION 'Partial payment not detected'; END IF;
+ failed:=false;
+ BEGIN PERFORM save_payroll_preparation(d,f,'2026-11-01','2026-11-15',campaign,'2026-11-15',NULL,(prep->>'revision')::int,'[]','save',gen_random_uuid());
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT LIKE '%déjà payé%' THEN RAISE; END IF;failed:=true; END;
+ IF NOT failed THEN RAISE EXCEPTION 'Paid worker removal allowed'; END IF;
+ rows:=jsonb_set(rows,'{0,normal_rate}','20');
+ prep:=save_payroll_preparation(d,f,'2026-11-01','2026-11-15',campaign,'2026-11-15',NULL,(prep->>'revision')::int,rows,'validate',gen_random_uuid());
+ IF (SELECT net_salary FROM payslips WHERE id=slip)<>160 OR (SELECT amount FROM payroll_preparation_payments WHERE id=payment)<>40
+ OR (SELECT payslip_id FROM payroll_preparation_payments WHERE id=payment)<>slip THEN RAISE EXCEPTION 'Payment identity/balance lost'; END IF;
+ prep:=begin_payroll_correction(d,(prep->>'id')::uuid,(prep->>'revision')::int,'Régularisation négative',gen_random_uuid());
+ rows:=jsonb_set(rows,'{0,normal_rate}','3.75');
+ prep:=save_payroll_preparation(d,f,'2026-11-01','2026-11-15',campaign,'2026-11-15',NULL,(prep->>'revision')::int,rows,'validate',gen_random_uuid());
+ IF (SELECT net_salary FROM payslips WHERE id=slip)<>30 OR (SELECT sum(amount) FROM payroll_preparation_payments WHERE preparation_id=(prep->>'id')::uuid)<>40
+ OR (SELECT status FROM payslips WHERE id=slip)<>'paye' THEN RAISE EXCEPTION 'Overpayment not preserved'; END IF;
+ SELECT sum(amount) INTO cost FROM cost_entries WHERE payroll_period_id=period;
+ IF cost<>(prep->'rows'->0->>'total_employer_cost')::numeric THEN RAISE EXCEPTION 'Negative regularization cost mismatch'; END IF;
+ previous:=prep;
+ prep:=begin_payroll_correction(d,(prep->>'id')::uuid,(prep->>'revision')::int,'Annulation test',gen_random_uuid());
+ audit:=(prep->>'correction_id')::uuid;
+ rows:=jsonb_set(rows,'{0,normal_rate}','5');
+ prep:=save_payroll_preparation(d,f,'2026-11-01','2026-11-15',campaign,'2026-11-15',NULL,(prep->>'revision')::int,rows,'save',gen_random_uuid());
+ IF (SELECT net_salary FROM payslips WHERE id=slip)<>30 OR (SELECT sum(amount) FROM cost_entries WHERE payroll_period_id=period)<>cost THEN RAISE EXCEPTION 'Draft changed financial publication'; END IF;
+ -- A following fortnight cannot be validated against an unresolved correction.
+ SELECT x INTO ctx FROM jsonb_array_elements(payroll_net_context(d,f,'2026-11-16')) x WHERE x->>'worker_id'=w::text;
+ rows:=jsonb_set(rows,'{0,tax_context}',ctx);
+ failed:=false;
+ BEGIN PERFORM save_payroll_preparation(d,f,'2026-11-16','2026-11-30',campaign,'2026-11-30',NULL,0,rows,'validate',gen_random_uuid());
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT LIKE '%correction de la quinzaine précédente%' THEN RAISE; END IF;failed:=true; END;
+ IF NOT failed THEN RAISE EXCEPTION 'Later payroll allowed during correction'; END IF;
+ prep:=cancel_payroll_correction(d,(prep->>'id')::uuid,(prep->>'revision')::int);
+ IF prep->'rows' IS DISTINCT FROM previous->'rows' OR prep->>'status'<>'validated' OR (SELECT status FROM payroll_corrections WHERE id=audit)<>'cancelled' THEN RAISE EXCEPTION 'Cancel did not restore validated version'; END IF;
+ nextprep:=save_payroll_preparation(d,f,'2026-11-16','2026-11-30',campaign,'2026-11-30',NULL,0,rows,'validate',gen_random_uuid());
+ failed:=false;
+ BEGIN PERFORM begin_payroll_correction(d,(prep->>'id')::uuid,(prep->>'revision')::int,'Dépendance mensuelle',gen_random_uuid());
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT LIKE '%paie suivante%' THEN RAISE; END IF;failed:=true; END;
+ IF NOT failed THEN RAISE EXCEPTION 'Earlier correction ignored monthly dependency'; END IF;
+ IF has_function_privilege('authenticated','public.save_payroll_preparation_core(uuid,uuid,date,date,uuid,date,integer,integer,jsonb,text,uuid)','EXECUTE') THEN RAISE EXCEPTION 'Core function exposed'; END IF;
+ IF has_table_privilege('authenticated','public.payroll_corrections','UPDATE') THEN RAISE EXCEPTION 'Audit mutable by client'; END IF;
+END $$;
+RESET ROLE;

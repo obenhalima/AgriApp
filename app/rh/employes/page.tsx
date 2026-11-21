@@ -354,7 +354,7 @@ function ClientEmployees({domainId,domainCode,domainName}:{domainId:string;domai
           <DataTable minWidth={1200}>
             <THead>
               <TR>
-                <TH>{_ui("Matricule")}</TH>
+
                 <TH>{_ui("Nom complet")}</TH>
                 <TH>{_ui('Ferme')}</TH>
                 <TH>{_ui("Catégorie")}</TH>
@@ -380,7 +380,7 @@ function ClientEmployees({domainId,domainCode,domainName}:{domainId:string;domai
                 }) : null
                 return (
                   <TR key={w.id} animate delay={0.05 + i * 0.02} className={cn(!w.is_active && 'opacity-50')}>
-                    <TD mono className="text-caption font-semibold">{w.matricule ?? '—'}</TD>
+
                     <TD className="font-semibold text-fg-primary">{w.last_name} {w.first_name}</TD>
                     <TD>{farms.find(farm=>farm.id===w.farm_id)?.name||'—'}</TD>
                     <TD>

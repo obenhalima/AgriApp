@@ -1,12 +1,13 @@
 import { supabase } from './supabase'
-import { pricedDispatch } from './pricedDispatches'
+import { readHarvestRevenue } from './harvestRevenueApi'
+import {buildHarvestForecast,type HarvestForecastLine} from './harvestForecast'
 
 // ============================================================
 // Agrégation du RÉEL + Budget pour le Compte d'exploitation.
 //
 // - Charges réelles : cost_entries is_planned=false, groupé par (catégorie, mois)
 // - CA réel         : envois tarifés, avec bordereaux validés dédoublonnés,
-//                     ventilés par campagne, ferme et serre, par mois d'envoi
+//                     ventilés par campagne, ferme et serre, par mois de récolte
 // - Budget          : budget_lines, groupé par (catégorie, mois)
 //
 // La vue comparative peut ajouter une projection optionnelle des mois futurs.
@@ -25,6 +26,12 @@ export type ComparisonMonthly = {
   display_order: number
   // Totaux enregistrés, avant projection optionnelle dans la vue comparative
   budget: number
+  undated_actual?: number
+  unassigned_revenue_count?: number
+  revenue_details?: HarvestForecastLine[]
+  estimate_issues?: number
+  estimated_amount?: number
+  undated_count?: number
   actual: number
   // Détail mensuel : uniquement valeurs directement associées à cette feuille
   // (l'agrégation des parents se fait côté UI)
@@ -108,7 +115,7 @@ async function getActualChargesMonthly(params: {campaignId:string;farmId?:string
 }
 
 // ────────────────────────────────────────────────────────────
-// CA réalisé par mois d'envoi, depuis les tarifications enregistrées.
+// CA réalisé par mois de récolte, depuis les tarifications enregistrées.
 // Les lots multi-serres sont ventilés selon les quantités contribuées.
 // Les allocations de bordereaux validés priment sur le CA miroir du lot.
 // ───────────────────────────────────────────────────────────
@@ -126,6 +133,8 @@ async function getActualRevenuesMonthly(params: {
   campaignId: string
   farmId?: string
   greenhouseId?: string | null
+  revenueBasis?: 'actual' | 'provisional'
+  details?: Record<string,HarvestForecastLine[]>
   caExportCatId?: string | null
   caLocalCatId?: string | null
 }): Promise<Record<string, Record<MonthKey, number>>> {
@@ -133,47 +142,36 @@ async function getActualRevenuesMonthly(params: {
     .select('domain_id').eq('id', params.campaignId).single()
   if (error) throw error
   if (!campaign?.domain_id) throw new Error('Campagne inaccessible')
-  const domain = campaign.domain_id
-  const plantingSelect = 'campaign_id,greenhouse_id,greenhouses(farm_id)'
-  const [lots, allocations, sources] = await Promise.all([
-    readAllPages(() => supabase.from('harvest_lots')
-      .select(`id,harvest_date,tri_status,qty_priced_kg,qty_acceptee_kg,ca_amount,markets!harvest_lots_market_id_fkey(type),campaign_plantings(${plantingSelect})`)
-      .eq('domain_id', domain).eq('category', 'station_dispatch')),
-    readAllPages(() => supabase.from('station_settlement_allocations')
-      .select('id,harvest_lot_id,qty_allocated_kg,amount_allocated,harvest_lots!inner(domain_id),station_settlement_lines(station_settlements!station_settlement_lines_settlement_id_fkey(status))')
-      .eq('harvest_lots.domain_id', domain)),
-    readAllPages(() => supabase.from('harvest_lot_sources')
-      .select(`id,harvest_lot_id,qty_contributed_kg,harvests!inner(domain_id,campaign_plantings(${plantingSelect}))`)
-      .eq('harvests.domain_id', domain)),
-  ])
-  const sourcesByLot = new Map<string, any[]>()
-  for (const source of sources) {
-    const list = sourcesByLot.get(source.harvest_lot_id) ?? []
-    list.push(source)
-    sourcesByLot.set(source.harvest_lot_id, list)
-  }
+  const forecast=params.revenueBasis==='provisional'
+  const plantingSelect='id,campaign_id,greenhouse_id,variety_id,greenhouses(farm_id),varieties!campaign_plantings_variety_id_fkey(commercial_name,avg_price_export,avg_price_local)'
+  const revenue = await readHarvestRevenue(campaign.domain_id,forecast?{plantingSelect,includeTrays:true,lotExtras:'weighed_kg,estimated_kg,quantity_kg'}:{})
+  const harvests=forecast?await readAllPages(()=>supabase.from('harvests')
+    .select(`id,lot_number,harvest_date,total_qty,estimated_kg,qty_category_1,qty_category_2,qty_category_3,campaign_plantings!inner(${plantingSelect})`)
+    .eq('domain_id',campaign.domain_id).eq('campaign_plantings.campaign_id',params.campaignId)):[]
+  const lines=buildHarvestForecast(forecast?revenue.lots:[],revenue.sources,revenue.entries,harvests,forecast?revenue.trayLines:[])
   const matchesScope = (planting: any) => planting?.campaign_id === params.campaignId
     && (!params.farmId || planting.greenhouses?.farm_id === params.farmId)
     && (!params.greenhouseId || planting.greenhouse_id === params.greenhouseId)
   const out: Record<string, Record<MonthKey, number>> = {}
-  for (const lot of lots) {
-    const pricing = pricedDispatch(lot, allocations)
-    if (!pricing) continue
-    const lotSources = sourcesByLot.get(lot.id) ?? []
-    let share = matchesScope(lot.campaign_plantings) ? 1 : 0
-    if (lotSources.length) {
-      const total = lotSources.reduce((sum, source) => sum + Number(source.qty_contributed_kg || 0), 0)
-      const selected = lotSources.filter(source => matchesScope(source.harvests?.campaign_plantings))
-        .reduce((sum, source) => sum + Number(source.qty_contributed_kg || 0), 0)
-      share = total > 0 ? selected / total : 0
+  for (const entry of lines) {
+    const catId = entry.destination === 'local' ? params.caLocalCatId : params.caExportCatId
+    if (!catId) continue
+    if (!entry.planting?.campaign_id){
+      out[catId]??={};out[catId].unassigned_count=(out[catId].unassigned_count||0)+1;continue
     }
-    if (!(share > 0)) continue
-    const catId = lot.markets?.type === 'local' ? params.caLocalCatId : params.caExportCatId
-    const date = /^(\d{4})-(\d{2})-\d{2}$/.exec(lot.harvest_date ?? '')
-    if (!catId || !date) continue
-    const key = monthKey(Number(date[1]), Number(date[2]))
+    if (!matchesScope(entry.planting)) continue
     out[catId] ??= {}
-    out[catId][key] = (out[catId][key] ?? 0) + pricing.amount * share
+    if(params.details)(params.details[catId]??=[]).push(entry)
+    if(entry.amount==null){out[catId].estimate_issues=(out[catId].estimate_issues||0)+1;continue}
+    if(entry.kind==='estimate')out[catId].estimated_amount=(out[catId].estimated_amount||0)+entry.amount
+    if (!entry.date) {
+      out[catId].undated = (out[catId].undated || 0) + entry.amount
+      out[catId].undated_count = (out[catId].undated_count || 0) + 1
+      continue
+    }
+    const [year, month] = entry.date.split('-').map(Number)
+    const key = monthKey(year, month)
+    out[catId][key] = Math.round(((out[catId][key] || 0) + entry.amount) * 100) / 100
   }
   return out
 }
@@ -187,6 +185,7 @@ export async function buildComparison(params: {
   farmId?: string
   greenhouseId?: string | null
   months: { year: number; month: number }[]   // liste ordonnée des 12 mois à considérer
+  revenueBasis?: 'actual' | 'provisional'
   cutoffDate?: Date                             // défaut : aujourd'hui
 }): Promise<ComparisonMonthly[]> {
 
@@ -197,10 +196,11 @@ export async function buildComparison(params: {
   const caExportCatId = categories.find(c => c.code === 'CA_EXPORT')?.id ?? null
   const caLocalCatId  = categories.find(c => c.code === 'CA_LOCAL')?.id  ?? null
 
+  const details:Record<string,HarvestForecastLine[]>={}
   const [budgetMonthly, actualChargesMonthly, actualRevenuesMonthly] = await Promise.all([
     getBudgetMonthly({ versionId: params.versionId, farmId: params.farmId, greenhouseId: params.greenhouseId }),
     getActualChargesMonthly({ campaignId: params.campaignId, farmId: params.farmId, greenhouseId: params.greenhouseId }),
-    getActualRevenuesMonthly({ campaignId: params.campaignId, farmId: params.farmId, greenhouseId: params.greenhouseId, caExportCatId, caLocalCatId }),
+    getActualRevenuesMonthly({ campaignId: params.campaignId, farmId: params.farmId, greenhouseId: params.greenhouseId, revenueBasis:params.revenueBasis, details, caExportCatId, caLocalCatId }),
   ])
 
   // Fusion actuel = charges + revenues
@@ -244,6 +244,12 @@ export async function buildComparison(params: {
       display_order: c.display_order,
       budget: totalBudget,
       actual: totalActual,
+      unassigned_revenue_count: actualRevenuesMonthly[c.id]?.unassigned_count || 0,
+      revenue_details: details[c.id] || [],
+      estimate_issues: actualRevenuesMonthly[c.id]?.estimate_issues || 0,
+      estimated_amount: actualRevenuesMonthly[c.id]?.estimated_amount || 0,
+      undated_actual: actualRevenuesMonthly[c.id]?.undated || 0,
+      undated_count: actualRevenuesMonthly[c.id]?.undated_count || 0,
       byMonth,
     }
   })

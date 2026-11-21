@@ -249,7 +249,7 @@ function PointagePage({domainId}: {domainId: string}) {
               <FormGroup label={_ui("Ouvrier *")}>
                 <TSelect value={form.worker_id} onChange={upd('worker_id')}>
                   <option value="">{_ui("— Sélectionner —")}</option>
-                  {farmWorkers.map(w => <option key={w.id} value={w.id}>{w.last_name} {w.first_name} {w.matricule ? `(${w.matricule})` : ''}</option>)}
+                  {farmWorkers.map(w => <option key={w.id} value={w.id}>{w.last_name} {w.first_name}</option>)}
                 </TSelect>
               </FormGroup>
             ) : (

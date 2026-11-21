@@ -1,6 +1,6 @@
 import {expect, it} from 'vitest'
 import ExcelJS from 'exceljs'
-import {attendanceDays, parseAttendanceHours, attendanceDayEquivalent, attendanceCompleteRows, attendanceTotals, mergeAttendanceRows} from './attendance'
+import {attendanceHourWarnings, attendanceNeedsReview, attendanceDays, parseAttendanceHours, attendanceDayEquivalent, attendanceCompleteRows, attendanceTotals, mergeAttendanceRows} from './attendance'
 import {buildAttendanceWorkbook, readAttendanceWorkbook} from './attendanceWorkbook'
 
 const days = attendanceDays(2026, 11, 'first')
@@ -17,8 +17,10 @@ it('distinguishes unknown hours from zero and accepts 16 actual hours', () => {
   expect(parseAttendanceHours('0')).toBe(0)
   expect(parseAttendanceHours('16')).toBe(16)
   expect(parseAttendanceHours('7,25')).toBe(7.25)
-  expect(() => parseAttendanceHours('25')).toThrow()
-  expect(() => parseAttendanceHours('1.005')).toThrow()
+  expect(parseAttendanceHours('25')).toBe(25)
+  expect(parseAttendanceHours('1.005')).toBe(1.005)
+  expect(()=>parseAttendanceHours('-1')).toThrow()
+  expect(()=>parseAttendanceHours('Infinity')).toThrow()
   expect(attendanceDayEquivalent(63)).toEqual({days: 7, hours: 7})
 })
 it('creates daily rows and merges explicit values without erasing known values with blanks', () => {
@@ -29,8 +31,8 @@ it('creates daily rows and merges explicit values without erasing known values w
   const merged = mergeAttendanceRows(rows, [{...rows[0], normal_hours: null, overtime_hours: 0}])
   expect(merged.replacements).toBe(1)
   expect(merged.rows[0]).toMatchObject({normal_hours: 16, overtime_hours: 0})
-  expect(() => mergeAttendanceRows(rows, [{...rows[0], overtime_hours: 9}])).toThrow(/24/)
-  expect(() => mergeAttendanceRows([], [{...rows[0], overtime_hours: 9}])).toThrow(/24/)
+  expect(attendanceNeedsReview(mergeAttendanceRows(rows, [{...rows[0], overtime_hours: 9}]).rows[0])).toBe(true)
+  expect(mergeAttendanceRows([], [{...rows[0], overtime_hours: 9}]).rows[0].overtime_hours).toBe(9)
 })
 it('round trips the bound N/S template and ignores editable displayed totals', async () => {
   const blob = await buildAttendanceWorkbook(context, [])
@@ -53,5 +55,5 @@ it('round trips the bound N/S template and ignores editable displayed totals', a
   sheet.getCell('D3').value = 9
   expect(() => readAttendanceWorkbook(buffer as ArrayBuffer, 'wrong.xlsx', {...context, days: attendanceDays(2026, 11, 'second')})).toThrow()
   const invalid = await book.xlsx.writeBuffer()
-  expect(() => readAttendanceWorkbook(invalid as ArrayBuffer, 'invalid.xlsx', context)).toThrow(/24/)
+  expect(attendanceHourWarnings(readAttendanceWorkbook(invalid as ArrayBuffer, 'invalid.xlsx', context)[0]).join()).toContain('24')
 })

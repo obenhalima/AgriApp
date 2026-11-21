@@ -1,3 +1,4 @@
+import {attendanceNeedsReview} from './attendance'
 import {calculateNetPayroll, type NetPayrollContext} from './netPayroll'
 import type {AttendancePeriod, AttendanceRow, AttendanceWorker} from './attendance'
 
@@ -32,6 +33,8 @@ export type PayrollPreparation = {
   campaign_id: string | null; pay_date: string; status: 'draft' | 'validated'
   revision: number; attendance_period_id: string | null; attendance_revision: number | null
   payroll_period_id: string | null; rows: PayrollPreparationLine[]; validated_at: string | null
+  correction_id?: string | null; correction_mode?: 'reopen' | 'regularization' | null
+  published_rows?: PayrollPreparationLine[] | null
 }
 export type PayrollPayment = {
   id: string; preparation_id: string; worker_id: string; amount: number
@@ -40,7 +43,7 @@ export type PayrollPayment = {
 
 export function newPayrollLine(worker: PayrollWorker, attendance: {period: AttendancePeriod | null; rows: AttendanceRow[]}): PayrollPreparationLine {
   const rows = attendance.rows.filter(row => row.worker_id === worker.id)
-  const validated = attendance.period?.status === 'validated' && rows.length > 0
+  const validated = attendance.period?.status === 'validated' && rows.length > 0 && !rows.some(attendanceNeedsReview)
   return {
     calculation_basis: 'net-v1', is_declared: worker.is_declared ?? true, dependents: worker.dependents ?? 0, payroll_start: attendance.period?.start_date || '2026-01-01',
     worker_id: worker.id, worker_name: `${worker.last_name} ${worker.first_name}`.trim(), worker_code: worker.matricule || worker.id,
@@ -63,8 +66,8 @@ function scaledInteger(value: number, precision: number) {
 // Rates retain nine decimal places. Round each N/S amount once to currency cents.
 export function hourlyAmount(hours: number, rate: number): number {
   if (!Number.isFinite(hours) || !Number.isFinite(rate) || hours < 0 || rate < 0 || hours > 99999999 || rate > 99999999) return 0
-  const product = scaledInteger(hours, 2) * scaledInteger(rate, 9)
-  return Number((product + BigInt(500000000)) / BigInt(1000000000)) / 100
+  const product = scaledInteger(hours, 9) * scaledInteger(rate, 9)
+  return Number((product + BigInt(5000000000000000)) / BigInt(10000000000000000)) / 100
 }
 const cents = (value: number) => Math.round((Number.isFinite(value) ? value : 0) * 100)
 export function payrollLineAmounts(line: PayrollPreparationLine) {
@@ -88,7 +91,7 @@ export function payrollLineIssues(line: PayrollPreparationLine, days: number, va
   const issues: string[] = []
   for (const field of ['normal_hours', 'overtime_hours', 'normal_rate', 'overtime_rate', ...(line.calculation_basis === 'net-v1' ? ['bonuses', 'advance', 'other_deductions'] as const : payrollAdjustmentFields)] as const) {
     const value = line[field]
-    const precision = field.endsWith('_rate') ? 9 : 2
+    const precision = field.endsWith('_rate') || (line.source === 'attendance' && field.endsWith('_hours')) ? 9 : 2
     if (value == null) {
       if (validate && ((field === 'normal_hours' || field === 'overtime_hours') || (field === 'normal_rate' && (line.normal_hours || 0) > 0) || (field === 'overtime_rate' && (line.overtime_hours || 0) > 0))) issues.push('Heures ou taux manquants')
       continue
@@ -96,7 +99,7 @@ export function payrollLineIssues(line: PayrollPreparationLine, days: number, va
     const scale = 10 ** precision
     if (!Number.isFinite(value) || value < 0 || value > (99999999) || Math.abs(value * scale - Math.round(value * scale)) > .0001) issues.push('Valeur numérique invalide')
   }
-  if ((line.normal_hours || 0) + (line.overtime_hours || 0) > days * 24) issues.push('Le total des heures dépasse la durée de la période')
+  if (line.source !== 'attendance' && (line.normal_hours || 0) + (line.overtime_hours || 0) > days * 24) issues.push('Le total des heures dépasse la durée de la période')
   try {
     const amounts = payrollLineAmounts(line)
     if (amounts.calculation_error) issues.push(amounts.calculation_error)

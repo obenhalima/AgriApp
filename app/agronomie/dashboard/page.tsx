@@ -9,6 +9,7 @@ import type { CSSProperties } from 'react'
 import { Activity, Leaf, RefreshCw, ArrowUpRight, Wheat, Gauge, Target, Wallet, Scale, Droplets, Package } from 'lucide-react'
 import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, BarChart, Bar } from 'recharts'
 import { useAuth } from '@/lib/auth'
+import {readHarvestPerformance} from '@/lib/harvestPerformanceApi'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { formatPlanNumber as fmt } from '@/lib/farmLayout'
@@ -62,7 +63,7 @@ function Dashboard({entry}:{entry:AnalyticalScope}){
    })
    await Promise.all([
     source('Récoltes',canHarvest&&d.ready.Production,async()=>{d.harvests=await paged(()=>supabase.from('harvests').select('id,campaign_planting_id,harvest_date,total_qty,campaign_plantings!inner(campaign_id)').eq('domain_id',domain).eq('campaign_plantings.campaign_id',campaign).order('id'))}),
-    source('Finances',canCost,async()=>{const r=await supabase.rpc('get_farm_performance_data',{p_domain:domain,p_campaign:campaign,p_start:null,p_end:null}).abortSignal(controller.signal);if(r.error)throw r.error;d.finance=r.data}),
+    source('Finances',canCost,async()=>{d.finance=await readHarvestPerformance(domain!,campaign,null,null,controller.signal);if(d.finance.revenue_date_issues)d.errors.push('CA : récoltes sources à compléter dans le récapitulatif des envois tarifés.')}),
     source('Stocks',canStock,async()=>{[d.warehouses,d.balances]=await Promise.all([
      paged(()=>supabase.from('warehouses').select('id,name,farm_id').eq('domain_id',domain).order('id')),
      paged(()=>supabase.from('warehouse_stocks').select('warehouse_id,stock_item_id,current_qty,min_qty,inventory_value,valuation_verified,stock_items(name,unit)').eq('domain_id',domain).order('warehouse_id').order('stock_item_id'))

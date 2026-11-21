@@ -64,9 +64,75 @@ export async function recordPayrollPayment(input: {preparation: string; worker: 
   return result.data as PayrollPayment
 }
 
+export type PayrollFortnightSettlement = {
+  id: string; preparation_id: string; amount: number; worker_count: number; payment_date: string
+  payment_method: 'cash' | 'virement' | 'cheque'; reference: string | null; payments: PayrollPayment[]
+  created_by: string; created_at: string
+}
+function settlementError(error: any) {
+  if (error && ['PGRST202', 'PGRST205', '42P01', '42883'].includes(error.code)) throw new Error('Appliquez la migration payroll_fortnight_settlement pour régler toute la quinzaine.')
+  check(error)
+}
+export async function settlePayrollFortnight(input: {preparation: string; revision: number; expected: number; date: string; method: string; reference: string; request: string}) {
+  const result = await supabase.rpc('settle_payroll_fortnight', {p_preparation: input.preparation, p_revision: input.revision,
+    p_expected_total: input.expected, p_date: input.date, p_method: input.method, p_reference: input.reference, p_request: input.request})
+  settlementError(result.error)
+  return result.data as PayrollFortnightSettlement
+}
+export async function listPayrollFortnightSettlements(domain: string, preparation: string) {
+  const rows: PayrollFortnightSettlement[] = []
+  for (let offset = 0; ; offset += 100) {
+    const result = await supabase.from('payroll_fortnight_settlements').select('*').eq('domain_id', domain).eq('preparation_id', preparation)
+      .order('created_at', {ascending: false}).order('id').range(offset, offset + 99)
+    settlementError(result.error)
+    rows.push(...(result.data || []))
+    if (!result.data || result.data.length < 100) return rows
+  }
+}
+
 export async function readNetPayrollContext(domain: string, farm: string, start: string) {
   const result = await supabase.rpc('payroll_net_context', {p_domain: domain, p_farm: farm, p_start: start})
   if (result.error && ['PGRST202', 'PGRST205', '42P01', '42883'].includes(result.error.code)) throw new Error('Appliquez la migration payroll_net_rates pour activer les taux horaires nets et le calcul automatique.')
   check(result.error)
   return (result.data || []) as (NetPayrollContext & {is_declared: boolean | null; dependents: number; has_later_payroll: boolean})[]
+}
+
+export type PayrollCorrection = {
+  id: string; preparation_id: string; mode: 'reopen' | 'regularization'
+  status: 'open' | 'applied' | 'cancelled'; reason: string
+  original_preparation: PayrollPreparation; revised_preparation: PayrollPreparation | null
+  paid_at_open: number; created_by: string; created_at: string; closed_by: string | null; closed_at: string | null
+}
+
+function correctionError(error: any) {
+  if (error && ['PGRST202', 'PGRST205', '42P01', '42883'].includes(error.code)) {
+    throw new Error('Appliquez la migration payroll_corrections pour activer la correction des paies.')
+  }
+  check(error)
+}
+
+export async function listPayrollCorrections(domain: string, preparation: string) {
+  const rows: PayrollCorrection[] = []
+  for (let offset = 0; ; offset += 100) {
+    const result = await supabase.from('payroll_corrections').select('*').eq('domain_id', domain)
+      .eq('preparation_id', preparation).order('created_at', {ascending: false}).order('id').range(offset, offset + 99)
+    correctionError(result.error)
+    rows.push(...(result.data || []))
+    if (!result.data || result.data.length < 100) break
+  }
+  return rows
+}
+
+export async function beginPayrollCorrection(input: {domain: string; preparation: string; revision: number; reason: string; request: string}) {
+  const result = await supabase.rpc('begin_payroll_correction', {
+    p_domain: input.domain, p_preparation: input.preparation, p_revision: input.revision, p_reason: input.reason, p_request: input.request,
+  })
+  correctionError(result.error)
+  return result.data as PayrollPreparation
+}
+
+export async function cancelPayrollCorrection(input: {domain: string; preparation: string; revision: number}) {
+  const result = await supabase.rpc('cancel_payroll_correction', {p_domain: input.domain, p_preparation: input.preparation, p_revision: input.revision})
+  correctionError(result.error)
+  return result.data as PayrollPreparation
 }

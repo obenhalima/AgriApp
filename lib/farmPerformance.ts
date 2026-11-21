@@ -1,5 +1,5 @@
 import { allocateProductionCosts, costRatio, type CostData, type ProductionAllocation } from './productionCosting'
-export type PerformanceData=CostData&{revenue_available:boolean;consumptions?:{movement_id:string;product:string;quantity:number;unit:string;date:string}[];metadata:{id:string;variety_name:string;status:string;start:string|null;end:string|null;price_export:number|null;price_local:number|null;export_share:number|null}[];
+export type PerformanceData=CostData&{revenue_available:boolean;revenue_date_issues?:number;consumptions?:{movement_id:string;product:string;quantity:number;unit:string;date:string}[];metadata:{id:string;variety_name:string;status:string;start:string|null;end:string|null;price_export:number|null;price_local:number|null;export_share:number|null}[];
  harvest_details:{id:string;planting_id:string;date:string;kg:number;cat1:number;local_kg:number}[];
  station_lots:{id:string;planting_id:string;date:string;amount:number|null;priced_kg:number|null;accepted_kg:number|null}[]}
 export type PerformanceRow={id:string;name:string;plantingIds:string[];area:number;kg:number;target:number;targetMissing:boolean;direct:number;shared:number;budget:number;budgetMissing:boolean;estimatedRevenue:number;estimateMissing:boolean;stationRevenue:number;stationMissing:boolean;open:boolean;costMissing:boolean;provisional:boolean;categories:Record<string,number>;allocations:ProductionAllocation[]}
@@ -41,7 +41,7 @@ export function buildFarmPerformance(data:PerformanceData,filter:{farm?:string;v
    if(Number(h.cat1)>0&&meta?.price_export==null||Number(h.local_kg)>0&&meta?.price_local==null)r.estimateMissing=true
    r.estimatedRevenue+=Number(h.cat1||0)*Number(meta?.price_export||0)+Number(h.local_kg||0)*Number(meta?.price_local||0)
   }
-  r.stationMissing ||= !data.revenue_available||!lots.length||lots.some(l=>l.amount==null||l.accepted_kg==null||l.priced_kg==null||Number(l.priced_kg)<Number(l.accepted_kg))
+  r.stationMissing ||= !!data.revenue_date_issues||!data.revenue_available||!lots.length||lots.some(l=>l.amount==null||l.accepted_kg==null||l.priced_kg==null||Number(l.priced_kg)<Number(l.accepted_kg))
   r.stationRevenue+=lots.reduce((s,l)=>s+Number(l.amount||0),0)
  }
  return {...allocation,rows:Array.from(rows.values()),pendingCount:data.pending_movements.length}

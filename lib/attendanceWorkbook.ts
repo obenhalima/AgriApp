@@ -1,7 +1,8 @@
 import * as XLSX from 'xlsx'
 import ExcelJS from 'exceljs'
 import {buildTemplate,type ColumnSpec} from './imports/templateBuilder'
-import {attendanceCompleteRows,attendanceKey,parseAttendanceHours,type AttendanceRow,type AttendanceWorker} from './attendance'
+import {sumAttendanceHours,attendanceCompleteRows,attendanceKey,parseAttendanceHours,type AttendanceRow,type AttendanceWorker} from './attendance'
+import {AttendanceValidationError} from './attendanceValidation'
 
 export type AttendanceWorkbookContext = {domain: string; domainCode: string; farm: string; farmName: string; days: string[]; workers: AttendanceWorker[]}
 
@@ -62,37 +63,49 @@ export function readAttendanceWorkbook(buffer: ArrayBuffer, filename: string, co
     throw new Error('Le fichier appartient à un autre client, une autre ferme ou une autre quinzaine.')
   }
   for (let index = 0; index < context.days.length; index++) {
-    if (sheet[XLSX.utils.encode_cell({r: 0, c: index + 3})]?.v !== context.days[index]) throw new Error('Les dates du modèle ont été modifiées.')
+    if (sheet[XLSX.utils.encode_cell({r: 0, c: index + 3})]?.v !== context.days[index]) throw new AttendanceValidationError('Les dates du modèle ont été modifiées.', {sheet: 'Pointage', row: 1, column: index + 3})
   }
   const available = new Set(context.workers.map(worker => worker.id))
   const lookup = new Map<string, string>()
-  for (const row of XLSX.utils.sheet_to_json<any[]>(references, {header: 1}).slice(1)) {
-    if (!available.has(String(row[1])) || lookup.has(String(row[0]))) throw new Error('Référentiel des employés incohérent avec cette ferme.')
+  for (const [index, row] of XLSX.utils.sheet_to_json<any[]>(references, {header: 1}).slice(1).entries()) {
+    if (!available.has(String(row[1])) || lookup.has(String(row[0]))) throw new AttendanceValidationError('Référentiel des employés incohérent avec cette ferme.', {sheet: 'Ref_Employes', row: index + 2, column: !available.has(String(row[1])) ? 1 : 0, employee: String(row[2] || '')})
     lookup.set(String(row[0]), String(row[1]))
   }
   const data = XLSX.utils.sheet_to_json<any[]>(sheet, {header: 1, defval: null})
   const rows = new Map<string, AttendanceRow>(), pairs = new Map<string, Set<string>>()
+  const sourceRows = new Map<string, number[]>()
   for (let index = 1; index < data.length; index++) {
     const line = data[index]
     if (!line.some(value => value != null && String(value).trim() !== '')) continue
     const worker = lookup.get(String(line[0])), type = String(line[2] || '').trim().toUpperCase()
-    if (!worker || !['N', 'S'].includes(type)) throw new Error(`Ligne ${index + 1} : code employé ou type N/S invalide.`)
+    const employee = String(line[1] || line[0] || '')
+    const fail = (message: string, column: number, relatedRows?: number[]): never => {throw new AttendanceValidationError(message, {sheet: 'Pointage', row: index + 1, column, employee, relatedRows})}
+    if (!worker) return fail('Code employé invalide.', 0)
+    if (!['N', 'S'].includes(type)) fail('Type N/S invalide.', 2)
     const types = pairs.get(worker) || new Set<string>()
-    if (types.has(type)) throw new Error(`Ligne ${index + 1} : ligne N/S en double pour cet employé.`)
+    const key = `${worker}:${type}`
+    const duplicate = types.has(type)
+    sourceRows.set(key, [...(sourceRows.get(key) || []), index + 1])
     types.add(type); pairs.set(worker, types)
     context.days.forEach((date, dayIndex) => {
       const cell = sheet[XLSX.utils.encode_cell({r: index, c: dayIndex + 3})]
-      if (cell?.t === 'e' || (cell?.f && cell.v == null)) throw new Error(`Ligne ${index + 1} : formule Excel sans résultat exploitable.`)
-      const value = parseAttendanceHours(line[dayIndex + 3])
+      if (cell?.t === 'e' || (cell?.f && cell.v == null)) fail('Formule Excel sans résultat exploitable.', dayIndex + 3)
+      let value: number | null
+      try {value = parseAttendanceHours(line[dayIndex + 3])} catch (reason) {return fail((reason as Error).message, dayIndex + 3)}
       const key = attendanceKey(worker, date)
       const row = rows.get(key) || {worker_id: worker, work_date: date, normal_hours: null, overtime_hours: null, entry_source: 'excel' as const, source_filename: filename}
-      if (type === 'N') row.normal_hours = value
-      else row.overtime_hours = value
-      if ((row.normal_hours ?? 0) + (row.overtime_hours ?? 0) > 24) throw new Error(`Ligne ${index + 1} : N + S dépasse 24 heures sur une journée.`)
+      if (type === 'N') row.normal_hours = duplicate && value != null ? sumAttendanceHours([row.normal_hours,value]) : (value ?? row.normal_hours)
+      else row.overtime_hours = duplicate && value != null ? sumAttendanceHours([row.overtime_hours,value]) : (value ?? row.overtime_hours)
+      const sourceColumn = data[0].indexOf('Source')
+      const source = sourceColumn >= 0 ? String(line[sourceColumn] || '') : ''
+      row.source_references = [...new Set([...(row.source_references || []), ...(source ? source.split(' · ') : [`Pointage!${index + 1}`])])]
       rows.set(key, row)
     })
   }
   if (!pairs.size || pairs.size > 500) throw new Error('Sélectionnez entre 1 et 500 employés.')
-  if ([...pairs.values()].some(types => types.size !== 2)) throw new Error('Chaque employé doit avoir une ligne N et une ligne S.')
+  for (const [worker, types] of pairs) if (types.size !== 2) {
+    const row = sourceRows.get(`${worker}:${[...types][0]}`)![0]
+    throw new AttendanceValidationError('Chaque employé doit avoir une ligne N et une ligne S.', {sheet: 'Pointage', row, column: 2, employee: context.workers.find(item => item.id === worker)?.last_name})
+  }
   return attendanceCompleteRows([...pairs.keys()], context.days, [...rows.values()])
 }

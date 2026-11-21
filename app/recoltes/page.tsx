@@ -8,6 +8,7 @@ import '@/components/ui/workspace.css'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { HarvestPeopleFields } from '@/components/harvest/HarvestPeopleFields'
 import { harvestPeopleInput } from '@/lib/harvestPeople'
+import {dispatchTrayTypes} from '@/lib/dispatchTrayTypes'
 import { sentHarvestIds } from '@/lib/harvestEditLock'
 import { readHarvestHistory, harvestLoadError } from '@/lib/harvestHistory'
 import { PricedDispatchReport } from '@/components/harvest/PricedDispatchReport'
@@ -107,6 +108,8 @@ export default function RecoltesPage() {
   const [filterFarmId, setFilterFarmId] = useState('')
   const [filterGreenhouseId, setFilterGreenhouseId] = useState('')
   const [filterVarietyId, setFilterVarietyId] = useState('')
+  const [filterTrayType,setFilterTrayType]=useState('')
+  useEffect(()=>setFilterTrayType(''),[activeDomain?.domain_id])
 
   // ─── Tri par colonne (utilisé par ListeTab) ───
   type SortKey = 'lot_number' | 'harvest_date' | 'greenhouse' | 'variety' | 'total_qty' | 'used_kg' | 'remaining_kg'
@@ -244,10 +247,11 @@ export default function RecoltesPage() {
     harvests.forEach((h: any) => harvestById.set(h.id, h))
     return dispatches.map((d: any) => ({
       ...d,
+      tray_types: dispatchTrayTypes(d,sources,[...trayByHarvest.values()].flat(),trayTypes),
       sources: sourcesByLot.get(d.id) ?? [],
       parent_harvest: d.harvest_id ? harvestById.get(d.harvest_id) ?? null : null,
     }))
-  }, [dispatches, sources, harvests])
+  }, [dispatches, sources, harvests, trayByHarvest, trayTypes])
 
   // ─── Application des filtres globaux ───
   // Filtres : date_from, date_to, farm, greenhouse, variety
@@ -276,7 +280,8 @@ export default function RecoltesPage() {
 
   // Versions filtrees
   const harvestsFiltered = useMemo(() => harvestsEnriched.filter(h => matchesFilters(h)), [harvestsEnriched, matchesFilters])
-  const dispatchesFiltered = useMemo(() => dispatchesEnriched.filter(d => matchesFilters(d)), [dispatchesEnriched, matchesFilters])
+  const dispatchTrayOptions=useMemo(()=>Array.from(new Map<string,string>(dispatchesEnriched.flatMap(d=>d.tray_types.map((type:{code:string;label:string})=>[type.code,type.label] as const)))),[dispatchesEnriched])
+  const dispatchesFiltered = useMemo(() => dispatchesEnriched.filter(d => matchesFilters(d)&&(!filterTrayType||(filterTrayType==='__missing'?d.tray_types.length===0:d.tray_types.some((type:{code:string})=>type.code===filterTrayType)))), [dispatchesEnriched, matchesFilters, filterTrayType])
 
   // Tri (applique uniquement a la liste principale)
   const harvestsSorted = useMemo(() => {
@@ -387,8 +392,9 @@ export default function RecoltesPage() {
     return Array.from(set.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
   }, [plantings])
 
-  const hasActiveFilter = !!(filterDateFrom || filterDateTo || filterFarmId || filterGreenhouseId || filterVarietyId)
+  const hasActiveFilter = !!(filterDateFrom || filterDateTo || filterFarmId || filterGreenhouseId || filterVarietyId || filterTrayType)
   const resetFilters = () => {
+    setFilterTrayType('')
     setFilterDateFrom(''); setFilterDateTo(''); setFilterFarmId(''); setFilterGreenhouseId(''); setFilterVarietyId('')
   }
 
@@ -762,6 +768,11 @@ export default function RecoltesPage() {
             {varietiesForFilter.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
           </select>
 
+          <select className="form-input" style={{width:'auto',minWidth:180}} aria-label={_ui("Filtrer les envois par type de plateau")} value={filterTrayType} onChange={event=>setFilterTrayType(event.target.value)}>
+            <option value="">{_ui("Tous les types de plateau")}</option>
+            {dispatchTrayOptions.map(([code,label])=><option key={code} value={code}>{label}</option>)}
+            <option value="__missing">{_ui("Type de plateau non renseigné")}</option>
+          </select>
           {/* Reset */}
           {hasActiveFilter && (
             <button onClick={resetFilters} className="btn-ghost" style={{ fontSize: 11, padding: '4px 10px', color: '#3b82f6', marginLeft: 'auto' }}>
@@ -845,7 +856,7 @@ export default function RecoltesPage() {
       )}
       {modalCompose && activeDomain && historyDomain===activeDomain.domain_id && (
         <ComposeModal
-          key={activeDomain?.domain_id} domainId={activeDomain?.domain_id||''} harvests={aEnvoyer} markets={markets.filter(m=>m.domain_id===activeDomain?.domain_id)}
+          key={activeDomain?.domain_id} domainId={activeDomain?.domain_id||''} harvests={aEnvoyer} trayLinesByHarvest={trayByHarvest} markets={markets.filter(m=>m.domain_id===activeDomain?.domain_id)}
           onClose={() => setModalCompose(false)}
           onDone={() => { setModalCompose(false); load() }}
         />
@@ -1114,12 +1125,12 @@ function APeserTab({ dispatches, onPick, loading }: { dispatches: any[]; onPick:
     <div>
       <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--text-sub)' }}>
         {" "}{_ui("Envois partis à la station avec un poids")}{" "}<strong>{_ui("estimé")}</strong> {" "}{_ui("(plateaux). Saisis le")}{" "}<strong>{_ui("tonnage réel")}</strong> {" "}{_ui("pesé par la station — il sera réparti au prorata sur les récoltes.")}{" "}</div>
-      <Table headers={['Lot dispatch', 'Date', 'Marché', 'Variété', 'Récoltes incluses', 'Estimé (kg)', 'Action']} loading={loading} empty={_ui("Aucun envoi en attente de pesée ✓")} rows={dispatches}>
+      <Table headers={['Lot dispatch', 'Date', 'Marché', 'Types de plateau', 'Variété', 'Récoltes incluses', 'Estimé (kg)', 'Action']} loading={loading} empty={_ui("Aucun envoi en attente de pesée ✓")} rows={dispatches}>
         {(d: any) => (
           <tr key={d.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
             <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{d.lot_number}</td>
             <td style={td}>{d.harvest_date}</td>
-            <td style={td}>{d.markets?.name ?? '—'}</td>
+            <td style={td}>{d.markets?.name ?? '—'}</td><td style={td}>{d.tray_types?.map((type:any)=>type.label).join(' · ')||_ui('Non renseigné')}</td>
             <td style={{ ...td, fontSize: 11.5 }}>
               {d.varieties?.code
                 ? <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,.15)', color: '#a855f7', fontWeight: 600 }}>{d.varieties.code}</span>
@@ -1229,12 +1240,12 @@ function ATrierTab({ dispatches, onPick, loading }: { dispatches: any[]; onPick:
       <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--text-sub)' }}>
         {" "}{_ui("Envois envoyés à la station, en attente de saisie du")}{" "}<strong>{_ui("tri (freinte + écart)")}</strong>.
       </div>
-      <Table headers={['Lot dispatch', 'Date', 'Marché', 'Variété', 'Récoltes incluses', 'Brute (kg)', 'Action']} loading={loading} empty={_ui("Aucun envoi en attente de tri ✓")} rows={dispatches}>
+      <Table headers={['Lot dispatch', 'Date', 'Marché', 'Types de plateau', 'Variété', 'Récoltes incluses', 'Brute (kg)', 'Action']} loading={loading} empty={_ui("Aucun envoi en attente de tri ✓")} rows={dispatches}>
         {(d: any) => (
           <tr key={d.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
             <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{d.lot_number}</td>
             <td style={td}>{d.harvest_date}</td>
-            <td style={td}>{d.markets?.name ?? '—'}</td>
+            <td style={td}>{d.markets?.name ?? '—'}</td><td style={td}>{d.tray_types?.map((type:any)=>type.label).join(' · ')||_ui('Non renseigné')}</td>
             <td style={{ ...td, fontSize: 11.5 }}>
               {d.varieties?.code
                 ? <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,.15)', color: '#a855f7', fontWeight: 600 }}>{d.varieties.code}</span>
@@ -1398,12 +1409,12 @@ function ATariferTab({ dispatches, summary, onPick, onOpenPeriod, onGotoBorderea
           </FilterableTable>
         </div>
       )}
-      <Table headers={['Lot', 'Date', 'Marché', 'Variété', 'Brute', 'Freinte', 'Écart', 'Acceptée', 'Action']} loading={loading} empty={_ui("Aucun envoi en attente de prix.")} rows={dispatches}>
+      <Table headers={['Lot', 'Date', 'Marché', 'Types de plateau', 'Variété', 'Brute', 'Freinte', 'Écart', 'Acceptée', 'Action']} loading={loading} empty={_ui("Aucun envoi en attente de prix.")} rows={dispatches}>
         {(d: any) => (
           <tr key={d.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
             <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{d.lot_number}</td>
             <td style={td}>{d.harvest_date}</td>
-            <td style={td}>{d.markets?.name ?? '—'}</td>
+            <td style={td}>{d.markets?.name ?? '—'}</td><td style={td}>{d.tray_types?.map((type:any)=>type.label).join(' · ')||_ui('Non renseigné')}</td>
             <td style={td}>
               {d.varieties?.code
                 ? <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,.15)', color: '#a855f7', fontWeight: 600, fontSize: 11.5 }}>{d.varieties.code}</span>
@@ -1430,12 +1441,12 @@ function ConfirmesTab({ dispatches, loading }: { dispatches: any[]; loading: boo
     <div>
       <div style={{ marginBottom: 8, fontSize: 12.5, color: 'var(--text-sub)' }}>
         {" "}{_ui("Envois avec prix confirmé et CA calculé.")}{" "}</div>
-      <Table headers={['Lot', 'Date', 'Marché', 'Variété', 'Acceptée', 'Prix /kg', 'CA', 'Réf station']} loading={loading} empty={_ui("Aucun envoi confirmé.")} rows={dispatches}>
+      <Table headers={['Lot', 'Date', 'Marché', 'Types de plateau', 'Variété', 'Acceptée', 'Prix /kg', 'CA', 'Réf station']} loading={loading} empty={_ui("Aucun envoi confirmé.")} rows={dispatches}>
         {(d: any) => (
           <tr key={d.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
             <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{d.lot_number}</td>
             <td style={td}>{d.harvest_date}</td>
-            <td style={td}>{d.markets?.name ?? '—'}</td>
+            <td style={td}>{d.markets?.name ?? '—'}</td><td style={td}>{d.tray_types?.map((type:any)=>type.label).join(' · ')||_ui('Non renseigné')}</td>
             <td style={td}>
               {d.varieties?.code
                 ? <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,.15)', color: '#a855f7', fontWeight: 600, fontSize: 11.5 }}>{d.varieties.code}</span>
@@ -1749,7 +1760,7 @@ function EditHarvestModal({ harvest, form, setForm, plantings, saving, done, err
   )
 }
 
-function ComposeModal({ domainId,harvests, markets, onClose, onDone }: { domainId:string;harvests: any[]; markets: any[]; onClose: () => void; onDone: () => void }) {
+function ComposeModal({ domainId,harvests, trayLinesByHarvest, markets, onClose, onDone }: { domainId:string;harvests: any[]; trayLinesByHarvest:Map<string,any[]>; markets: any[]; onClose: () => void; onDone: () => void }) {
  const {t:_ui,text:_uiNode}=useLanguage()
 
  const {t}=useLanguage()
@@ -1765,21 +1776,18 @@ function ComposeModal({ domainId,harvests, markets, onClose, onDone }: { domainI
   const defaultWeight = Number(defaultTray?.metadata?.poids_kg) || 0
   const defaultLabel = defaultTray?.label ?? 'plateaux'
 
-  const [trayByHarvest, setTrayByHarvest] = useState<Record<string, { trays: number; label: string }>>({})
-  useEffect(() => {
-    const ids = harvests.map((h: any) => h.id)
-    if (ids.length === 0) return
-    supabase.from('harvest_tray_lines').select('harvest_id, nb_trays, tray_type_label').in('harvest_id', ids)
-      .then(({ data }) => {
-        const m: Record<string, { trays: number; label: string }> = {}
-        for (const r of (data ?? []) as any[]) {
-          const cur = m[r.harvest_id] ?? { trays: 0, label: r.tray_type_label ?? 'plateaux' }
-          cur.trays += Number(r.nb_trays) || 0
-          m[r.harvest_id] = cur
-        }
-        setTrayByHarvest(m)
-      })
-  }, [harvests])
+  const [trayFilter,setTrayFilter]=useState('')
+  const trayByHarvest=useMemo(()=>{
+    const result:Record<string,{trays:number;label:string;types:{code:string;label:string}[]}>={}
+    for(const harvest of harvests){
+      const lines=trayLinesByHarvest.get(harvest.id)||[]
+      if(!lines.length)continue
+      const types=dispatchTrayTypes({id:'composition',harvest_id:harvest.id},[],lines,trayTypes)
+      result[harvest.id]={trays:lines.reduce((sum,line)=>sum+Number(line.nb_trays||0),0),label:types.map(type=>type.label).join(' · '),types}
+    }
+    return result
+  },[harvests,trayLinesByHarvest,trayTypes])
+  const trayOptions=Array.from(new Map(Object.values(trayByHarvest).flatMap(info=>info.types.map(type=>[type.code,type.label] as const))))
 
   // Poids moyen d'un plateau + nb collecté + max plateaux envoyables pour une récolte
   const trayOf = (h: any) => {
@@ -1917,17 +1925,25 @@ function ComposeModal({ domainId,harvests, markets, onClose, onDone }: { domainI
       {markets.length===0&&<p role="status" className="text-red-700"><TranslatedText text={"Aucun marché actif pour ce client. Créez ou activez un marché dans le client sélectionné avant de préparer l’envoi."}/></p>}
       <div style={{ fontSize: 11, color: 'var(--text-sub)', textTransform: 'uppercase', letterSpacing: .5, marginTop: 12, marginBottom: 4 }}>
         {t("Récoltes disponibles")}</div>
+      <label className="block text-sm mb-2">{_ui("Types de plateau")}
+        <select className="form-input" aria-label={_ui("Filtrer les récoltes disponibles par type de plateau")} value={trayFilter} onChange={event=>setTrayFilter(event.target.value)}>
+          <option value="">{_ui("Tous les types de plateau")}</option>
+          {trayOptions.map(([code,label])=><option key={code} value={code}>{label}</option>)}
+          <option value="__missing">{_ui("Type de plateau non renseigné")}</option>
+        </select>
+      </label>
       <div style={{ border: '1px solid var(--bd-1)', borderRadius: 6, maxHeight: 360, overflow: 'auto' }}>
         <FilterableTable style={{ width: '100%', fontSize: 12 }}>
           <thead style={{ background: 'var(--bg-2)', position: 'sticky', top: 0 }}>
-            <tr>{[_ui("Lot"), _ui("Date"), _ui("Serre/Var"), _ui("Dispo"), _ui("Plateaux à envoyer"), ''].map(h => <th key={h} style={th}><TranslatedText text={h}/></th>)}</tr>
+            <tr>{[_ui("Lot"), _ui("Date"), _ui("Serre/Var"), _ui("Types de plateau"), _ui("Dispo"), _ui("Plateaux à envoyer"), ''].map(h => <th key={h} style={th}><TranslatedText text={h}/></th>)}</tr>
           </thead>
           <tbody>
-            {harvests.map(h => (
+            {harvests.filter(h=>!trayFilter||(trayFilter==='__missing'?!trayByHarvest[h.id]?.types.length:trayByHarvest[h.id]?.types.some(type=>type.code===trayFilter))).map(h => (
               <tr key={h.id} style={{ borderBottom: '1px solid var(--bd-1)' }}>
                 <td style={{ ...td, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{h.lot_number}</td>
                 <td style={td}>{h.harvest_date}</td>
                 <td style={{ ...td, fontSize: 11 }}>{h.campaign_plantings?.greenhouses?.code} / {h.campaign_plantings?.varieties?.code}</td>
+                <td style={td}>{trayByHarvest[h.id]?.types.map(type=>type.label).join(' · ')||_ui('Non renseigné')}</td>
                 <td style={tdNum}>
                   {fmt(h.remaining_kg)} kg
                   <div style={{ fontSize: 10, color: 'var(--text-sub)', fontWeight: 400 }}>

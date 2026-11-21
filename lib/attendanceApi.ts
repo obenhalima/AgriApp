@@ -1,5 +1,5 @@
 import {supabase} from './supabase'
-import type {AttendancePeriod, AttendanceRow} from './attendance'
+import {attendanceNeedsReview, type AttendancePeriod, type AttendanceRow} from './attendance'
 import type {PayrollPreparation, PayrollPayment} from './payrollPreparation'
 
 export const attendanceMigrationMessage = 'Appliquez la migration employee_attendance pour activer l’enregistrement du pointage.'
@@ -74,6 +74,15 @@ export async function saveAttendance(input: {
     p_domain: input.domain, p_farm: input.farm, p_start: input.start, p_end: input.end,
     p_revision: input.revision, p_rows: input.rows, p_action: input.action, p_request: input.request,
   })
+  if (result.error && input.rows.some(attendanceNeedsReview) && (result.error.code === '23514' || /24 heures/.test(result.error.message))) throw new Error('Appliquez la migration attendance_anomaly_review pour enregistrer les heures atypiques.')
+  check(result.error)
+  return result.data as AttendancePeriod
+}
+
+
+export async function reviewAttendance(input: {domain: string; period: string; revision: number; worker: string; date: string; reason: string; note: string; action: 'confirm' | 'resolve'; request: string}) {
+  const result = await supabase.rpc('review_employee_attendance', {p_domain: input.domain, p_period: input.period, p_revision: input.revision, p_worker: input.worker, p_date: input.date, p_reason: input.reason, p_note: input.note, p_action: input.action, p_request: input.request})
+  if (result.error?.code === 'PGRST202') throw new Error('Appliquez la migration attendance_anomaly_review pour enregistrer et contrôler les heures atypiques.')
   check(result.error)
   return result.data as AttendancePeriod
 }

@@ -3,6 +3,7 @@ import type {PayrollPreparation, PayrollPayment} from './payrollPreparation'
 // Use the validated amounts saved by payroll, never today's rates or tax rules.
 export function attendancePaymentSummary(preparation: PayrollPreparation | undefined, payments: PayrollPayment[]) {
   if (!preparation) return {label: 'Paie à préparer', net: null, paid: null, remaining: null}
+  if (preparation.correction_id && preparation.published_rows) preparation = {...preparation, status: 'validated', rows: preparation.published_rows}
   if (preparation.status !== 'validated') return {label: 'Paie en brouillon', net: null, paid: null, remaining: null}
   if (preparation.rows.some(row => row.net_salary == null)) return {label: 'Paiement à vérifier', net: null, paid: null, remaining: null}
   const paidByWorker = new Map<string, number>()
@@ -18,6 +19,7 @@ export function attendancePaymentSummary(preparation: PayrollPreparation | undef
     paid += received
     remaining += Math.max(0, due - received)
   }
-  const label = net === 0 ? 'Aucun montant à payer' : remaining === 0 ? 'Payé' : paid > 0 ? 'Partiellement payé' : 'À payer'
+  const overpaid = preparation.rows.some(row => (paidByWorker.get(row.worker_id) || 0) > Math.round(Number(row.net_salary) * 100))
+  const label = overpaid ? 'Trop-perçu à régulariser' : net === 0 ? 'Aucun montant à payer' : remaining === 0 ? 'Payé' : paid > 0 ? 'Partiellement payé' : 'À payer'
   return {label, net: net / 100, paid: paid / 100, remaining: remaining / 100}
 }

@@ -21,6 +21,9 @@ import {downloadBlob} from '@/lib/imports/engine'
 import {FilterableTable} from '@/components/ui/FilterableTable'
 import {Modal} from '@/components/ui/Modal'
 import PayrollHistory from '@/components/rh/PayrollHistory'
+import PayrollCorrections from '@/components/rh/PayrollCorrections'
+import PayrollPaymentHistory from '@/components/rh/PayrollPaymentHistory'
+import PayrollFortnightSettlement from '@/components/rh/PayrollFortnightSettlement'
 
 const adjustmentLabels = {
   bonuses: 'Primes nettes', advance: 'Avances à récupérer', other_deductions: 'Autres retenues',
@@ -130,8 +133,8 @@ function Preparation({domain, client}: {domain: string; client: string}) {
   const paidFor = (id: string) => payments.filter(payment => payment.worker_id === id).reduce((sum, payment) => sum + Number(payment.amount), 0)
   const summary = visible.reduce((sum, line) => {
     const amounts = payrollLineAmounts(line)
-    return {normal: sum.normal + (line.normal_hours || 0), overtime: sum.overtime + (line.overtime_hours || 0), gross: sum.gross + amounts.gross_salary, net: sum.net + amounts.net_salary, cost: sum.cost + amounts.total_employer_cost, paid: sum.paid + paidFor(line.worker_id)}
-  }, {normal: 0, overtime: 0, gross: 0, net: 0, cost: 0, paid: 0})
+    return {normal: sum.normal + (line.normal_hours || 0), overtime: sum.overtime + (line.overtime_hours || 0), gross: sum.gross + amounts.gross_salary, net: sum.net + amounts.net_salary, cost: sum.cost + amounts.total_employer_cost, paid: sum.paid + paidFor(line.worker_id), remaining: sum.remaining + Math.max(0, amounts.net_salary - paidFor(line.worker_id)), overpaid: sum.overpaid + Math.max(0, paidFor(line.worker_id) - amounts.net_salary)}
+  }, {normal: 0, overtime: 0, gross: 0, net: 0, cost: 0, paid: 0, remaining: 0, overpaid: 0})
   const detailLine = lines.find(line => line.worker_id === detail)
   const paymentLine = lines.find(line => line.worker_id === paymentWorker)
 
@@ -160,7 +163,7 @@ function Preparation({domain, client}: {domain: string; client: string}) {
     if (validationIssues.length) {setError(t(validationIssues[0])); return}
     if (staleAttendance) {setError(t('Actualisez les heures depuis le pointage validé.')); return}
     if (action === 'validate' && (!campaign || !lines.length)) {setError(t('Choisissez une campagne et au moins un employé')); return}
-    if (action === 'validate' && !window.confirm(t('Valider cette paie et générer les coûts de la campagne sélectionnée ?'))) return
+    if (action === 'validate' && !window.confirm(t(preparation?.correction_id ? 'Valider la correction et remplacer les coûts de la paie précédente ?' : 'Valider cette paie et générer les coûts de la campagne sélectionnée ?'))) return
     const payload = {domain, farm, start: days[0], end: days[days.length - 1], campaign: campaign || null, payDate, attendanceRevision, revision: preparation?.revision || 0, rows: lines, action}
     const signature = JSON.stringify(payload)
     if (saveRequest.current?.signature !== signature) saveRequest.current = {signature, id: crypto.randomUUID()}
@@ -198,7 +201,7 @@ function Preparation({domain, client}: {domain: string; client: string}) {
 
   return <main className="space-y-lg">
     <PageHeader title={t('Préparer la paie de la quinzaine')} subtitle={`${t('Parcours quinzaine')} · ${client}`} icon={Banknote} iconColor="#10b981" actions={<Button asChild variant="ghost"><Link href={adapted ? '/rh' : '/rh/paie'} onClick={event => {if (!discard()) event.preventDefault()}}><LayoutDashboard size={14}/>{t(adapted ? 'Tableau de bord' : 'Retour à la paie')}</Link></Button>}/>
-    <PayrollHistory domain={domain} farms={farms} revision={historyRevision} disabled={busy} onOpen={saved => {
+    <PayrollHistory domain={domain} farms={farms} revision={historyRevision} disabled={busy} onSettled={result => {if (result.preparation_id === preparation?.id) setPayments(current => [...current, ...result.payments.filter(payment => !current.some(item => item.id === payment.id))])}} onOpen={saved => {
       if (!discard()) return
       const [nextYear, nextMonth, day] = saved.start_date.split('-').map(Number)
       setDetail(null); setPaymentWorker(null)
@@ -216,6 +219,8 @@ function Preparation({domain, client}: {domain: string; client: string}) {
     {info && <p role="status" className="rounded-lg border border-success/30 bg-success/10 p-3 text-success">{info}</p>}
     {loading && <p role="status">{t('Chargement…')}</p>}
     {ready && <>
+      {preparation && <div data-payroll-settlement><PayrollFortnightSettlement preparation={preparation} payments={payments} disabled={busy} onBusy={setBusy} onRefresh={() => setRefresh(value => value + 1)} onPaid={result => {setPayments(current => [...current, ...result.payments.filter(payment => !current.some(item => item.id === payment.id))]); setInfo(t('Paiements de la quinzaine enregistrés. Aucun nouveau coût généré.')); setHistoryRevision(value => value + 1)}}/></div>}
+      {preparation && <PayrollCorrections key={preparation.id} domain={domain} preparation={preparation} lines={lines} payments={payments} canCorrect={canValidate} busy={busy} onBusy={setBusy} onChanged={() => {setDirty(false); setRefresh(value => value + 1); setHistoryRevision(value => value + 1)}}/>}
       {legacyCalculation && <p role="status" className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-warning">{t('Cette paie validée utilise le calcul brut enregistré lors de sa validation.')}</p>}
       <div className="flex flex-wrap gap-4 items-end"><p>{days[0]} — {days[days.length - 1]} · {t(locked ? 'Validée' : 'Brouillon')}{dirty && ` · ${t('Modifications non enregistrées')}`}</p>
         <label>{t('Campagne des coûts')}<select aria-label={t('Campagne des coûts')} className={`${control} block`} disabled={locked || busy || !canWrite} value={campaign} onChange={event => {setCampaign(event.target.value); setDirty(true)}}><option value="">{t('Sélectionnez une campagne')}</option>{campaigns.map(item => <option key={item.id} value={item.id}>{item.code} — {item.name}</option>)}</select></label>
@@ -228,7 +233,7 @@ function Preparation({domain, client}: {domain: string; client: string}) {
         setLines(current => selectedWorkers.has(worker.id) ? current.filter(line => line.worker_id !== worker.id) : [...current, withNetPayrollContext(newPayrollLine(worker, attendance), worker, netContexts.find(context => context.worker_id === worker.id), days[0])]); setDirty(true)
       }}/>{worker.last_name} {worker.first_name}{!worker.is_active && ` · ${t('Inactif')}`}</label>)}</div></details>}
       <div className="flex flex-wrap gap-3"><input aria-label={t('Rechercher un employé')} placeholder={t('Rechercher un employé')} className={control} value={search} onChange={event => setSearch(event.target.value)}/><button className={control} disabled={busy || !lines.length || !!issues.length} onClick={exportDocuments}>{t('Exporter état de paie et émargement')}</button></div>
-      <div className="grid gap-md sm:grid-cols-3 lg:grid-cols-4">{[['Heures normales', summary.normal], ['Heures supplémentaires', summary.overtime], ['Total brut', summary.gross], ['Net à payer', summary.net], ['Coût employeur', summary.cost], ['Payé', summary.paid], ['Reste à payer', summary.net - summary.paid]].map(([label, value]) => <KPICard key={label} label={t(String(label))} value={format(Number(value))} icon={Banknote} accent="#10b981"/>)}</div>
+      <div className="grid gap-md sm:grid-cols-3 lg:grid-cols-4">{[['Heures normales', summary.normal], ['Heures supplémentaires', summary.overtime], ['Total brut', summary.gross], ['Net à payer', summary.net], ['Coût employeur', summary.cost], ['Payé', summary.paid], ['Reste à payer', summary.remaining], ...(summary.overpaid > 0 ? [['Trop-perçu à régulariser', summary.overpaid]] : [])].map(([label, value]) => <KPICard key={label} label={t(String(label))} value={format(Number(value))} icon={Banknote} accent="#10b981"/>)}</div>
       <p className="text-sm">{t('Les heures du pointage validé sont reprises automatiquement. Sans pointage, saisissez les heures ou les jours équivalents. 8 h = 1 jour.')}</p>
       <p className="text-sm text-amber-900 bg-amber-50 rounded-lg p-3">{t('Les taux horaires sont nets. Le brut, les cotisations et le coût employeur sont calculés automatiquement selon le statut déclaré. Les avances et autres retenues sont déduites du net acquis.')}</p>
       <div className="overflow-auto rounded-lg border bg-surface-raised"><FilterableTable className="w-full text-sm" data-payroll-preparation amountSummary={{total: summary.net, count: visible.length, currency: 'MAD'}}>
@@ -237,7 +242,7 @@ function Preparation({domain, client}: {domain: string; client: string}) {
           const amounts = payrollLineAmounts(line), paid = paidFor(line.worker_id), remaining = Math.round((amounts.net_salary - paid) * 100) / 100
           const rowIssues = payrollLineIssues(line, days.length, false)
           return <tr key={line.worker_id} className="border-b align-top" data-filter-amount={amounts.net_salary}>
-            <td className="p-3 min-w-[200px] sticky start-0 z-10 bg-surface-raised"><strong>{line.worker_name}</strong><small className="block">{line.worker_code}</small>{rowIssues.map(issue => <p key={issue} className="text-danger bg-danger/10 p-1 mt-1">{t(issue)}</p>)}</td>
+            <td data-filter-value={line.worker_name || t('Nom manquant')} className="p-3 min-w-[200px] sticky start-0 z-10 bg-surface-raised"><strong>{line.worker_name}</strong>{rowIssues.map(issue => <p key={issue} className="text-danger bg-danger/10 p-1 mt-1">{t(issue)}</p>)}</td>
             <td className="p-3">{t(line.source === 'attendance' ? 'Pointage validé' : 'Saisie manuelle')}</td>
             <td className="p-3">{t(line.is_declared !== false ? 'Oui' : 'Non')}{!locked && <Link className="block text-brand underline" href="/rh/employes" target="_blank">{t('Fiche employé')}</Link>}</td>
             <td className="p-3">{numericInput(line, 'normal_hours', line.source === 'attendance')}{line.source === 'manual' ? <select aria-label={`${line.worker_code} ${t('Unité de saisie')}`} className={`${control} mt-1 block`} disabled={locked || busy || !canWrite} value={units[line.worker_id] || 'hours'} onChange={event => setUnits(current => ({...current, [line.worker_id]: event.target.value as 'hours' | 'days'}))}><option value="hours">{t('Heures')}</option><option value="days">{t('Jours de 8 h')}</option></select> : <small className="block">{format((line.normal_hours || 0) / 8)} {t('jours équivalents')}</small>}</td>
@@ -245,7 +250,7 @@ function Preparation({domain, client}: {domain: string; client: string}) {
             {(['normal_rate', 'overtime_rate'] as const).map(field => {const original = field === 'normal_rate' ? line.original_normal_rate : line.original_overtime_rate; return <td key={field} className="p-3 min-w-[190px]">{numericInput(line, field)}<small className="block">{t('Taux net de la fiche')} · {original == null ? '—' : format(original, 9)}</small>{line[field] != null && original != null && line[field] !== original && <small className="block text-amber-900 bg-amber-50 p-1">{t('Écart')} · {format(line[field]! - original, 9)} MAD/h</small>}</td>})}
             <td className="p-3 whitespace-nowrap">{format(amounts.base_amount)}</td><td className="p-3 whitespace-nowrap">{format(amounts.overtime_amount)}</td><td className="p-3 whitespace-nowrap">{format(amounts.gross_salary)}</td>
             <td className="p-3 whitespace-nowrap">{format(amounts.gross_salary - amounts.net_salary)}<small className={`block ${line.deductions_confirmed ? 'text-green-800' : 'text-amber-900'}`}>{t(line.deductions_confirmed ? 'Confirmées' : 'À confirmer')}</small></td>
-            <td className="p-3 whitespace-nowrap font-bold">{format(amounts.net_salary)}</td><td className="p-3 whitespace-nowrap">{format(paid)}</td><td className="p-3 whitespace-nowrap">{format(remaining)}</td>
+            <td className="p-3 whitespace-nowrap font-bold">{format(amounts.net_salary)}</td><td className="p-3 whitespace-nowrap">{format(paid)}</td><td className="p-3 whitespace-nowrap">{format(Math.max(0, remaining))}{remaining < 0 && <small className="block rounded bg-warning/10 p-1 text-warning">{t('Trop-perçu à régulariser')} · {format(-remaining)} MAD</small>}</td>
             <td className="p-3 flex gap-2"><button aria-label={`${t('Détails')} ${line.worker_code}`} className={control} onClick={() => setDetail(line.worker_id)}>{t('Détails')}</button>{locked && remaining > 0 && <button aria-label={`${t('Enregistrer un paiement')} ${line.worker_code}`} className={control} disabled={busy || !canPay} onClick={() => {setPaymentForm({amount: remaining.toFixed(2), date: new Date().toLocaleDateString('en-CA'), method: 'cash', reference: ''}); setPaymentWorker(line.worker_id)}}>{t('Payer')}</button>}</td>
           </tr>
         })}</tbody>
@@ -254,10 +259,10 @@ function Preparation({domain, client}: {domain: string; client: string}) {
     </>}
     {detailLine && <Modal title={`${t('Détail de paie')} — ${detailLine.worker_name}`} onClose={() => setDetail(null)} busy={busy}>
       <p className="mb-3">{t('Montants en MAD')} · {format(payrollLineAmounts(detailLine).gross_salary)} {t('brut')} · {format(payrollLineAmounts(detailLine).net_salary)} {t('net')}</p>
+      <div className="mb-4"><PayrollPaymentHistory payments={payments.filter(payment => payment.worker_id === detailLine.worker_id)} summary={{net: payrollLineAmounts(detailLine).net_salary, paid: paidFor(detailLine.worker_id), remaining: locked ? Math.max(0, payrollLineAmounts(detailLine).net_salary - paidFor(detailLine.worker_id)) : null}} disabled={busy} onPay={locked && canPay && payrollLineAmounts(detailLine).net_salary > paidFor(detailLine.worker_id) ? () => {setPaymentForm({amount: (payrollLineAmounts(detailLine).net_salary - paidFor(detailLine.worker_id)).toFixed(2), date: new Date().toLocaleDateString('en-CA'), method: 'cash', reference: ''}); setDetail(null); setPaymentWorker(detailLine.worker_id)} : undefined}/></div>
       <div className="grid sm:grid-cols-2 gap-3">{payrollAdjustmentFields.map(field => <label key={field}>{t(adjustmentLabels[field])}<input aria-label={t(adjustmentLabels[field])} className={`${control} block w-full`} type="number" min="0" step="0.01" disabled={locked || busy || !canWrite || !['bonuses', 'advance', 'other_deductions'].includes(field)} value={['bonuses', 'advance', 'other_deductions'].includes(field) ? detailLine[field] : payrollLineAmounts(detailLine)[field as 'cnss_employee']} onChange={event => changeLine(detailLine.worker_id, field, Number(event.target.value))}/></label>)}</div>
       <p className="mt-3">{t('Coût employeur')} · {format(payrollLineAmounts(detailLine).total_employer_cost)}</p>
       {!locked && <label className="flex gap-2 mt-3"><input type="checkbox" disabled={busy || !canWrite} checked={detailLine.deductions_confirmed} onChange={event => changeLine(detailLine.worker_id, 'deductions_confirmed', event.target.checked)}/>{t('Je confirme les primes nettes, avances et autres retenues de cet employé.')}</label>}
-      <h2 className="font-bold mt-4">{t('Paiements')}</h2>{payments.filter(payment => payment.worker_id === detailLine.worker_id).map(payment => <p key={payment.id}>{payment.payment_date} · {format(Number(payment.amount))} MAD · {t({cash: 'Espèces', virement: 'Virement', cheque: 'Chèque'}[payment.payment_method])} · {payment.reference || '—'}</p>)}
       <button className={`${control} mt-4`} onClick={() => setDetail(null)}>{t('Fermer')}</button>
     </Modal>}
     {paymentLine && <Modal title={`${t('Enregistrer un paiement')} — ${paymentLine.worker_name}`} onClose={() => {if (!busy) setPaymentWorker(null)}} busy={busy}>

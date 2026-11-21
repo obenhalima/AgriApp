@@ -25,7 +25,7 @@ it('exposes a safe diagnostic code without exposing backend details',async()=>{
 })
 it('disambiguates joins after tenant isolation adds composite foreign keys',()=>{
   const screen=readFileSync(new URL('../app/recoltes/page.tsx',import.meta.url),'utf8')
-  const report=readFileSync(new URL('../components/harvest/PricedDispatchReport.tsx',import.meta.url),'utf8')
+  const report=readFileSync(new URL('../components/harvest/PricedDispatchReport.tsx',import.meta.url),'utf8')+readFileSync(new URL('./harvestRevenueApi.ts',import.meta.url),'utf8')
   expect(screen).toContain('markets!harvest_lots_market_id_fkey(name, currency)')
   expect(report).toContain('markets!harvest_lots_market_id_fkey(')
   expect(report).toContain('varieties!harvest_lots_variety_id_fkey(')

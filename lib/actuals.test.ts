@@ -12,7 +12,7 @@ vi.mock('./supabase',()=>({supabase:{from:(table:string)=>{
 import {buildComparison,getActualChargeEntries} from './actuals'
 
 const planting=(farm='farm',greenhouse='serre')=>({campaign_id:'campaign',greenhouse_id:greenhouse,greenhouses:{farm_id:farm}})
-const lot=(id:string,amount:number|null,status='priced',market='export')=>({id,domain_id:'domain',category:'station_dispatch',harvest_date:'2026-09-25',tri_status:status,qty_priced_kg:0,qty_acceptee_kg:100,ca_amount:amount,markets:{type:market},campaign_plantings:planting()})
+const lot=(id:string,amount:number|null,status='priced',market='export')=>({id,domain_id:'domain',category:'station_dispatch',harvest_date:'2026-09-25',tri_status:status,qty_priced_kg:0,qty_acceptee_kg:100,ca_amount:amount,markets:{type:market},campaign_plantings:planting(),harvest_id:`h-${id}`,harvests:{id:`h-${id}`,domain_id:'domain',harvest_date:'2026-09-25',campaign_plantings:planting()}})
 const report=(options={})=>buildComparison({campaignId:'campaign',versionId:'budget',months:[{year:2026,month:9},{year:2026,month:10},{year:2099,month:1}],...options})
 beforeEach(()=>{
  fixture.calls=[]
@@ -54,8 +54,8 @@ it('counts direct local pricing and valid partial settlements once, excluding ca
 it('allocates a mixed dispatch by contributed quantities and filters farm and greenhouse',async()=>{
  fixture.tables.harvest_lots=[{...lot('mixed',400),campaign_plantings:null}]
  fixture.tables.harvest_lot_sources=[
-  {id:'s1',harvest_lot_id:'mixed',qty_contributed_kg:25,harvests:{domain_id:'domain',campaign_plantings:planting()}},
-  {id:'s2',harvest_lot_id:'mixed',qty_contributed_kg:75,harvests:{domain_id:'domain',campaign_plantings:planting('other','other-serre')}},
+  {id:'s1',harvest_lots:{domain_id:'domain'},harvest_lot_id:'mixed',qty_contributed_kg:25,harvests:{domain_id:'domain',harvest_date:'2026-09-25',campaign_plantings:planting()}},
+  {id:'s2',harvest_lots:{domain_id:'domain'},harvest_lot_id:'mixed',qty_contributed_kg:75,harvests:{domain_id:'domain',harvest_date:'2026-09-25',campaign_plantings:planting('other','other-serre')}},
  ]
  expect((await report({farmId:'farm'}))[0].actual).toBe(100)
  expect((await report({greenhouseId:'other-serre'}))[0].actual).toBe(300)
@@ -65,4 +65,52 @@ it('reads every priced dispatch beyond the first page and isolates the campaign 
  fixture.tables.harvest_lots=Array.from({length:1001},(_,index)=>lot(`lot-${index}`,10))
  fixture.tables.harvest_lots.push({...lot('foreign',5000),domain_id:'other-domain'})
  expect((await report())[0].actual).toBe(10010)
+})
+
+it('recognizes late pricing in source harvest months, not dispatch or settlement months',async()=>{
+ const dispatch={...lot('mixed',1000),harvest_date:'2026-11-03'}
+ fixture.tables.harvest_lots=[dispatch]
+ fixture.tables.harvest_lot_sources=[
+ {id:'s1',harvest_lot_id:'mixed',harvest_lots:{domain_id:'domain'},qty_contributed_kg:30,harvests:{domain_id:'domain',harvest_date:'2026-09-30',campaign_plantings:planting()}},
+ {id:'s2',harvest_lot_id:'mixed',harvest_lots:{domain_id:'domain'},qty_contributed_kg:70,harvests:{domain_id:'domain',harvest_date:'2026-10-01',campaign_plantings:planting()}},
+ ]
+ const row=(await report())[0]
+ expect(row.byMonth['2026-9'].actual).toBe(300)
+ expect(row.byMonth['2026-10'].actual).toBe(700)
+ expect(row.actual).toBe(1000)
+})
+it('excludes undated revenue from monthly totals and reports the amount to investigate',async()=>{
+ fixture.tables.harvest_lots=[{...lot('legacy',42),harvest_id:null,harvests:{domain_id:'domain'}}]
+ const row=(await report())[0]
+ expect(row.actual).toBe(0)
+ expect(row.undated_actual).toBe(42)
+ expect(row.undated_count).toBe(1)
+})
+
+it('offers forecast as an explicit option without changing actual or budget',async()=>{
+ const h={id:'h',domain_id:'domain',harvest_date:'2026-09-30',total_qty:100,qty_category_1:100,campaign_plantings:{...planting(),varieties:{avg_price_export:8,avg_price_local:3}}}
+ fixture.tables.harvests=[h]
+ fixture.tables.harvest_tray_lines=[{id:'tray',harvest_id:'h',poids_unitaire_kg:10,line_kg:100,harvests:{domain_id:'domain'}}]
+ expect((await report())[0].actual).toBe(0)
+ const forecast=(await report({revenueBasis:'provisional'}))[0]
+ expect(forecast.actual).toBe(800)
+ expect(forecast.estimated_amount).toBe(800)
+ expect(forecast.byMonth['2026-9'].actual).toBe(800)
+ expect(forecast.budget).toBe(9999)
+ expect(forecast.revenue_details?.[0]).toMatchObject({price:8,qty:100,kind:'estimate'})
+})
+it('keeps forecast missing-price warnings and isolates farm/greenhouse',async()=>{
+ fixture.tables.harvests=[{id:'h',domain_id:'domain',harvest_date:'2026-09-30',total_qty:100,qty_category_1:100,campaign_plantings:planting()}]
+ const forecast=(await report({revenueBasis:'provisional'}))[0]
+ expect(forecast.actual).toBe(0)
+ expect(forecast.estimate_issues).toBe(1)
+ expect((await report({revenueBasis:'provisional',farmId:'other'}))[0].estimate_issues).toBe(0)
+})
+
+it('places 25kg crate forecasts in CA_LOCAL even if all harvested kilos are category 1',async()=>{
+ fixture.tables.harvests=[{id:'h',domain_id:'domain',harvest_date:'2026-09-30',total_qty:100,qty_category_1:100,campaign_plantings:{...planting(),varieties:{avg_price_export:8,avg_price_local:3}}}]
+ fixture.tables.harvest_tray_lines=[{id:'tray',harvest_id:'h',poids_unitaire_kg:25,nb_trays:4,line_kg:100,harvests:{domain_id:'domain'}}]
+ const rows=await report({revenueBasis:'provisional'})
+ expect(rows.find(row=>row.category_code==='CA_EXPORT')?.actual).toBe(0)
+ expect(rows.find(row=>row.category_code==='CA_LOCAL')?.byMonth['2026-9'].actual).toBe(300)
 })
