@@ -74,7 +74,23 @@ Vérifier les sauvegardes, les accès, les URL Auth et l’absence de données d
 
 Intégrer les correctifs dans le Git privé commun, les tester sur un environnement séparé, puis publier une version. Valider et déployer la version pour chaque instance concernée. Vérifier la compatibilité du schéma avec la version précédente de l’application et prévoir séparément la restauration des données.
 
-## 6. Automatiser l’installation
+## 6. Reprendre les fermes et les serres
+
+Dans **Administration → Initialisation**, sélectionner la société cible, puis **Simuler une reprise de fermes et serres**. L’écran demande un dossier JSON source, compare les fiches avec la société cible et affiche les créations, réutilisations, conflits et rattachements à résoudre. Le pilote s’arrête à l’aperçu.
+
+Pour produire un dossier depuis une autre instance ItriX Farm, utiliser sa connexion PostgreSQL en lecture seule et le script versionné :
+
+```sh
+psql -X -qAt -v ON_ERROR_STOP=1 -v company_code=CODE_SOURCE -f scripts/export-infrastructure-snapshot.sql > source.json
+```
+
+Le dossier contient les codes métier et les attributs de la ferme et des serres. Conserver les exports client hors de Git. Un responsable ou une zone déjà rattachés au dossier source doivent être rapprochés avant une future importation. Pour une comparaison en terminal, exporter également la société cible avec le même script, puis lancer :
+
+```sh
+node --experimental-strip-types scripts/preview-infrastructure-migration.mjs source.json cible.json
+```
+
+## 7. Automatiser l’installation
 
 Construire et tester d’abord le socle SQL neutre sur une base jetable. La recette Domaine BENHALIMA sert ensuite à valider le même processus sur Supabase et Vercel.
 
