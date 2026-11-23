@@ -172,6 +172,7 @@ export default function DomainsAdminPage() {
           p_input: { ...form, is_active: true }, p_selection: selection,
         })
         if (error) throw error
+        await refresh()
       } else if (editing === 'new') await createDomain(form)
       else if (editing) await updateDomain(editing.id, form)
       toast.success(editing === 'new' ? _ui("Client / Société créé") : _ui("Client / Société modifié"))

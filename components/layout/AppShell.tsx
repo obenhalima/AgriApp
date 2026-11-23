@@ -31,7 +31,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const router = useRouter()
   const pathname = usePathname()
-  const { user, profile, loading, initializationError, initializationBusy, retryInitialization, canAccessModule, isPlatformAdmin, signOut } = useAuth()
+  const { user, profile, loading, initializationError, initializationBusy, retryInitialization, canAccessModule, isPlatformAdmin, activeDomain, signOut } = useAuth()
+  const setupPending = process.env.NEXT_PUBLIC_DEDICATED_SETUP === 'true' && !activeDomain
   const navItem = findNavItem(pathname)?.item
   const deniedModule = Boolean(navItem && (navItem.platformOnly ? !isPlatformAdmin : !!navItem.moduleCode && !canAccessModule(navItem.moduleCode)))
   const gate = getAccessGate({ loading, hasUser: !!user, activeProfile: !!profile?.is_active,
@@ -126,6 +127,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   )
   if (gate === 'public') return <>{children}</>
+  if (setupPending && (!isPlatformAdmin || pathname !== '/admin/domaines')) return (
+    <div role="status" className="p-8">
+      {_ui('La configuration de la société doit être terminée avant d’ouvrir les modules.')}
+      {isPlatformAdmin && <button className="btn ml-4" onClick={() => router.push('/admin/domaines')}>{_ui('Configurer la première société')}</button>}
+      <button className="btn ml-4" onClick={() => void signOut()}>{_ui('Se déconnecter')}</button>
+    </div>
+  )
   if (gate === 'denied') return (
     <div role="alert" className="p-8">{_ui("Vous n’avez pas les droits nécessaires pour ce module.")}{" "}<button className="btn ml-4" onClick={() => router.back()}>{_ui("Retour")}</button>
       <button className="btn ml-4" onClick={() => void signOut()}>{_ui("Se déconnecter")}</button>
