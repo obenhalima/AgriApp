@@ -2,7 +2,7 @@
 import {useLanguage} from '@/lib/i18n'
 
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Building2, Globe2, Lock, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth'
@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Input as TInput, Select as TSelect, Field } from '@/components/ui/Input'
 import { Modal, ModalFooter } from '@/components/ui/Modal'
+import { DedicatedReferenceChecklist } from '@/components/DedicatedReferenceChecklist'
 import { supabase } from '@/lib/supabase'
 
 type DeletionPreview = {
@@ -28,6 +29,13 @@ type DeletionPreview = {
 }
 
 type PendingDeletion = { job_id: string; client_id: string; client_code: string; fingerprint: string }
+type InstallationEntry = { category: string; code: string; name: string }
+const dedicatedSetup = process.env.NEXT_PUBLIC_DEDICATED_SETUP === 'true'
+const catalogueLabels: Record<string, string> = {
+  varieties: 'Variétés', stock_items: 'Articles de stock', markets: 'Marchés',
+}
+const installationSteps = ['Société', 'Socle initial', 'Variétés', 'Articles de stock', 'Marchés', 'Récapitulatif']
+const catalogueSteps = ['varieties', 'stock_items', 'markets']
 
 async function deletionApi<T>(query: string, body?: object): Promise<T> {
   const { data } = await supabase.auth.getSession()
@@ -58,6 +66,17 @@ export default function DomainsAdminPage() {
   const [editing, setEditing] = useState<Domain | 'new' | null>(null)
   const [form, setForm] = useState<DomainInput>(EMPTY)
   const [saving, setSaving] = useState(false)
+  const [installationCatalog, setInstallationCatalog] = useState<InstallationEntry[] | null>(null)
+  const [installationSelection, setInstallationSelection] = useState<string[]>([])
+  const [installationStep, setInstallationStep] = useState(0)
+  const [addingCatalog, setAddingCatalog] = useState(false)
+  const [referenceCompany, setReferenceCompany] = useState<Domain | null>(null)
+  const openedSetupFromLink = useRef(false)
+  const showInstallation = dedicatedSetup && (editing === 'new' || addingCatalog)
+  const visibleInstallationEntries = installationCatalog?.filter(
+    entry => entry.category === catalogueSteps[installationStep - 2],
+  ) ?? []
+  const visibleInstallationKeys = visibleInstallationEntries.map(entry => entry.category + '/' + entry.code)
   const [deleting, setDeleting] = useState<{ domain: Domain; request: string } | null>(null)
   const [preview, setPreview] = useState<DeletionPreview | null>(null)
   const [confirmation, setConfirmation] = useState('')
@@ -80,6 +99,15 @@ export default function DomainsAdminPage() {
     void load()
     if (isPlatformAdmin) void loadPending().catch(() => {})
   }, [authLoading, isPlatformAdmin])
+  useEffect(() => {
+    if (!dedicatedSetup || openedSetupFromLink.current || !isPlatformAdmin ||
+        new URLSearchParams(window.location.search).get('setup') !== '1') return
+    const company = items.find(item => item.id === activeDomain?.domain_id)
+    if (company) {
+      openedSetupFromLink.current = true
+      setReferenceCompany(company)
+    }
+  }, [activeDomain?.domain_id, isPlatformAdmin, items])
 
   const openDeletion = async (domain: Domain) => {
     setDeleting({ domain, request: crypto.randomUUID() })
@@ -131,8 +159,16 @@ export default function DomainsAdminPage() {
     countries: new Set(items.map(d => d.country)).size,
   }), [items])
 
-  const openNew = () => { setForm({ ...EMPTY }); setEditing('new') }
+  const openNew = () => {
+    setForm({ ...EMPTY })
+    setInstallationCatalog(null)
+    setInstallationSelection([])
+    setInstallationStep(0)
+    setAddingCatalog(false)
+    setEditing('new')
+  }
   const openEdit = (d: Domain) => {
+    setAddingCatalog(false)
     setForm({
       code: d.code, name: d.name, legal_name: d.legal_name ?? '', address: d.address ?? '',
       city: d.city ?? '', region: d.region ?? '', country: d.country, currency: d.currency,
@@ -140,16 +176,60 @@ export default function DomainsAdminPage() {
     })
     setEditing(d)
   }
+  const openCatalog = async (domain: Domain, category?: string) => {
+    setSaving(true)
+    try {
+      const { data, error } = await supabase.rpc('dedicated_installation_catalog')
+      if (error) throw error
+      if (!Array.isArray(data)) throw new Error(_ui('Catalogue indisponible'))
+      openEdit(domain)
+      setInstallationSelection([])
+      setInstallationCatalog(data as InstallationEntry[])
+      const categoryIndex = catalogueSteps.findIndex(item => item === category)
+      setInstallationStep(2 + Math.max(0, categoryIndex))
+      setAddingCatalog(true)
+    } catch (error) {
+      toast.error((error as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
   const set = (key: keyof DomainInput, value: string | boolean) => setForm(f => ({ ...f, [key]: value }))
 
   const save = async () => {
     if (!form.code.trim() || !form.name.trim()) return
     setSaving(true)
     try {
-      if (editing === 'new') await createDomain(form)
+      if (showInstallation) {
+        if (!installationCatalog) {
+          const { data, error } = await supabase.rpc('dedicated_installation_catalog')
+          if (error) throw error
+          if (!Array.isArray(data)) throw new Error(_ui('Catalogue indisponible'))
+          setInstallationCatalog(data as InstallationEntry[])
+          setInstallationStep(1)
+          return
+        }
+        if (installationStep < installationSteps.length - 1) {
+          setInstallationStep(installationStep + 1)
+          return
+        }
+        const selection = installationCatalog
+          .filter(entry => installationSelection.includes(entry.category + '/' + entry.code))
+          .map(({ category, code }) => ({ category, code }))
+        const { data, error } = addingCatalog && editing && editing !== 'new'
+          ? await supabase.rpc('add_dedicated_company_catalog', { company_id: editing.id, p_selection: selection })
+          : await supabase.rpc('create_dedicated_company', {
+            p_input: { ...form, is_active: true }, p_selection: selection,
+          })
+        if (error) throw error
+        await refresh()
+        if (addingCatalog && editing && editing !== 'new') setReferenceCompany(editing)
+        if (editing === 'new' && data?.id) setReferenceCompany(data as Domain)
+      } else if (editing === 'new') await createDomain(form)
       else if (editing) await updateDomain(editing.id, form)
-      toast.success(editing === 'new' ? _ui("Client / Société créé") : _ui("Client / Société modifié"))
+      toast.success(addingCatalog ? _ui('Sélection enregistrée') : editing === 'new' ? _ui("Client / Société créé") : _ui("Client / Société modifié"))
       setEditing(null)
+      setAddingCatalog(false)
       await load()
     } catch (e: any) {
       const msg = e?.code === '23505' ? 'Ce code de société existe déjà.' : e.message
@@ -210,6 +290,10 @@ export default function DomainsAdminPage() {
               </div>
               <div className="flex flex-wrap gap-sm">
                 <Button variant="secondary" size="sm" onClick={() => openEdit(d)} className="flex-1"><Pencil size={12} /> {_ui("Modifier")}</Button>
+                {dedicatedSetup && d.is_active && <>
+                  <Button variant="secondary" size="sm" onClick={() => setReferenceCompany(d)}>{_ui('Référentiels')}</Button>
+                  <Button variant="secondary" size="sm" disabled={saving} onClick={() => void openCatalog(d)}>{_ui('Catalogue')}</Button>
+                </>}
                 <Button variant="destructive" size="sm" disabled={deletionBusy} onClick={() => openDeletion(d)}>
                   <Trash2 size={12} /> {_ui('Supprimer')}
                 </Button>
@@ -218,6 +302,9 @@ export default function DomainsAdminPage() {
           ))}
         </div>
       )}
+
+      {referenceCompany && <DedicatedReferenceChecklist domain={referenceCompany} onClose={() => setReferenceCompany(null)}
+        onCatalog={category => { setReferenceCompany(null); void openCatalog(referenceCompany, category) }} />}
 
       {deleting && (
         <Modal title={_ui('Supprimer {v0}', { v0: deleting.domain.name })}
@@ -254,8 +341,59 @@ export default function DomainsAdminPage() {
       )}
 
       {editing && (
-        <Modal title={editing === 'new' ? _ui("NOUVEAU CLIENT / SOCIÉTÉ") : _ui("MODIFIER — {v0}",{v0:String(editing.name)})} onClose={() => setEditing(null)} size="lg">
+        <Modal title={addingCatalog ? _ui('Choisir dans le catalogue') : editing === 'new' ? _ui("NOUVEAU CLIENT / SOCIÉTÉ") : _ui("MODIFIER — {v0}",{v0:String(editing.name)})} onClose={() => { if (!saving) setEditing(null) }} size="lg">
           <div className="space-y-md">
+            {showInstallation && (
+              <p className="font-semibold" role="status">
+                {_ui('Étape {v0} sur {v1}', { v0: String(installationStep + 1 - (addingCatalog ? 2 : 0)), v1: String(installationSteps.length - (addingCatalog ? 2 : 0)) })} · {_ui(installationSteps[installationStep])}
+              </p>
+            )}
+            {showInstallation && installationCatalog ? (
+              <>
+                {installationStep === 1 && <p>{_ui('Les cultures de départ, les listes de référence et les catégories comptables seront disponibles après la création.')}</p>}
+                {installationStep >= 2 && installationStep <= 4 && <>
+                  <p>{_ui('Coche les fiches à reprendre. Tu peux passer cette étape sans en choisir.')}</p>
+                  {visibleInstallationKeys.length > 0 && (
+                    <div className="flex flex-wrap gap-sm">
+                      <Button variant="secondary" size="sm" type="button"
+                        disabled={visibleInstallationKeys.every(key => installationSelection.includes(key))}
+                        onClick={() => setInstallationSelection(current => [...new Set([...current, ...visibleInstallationKeys])])}>
+                        {_ui('Tout sélectionner')}
+                      </Button>
+                      <Button variant="ghost" size="sm" type="button"
+                        disabled={!visibleInstallationKeys.some(key => installationSelection.includes(key))}
+                        onClick={() => setInstallationSelection(current => current.filter(key => !visibleInstallationKeys.includes(key)))}>
+                        {_ui('Tout désélectionner')}
+                      </Button>
+                    </div>
+                  )}
+                  <div className="max-h-72 space-y-sm overflow-auto">
+                  {visibleInstallationEntries.map(entry => {
+                    const key = entry.category + '/' + entry.code
+                    return <label key={key} className="flex items-center gap-sm">
+                      <input type="checkbox" checked={installationSelection.includes(key)} onChange={event => {
+                        const checked = event.target.checked
+                        setInstallationSelection(current => checked ? [...current, key] : current.filter(item => item !== key))
+                      }} />
+                      <span>{_ui(catalogueLabels[entry.category] || entry.category)} · {entry.code} · {entry.name}</span>
+                    </label>
+                  })}
+                </div>
+                </>}
+                {installationStep === 5 && (
+                  <div className="space-y-sm">
+                    <p className="font-semibold">{form.name} · {form.code}</p>
+                    {catalogueSteps.map(category => (
+                      <p key={category}>{_ui(catalogueLabels[category])} · {installationSelection.filter(key => key.startsWith(category + '/')).length}</p>
+                    ))}
+                  </div>
+                )}
+                {(!addingCatalog || installationStep > 2) && <Button variant="secondary" disabled={saving} onClick={() => {
+                  if (installationStep === 1) setInstallationCatalog(null)
+                  setInstallationStep(installationStep - 1)
+                }}>{_ui('Précédent')}</Button>}
+              </>
+            ) : <>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
               <Field label={_ui("Code")} required><TInput value={form.code} onChange={e => set('code', e.target.value)} placeholder={_ui("DOM-CLIENT")} /></Field>
               <Field label={_ui("Nom")} required><TInput value={form.name} onChange={e => set('name', e.target.value)} /></Field>
@@ -275,7 +413,9 @@ export default function DomainsAdminPage() {
                 <option value="active">{_ui("Actif")}</option><option value="inactive">{_ui("Inactif")}</option>
               </TSelect>
             </Field>
-            <ModalFooter onCancel={() => setEditing(null)} onSave={save} loading={saving} disabled={!form.code.trim() || !form.name.trim()} saveLabel={_ui("ENREGISTRER")} />
+            </>}
+            <ModalFooter onCancel={() => setEditing(null)} onSave={save} loading={saving} disabled={!form.code.trim() || !form.name.trim()}
+              saveLabel={showInstallation ? _ui(installationStep === installationSteps.length - 1 ? 'Terminer' : 'Suivant') : _ui('ENREGISTRER')} />
           </div>
         </Modal>
       )}

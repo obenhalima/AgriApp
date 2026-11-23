@@ -25,13 +25,18 @@ import { AIAssistantFAB } from '@/components/ai/AIAssistantFAB'
 import { GuideLauncher } from '@/components/help/GuideLauncher'
 import { DeletionFeedback } from '@/components/ui/DeletionFeedback'
 import { ModuleAuditHistory } from '@/components/audit/AuditHistoryButton'
+import { DedicatedPrerequisiteGate } from './DedicatedPrerequisiteGate'
+import { dedicatedModulePrerequisites } from '@/lib/dedicatedModuleReadiness'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
  const {t:_ui,text:_uiNode}=useLanguage()
 
   const router = useRouter()
   const pathname = usePathname()
-  const { user, profile, loading, initializationError, initializationBusy, retryInitialization, canAccessModule, isPlatformAdmin, signOut } = useAuth()
+  const { user, profile, loading, initializationError, initializationBusy, retryInitialization, canAccessModule, isPlatformAdmin, activeDomain, signOut } = useAuth()
+  const setupPending = process.env.NEXT_PUBLIC_DEDICATED_SETUP === 'true' && !activeDomain
+  const moduleSetupRequired = process.env.NEXT_PUBLIC_DEDICATED_SETUP === 'true'
+    && activeDomain && dedicatedModulePrerequisites(pathname).length > 0
   const navItem = findNavItem(pathname)?.item
   const deniedModule = Boolean(navItem && (navItem.platformOnly ? !isPlatformAdmin : !!navItem.moduleCode && !canAccessModule(navItem.moduleCode)))
   const gate = getAccessGate({ loading, hasUser: !!user, activeProfile: !!profile?.is_active,
@@ -126,14 +131,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   )
   if (gate === 'public') return <>{children}</>
+  if (setupPending && (!isPlatformAdmin || pathname !== '/admin/domaines')) return (
+    <div role="status" className="p-8">
+      {_ui('La configuration de la société doit être terminée avant d’ouvrir les modules.')}
+      {isPlatformAdmin && <button className="btn ml-4" onClick={() => router.push('/admin/domaines')}>{_ui('Configurer la première société')}</button>}
+      <button className="btn ml-4" onClick={() => void signOut()}>{_ui('Se déconnecter')}</button>
+    </div>
+  )
   if (gate === 'denied') return (
     <div role="alert" className="p-8">{_ui("Vous n’avez pas les droits nécessaires pour ce module.")}{" "}<button className="btn ml-4" onClick={() => router.back()}>{_ui("Retour")}</button>
       <button className="btn ml-4" onClick={() => void signOut()}>{_ui("Se déconnecter")}</button>
     </div>
   )
 
+  const protectedChildren = moduleSetupRequired && activeDomain
+    ? <DedicatedPrerequisiteGate domainId={activeDomain.domain_id} pathname={pathname} canConfigure={isPlatformAdmin}>
+        {children}
+      </DedicatedPrerequisiteGate>
+    : children
+
   // Documents retain the same authentication/module gate, without navigation in print.
-  if (/^\/(factures|achats)\/document\/[^/]+$/.test(pathname)) return <>{children}</>
+  if (/^\/(factures|achats)\/document\/[^/]+$/.test(pathname)) return <>{protectedChildren}</>
 
   return (
     <div className="flex min-h-screen bg-surface-base transition-colors duration-300">
@@ -150,7 +168,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main className="flex-1 px-md sm:px-lg lg:px-xl py-lg pb-44 relative z-[1]">
           <DeletionFeedback />
           <ModuleAuditHistory />
-          {children}
+          {protectedChildren}
         </main>
       </div>
 

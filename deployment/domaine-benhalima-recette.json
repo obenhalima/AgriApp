@@ -1,0 +1,10 @@
+{
+  "name": "Domaine BENHALIMA — Recette",
+  "sourceProjectRef": "dlisonvsphybjiyxoymk",
+  "catalogSourceCompanyCode": "DOMBEN501",
+  "targetProjectRef": "tzwvtsadjzdtmilhesmo",
+  "targetSupabaseUrl": "https://tzwvtsadjzdtmilhesmo.supabase.co",
+  "vercelProject": "itrix-domaine-benhalima-recette",
+  "vercelScope": "obenhalimas-projects",
+  "applicationCommit": "7fff6b1cf6afeeab03daf07c8e6572f3c63cebd1"
+}

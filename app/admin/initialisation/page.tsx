@@ -22,18 +22,24 @@ import { downloadInitFile, initializationWorkbook, readInitializationWorkbook } 
 import {startInitializationComplement} from '@/lib/initializationApply'
 import {HarvestMigration} from '@/components/harvest/HarvestMigration'
 import {StockInitializationPanel} from '@/components/stock/StockInitializationPanel'
+import {InfrastructureMigrationAssistant} from '@/components/InfrastructureMigrationAssistant'
 
 export default function InitializationPage() {
  const {t:_ui,text:_uiNode}=useLanguage()
 
   const { activeDomain, isAdmin, isPlatformAdmin, loading } = useAuth()
   const [confirmedDomain, setConfirmedDomain] = useState<string | null>(null)
-  const [choice,setChoice] = useState<{domain:string;module:InitializationModule | 'full' | 'harvests' | 'stock'} | null>(null)
+  const [choice,setChoice] = useState<{domain:string;module:InitializationModule | 'full' | 'harvests' | 'stock' | 'infrastructure-migration'} | null>(null)
   const chooseClient = () => { setChoice(null); setConfirmedDomain(null) }
   if (loading) return <p>{_ui("Chargement…")}</p>
   if (!isAdmin && !isPlatformAdmin) return <p role="alert">{_ui("L’initialisation est réservée aux administrateurs du client.")}</p>
   if (!activeDomain || confirmedDomain !== activeDomain.domain_id) return <InitializationClientStep onContinue={setConfirmedDomain} />
-  if (!choice || choice.domain!==activeDomain.domain_id) return <InitializationModuleChooser name={activeDomain.domain_name} onChangeClient={chooseClient} onStock={()=>setChoice({domain:activeDomain.domain_id,module:'stock'})} onHarvests={()=>setChoice({domain:activeDomain.domain_id,module:'harvests'})} onChoose={module=>setChoice({domain:activeDomain.domain_id,module})} onFull={()=>setChoice({domain:activeDomain.domain_id,module:'full'})} />
+  if (!choice || choice.domain!==activeDomain.domain_id) return <div className="space-y-md">
+    <InitializationModuleChooser name={activeDomain.domain_name} onChangeClient={chooseClient} onStock={()=>setChoice({domain:activeDomain.domain_id,module:'stock'})} onHarvests={()=>setChoice({domain:activeDomain.domain_id,module:'harvests'})} onChoose={module=>setChoice({domain:activeDomain.domain_id,module})} onFull={()=>setChoice({domain:activeDomain.domain_id,module:'full'})} />
+    <Button variant="secondary" onClick={() => setChoice({ domain: activeDomain.domain_id, module: 'infrastructure-migration' })}>Simuler une reprise de fermes et serres</Button>
+  </div>
+  if (choice.module === 'infrastructure-migration') return <InfrastructureMigrationAssistant key={choice.domain}
+    domain={choice.domain} code={activeDomain.domain_code} onBack={() => setChoice(null)} />
   if(choice.module==='stock')return <StockInitializationPanel key={activeDomain.domain_id} onBack={()=>setChoice(null)} />
   if(choice.module==='harvests')return <div className="space-y-4"><Button variant="secondary" onClick={()=>setChoice(null)}>{_ui('Retour aux modules')}</Button><h1 className="text-xl font-semibold">{_ui('3. Récoltes')} — {activeDomain.domain_name}</h1><HarvestMigration scope="harvests" initiallyOpen /></div>
   return <InitializationWorkspace key={activeDomain.domain_id+choice.module} domain={activeDomain.domain_id} name={activeDomain.domain_name} module={choice.module==='full'?undefined:choice.module} onBack={()=>setChoice(null)} onChangeClient={chooseClient} />

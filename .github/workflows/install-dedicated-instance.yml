@@ -1,0 +1,78 @@
+name: Installer une instance dédiée
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: Étape à exécuter
+        required: true
+        default: verifier-cible
+        type: choice
+        options:
+          - verifier-cible
+          - verifier-archive
+      release:
+        description: Tag de la release d’installation à vérifier
+        required: false
+        type: string
+      application_commit:
+        description: SHA Git complet attendu pour l’archive
+        required: false
+        type: string
+  push:
+    branches:
+      - feat/installation-instance-dediee
+    paths:
+      - .github/workflows/install-dedicated-instance.yml
+      - deployment/**
+      - scripts/check-dedicated-instance-target.mjs
+      - scripts/check-dedicated-installation-package.mjs
+      - scripts/check-dedicated-release.mjs
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installation-domaine-benhalima-recette
+  cancel-in-progress: false
+
+jobs:
+  recette:
+    name: Domaine BENHALIMA · Recette
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Récupérer la révision inspectée
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Préparer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 1 · Vérifier la cible de recette
+        run: >-
+          node scripts/check-dedicated-instance-target.mjs
+          deployment/domaine-benhalima-recette.json
+          tzwvtsadjzdtmilhesmo
+          itrix-domaine-benhalima-recette
+      - name: 2 · Télécharger et vérifier l’archive versionnée
+        if: github.event_name == 'workflow_dispatch' && inputs.step == 'verifier-archive'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release }}
+          APPLICATION_COMMIT: ${{ inputs.application_commit }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^[[:alnum:]][[:alnum:]._-]*$ || ! "$APPLICATION_COMMIT" =~ ^[a-f0-9]{40}$ ]]; then
+            echo "Renseigne le tag de release et le commit complet."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/itrix-installation"
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --dir "$RUNNER_TEMP/itrix-installation" \
+            --pattern installation-release.json --pattern itrix-installation.tar.gz
+          node scripts/check-dedicated-release.mjs "$RUNNER_TEMP/itrix-installation" "$RELEASE_TAG" "$APPLICATION_COMMIT"
+      - name: Résultat
+        if: success()
+        run: |
+          printf '## Recette Domaine BENHALIMA\n\nRévision contrôlée · `%s`\n\nAucune écriture Supabase ou Vercel.\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
