@@ -5,5 +5,6 @@
   "targetProjectRef": "",
   "targetSupabaseUrl": "",
   "vercelProject": "itrix-domaine-benhalima-recette",
+  "vercelScope": "",
   "applicationCommit": "7fff6b1cf6afeeab03daf07c8e6572f3c63cebd1"
 }

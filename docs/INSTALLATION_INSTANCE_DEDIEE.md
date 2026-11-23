@@ -12,6 +12,14 @@ Chaque contrat dispose de son propre projet Vercel et de son propre projet Supab
 
 ## 1. Préparer les cibles
 
+L’assistant local affiche une étape à la fois, avec les liens vers Supabase et Vercel et les noms des variables. Depuis la racine de la branche d’installation, lancer :
+
+```sh
+node scripts/install-dedicated-instance.mjs
+```
+
+La touche **Entrée** avance ou lance le contrôle de l’étape. **p** revient en arrière et **q** enregistre la progression dans le dossier local ignoré `tmp/`. Pour une autre instance, passer le chemin relatif de son manifeste. Les secrets se saisissent directement dans les consoles. L’assistant s’arrête au contrôle du paquet tant que le schéma, le socle et le catalogue manquent. Les étapes d’écriture distante restent à implémenter après leur validation.
+
 1. Relever l’organisation, le nom, la région et le plan du projet Supabase. Créer un projet vide dans l’organisation désignée.
 2. Créer un projet Vercel distinct. Prévoir un accès de recette avant l’ouverture du domaine client.
 3. Copier [le manifeste d’exemple](../deployment/dedicated-instance.example.json) dans un fichier de travail et y renseigner les identifiants cibles et le commit livré. Conserver les clés et mots de passe dans les gestionnaires de secrets.
