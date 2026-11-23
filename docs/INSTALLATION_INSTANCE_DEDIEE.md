@@ -90,6 +90,8 @@ Le dossier contient les codes métier et les attributs de la ferme et des serres
 node --experimental-strip-types scripts/preview-infrastructure-migration.mjs source.json cible.json
 ```
 
+Après validation de l’aperçu, l’opérateur peut appliquer le dossier JSON avec `scripts/import-infrastructure-snapshot.sql` sur la connexion de la société cible. Les variables psql sont `target_code` et `snapshot_hex` (JSON UTF-8 encodé en hexadécimal). Vérifier la référence du projet avant exécution. Le script vérifie les rattachements et annule le lot en cas de conflit. Un second passage réutilise les fiches identiques.
+
 ## 7. Automatiser l’installation
 
 Construire et tester d’abord le socle SQL neutre sur une base jetable. La recette Domaine BENHALIMA sert ensuite à valider le même processus sur Supabase et Vercel.
