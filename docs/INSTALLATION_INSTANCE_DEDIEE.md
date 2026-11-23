@@ -4,7 +4,7 @@
 
 La copie de travail part du commit GitHub `7fff6b1cf6afeeab03daf07c8e6572f3c63cebd1`. La procédure de désignation du premier super-administrateur a été testée sur un PostgreSQL jetable avec le garde de rôle ItriX Farm. Le socle SQL d’installation neuve, l’assistant et la recette Supabase/Vercel restent à réaliser.
 
-Le projet Vercel de recette **itrix-domaine-benhalima-recette** est créé. Il attend la configuration de la base dédiée et le premier déploiement. La production Domaine BENHALIMA sera provisionnée après la recette.
+Le projet Vercel **itrix-domaine-benhalima-recette** et le projet Supabase **Domaine BENHALIMA - Recette** ont été créés. Le projet Supabase est dans l’organisation **Domaine BENHALIMA**, en Irlande. Les références sont consignées dans le [manifeste de recette](../deployment/domaine-benhalima-recette.json). L’installation du schéma et le premier déploiement restent à faire. La production sera provisionnée après la recette.
 
 ## Architecture
 
