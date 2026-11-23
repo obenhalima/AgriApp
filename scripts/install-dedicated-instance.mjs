@@ -51,7 +51,7 @@ const steps = [
     title: 'Vérifier le paquet SQL d’installation',
     lines: [
       'Dossier à préparer : deployment/dedicated-installation/.',
-      'Fichiers attendus : schema.sql, reference-seed.sql et catalog-seed.sql.',
+      'Fichiers attendus : schema.sql, reference-seed.sql, catalog-seed.sql et first-company.sql.',
       'Le contrôle affiche les fichiers manquants ou les validations restantes avant l’installation.',
     ],
     check: () => spawnSync(process.execPath, ['scripts/check-dedicated-installation-package.mjs'], {

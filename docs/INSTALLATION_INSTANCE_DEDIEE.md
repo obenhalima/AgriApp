@@ -6,6 +6,8 @@ La copie de travail part du commit GitHub `7fff6b1cf6afeeab03daf07c8e6572f3c63ce
 
 Le projet Vercel **itrix-domaine-benhalima-recette** et le projet Supabase **Domaine BENHALIMA - Recette** ont été créés. Le projet Supabase est dans l’organisation **Domaine BENHALIMA**, en Irlande. Les références sont consignées dans le [manifeste de recette](../deployment/domaine-benhalima-recette.json). L’installation du schéma et le premier déploiement restent à faire. La production sera provisionnée après la recette.
 
+Le parcours de création expérimenté dans **Administration → Clients / Sociétés** est activé par `NEXT_PUBLIC_DEDICATED_SETUP=true` dans le projet Vercel dédié. Il requiert `first-company.sql` après le schéma et les jeux initiaux. Le test PostgreSQL local couvre la création atomique d’une société avec cultures, listes, catégories comptables et fiches choisies. Les permissions de rôles, les circuits de validation, la reprise partagée et le verrouillage des modules restent des critères d’ouverture de la recette.
+
 ## Architecture
 
 Chaque contrat dispose de son propre projet Vercel et de son propre projet Supabase. Une instance peut accueillir plusieurs sociétés. Les droits, fermes et données opérationnelles restent rattachés à leur société. L’instance ItriX Technologies héberge les démonstrations et sert de source en lecture seule pour les référentiels approuvés.

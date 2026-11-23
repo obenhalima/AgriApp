@@ -4,6 +4,7 @@ const packageFiles = [
   ['schéma SQL neutre', 'deployment/dedicated-installation/schema.sql'],
   ['socle initial', 'deployment/dedicated-installation/reference-seed.sql'],
   ['catalogue général', 'deployment/dedicated-installation/catalog-seed.sql'],
+  ['raccordement de la création de société', 'deployment/dedicated-installation/first-company.sql'],
 ]
 
 const missing = []
@@ -30,10 +31,10 @@ if (missing.length) {
     if (error.code !== 'ENOENT') throw error
   }
   if (status?.validated !== true) {
-    console.error('Les trois fichiers sont présents. Le paquet est encore en validation.')
+    console.error('Les fichiers sont présents. Le paquet est encore en validation.')
     for (const item of status?.pending || []) console.error(`- ${item}`)
     process.exitCode = 1
   } else {
-    console.log('Les trois fichiers du paquet sont présents et le paquet est déclaré validé.')
+    console.log('Les fichiers du paquet sont présents et le paquet est déclaré validé.')
   }
 }
