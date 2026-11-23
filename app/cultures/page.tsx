@@ -32,7 +32,7 @@ export default function CulturesPage() {
 function CulturesContent() {
  const {t:_ui,text:_uiNode}=useLanguage()
 
-  const { isAdmin, activeDomain } = useAuth()
+  const { isAdmin, isPlatformAdmin, activeDomain } = useAuth()
   const [crops, setCrops] = useState<Crop[]>([])
   const [loading, setLoading] = useState(true)
   const [showInactive, setShowInactive] = useState(false)
@@ -61,7 +61,8 @@ function CulturesContent() {
   }
 
   const handleToggle = async (crop: Crop) => {
-    if (!isAdmin || !activeDomain) { toast.error(_ui("Réservé aux administrateurs")); return }
+    if (!isAdmin && !isPlatformAdmin) { toast.error(_ui("Réservé aux administrateurs")); return }
+    if (!activeDomain) { toast.error(_ui("Sélectionnez un client valide avant de gérer ses référentiels.")); return }
     try {
       await toggleCropActive(crop.id, !crop.is_active, activeDomain.domain_id)
       setCrops(prev => prev.map(c => c.id === crop.id ? { ...c, is_active: !c.is_active } : c))
