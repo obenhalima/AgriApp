@@ -4,6 +4,7 @@ const packageFiles = [
   ['schéma SQL neutre', 'deployment/dedicated-installation/schema.sql'],
   ['socle initial', 'deployment/dedicated-installation/reference-seed.sql'],
   ['catalogue général', 'deployment/dedicated-installation/catalog-seed.sql'],
+  ['chargement du référentiel partagé', 'deployment/dedicated-installation/shared-reference-bootstrap.sql'],
   ['raccordement de la création de société', 'deployment/dedicated-installation/first-company.sql'],
 ]
 
