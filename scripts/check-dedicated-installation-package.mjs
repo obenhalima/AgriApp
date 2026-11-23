@@ -22,5 +22,18 @@ if (missing.length) {
   for (const item of missing) console.error(`- ${item}`)
   process.exitCode = 1
 } else {
-  console.log('Les trois fichiers du paquet sont présents. Leur exécution sur une base jetable reste à valider.')
+  const statusFile = new URL('../deployment/dedicated-installation/package-status.json', import.meta.url)
+  let status
+  try {
+    status = JSON.parse(await readFile(statusFile, 'utf8'))
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error
+  }
+  if (status?.validated !== true) {
+    console.error('Les trois fichiers sont présents. Le paquet est encore en validation.')
+    for (const item of status?.pending || []) console.error(`- ${item}`)
+    process.exitCode = 1
+  } else {
+    console.log('Les trois fichiers du paquet sont présents et le paquet est déclaré validé.')
+  }
 }

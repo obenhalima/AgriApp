@@ -18,7 +18,7 @@ L’assistant local affiche une étape à la fois, avec les liens vers Supabase 
 node scripts/install-dedicated-instance.mjs
 ```
 
-La touche **Entrée** avance ou lance le contrôle de l’étape. **p** revient en arrière et **q** enregistre la progression dans le dossier local ignoré `tmp/`. Pour une autre instance, passer le chemin relatif de son manifeste. Les secrets se saisissent directement dans les consoles. L’assistant s’arrête au contrôle du paquet tant que le schéma, le socle et le catalogue manquent. Les étapes d’écriture distante restent à implémenter après leur validation.
+La touche **Entrée** avance ou lance le contrôle de l’étape. **p** revient en arrière et **q** enregistre la progression dans le dossier local ignoré `tmp/`. Pour une autre instance, passer le chemin relatif de son manifeste. Dans Vercel, choisir **Config** pour `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_ANON_KEY`, et **Secret** pour `SUPABASE_SERVICE_ROLE_KEY`. L’assistant s’arrête au contrôle du paquet tant que le schéma, le socle et le catalogue manquent. Les étapes d’écriture distante restent à implémenter après leur validation.
 
 1. Relever l’organisation, le nom, la région et le plan du projet Supabase. Créer un projet vide dans l’organisation désignée.
 2. Créer un projet Vercel distinct. Prévoir un accès de recette avant l’ouverture du domaine client.
@@ -77,7 +77,9 @@ Construire et tester d’abord le socle SQL neutre sur une base jetable. La rece
 | Étape | Déclenchement | Résultat |
 | --- | --- | --- |
 | 1. Vérifier la cible | Push sur la branche d’installation ou choix manuel `verifier-cible` | Vérifie le manifeste de Domaine BENHALIMA et refuse les références de démonstration. |
-| 2. Vérifier le paquet | Choix manuel `verifier-paquet` après le contrôle de la cible | Vérifie la présence du schéma neutre, du socle initial et du catalogue. Échoue tant qu’un fichier manque. |
+| 2. Vérifier l’archive | Choix manuel `verifier-archive` avec le tag et le SHA Git complet | Télécharge la release GitHub, puis vérifie le manifeste et l’empreinte SHA-256 de l’archive. |
+
+Une release installable fournit `itrix-installation.tar.gz` et `installation-release.json` (champs `format: 1`, `version`, `commit`, `validated: true`, `archive` et `sha256`). Publier ce manifeste uniquement après un test de restauration complet. Garder les secrets et les données opérationnelles hors de l’archive.
 
 Les deux contrôles peuvent aussi être lancés depuis la racine de la copie de travail :
 

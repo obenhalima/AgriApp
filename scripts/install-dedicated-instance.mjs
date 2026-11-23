@@ -40,9 +40,9 @@ const steps = [
       `Dans Supabase → Project Settings → API Keys : ${supabase}/settings/api-keys`,
       'Dans Legacy API Keys, copie la clé anon et, pour les routes serveur qui l’exigent, la clé service_role.',
       `Dans Vercel → Settings → Environment Variables : ${vercel}/settings/environment-variables`,
-      `NEXT_PUBLIC_SUPABASE_URL = ${apiUrl}`,
-      'NEXT_PUBLIC_SUPABASE_ANON_KEY = la clé anon du projet cible.',
-      'SUPABASE_SERVICE_ROLE_KEY = la clé service_role du projet cible. Variable serveur uniquement.',
+      `Type Config · NEXT_PUBLIC_SUPABASE_URL = ${apiUrl}`,
+      'Type Config · NEXT_PUBLIC_SUPABASE_ANON_KEY = la clé anon du projet cible.',
+      'Type Secret · SUPABASE_SERVICE_ROLE_KEY = la clé service_role du projet cible. Variable serveur uniquement.',
       'Pour une recette isolée, sélectionne l’environnement qui servira son URL dans ce projet Vercel dédié.',
       'Saisis les clés directement dans Vercel. L’assistant enregistre seulement la progression.',
     ],
@@ -52,7 +52,7 @@ const steps = [
     lines: [
       'Dossier à préparer : deployment/dedicated-installation/.',
       'Fichiers attendus : schema.sql, reference-seed.sql et catalog-seed.sql.',
-      'Le contrôle liste les fichiers manquants. Le paquet devra ensuite être validé sur une base jetable.',
+      'Le contrôle affiche les fichiers manquants ou les validations restantes avant l’installation.',
     ],
     check: () => spawnSync(process.execPath, ['scripts/check-dedicated-installation-package.mjs'], {
       cwd: fileURLToPath(root), stdio: 'inherit',
