@@ -70,6 +70,10 @@ export default function DomainsAdminPage() {
   const [installationStep, setInstallationStep] = useState(0)
   const [addingCatalog, setAddingCatalog] = useState(false)
   const showInstallation = dedicatedSetup && (editing === 'new' || addingCatalog)
+  const visibleInstallationEntries = installationCatalog?.filter(
+    entry => entry.category === catalogueSteps[installationStep - 2],
+  ) ?? []
+  const visibleInstallationKeys = visibleInstallationEntries.map(entry => entry.category + '/' + entry.code)
   const [deleting, setDeleting] = useState<{ domain: Domain; request: string } | null>(null)
   const [preview, setPreview] = useState<DeletionPreview | null>(null)
   const [confirmation, setConfirmation] = useState('')
@@ -328,8 +332,22 @@ export default function DomainsAdminPage() {
                 {installationStep === 1 && <p>{_ui('Les cultures de départ, les listes de référence et les catégories comptables seront disponibles après la création.')}</p>}
                 {installationStep >= 2 && installationStep <= 4 && <>
                   <p>{_ui('Coche les fiches à reprendre. Tu peux passer cette étape sans en choisir.')}</p>
+                  {visibleInstallationKeys.length > 0 && (
+                    <div className="flex flex-wrap gap-sm">
+                      <Button variant="secondary" size="sm" type="button"
+                        disabled={visibleInstallationKeys.every(key => installationSelection.includes(key))}
+                        onClick={() => setInstallationSelection(current => [...new Set([...current, ...visibleInstallationKeys])])}>
+                        {_ui('Tout sélectionner')}
+                      </Button>
+                      <Button variant="ghost" size="sm" type="button"
+                        disabled={!visibleInstallationKeys.some(key => installationSelection.includes(key))}
+                        onClick={() => setInstallationSelection(current => current.filter(key => !visibleInstallationKeys.includes(key)))}>
+                        {_ui('Tout désélectionner')}
+                      </Button>
+                    </div>
+                  )}
                   <div className="max-h-72 space-y-sm overflow-auto">
-                  {installationCatalog.filter(entry => entry.category === catalogueSteps[installationStep - 2]).map(entry => {
+                  {visibleInstallationEntries.map(entry => {
                     const key = entry.category + '/' + entry.code
                     return <label key={key} className="flex items-center gap-sm">
                       <input type="checkbox" checked={installationSelection.includes(key)} onChange={event => {
