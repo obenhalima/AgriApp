@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Input as TInput, Select as TSelect, Field } from '@/components/ui/Input'
 import { Modal, ModalFooter } from '@/components/ui/Modal'
+import { DedicatedReferenceChecklist } from '@/components/DedicatedReferenceChecklist'
 import { supabase } from '@/lib/supabase'
 
 type DeletionPreview = {
@@ -69,6 +70,7 @@ export default function DomainsAdminPage() {
   const [installationSelection, setInstallationSelection] = useState<string[]>([])
   const [installationStep, setInstallationStep] = useState(0)
   const [addingCatalog, setAddingCatalog] = useState(false)
+  const [referenceCompany, setReferenceCompany] = useState<Domain | null>(null)
   const showInstallation = dedicatedSetup && (editing === 'new' || addingCatalog)
   const visibleInstallationEntries = installationCatalog?.filter(
     entry => entry.category === catalogueSteps[installationStep - 2],
@@ -275,7 +277,10 @@ export default function DomainsAdminPage() {
               </div>
               <div className="flex flex-wrap gap-sm">
                 <Button variant="secondary" size="sm" onClick={() => openEdit(d)} className="flex-1"><Pencil size={12} /> {_ui("Modifier")}</Button>
-                {dedicatedSetup && d.is_active && <Button variant="secondary" size="sm" disabled={saving} onClick={() => void openCatalog(d)}>{_ui('Catalogue')}</Button>}
+                {dedicatedSetup && d.is_active && <>
+                  <Button variant="secondary" size="sm" onClick={() => setReferenceCompany(d)}>{_ui('Référentiels')}</Button>
+                  <Button variant="secondary" size="sm" disabled={saving} onClick={() => void openCatalog(d)}>{_ui('Catalogue')}</Button>
+                </>}
                 <Button variant="destructive" size="sm" disabled={deletionBusy} onClick={() => openDeletion(d)}>
                   <Trash2 size={12} /> {_ui('Supprimer')}
                 </Button>
@@ -284,6 +289,9 @@ export default function DomainsAdminPage() {
           ))}
         </div>
       )}
+
+      {referenceCompany && <DedicatedReferenceChecklist domain={referenceCompany} onClose={() => setReferenceCompany(null)}
+        onCatalog={() => { setReferenceCompany(null); void openCatalog(referenceCompany) }} />}
 
       {deleting && (
         <Modal title={_ui('Supprimer {v0}', { v0: deleting.domain.name })}
