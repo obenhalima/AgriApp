@@ -13,7 +13,7 @@ const groups = [
     title: '1. Vérifier le socle',
     rows: [
       { table: 'crops', label: 'Cultures', needed: 'Avant les variétés et les plantations', scope: 'domain_id', href: '/cultures' },
-      { table: 'reference_values', label: 'Unités et listes de choix', needed: 'Avant les articles et les formulaires métier', scope: null, href: '/admin/parametres' },
+      { table: 'reference_values', label: 'Unités et listes de choix', needed: 'Avant les articles et les formulaires métier', scope: null, href: '/admin/referentiels' },
       { table: 'account_categories', label: 'Catégories comptables', needed: 'Avant les budgets et le suivi des coûts', scope: null, href: '/admin/account-categories' },
       { table: 'roles', label: 'Rôles', needed: 'Avant de donner accès à l’équipe', scope: null, href: '/admin/users' },
       { table: 'workflow_definitions', label: 'Modèles de workflow', needed: 'À vérifier avant d’utiliser les workflows', scope: null, href: '/admin/workflows' },
@@ -35,7 +35,9 @@ const groups = [
       { table: 'greenhouses', label: 'Serres', needed: 'Après les fermes, avant les plantations sous serre', scope: 'farms.domain_id', href: '/serres' },
       { table: 'warehouses', label: 'Entrepôts', needed: 'Avant les stocks d’ouverture et les mouvements', scope: 'domain_id', href: '/entrepots' },
       { table: 'campaigns', label: 'Campagnes', needed: 'Avant les plantations et les budgets', scope: 'domain_id', href: '/campagnes' },
+      { table: 'campaign_plantings', label: 'Plantations', needed: 'Avant les récoltes', scope: 'domain_id', href: '/plan-culture' },
       { table: 'suppliers', label: 'Fournisseurs', needed: 'À saisir avant les achats concernés', scope: 'domain_id', href: '/fournisseurs' },
+      { table: 'clients', label: 'Clients commerciaux', needed: 'À saisir avant les commandes clients', scope: 'domain_id', href: '/clients' },
       { table: 'plant_protection_products', label: 'Produits phytosanitaires', needed: 'À renseigner si la société utilise les prescriptions phytosanitaires', scope: 'domain_id', href: '/agronomie/produits' },
       { table: 'workers', label: 'Employés', needed: 'Avant le pointage et la paie', scope: 'farms.domain_id', href: '/rh/employes' },
       { table: 'domain_memberships', label: 'Affectations utilisateurs', needed: 'Avant de donner accès à la société', scope: 'domain_id', href: '/admin/users' },
@@ -46,13 +48,26 @@ const groups = [
 export function DedicatedReferenceChecklist({ domain, onClose, onCatalog }: {
   domain: Domain
   onClose: () => void
-  onCatalog: () => void
+  onCatalog: (category: string) => void
 }) {
   const router = useRouter()
   const { activeDomain, switchDomain } = useAuth()
   const [counts, setCounts] = useState<Record<string, number | null> | null>(null)
   const [navigationError, setNavigationError] = useState('')
   const [opening, setOpening] = useState(false)
+  const steps = groups.flatMap((group, index) => group.rows.map(row => ({
+    ...row, group: group.title, hasCatalog: index === 1,
+  })))
+  const storageKey = `itrix-reference-step:${domain.id}`
+  const [step, setStep] = useState(() => {
+    try {
+      const saved = Number(sessionStorage.getItem(storageKey))
+      return Number.isInteger(saved) && saved >= 0 && saved <= steps.length ? saved : 0
+    } catch {
+      return 0
+    }
+  })
+  const current = steps[step]
 
   useEffect(() => {
     let current = true
@@ -69,6 +84,11 @@ export function DedicatedReferenceChecklist({ domain, onClose, onCatalog }: {
     return () => { current = false }
   }, [domain.id])
 
+  function goTo(next: number) {
+    setStep(next)
+    try { sessionStorage.setItem(storageKey, String(next)) } catch {}
+  }
+
   async function open(href: string) {
     setOpening(true)
     setNavigationError('')
@@ -83,33 +103,38 @@ export function DedicatedReferenceChecklist({ domain, onClose, onCatalog }: {
     }
   }
 
-  return <Modal title={`Référentiels · ${domain.name}`} onClose={onClose} size="xl">
+  const count = current ? counts?.[current.table] : undefined
+  return <Modal title={`Assistant des référentiels · ${domain.name}`} onClose={onClose} size="lg">
     <div className="space-y-md">
-      <p>Complète les éléments nécessaires avant d’utiliser le processus indiqué.</p>
       {navigationError && <p role="alert" className="text-danger">{navigationError}</p>}
-      {groups.map((group, index) => <section key={group.title} className="space-y-sm">
-        <div className="flex flex-wrap items-center justify-between gap-sm">
-          <h3 className="font-semibold">{group.title}</h3>
-          {index === 1 && <Button variant="secondary" size="sm" onClick={onCatalog}>Parcourir le catalogue général</Button>}
+      <p role="status" className="font-semibold">Étape {step + 1} sur {steps.length + 1} · {current?.group ?? 'Récapitulatif'}</p>
+      {current ? <section className="space-y-sm">
+        <h3 className="text-lg font-semibold">{current.label}</h3>
+        <p>{current.needed}</p>
+        <p>{count === undefined ? 'Vérification…' : count === null ? 'Non vérifié' : count === 0 ? 'À renseigner' : `${count} enregistré(s)`}</p>
+        <div className="flex flex-wrap gap-sm">
+          {current.hasCatalog && <Button variant="secondary" onClick={() => onCatalog(current.table)}>Reprendre du catalogue général</Button>}
+          <Button variant="ghost" disabled={opening} onClick={() => void open(current.href)}>
+            {count ? 'Vérifier ou compléter' : 'Saisir dans la société'}
+          </Button>
         </div>
-        {group.rows.map(row => {
-          const count = counts?.[row.table]
-          return <div key={row.table} className="flex items-center justify-between gap-sm border-b border-border py-sm">
-            <div>
-              <p className="font-medium">{row.label}</p>
-              <p className="text-caption text-fg-secondary">{row.needed}</p>
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-sm text-caption">
-              <span>{count === undefined ? 'Vérification…' : count === null ? 'Non vérifié' : count === 0 ? 'À renseigner' : `${count} enregistré(s)`}</span>
-              <Button variant="ghost" size="sm" disabled={opening} onClick={() => void open(row.href)}>Ouvrir</Button>
-            </div>
-          </div>
-        })}
-        {index === 2 && <div className="flex flex-wrap gap-sm">
-          <Button variant="ghost" size="sm" disabled={opening} onClick={() => void open('/clients')}>Saisir les clients commerciaux</Button>
+      </section> : <section className="space-y-sm">
+        <p>Les modules soumis à des prérequis s’ouvrent lorsque la société dispose des données nécessaires.</p>
+        <ul className="space-y-xs">
+          {steps.map((row, index) => <li key={row.table}>
+            <button type="button" className="text-left underline" onClick={() => goTo(index)}>
+              {row.label} · {counts?.[row.table] ?? 'Non vérifié'}
+            </button>
+          </li>)}
+        </ul>
+        <div className="flex flex-wrap gap-sm">
           <Button variant="ghost" size="sm" disabled={opening} onClick={() => void open('/stocks/reprise')}>Renseigner le stock d’ouverture</Button>
-        </div>}
-      </section>)}
+        </div>
+      </section>}
+      <div className="flex justify-between gap-sm border-t border-border pt-md">
+        <Button variant="ghost" disabled={step === 0 || opening} onClick={() => goTo(step - 1)}>Précédent</Button>
+        <Button disabled={opening} onClick={() => current ? goTo(step + 1) : onClose()}>{current ? 'Suivant' : 'Fermer'}</Button>
+      </div>
     </div>
   </Modal>
 }

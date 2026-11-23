@@ -10,6 +10,8 @@ Le parcours de création dans **Administration → Clients / Sociétés** est ac
 
 Exécuter `shared-reference-bootstrap.sql` avec le rôle de migration après `reference-seed.sql`. Cette étape charge les listes et catégories communes. Le parcours de création authentifié écrit ensuite les cultures et fiches de la société et les protections du référentiel partagé restent actives.
 
+Exécuter `module-readiness.sql` avant le déploiement du frontend. Sur une instance dédiée, les écrans concernés consultent les prérequis de la société active avant d’afficher le module. L’assistant **Référentiels** accompagne la configuration par étape et mémorise l’étape dans l’onglet. Les choix du catalogue s’appliquent à la société sélectionnée. La saisie manuelle utilise les écrans métier accessibles depuis l’assistant.
+
 ## Architecture
 
 Chaque contrat dispose de son propre projet Vercel et de son propre projet Supabase. Une instance peut accueillir plusieurs sociétés. Les droits, fermes et données opérationnelles restent rattachés à leur société. L’instance ItriX Technologies héberge les démonstrations et sert de source en lecture seule pour les référentiels approuvés.

@@ -2,7 +2,7 @@
 import {useLanguage} from '@/lib/i18n'
 
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Building2, Globe2, Lock, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth'
@@ -71,6 +71,7 @@ export default function DomainsAdminPage() {
   const [installationStep, setInstallationStep] = useState(0)
   const [addingCatalog, setAddingCatalog] = useState(false)
   const [referenceCompany, setReferenceCompany] = useState<Domain | null>(null)
+  const openedSetupFromLink = useRef(false)
   const showInstallation = dedicatedSetup && (editing === 'new' || addingCatalog)
   const visibleInstallationEntries = installationCatalog?.filter(
     entry => entry.category === catalogueSteps[installationStep - 2],
@@ -98,6 +99,15 @@ export default function DomainsAdminPage() {
     void load()
     if (isPlatformAdmin) void loadPending().catch(() => {})
   }, [authLoading, isPlatformAdmin])
+  useEffect(() => {
+    if (!dedicatedSetup || openedSetupFromLink.current || !isPlatformAdmin ||
+        new URLSearchParams(window.location.search).get('setup') !== '1') return
+    const company = items.find(item => item.id === activeDomain?.domain_id)
+    if (company) {
+      openedSetupFromLink.current = true
+      setReferenceCompany(company)
+    }
+  }, [activeDomain?.domain_id, isPlatformAdmin, items])
 
   const openDeletion = async (domain: Domain) => {
     setDeleting({ domain, request: crypto.randomUUID() })
@@ -166,7 +176,7 @@ export default function DomainsAdminPage() {
     })
     setEditing(d)
   }
-  const openCatalog = async (domain: Domain) => {
+  const openCatalog = async (domain: Domain, category?: string) => {
     setSaving(true)
     try {
       const { data, error } = await supabase.rpc('dedicated_installation_catalog')
@@ -175,7 +185,8 @@ export default function DomainsAdminPage() {
       openEdit(domain)
       setInstallationSelection([])
       setInstallationCatalog(data as InstallationEntry[])
-      setInstallationStep(2)
+      const categoryIndex = catalogueSteps.findIndex(item => item === category)
+      setInstallationStep(2 + Math.max(0, categoryIndex))
       setAddingCatalog(true)
     } catch (error) {
       toast.error((error as Error).message)
@@ -205,13 +216,15 @@ export default function DomainsAdminPage() {
         const selection = installationCatalog
           .filter(entry => installationSelection.includes(entry.category + '/' + entry.code))
           .map(({ category, code }) => ({ category, code }))
-        const { error } = addingCatalog && editing && editing !== 'new'
+        const { data, error } = addingCatalog && editing && editing !== 'new'
           ? await supabase.rpc('add_dedicated_company_catalog', { company_id: editing.id, p_selection: selection })
           : await supabase.rpc('create_dedicated_company', {
             p_input: { ...form, is_active: true }, p_selection: selection,
           })
         if (error) throw error
         await refresh()
+        if (addingCatalog && editing && editing !== 'new') setReferenceCompany(editing)
+        if (editing === 'new' && data?.id) setReferenceCompany(data as Domain)
       } else if (editing === 'new') await createDomain(form)
       else if (editing) await updateDomain(editing.id, form)
       toast.success(addingCatalog ? _ui('Sélection enregistrée') : editing === 'new' ? _ui("Client / Société créé") : _ui("Client / Société modifié"))
@@ -291,7 +304,7 @@ export default function DomainsAdminPage() {
       )}
 
       {referenceCompany && <DedicatedReferenceChecklist domain={referenceCompany} onClose={() => setReferenceCompany(null)}
-        onCatalog={() => { setReferenceCompany(null); void openCatalog(referenceCompany) }} />}
+        onCatalog={category => { setReferenceCompany(null); void openCatalog(referenceCompany, category) }} />}
 
       {deleting && (
         <Modal title={_ui('Supprimer {v0}', { v0: deleting.domain.name })}

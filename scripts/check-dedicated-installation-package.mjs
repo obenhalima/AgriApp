@@ -6,6 +6,7 @@ const packageFiles = [
   ['catalogue général', 'deployment/dedicated-installation/catalog-seed.sql'],
   ['chargement du référentiel partagé', 'deployment/dedicated-installation/shared-reference-bootstrap.sql'],
   ['raccordement de la création de société', 'deployment/dedicated-installation/first-company.sql'],
+  ['contrôle des prérequis par module', 'deployment/dedicated-installation/module-readiness.sql'],
 ]
 
 const missing = []
