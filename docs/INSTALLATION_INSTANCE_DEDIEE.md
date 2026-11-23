@@ -76,7 +76,7 @@ Intégrer les correctifs dans le Git privé commun, les tester sur un environnem
 
 ## 6. Reprendre les fermes et les serres
 
-Dans **Administration → Initialisation**, sélectionner la société cible, puis **Simuler une reprise de fermes et serres**. L’écran demande un dossier JSON source, compare les fiches avec la société cible et affiche les créations, réutilisations, conflits et rattachements à résoudre. Le pilote s’arrête à l’aperçu.
+Dans **Administration → Initialisation**, sélectionner la société, puis **Simuler une reprise de fermes et serres**. Pour créer un fichier, utiliser **Télécharger le modèle Excel** ou **Exporter cette société en Excel** sur l’instance source. Le même classeur se recharge sur l’instance cible. Conserver les onglets **Dossier**, **Fermes** et **Serres**, ainsi que leurs en-têtes. Le code `farm_code` rattache chaque serre à sa ferme. L’écran accepte aussi le dossier JSON et affiche les créations, réutilisations, conflits et rattachements à résoudre. Le pilote s’arrête à l’aperçu.
 
 Pour produire un dossier depuis une autre instance ItriX Farm, utiliser sa connexion PostgreSQL en lecture seule et le script versionné :
 
