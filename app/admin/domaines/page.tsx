@@ -3,7 +3,7 @@ import {useLanguage} from '@/lib/i18n'
 
 
 import { useEffect, useMemo, useState } from 'react'
-import { Building2, Globe2, Lock, Pencil, Plus, ShieldCheck } from 'lucide-react'
+import { Building2, Globe2, Lock, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth'
 import { createDomain, listDomains, updateDomain, type Domain, type DomainInput } from '@/lib/domains'
@@ -15,6 +15,33 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Input as TInput, Select as TSelect, Field } from '@/components/ui/Input'
 import { Modal, ModalFooter } from '@/components/ui/Modal'
+import { supabase } from '@/lib/supabase'
+
+type DeletionPreview = {
+  code: string
+  fingerprint: string
+  tables: { table: string; count: number }[]
+  total: number
+  files: number
+  accounts_to_deactivate: number
+  local: { files: number; connections: number; fingerprint: string }
+}
+
+type PendingDeletion = { job_id: string; client_id: string; client_code: string; fingerprint: string }
+
+async function deletionApi<T>(query: string, body?: object): Promise<T> {
+  const { data } = await supabase.auth.getSession()
+  if (!data.session) throw new Error('Connexion requise')
+  const response = await fetch('/api/admin/client-deletion' + query, {
+    method: body ? 'POST' : 'GET',
+    headers: { Authorization: 'Bearer ' + data.session.access_token, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+    cache: 'no-store',
+  })
+  const result = await response.json()
+  if (!response.ok) throw new Error(result.error)
+  return result
+}
 
 const EMPTY: DomainInput = {
   code: '', name: '', legal_name: '', address: '', city: '', region: '',
@@ -25,12 +52,22 @@ const EMPTY: DomainInput = {
 export default function DomainsAdminPage() {
  const {t:_ui,text:_uiNode}=useLanguage()
 
-  const { isPlatformAdmin, loading: authLoading } = useAuth()
+  const { isPlatformAdmin, activeDomain, refresh, loading: authLoading } = useAuth()
   const [items, setItems] = useState<Domain[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Domain | 'new' | null>(null)
   const [form, setForm] = useState<DomainInput>(EMPTY)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState<{ domain: Domain; request: string } | null>(null)
+  const [preview, setPreview] = useState<DeletionPreview | null>(null)
+  const [confirmation, setConfirmation] = useState('')
+  const [deletionError, setDeletionError] = useState('')
+  const [deletionBusy, setDeletionBusy] = useState(false)
+  const [pending, setPending] = useState<PendingDeletion[]>([])
+
+  const loadPending = async () => {
+    setPending(await deletionApi<PendingDeletion[]>('?action=pending'))
+  }
 
   const load = async () => {
     if (!isPlatformAdmin) { setLoading(false); return }
@@ -38,7 +75,56 @@ export default function DomainsAdminPage() {
     catch (e: any) { toast.error(e.message) }
     finally { setLoading(false) }
   }
-  useEffect(() => { if (!authLoading) load() }, [authLoading, isPlatformAdmin])
+  useEffect(() => {
+    if (authLoading) return
+    void load()
+    if (isPlatformAdmin) void loadPending().catch(() => {})
+  }, [authLoading, isPlatformAdmin])
+
+  const openDeletion = async (domain: Domain) => {
+    setDeleting({ domain, request: crypto.randomUUID() })
+    setPreview(null)
+    setConfirmation('')
+    setDeletionError('')
+    setDeletionBusy(true)
+    try {
+      setPreview(await deletionApi<DeletionPreview>('?domain=' + domain.id))
+    } catch (error) {
+      setDeletionError((error as Error).message)
+    } finally {
+      setDeletionBusy(false)
+    }
+  }
+
+  const runDeletion = async (job?: PendingDeletion) => {
+    if (!job && (!deleting || !preview || confirmation !== preview.code)) return
+    const body = job
+      ? { domain: job.client_id, request: job.job_id, code: job.client_code, fingerprint: job.fingerprint }
+      : { domain: deleting!.domain.id, request: deleting!.request, code: confirmation,
+          fingerprint: preview!.fingerprint, localFingerprint: preview!.local.fingerprint }
+    setDeletionBusy(true)
+    setDeletionError('')
+    try {
+      const result = await deletionApi<{ status: 'complete' | 'files_pending'; message?: string }>('', body)
+      setDeleting(null)
+      setItems(current => current.filter(domain => domain.id !== body.domain))
+      setPending(current => [
+        ...current.filter(entry => entry.job_id !== body.request),
+        ...(result.status === 'files_pending' ? [{
+          job_id: body.request, client_id: body.domain, client_code: body.code, fingerprint: body.fingerprint,
+        }] : []),
+      ])
+      if (result.status === 'complete') toast.success(_ui('Client supprimé'))
+      else toast.warning(result.message || _ui('Nettoyage des fichiers à reprendre'))
+      if (activeDomain?.domain_id === body.domain) void refresh()
+    } catch (error) {
+      const message = (error as Error).message
+      if (job) toast.error(message)
+      else setDeletionError(message)
+    } finally {
+      setDeletionBusy(false)
+    }
+  }
 
   const stats = useMemo(() => ({
     active: items.filter(d => d.is_active).length,
@@ -87,6 +173,20 @@ export default function DomainsAdminPage() {
         ]}
       />
 
+      {pending.length > 0 && (
+        <Card className="mb-md space-y-sm">
+          <h2 className="font-semibold">{_ui('Nettoyages à reprendre')}</h2>
+          {pending.map(job => (
+            <div key={job.job_id} className="flex items-center justify-between gap-sm">
+              <span className="font-mono">{job.client_code}</span>
+              <Button variant="secondary" size="sm" disabled={deletionBusy} onClick={() => runDeletion(job)}>
+                {_ui('Reprendre le nettoyage')}
+              </Button>
+            </div>
+          ))}
+        </Card>
+      )}
+
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-md">{[1,2,3].map(i => <Skeleton key={i} className="h-52" />)}</div>
       ) : items.length === 0 ? (
@@ -108,10 +208,49 @@ export default function DomainsAdminPage() {
                 <div><span className="text-fg-tertiary">{_ui("Fuseau")}</span><div className="font-semibold truncate">{d.timezone}</div></div>
                 <div><span className="text-fg-tertiary">{_ui("Langue")}</span><div className="font-semibold">{d.locale}</div></div>
               </div>
-              <Button variant="secondary" size="sm" onClick={() => openEdit(d)} className="w-full"><Pencil size={12} /> {" "}{_ui("Modifier")}</Button>
+              <div className="flex flex-wrap gap-sm">
+                <Button variant="secondary" size="sm" onClick={() => openEdit(d)} className="flex-1"><Pencil size={12} /> {_ui("Modifier")}</Button>
+                <Button variant="destructive" size="sm" disabled={deletionBusy} onClick={() => openDeletion(d)}>
+                  <Trash2 size={12} /> {_ui('Supprimer')}
+                </Button>
+              </div>
             </Card>
           ))}
         </div>
+      )}
+
+      {deleting && (
+        <Modal title={_ui('Supprimer {v0}', { v0: deleting.domain.name })}
+          onClose={() => { if (!deletionBusy) setDeleting(null) }} size="lg">
+          <div className="space-y-md">
+            {deletionError && <p role="alert" className="text-danger">{deletionError}</p>}
+            {deletionBusy && !preview && <p role="status">{_ui('Calcul des données à supprimer…')}</p>}
+            {preview && (
+              <>
+                <p className="text-danger">{_ui('Cette suppression est définitive.')}</p>
+                <p>{_ui('{v0} lignes en base, {v1} fichiers Storage, {v2} fichiers locaux et {v3} connexions locales seront supprimés.', {
+                  v0: String(preview.total), v1: String(preview.files), v2: String(preview.local.files), v3: String(preview.local.connections),
+                })}</p>
+                <p>{_ui('Comptes à désactiver')} · {preview.accounts_to_deactivate}</p>
+                <details>
+                  <summary className="cursor-pointer">{_ui('Détail par table')}</summary>
+                  <ul className="max-h-40 overflow-auto text-caption">
+                    {preview.tables.map(row => <li key={row.table}>{row.table} · {row.count}</li>)}
+                  </ul>
+                </details>
+                <Field label={_ui('Saisissez le code {v0} pour confirmer', { v0: preview.code })}>
+                  <TInput value={confirmation} disabled={deletionBusy} onChange={event => setConfirmation(event.target.value)} />
+                </Field>
+              </>
+            )}
+            <div className="flex flex-wrap justify-end gap-sm">
+              <Button variant="ghost" disabled={deletionBusy} onClick={() => setDeleting(null)}>{_ui('Annuler')}</Button>
+              {deletionError && <Button variant="secondary" disabled={deletionBusy} onClick={() => openDeletion(deleting.domain)}>{_ui('Actualiser l’aperçu')}</Button>}
+              <Button variant="destructive" loading={deletionBusy} disabled={!preview || confirmation !== preview.code}
+                onClick={() => runDeletion()}>{_ui('Supprimer définitivement')}</Button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {editing && (
