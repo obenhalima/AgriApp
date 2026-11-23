@@ -1,0 +1,56 @@
+name: Installer une instance dédiée
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: Étape à exécuter
+        required: true
+        default: verifier-cible
+        type: choice
+        options:
+          - verifier-cible
+          - verifier-paquet
+  push:
+    branches:
+      - feat/installation-instance-dediee
+    paths:
+      - .github/workflows/install-dedicated-instance.yml
+      - deployment/**
+      - scripts/check-dedicated-instance-target.mjs
+      - scripts/check-dedicated-installation-package.mjs
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installation-domaine-benhalima-recette
+  cancel-in-progress: false
+
+jobs:
+  recette:
+    name: Domaine BENHALIMA · Recette
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Récupérer la révision inspectée
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Préparer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 1 · Vérifier la cible de recette
+        run: >-
+          node scripts/check-dedicated-instance-target.mjs
+          deployment/domaine-benhalima-recette.json
+          tzwvtsadjzdtmilhesmo
+          itrix-domaine-benhalima-recette
+      - name: 2 · Vérifier le paquet d’installation
+        if: github.event_name == 'workflow_dispatch' && inputs.step == 'verifier-paquet'
+        run: node scripts/check-dedicated-installation-package.mjs
+      - name: Résultat
+        if: success()
+        run: |
+          printf '## Recette Domaine BENHALIMA\n\nRévision contrôlée · `%s`\n\nAucune écriture Supabase ou Vercel.\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"

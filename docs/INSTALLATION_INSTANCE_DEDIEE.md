@@ -59,3 +59,37 @@ Fournir la connexion à `psql` via un profil de connexion sécurisé. Vérifier 
 Vérifier les sauvegardes, les accès, les URL Auth et l’absence de données de démo avant l’ouverture. Reporter dans le dossier de livraison le commit et le tag Git, le déploiement Vercel, la référence Supabase, les migrations et la validation de recette.
 
 Intégrer les correctifs dans le Git privé commun, les tester sur un environnement séparé, puis publier une version. Valider et déployer la version pour chaque instance concernée. Vérifier la compatibilité du schéma avec la version précédente de l’application et prévoir séparément la restauration des données.
+
+## 6. Automatiser l’installation
+
+Construire et tester d’abord le socle SQL neutre sur une base jetable. La recette Domaine BENHALIMA sert ensuite à valider le même processus sur Supabase et Vercel.
+
+### Étapes disponibles dans cette branche
+
+| Étape | Déclenchement | Résultat |
+| --- | --- | --- |
+| 1. Vérifier la cible | Push sur la branche d’installation ou choix manuel `verifier-cible` | Vérifie le manifeste de Domaine BENHALIMA et refuse les références de démonstration. |
+| 2. Vérifier le paquet | Choix manuel `verifier-paquet` après le contrôle de la cible | Vérifie la présence du schéma neutre, du socle initial et du catalogue. Échoue tant qu’un fichier manque. |
+
+Les deux contrôles peuvent aussi être lancés depuis la racine de la copie de travail :
+
+```sh
+node scripts/check-dedicated-instance-target.mjs deployment/domaine-benhalima-recette.json tzwvtsadjzdtmilhesmo itrix-domaine-benhalima-recette
+node scripts/check-dedicated-installation-package.mjs
+```
+
+Pour lancer manuellement le workflow dans GitHub, le fichier doit être présent sur la branche par défaut. Ces étapes exécutent des contrôles locaux au runner.
+
+### Étapes d’exécution à ajouter après validation du paquet
+
+Le workflow d’installation complet recevra en plus l’environnement cible et la version Git à installer. Chaque environnement GitHub possédera ses propres identifiants Supabase et Vercel et ses secrets. Une seule exécution pourra modifier une cible à la fois.
+
+1. Récupérer la version Git choisie et contrôler que le manifeste, les identifiants effectifs et l’environnement GitHub désignent la même cible. Refuser les références de démonstration et toute base qui contient déjà des données applicatives hors reprise contrôlée.
+2. Appliquer le socle SQL versionné et enregistrer les migrations appliquées. Installer les politiques Storage et les fonctions Edge nécessaires. Charger le socle de départ et le catalogue général dans leur périmètre d’installation.
+3. Vérifier le compte super-admin désigné dans le Supabase cible et lui attribuer le rôle plateforme. Les identifiants de connexion ne figurent pas dans les journaux GitHub.
+4. Construire et déployer l’application dans le projet Vercel cible avec ses propres variables d’environnement. Vérifier la connexion, l’affichage de l’assistant et le verrouillage des modules pour un compte ordinaire.
+5. Publier un compte rendu avec le commit, les migrations, les résultats des tests et l’URL. Prévoir une reprise qui vérifie les opérations déjà exécutées avant de continuer.
+
+Le workflow **Mettre à jour une instance** applique les seules migrations nouvelles compatibles, déploie la version validée et vérifie les accès. La production requiert une approbation avant toute écriture. Le socle, le catalogue et l’assistant sont initialisés par le workflow d’installation uniquement.
+
+Références officielles : [environnements et migrations Supabase](https://supabase.com/docs/guides/deployment/managing-environments) et [déploiements Vercel depuis GitHub Actions](https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel).
