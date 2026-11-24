@@ -23,7 +23,7 @@ const supabase = `https://supabase.com/dashboard/project/${ref}`
 const vercel = `https://vercel.com/${scope}/${project}`
 const progressDirectory = new URL('../tmp/', import.meta.url)
 const progressFile = new URL(`installation-${ref}.json`, progressDirectory)
-const installation = { ref, project, scope, commit }
+const installation = { ref, project, scope, commit, wizardVersion: 2 }
 const steps = [
   {
     title: 'Vérifier les projets et le manifeste',
@@ -59,6 +59,16 @@ const steps = [
     }).status === 0,
   },
   {
+    title: 'Publier et vérifier la création des utilisateurs',
+    lines: [
+      `Connecte la CLI Supabase avec un compte autorisé sur le projet ${ref} via supabase login.`,
+      'Entrée déploie la fonction de création des utilisateurs et vérifie son accès sur le projet cible.',
+    ],
+    check: () => spawnSync(process.execPath, ['scripts/deploy-dedicated-admin-functions.mjs', manifestPath], {
+      cwd: fileURLToPath(root), stdio: 'inherit',
+    }).status === 0,
+  },
+  {
     title: 'Installer Supabase et activer le super-admin',
     lines: [
       `Connexion de la base : ouvre Connect depuis ${supabase}`,
@@ -83,9 +93,9 @@ const steps = [
 let step = 0
 try {
   const saved = JSON.parse(await readFile(progressFile, 'utf8'))
-  if (Object.keys(installation).every(key => installation[key] === saved[key])
+  if (saved.ref === ref && saved.project === project && saved.scope === scope && saved.commit === commit
       && Number.isInteger(saved.step) && saved.step >= 0 && saved.step < steps.length) {
-    step = saved.step
+    step = saved.wizardVersion === installation.wizardVersion ? saved.step : Math.min(saved.step, 3)
   }
 } catch (error) {
   if (error.code !== 'ENOENT') throw error

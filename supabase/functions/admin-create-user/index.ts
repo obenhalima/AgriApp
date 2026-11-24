@@ -46,7 +46,10 @@ serve(async (req: Request) => {
       .from('profiles')
       .select('id, role_id, is_platform_admin, roles(is_admin)')
       .eq('id', userData.user.id)
+      .eq('is_active', true)
       .maybeSingle()
+
+    if (!prof) return jsonResponse({ error: 'Compte administrateur inactif ou introuvable' }, 403)
 
     const { email, password, full_name, role_id, memberships = [] } = await req.json()
     if (!email || !password) return jsonResponse({ error: 'email et password requis' }, 400)
