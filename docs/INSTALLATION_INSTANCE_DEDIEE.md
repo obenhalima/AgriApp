@@ -129,6 +129,6 @@ Le workflow **Mettre à jour une instance** applique les seules migrations nouve
 Références officielles : [environnements et migrations Supabase](https://supabase.com/docs/guides/deployment/managing-environments) et [déploiements Vercel depuis GitHub Actions](https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel).
 ## Vérification de la création des utilisateurs
 
-L’assistant publie `admin-create-user` sur le projet Supabase déclaré dans le manifeste. Connecter la CLI avec `supabase login` avant cette étape. Le contrôle vérifie que la fonction répond et refuse les requêtes anonymes avant de poursuivre.
+L’assistant publie `admin-create-user` et `admin-set-temporary-password` sur le projet Supabase déclaré dans le manifeste. Connecter la CLI avec `supabase login` avant cette étape. Le contrôle vérifie que chaque fonction répond et refuse les requêtes anonymes avant de poursuivre.
 
 Pour rejouer cette étape depuis la racine du dépôt, exécuter `node scripts/deploy-dedicated-admin-functions.mjs deployment/<manifeste>.json` en remplaçant `<manifeste>` par le nom du fichier de l’instance.

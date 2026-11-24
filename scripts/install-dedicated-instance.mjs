@@ -23,7 +23,7 @@ const supabase = `https://supabase.com/dashboard/project/${ref}`
 const vercel = `https://vercel.com/${scope}/${project}`
 const progressDirectory = new URL('../tmp/', import.meta.url)
 const progressFile = new URL(`installation-${ref}.json`, progressDirectory)
-const installation = { ref, project, scope, commit, wizardVersion: 2 }
+const installation = { ref, project, scope, commit, wizardVersion: 3 }
 const steps = [
   {
     title: 'Vérifier les projets et le manifeste',
@@ -59,10 +59,10 @@ const steps = [
     }).status === 0,
   },
   {
-    title: 'Publier et vérifier la création des utilisateurs',
+    title: 'Publier et vérifier les services de gestion des utilisateurs',
     lines: [
       `Connecte la CLI Supabase avec un compte autorisé sur le projet ${ref} via supabase login.`,
-      'Entrée déploie la fonction de création des utilisateurs et vérifie son accès sur le projet cible.',
+      'Entrée déploie et vérifie la création des utilisateurs et les mots de passe temporaires sur le projet cible.',
     ],
     check: () => spawnSync(process.execPath, ['scripts/deploy-dedicated-admin-functions.mjs', manifestPath], {
       cwd: fileURLToPath(root), stdio: 'inherit',
