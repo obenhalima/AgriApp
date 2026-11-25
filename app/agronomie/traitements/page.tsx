@@ -171,6 +171,7 @@ export default function TraitementsPage() {
   const [warehouses,setWarehouses]=useState<any[]>([]);
   const [forecastError,setForecastError]=useState("");
   const [workerLoadError,setWorkerLoadError]=useState("");
+  const [plantingLoadError,setPlantingLoadError]=useState("");
   const [productLoadError,setProductLoadError]=useState("");
   const [canValidate, setCanValidate] = useState(false),
     [canConfirm, setCanConfirm] = useState(false);
@@ -224,14 +225,14 @@ export default function TraitementsPage() {
       supabase
         .from("treatment_requests")
         .select(
-          "*,treatment_request_targets(*,campaign_plantings(greenhouses(name),varieties(commercial_name))),treatment_request_products(*,stock_items(name,unit,current_qty)),treatment_applications(*),treatment_efficacy_checks(id,checked_at,efficacy_pct)",
+          "*,treatment_request_targets(*,campaign_plantings(greenhouses(name),varieties!campaign_plantings_variety_client_fk(commercial_name))),treatment_request_products(*,stock_items(name,unit,current_qty)),treatment_applications(*),treatment_efficacy_checks(id,checked_at,efficacy_pct)",
         )
         .eq("domain_id", d)
         .order("created_at", { ascending: false }),
       supabase
         .from("campaign_plantings")
         .select(
-          "id,planted_area,greenhouses(id,name,farm_id,exploitable_area,farms(id,name)),varieties(commercial_name)",
+          "id,planted_area,greenhouses(id,name,farm_id,exploitable_area,farms(id,name)),varieties!campaign_plantings_variety_client_fk(commercial_name)",
         )
         .eq("domain_id", d),
       supabase.rpc("get_phyto_stock_projection", { p_domain: d }),
@@ -276,6 +277,7 @@ export default function TraitementsPage() {
     setForecastError(forecast.error?.message||wh.error?.message||"");
     setRequests((r.data || []).map(request=>({...request,stock_forecast:(forecast.data||[]).find((f:any)=>f.request_id===request.id)})));
     setPlantings(p.data || []);
+    setPlantingLoadError(p.error?.message || "");
     setProducts(
       (catalog.data || []).map((product: any) => {
         const stock = (s.data || []).find(
@@ -769,6 +771,7 @@ export default function TraitementsPage() {
                     </option>
                   ))}
               </Select>
+              {plantingLoadError && <p role="alert" className="text-danger">{_ui("Chargement des plantations impossible :")}{" "}{plantingLoadError}</p>}
             </Field>
             <Field label={_ui("Entrepôt de prélèvement de la ferme")} required>
               <Select disabled={!form.farm_id} value={form.warehouse_id} onChange={e=>setForm(v=>({...v,warehouse_id:e.target.value}))}>
